@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, type FormEvent } from "react"
-import { ArrowLeft } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -16,7 +15,7 @@ import { Input } from "@/components/ui/input"
 import { createProject } from "@/services/project.service";
 
 type NewProjectFormProps = {
-  onCancel?: () => void
+  onCancel: () => void
 }
 
 export function NewProjectForm({ onCancel }: NewProjectFormProps) {
@@ -57,10 +56,7 @@ export function NewProjectForm({ onCancel }: NewProjectFormProps) {
     setTimeout(() => {
       setIsSubmitting(false)
     }, 900)
-    
-    if (onCancel){
-      onCancel();
-    }
+    onCancel()
   }
 
   const handleCreateProject = async (projectName: string) => {

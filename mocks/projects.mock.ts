@@ -1,5 +1,5 @@
 
-import { Sidebar, type SidebarBook } from "@/components/ui/sidebar"
+import {type SidebarBook } from "@/components/left-sidebar"
 
 export const projectMock: SidebarBook[] = [
   {
