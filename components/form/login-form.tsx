@@ -122,6 +122,7 @@ export function LoginForm() {
                 type="submit"
                 disabled={isSubmitting}
                 className="w-full rounded-xl shadow-sm text-base"
+                onClick={() => void router.push("/editor")}
               >
                 {isSubmitting ? <Spinner className="size-4" /> : "Iniciar sesión"}
               </Button>
