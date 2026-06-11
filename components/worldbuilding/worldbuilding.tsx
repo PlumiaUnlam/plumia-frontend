@@ -5,6 +5,7 @@ import {Plus, Users, Star, Calendar, FileText} from "lucide-react"
 
 import { Header } from "../header"
 import { WikiTab } from "./wiki-panel"
+import { SummariesPanel } from "./summaries-panel"
 
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
@@ -82,7 +83,8 @@ export function Worldbuilding() {
                 
               </TabsContent>
 
-              <TabsContent value="summaries" className=" flex flex-1 h-full">
+              <TabsContent value="summaries" className=" flex flex-1 h-full mt-4 bg-card rounded-lg border border-border p-4">
+                <SummariesPanel />
               </TabsContent>
       </Tabs>
       </div>
