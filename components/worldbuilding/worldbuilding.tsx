@@ -7,6 +7,8 @@ import { Header } from "../header"
 import { WikiTab } from "./wiki-panel"
 import { SummariesPanel } from "./summaries-panel"
 
+import { NewEntityModal } from "@/components/modal/new-entity-modal"
+
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 type WorldbuildingTab = "wiki" | "relationships" | "timeline" | "summaries"
@@ -21,9 +23,10 @@ export function Worldbuilding() {
   ];
 
   const [activeTab, setActiveTab] = useState<WorldbuildingTab>("wiki")
+  const [showNewEntityModal, setShowNewEntityModal] =useState(false)
 
   return (
-    <div className="h-full flex flex-col bg-background text-foreground overflow-hidden">
+    <div className="min-h-screen flex flex-col bg-background text-foreground overflow-hidden">
 
       <Header />
 
@@ -37,11 +40,17 @@ export function Worldbuilding() {
           </div>
           <button
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+            onClick={() => setShowNewEntityModal(true)}
           >
             <Plus size={16} />
             Nueva Entidad
           </button>
         </div>
+
+        <NewEntityModal
+        show={showNewEntityModal}
+        onClose={() => setShowNewEntityModal(false)}
+        />
 
         {/* Tabs */}
         <Tabs
@@ -71,7 +80,7 @@ export function Worldbuilding() {
             </TabsTrigger>
           ))}
         </TabsList >
-              <TabsContent value="wiki" className=" flex flex-1 h-full mt-4 bg-card rounded-lg border border-border p-4">
+              <TabsContent value="wiki" className=" flex flex-1 w-full h-full mt-4 bg-card rounded-lg border border-border p-4">
                 <WikiTab />
               </TabsContent>
 
@@ -83,7 +92,7 @@ export function Worldbuilding() {
                 
               </TabsContent>
 
-              <TabsContent value="summaries" className=" flex flex-1 h-full mt-4 bg-card rounded-lg border border-border p-4">
+              <TabsContent value="summaries" className=" flex flex-1 w-full h-full mt-4 bg-card rounded-lg border border-border p-4">
                 <SummariesPanel />
               </TabsContent>
       </Tabs>

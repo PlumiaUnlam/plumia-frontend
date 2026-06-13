@@ -16,7 +16,6 @@ export function EditorLayout() {
     <SidebarProvider>
       <div className="flex flex-1 min-h-0">
         <LeftSidebar books={projects} />
-
       </div>
     </SidebarProvider>
 

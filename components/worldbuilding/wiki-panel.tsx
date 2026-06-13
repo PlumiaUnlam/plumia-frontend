@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
-interface Entity {
+
+export interface Entity {
   id: string;
   name: string;
   description: string;
@@ -33,7 +34,7 @@ const entities: Entity[] = [
     category: 'Lugar',
     tags: ['Ciudad', 'Peligrosa'],
     hasImage: false,
-    imageUrl: '' // Añade la URL de la imagen
+    imageUrl: ''
   },
     {
     id: '3',
@@ -42,7 +43,7 @@ const entities: Entity[] = [
     category: 'Personaje',
     tags: ['Protagonista', 'Humano'],
     hasImage: false,
-    imageUrl: '' // Añade la URL de la imagen
+    imageUrl: '' 
   },
   {
     id: '4',
@@ -51,7 +52,7 @@ const entities: Entity[] = [
     category: 'Lugar',
     tags: ['Ciudad', 'Peligrosa'],
     hasImage: false,
-    imageUrl: '' // Añade la URL de la imagen
+    imageUrl: '' 
   },
     {
     id: '5',
@@ -60,7 +61,7 @@ const entities: Entity[] = [
     category: 'Personaje',
     tags: ['Protagonista', 'Humano'],
     hasImage: false,
-    imageUrl: '' // Añade la URL de la imagen
+    imageUrl: '' 
   },
   {
     id: '6',
@@ -69,18 +70,17 @@ const entities: Entity[] = [
     category: 'Lugar',
     tags: ['Ciudad', 'Peligrosa'],
     hasImage: false,
-    imageUrl: '' // Añade la URL de la imagen
+    imageUrl: '' 
   }
 ];
 
-type EntityCategory = 'Personaje' | 'Lugar' | 'Objeto' | 'Evento';
+export type EntityCategory = 'Personaje' | 'Lugar' | 'Objeto' | 'Faccion' | 'Evento' | 'Concepto';
 
 export function WikiTab() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string[]>([]);
   const [selectedEntity, setSelectedEntity] = useState<Entity | null>(null);
 
-  // Filtrar entidades basándose en el query de búsqueda y categorías seleccionadas
   const filteredEntities = useMemo(() => {
     return entities.filter(entity =>
       entity.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -88,20 +88,19 @@ export function WikiTab() {
     ).filter(entity => selectedCategory.length === 0 || selectedCategory.includes(entity.category));
   }, [searchQuery, selectedCategory]);
 
-  // Obtener categorías únicas
   const categories = useMemo(() => {
     return Array.from(new Set(filteredEntities.map(entity => entity.category)));
   }, [filteredEntities]);
 
   return (
     <div className="flex w-full h-screen">
-      <aside className="w-90 px-4 py-6 text-foreground flex flex-col gap-4 border-r border-border">
-        <Input
+      <aside className="w-80 border-r border-border flex flex-col bg-muted/30">
+        <Input className="p-4 border-b border-border bg-card/50"
           placeholder="Buscar entidades..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
-        <h2 className="font-bold">Filtrar por categorías</h2>
+        <h2 className="p-3 border-b border-border bg-card/30">Filtrar por categorías</h2>
         <div className="flex flex-wrap gap-2">
           {categories.map(category => (
             <Button
