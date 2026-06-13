@@ -1,5 +1,6 @@
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 
 import {
     SidebarProvider, SidebarTrigger, Sidebar, SidebarContent, SidebarFooter, 
@@ -10,6 +11,7 @@ import {Collapsible,CollapsibleContent,CollapsibleTrigger,} from "@/components/u
 import {BookOpen, Earth,Layers3,GitBranch,TrendingUp, Plus,ChevronRight} from "lucide-react"
 
 import { NewProjectForm } from "./form/new-project-form";
+import { Header } from "./header";
 
 export type SidebarChapter = {
   id: string
@@ -36,8 +38,9 @@ type LeftSidebarProps = {
 
 export function LeftSidebar({ books, }: LeftSidebarProps) {
     const [showNewProjectForm, setShowNewProjectForm] = useState(false)
-    return (
-        <SidebarProvider >
+    const router = useRouter()
+return (
+        <div className=" h-full">
             <Sidebar className="relative overflow-hidden flex border-r bg-background">
                 <SidebarHeader className="border-b bg-background">
                     <div className="flex items-center justify-between px-4 py-3">
@@ -54,7 +57,7 @@ export function LeftSidebar({ books, }: LeftSidebarProps) {
                         >
                             <Plus className="size-4" />
                         </Button>
-                    </div>
+                        </div>
                 </SidebarHeader>
                 <SidebarContent className="bg-background">
                     {books.map((book) => (
@@ -91,7 +94,6 @@ export function LeftSidebar({ books, }: LeftSidebarProps) {
                                                                     <ChevronRight
                                                                         className="size-3 transition-transform group-data-[state=open]:rotate-9"
                                                                     />
-
                                                                     <span>{part.title}</span>
                                                                 </SidebarMenuButton>
                                                             </CollapsibleTrigger>
@@ -130,8 +132,10 @@ export function LeftSidebar({ books, }: LeftSidebarProps) {
                 </SidebarContent>
                 <SidebarFooter className="flex border-t p-2 bg-background "> 
                     <div className="flex gap-1 justify-center"> 
-                        <Button variant="ghost" className="justify-start"> 
+                        <Button variant="ghost" className="justify-start"
+                            onClick={() => router.push("/worldbuilding")}>
                             <Earth className="mr-2 size-4" /> 
+                            
                         </Button> 
                         <Button variant="ghost" className="justify-start">
                             <Layers3 className="mr-2 size-4" /> 
@@ -154,6 +158,6 @@ export function LeftSidebar({ books, }: LeftSidebarProps) {
           <NewProjectForm onCancel={() => setShowNewProjectForm(false)} />
         </div>
       )}
-        </SidebarProvider>
+        </div>
     )
 }

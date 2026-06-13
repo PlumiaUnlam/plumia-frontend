@@ -1,22 +1,36 @@
 "use client"
 
 import { Header } from "./header"
+import { RichTextEditor } from "@/components/RichTextEditor"
 import { LeftSidebar } from "./left-sidebar"
 import { getProjects } from "@/services/project.service";
+import { SidebarProvider } from "@/components/ui/sidebar"
 
 const projects = await getProjects();
 
 export function EditorLayout() {
 
-  return (
-    <div className="flex h-full flex-col overflow-hidden bg-background font-sans text-foreground select-none">
-      {( <Header />)}
+return (
+  <div className="flex h-screen flex-col bg-background text-foreground">
+    <Header />
 
-      <LeftSidebar books={projects} ></LeftSidebar>
+    <SidebarProvider>
+      <div className="flex flex-1 min-h-0">
+        <LeftSidebar books={projects} />
 
-      <div className="flex h-8 shrink-0 items-center gap-4 border-t border-border bg-muted/50 px-5 text-[10px] text-muted-foreground">
+        <main className="flex-1 min-h-0 overflow-y-auto p-4">
+          <div className="mx-auto max-w-4xl">
+            <RichTextEditor
+              initialContent="<p>Hola mundo</p>"
+              onChange={(html) => console.log(html)}
+            />
+          </div>
+        </main>
       </div>
+    </SidebarProvider>
 
-    </div>
-  )
+    <footer className="h-8 shrink-0 border-t border-border bg-muted/50 px-5 text-[10px] text-muted-foreground flex items-center">
+    </footer>
+  </div>
+)
 }

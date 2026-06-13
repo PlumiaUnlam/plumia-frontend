@@ -8,8 +8,8 @@ export const projectMock: SidebarBook[] = [
     subtitle: "Novela · Draft v2.3",
     parts: [
       {
-        id: "part1",
-        title: "Parte I: El Despertar",
+        id: "Capitulo 1",
+        title: "Capitulo I: El Despertar",
         chapters: [
           { id: "ch1", title: "La Ciudad Que Olvidó", wordCount: 3240 },
           { id: "ch2", title: "El Último Testigo", wordCount: 2890 },
@@ -19,3 +19,4 @@ export const projectMock: SidebarBook[] = [
     ],
   },
 ];
+
