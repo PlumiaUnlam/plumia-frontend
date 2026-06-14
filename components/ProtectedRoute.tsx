@@ -6,8 +6,8 @@ import { useAuth } from "@/contexts/AuthContext"
 import { Spinner } from "@/components/ui/spinner"
 
 interface ProtectedRouteProps {
-  children: React.ReactNode
-  requiredPlan?: "FREE" | "PRO"
+  readonly children: React.ReactNode
+  readonly requiredPlan?: "FREE" | "PRO"
 }
 
 export function ProtectedRoute({ children, requiredPlan }: ProtectedRouteProps) {
