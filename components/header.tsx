@@ -34,7 +34,7 @@ export function Header() {
         {user && (
           <>
             <span className="text-xs text-white/70">{user.email}</span>
-            <Button variant="ghost" size="icon" className="size-7" onClick={handleLogout}>
+            <Button variant="ghost" size="icon" className="size-7" onClick={handleLogout} aria-label="Cerrar sesión">
               <LogOut className="size-4" />
             </Button>
           </>

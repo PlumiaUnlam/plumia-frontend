@@ -41,32 +41,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   const syncBackendUser = async (idToken: string) => {
-    try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idToken }),
-      })
-      if (!res.ok) return
-      const data = await res.json()
-      setUser(data.user)
-    } catch {
-      setUser(null)
-    }
+    const res = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ idToken }),
+    })
+    if (!res.ok) throw new Error("Failed to sync user with backend")
+    const data = await res.json()
+    setUser(data.user)
   }
 
   useEffect(() => {
     const unsubscribe = onIdTokenChanged(auth, async (fbUser) => {
       setFirebaseUser(fbUser)
-      if (fbUser) {
-        const token = await fbUser.getIdToken()
-        document.cookie = `__session=${token}; path=/; max-age=604800; SameSite=Lax`
-        await syncBackendUser(token)
-      } else {
-        document.cookie = "__session=; path=/; max-age=0"
-        setUser(null)
+      try {
+        if (fbUser) {
+          const token = await fbUser.getIdToken()
+          document.cookie = `__session=${token}; path=/; max-age=604800; SameSite=Lax`
+          await syncBackendUser(token)
+        } else {
+          document.cookie = "__session=; path=/; max-age=0"
+          setUser(null)
+        }
+      } finally {
+        setLoading(false)
       }
-      setLoading(false)
     })
     return unsubscribe
   }, [])

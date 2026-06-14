@@ -8,13 +8,13 @@ export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
   const session = request.cookies.get("__session")?.value
 
-  if (protectedRoutes.includes(pathname) && !session) {
+  if (protectedRoutes.some((route) => pathname === route || pathname.startsWith(`${route}/`)) && !session) {
     const loginUrl = new URL("/login", request.url)
     loginUrl.searchParams.set("redirect", pathname)
     return NextResponse.redirect(loginUrl)
   }
 
-  if (authRoutes.includes(pathname) && session) {
+  if (authRoutes.some((route) => pathname === route || pathname.startsWith(`${route}/`)) && session) {
     return NextResponse.redirect(new URL("/editor", request.url))
   }
 
