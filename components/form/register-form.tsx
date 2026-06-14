@@ -15,9 +15,11 @@ import {
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
 import { isEmail } from "@/helpers/validation"
+import { useAuth } from "@/contexts/AuthContext"
 
 export function RegisterForm() {
   const router = useRouter()
+  const { register } = useAuth()
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [values, setValues] = useState({
@@ -28,6 +30,7 @@ export function RegisterForm() {
   })
   const [acceptedTerms, setAcceptedTerms] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [generalError, setGeneralError] = useState("")
 
   const setField = (field: keyof typeof values, value: string) => {
     setValues((prev) => ({ ...prev, [field]: value }))
@@ -67,8 +70,9 @@ export function RegisterForm() {
     return Object.keys(nextErrors).length === 0
   }
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    setGeneralError("")
 
     if (!validate()) {
       return
@@ -76,9 +80,14 @@ export function RegisterForm() {
 
     setIsSubmitting(true)
 
-    setTimeout(() => {
+    try {
+      await register(values.email, values.password)
+      router.push("/editor")
+    } catch {
+      setGeneralError("No se pudo crear la cuenta. El email podría estar en uso.")
+    } finally {
       setIsSubmitting(false)
-    }, 900)
+    }
   }
 
   return (
@@ -94,6 +103,12 @@ export function RegisterForm() {
 
           <CardContent className="space-y-4">
             <form className="space-y-4" onSubmit={handleSubmit}>
+              {generalError && (
+                <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
+                  {generalError}
+                </div>
+              )}
+
               <Field data-invalid={!!errors.fullName}>
                 <FieldLabel htmlFor="fullName">Nombre completo</FieldLabel>
                 <FieldContent>
