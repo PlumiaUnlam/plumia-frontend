@@ -1,33 +1,71 @@
 
 import { projectMock } from "@/mocks/projects.mock";
+import { api } from "@/services/api.service";
+import type { SidebarBook } from "@/components/left-sidebar";
 
+type ProjectResponse = {
+  id: string
+  title: string
+}
+
+type ProjectWithTreeResponse = ProjectResponse & {
+  books: {
+    id: string
+    title: string
+    chapters: {
+      id: string
+      title: string
+      scenes: {
+        id: string
+        title: string | null
+        wordCount: number
+      }[]
+    }[]
+  }[]
+}
 
 
 export async function getProjects() {
-  const token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjU0MjdkNTMwLTI0NmUtNGM0NS04Zjk4LTRjNTc0N2Y0ZWRkYjIiLCJlbWFpbCI6InVzZXJAZXhhbXBsZS5jb20ifQ.rIkVGRoK511VSPXVUsxyq_pJoaYG327sEtp8VSkiOis";
-
-  const response = await fetch("http://localhost:3000/projects/", {
-    method: "GET",
-    headers: {
-      "Accept": "application/json",
-      "Authorization": `Bearer ${token}`
-    },
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text()
-
-    throw new Error(
-      `Error Get Libros (${response.status}): ${errorText}`
-    )
+  const projects = await api.get<ProjectResponse[]>("/projects")
+  if (projects.length === 0) {
+    return {
+      projectTitle: "Proyecto",
+      books: [] as SidebarBook[],
+    }
   }
 
-  return response.json()
+  const projectsWithTree = await Promise.all(
+    projects.map((project) =>
+      api.get<ProjectWithTreeResponse>(`/projects/${project.id}`),
+    ),
+  )
+  const selectedProject = projectsWithTree[0]
+
+  return {
+    projectTitle: selectedProject.title,
+    books: selectedProject.books.map((book) => ({
+      id: book.id,
+      title: book.title,
+      chapters: book.chapters.map((chapter) => ({
+        id: chapter.id,
+        title: chapter.title,
+        wordCount: chapter.scenes.reduce(
+          (total, scene) => total + scene.wordCount,
+          0,
+        ),
+        scenes: chapter.scenes.map((scene) => ({
+          id: scene.id,
+          title: scene.title ?? "Escena sin título",
+          wordCount: scene.wordCount,
+        })),
+      })),
+    })),
+  }
 }
 
 export async function getChapters() {
   /*obtener chapters */
-  return projectMock.flatMap((project) => project.parts.flatMap((part) => part.chapters)).map((chapter) => ({
+  return projectMock.flatMap((project) => project.chapters).map((chapter) => ({
     id: chapter.id,
     title: chapter.title,
     wordCount: chapter.wordCount
@@ -39,7 +77,7 @@ export async function createProject(title: string) {
     id: String(projectMock.length + 1),
     title,
     subtitle: "Nuevo borrador",
-    parts: [],
+    chapters: [],
   };
 
   projectMock.push(newProject);

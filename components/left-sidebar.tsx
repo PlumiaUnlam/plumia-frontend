@@ -18,26 +18,28 @@ export type SidebarChapter = {
   id: string
   title: string
   wordCount?: number
+  scenes: SidebarScene[]
 }
 
-export type SidebarPart = {
+export type SidebarScene = {
   id: string
   title: string
-  chapters: SidebarChapter[]
+  wordCount?: number
 }
 
 export type SidebarBook = {
   id: string
   title: string
-  parts: SidebarPart[]
+  chapters: SidebarChapter[]
 }
 
 type LeftSidebarProps = {
+    projectTitle: string;
     books: SidebarBook[];
 };
 
 //LLega ID del proyecto elegido
-export function LeftSidebar({ books, }: LeftSidebarProps) {
+export function LeftSidebar({ projectTitle, books, }: LeftSidebarProps) {
     const [showNewProjectForm, setShowNewProjectForm] = useState(false)
     const [modalType, setModalType] = useState<{
     type: "chapter" | "section"
@@ -52,8 +54,8 @@ return (
                 <SidebarHeader className="border-b bg-background">
                     
                     <div className="flex items-center justify-between px-4 py-3">
-                        <h2 className="font-semibold">
-                            Proyecto
+                        <h2 className="truncate font-semibold">
+                            {projectTitle}
                         </h2>
 
                         <Button
@@ -75,69 +77,74 @@ return (
                                 <Collapsible defaultOpen>
                                     <SidebarMenuItem>
 
-                                        <CollapsibleTrigger asChild>
-                                            <SidebarMenuButton className="w-full">
-                                                <ChevronRight
-                                                    className="size-4 transition-transform group-data-[state=open]:rotate-90"
-                                                />
+                                        <div className="flex w-full items-center gap-1">
+                                            <CollapsibleTrigger asChild>
+                                                <SidebarMenuButton className="min-w-0 flex-1">
+                                                    <ChevronRight
+                                                        className="size-4 transition-transform group-data-[state=open]:rotate-90"
+                                                    />
 
-                                                <BookOpen className="size-4" />
+                                                    <BookOpen className="size-4" />
 
-                                                <span className="truncate">{book.title}</span>
-                                                <Button
-                                                    size="icon"
-                                                    variant="ghost"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation()
-                                                        setModalType({ type: "chapter", parentId: book.id })
-                                                    }}
-                                                >
-                                                    <Plus className="size-4" />
-                                                </Button>
-                                            </SidebarMenuButton>
-                                        </CollapsibleTrigger>
+                                                    <span className="truncate">{book.title}</span>
+                                                </SidebarMenuButton>
+                                            </CollapsibleTrigger>
+
+                                            <Button
+                                                size="icon"
+                                                variant="ghost"
+                                                onClick={(e) => {
+                                                    e.stopPropagation()
+                                                    setModalType({ type: "chapter", parentId: book.id })
+                                                }}
+                                            >
+                                                <Plus className="size-4" />
+                                            </Button>
+                                        </div>
 
                                         <CollapsibleContent>
                                             <SidebarMenu className="ml-3 mt-1">
 
-                                                {book.parts.map((part) => (
+                                                {book.chapters.map((chapter) => (
                                                     <Collapsible
-                                                        key={part.id}
+                                                        key={chapter.id}
                                                         defaultOpen
                                                     >
                                                         <SidebarMenuItem>
 
-                                                            <CollapsibleTrigger asChild>
-                                                                <SidebarMenuButton className="w-full">
-                                                                    <ChevronRight
-                                                                        className="size-3 transition-transform group-data-[state=open]:rotate-90"
-                                                                    />
-                                                                    <span className="truncate">{part.title}</span>
+                                                            <div className="flex w-full items-center gap-1">
+                                                                <CollapsibleTrigger asChild>
+                                                                    <SidebarMenuButton className="min-w-0 flex-1">
+                                                                        <ChevronRight
+                                                                            className="size-3 transition-transform group-data-[state=open]:rotate-90"
+                                                                        />
+                                                                        <span className="truncate">{chapter.title}</span>
+                                                                    </SidebarMenuButton>
+                                                                </CollapsibleTrigger>
 
-                                                                    <Button
-                                                                        size="icon"
-                                                                        variant="ghost"
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation()
-                                                                            setModalType({ type: "section", parentId: part.id })
-                                                                        }}
-                                                                    >
-                                                                        <Plus className="size-4" />
-                                                                    </Button>
-                                                                </SidebarMenuButton>
-                                                            </CollapsibleTrigger>
+                                                                <Button
+                                                                    size="icon"
+                                                                    variant="ghost"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation()
+                                                                        setModalType({ type: "section", parentId: chapter.id })
+                                                                    }}
+                                                                >
+                                                                    <Plus className="size-4" />
+                                                                </Button>
+                                                            </div>
 
                                                             <CollapsibleContent>
                                                                 <SidebarMenu className="ml-4">
 
-                                                                    {part.chapters.map((chapter) => (
+                                                                    {chapter.scenes.map((scene) => (
                                                                         <SidebarMenuItem
-                                                                            key={chapter.id}
+                                                                            key={scene.id}
                                                                         >
                                                                             <SidebarMenuButton
                                                                                 size="sm"
                                                                             >
-                                                                                {chapter.title}
+                                                                                {scene.title}
                                                                             </SidebarMenuButton>
                                                                         </SidebarMenuItem>
                                                                     ))}

@@ -14,9 +14,11 @@ import {
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { isEmail } from "@/helpers/validation"
+import { useAuth } from "@/contexts/AuthContext"
 
 export function LoginForm() {
   const router = useRouter()
+  const { login } = useAuth()
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [values, setValues] = useState({
@@ -24,6 +26,7 @@ export function LoginForm() {
     password: "",
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [generalError, setGeneralError] = useState("")
 
   const setField = (field: keyof typeof values, value: string) => {
     setValues((prev) => ({ ...prev, [field]: value }))
@@ -49,8 +52,9 @@ export function LoginForm() {
     return Object.keys(nextErrors).length === 0
   }
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    setGeneralError("")
 
     if (!validate()) {
       return
@@ -58,9 +62,15 @@ export function LoginForm() {
 
     setIsSubmitting(true)
 
-    setTimeout(() => {
+    try {
+      await login(values.email.trim(), values.password)
+      const params = new URLSearchParams(globalThis.location?.search ?? "")
+      router.push(params.get("redirect") || "/editor")
+    } catch {
+      setGeneralError("Email o contraseña incorrectos.")
+    } finally {
       setIsSubmitting(false)
-    }, 900)
+    }
   }
 
   return (
@@ -76,6 +86,12 @@ export function LoginForm() {
 
           <CardContent className="space-y-4">
             <form className="space-y-4" onSubmit={handleSubmit}>
+              {generalError && (
+                <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
+                  {generalError}
+                </div>
+              )}
+
               <Field data-invalid={!!errors.email}>
                 <FieldLabel htmlFor="email">Email</FieldLabel>
                 <FieldContent>
@@ -122,7 +138,6 @@ export function LoginForm() {
                 type="submit"
                 disabled={isSubmitting}
                 className="w-full rounded-xl shadow-sm text-base"
-                onClick={() => void router.push("/editor")}
               >
                 {isSubmitting ? <Spinner className="size-4" /> : "Iniciar sesión"}
               </Button>
