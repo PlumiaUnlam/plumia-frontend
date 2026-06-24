@@ -1,0 +1,44 @@
+import type { Editor } from "@tiptap/react"
+import { Bold, Italic, Heading1 } from "lucide-react"
+import { Button } from "@/components/ui/button"
+
+interface EditorToolbarProps {
+  editor: Editor
+}
+
+export function EditorToolbar({
+  editor,
+}: EditorToolbarProps) {
+  return (
+    <div className="flex items-center gap-2 border-b p-2">
+      <Button
+        size="icon"
+        variant={
+          editor.isActive("bold")
+            ? "default"
+            : "ghost"
+        }
+        onClick={() =>
+          editor.chain().focus().toggleBold().run()
+        }
+      >
+        <Bold className="h-4 w-4" />
+      </Button>
+
+      <Button
+        size="icon"
+        variant={
+          editor.isActive("italic")
+            ? "default"
+            : "ghost"
+        }
+        onClick={() =>
+          editor.chain().focus().toggleItalic().run()
+        }
+      >
+        <Italic className="h-4 w-4" />
+      </Button>
+
+    </div>
+  )
+}

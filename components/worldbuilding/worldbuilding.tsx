@@ -4,8 +4,8 @@ import { useState } from "react"
 import {Plus, Users, Star, Calendar, FileText} from "lucide-react"
 
 import { Header } from "../header"
-import { WikiTab } from "./wiki-panel"
 import { SummariesPanel } from "./summaries-panel"
+import { WikiTab } from "./wiki-panel"
 
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
