@@ -1,5 +1,4 @@
 
-import { projectMock } from "@/mocks/projects.mock";
 import { api } from "@/services/api.service";
 import type { SidebarBook } from "@/components/left-sidebar";
 
@@ -31,6 +30,7 @@ export async function getProjects() {
     return {
       projectTitle: "Proyecto",
       books: [] as SidebarBook[],
+      projectId: "0",
     }
   }
 
@@ -43,6 +43,7 @@ export async function getProjects() {
 
   return {
     projectTitle: selectedProject.title,
+    projectId: selectedProject.id,
     books: selectedProject.books.map((book) => ({
       id: book.id,
       title: book.title,
@@ -63,71 +64,31 @@ export async function getProjects() {
   }
 }
 
-export async function getChapters() {
-  /*obtener chapters */
-  return projectMock.flatMap((project) => project.chapters).map((chapter) => ({
-    id: chapter.id,
-    title: chapter.title,
-    wordCount: chapter.wordCount
-  }));
-}
-
-export async function getChapters() {
-  /*obtener chapters */
-  return projectMock.flatMap((project) => project.parts.flatMap((part) => part.chapters)).map((chapter) => ({
-    id: chapter.id,
-    title: chapter.title,
-    wordCount: chapter.wordCount
-  }));
-}
-
-export async function createProject(title: string) {
-  const newProject = {
-    id: String(projectMock.length + 1),
-    title,
-    subtitle: "Nuevo borrador",
-    chapters: [],
-  };
-
-  projectMock.push(newProject);
-
-  return newProject;
+export async function createBook(data: {
+  title: string
+  partId: string
+  sortKey: string
+}) {
+  return api.post(`/projects/${data.partId}/books`, { title: data.title, sortKey: data.sortKey })
 }
 
 export async function createChapter(data: {
   title: string
   partId: string
-  }) {
-  const response = await fetch("/api/v1/projects/", {
-      method: "POST",
-      headers: {
-      "Content-Type": "application/json",
-      },
-      body: JSON.stringify(data),
-  })
-
-  if (!response.ok) {
-      throw new Error("Error creando capítulo")
-  }
-
-  return response.json()
-  }
-
-async function createSection(data: {
-title: string
-partId: string
+  sortKey: string
 }) {
-const response = await fetch("/api/sections", {
-    method: "POST",
-    headers: {
-    "Content-Type": "application/json",
-    },
-    body: JSON.stringify(data),
-})
-
-if (!response.ok) {
-    throw new Error("Error creando sección")
+  return api.post(`/books/${data.partId}/chapters`, { title: data.title, sortKey: data.sortKey })
 }
 
-return response.json()
+export async function createSection(data: {
+  title: string
+  partId: string
+  sortKey: string
+}) {
+  return api.post(`/chapters/${data.partId}/scenes`, { title: data.title, sortKey: data.sortKey })
 }
+
+export async function createProject(){
+
+}
+

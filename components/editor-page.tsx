@@ -10,6 +10,7 @@ import { SidebarProvider } from "@/components/ui/sidebar"
 export function EditorLayout() {
 const [projectTitle, setProjectTitle] = useState("Proyecto")
 const [books, setBooks] = useState<SidebarBook[]>([])
+const [projectId, setProjectId] = useState("0")
 const [projectsError, setProjectsError] = useState<string | null>(null)
 
 useEffect(() => {
@@ -20,6 +21,7 @@ useEffect(() => {
       if (isMounted) {
         setProjectTitle(data.projectTitle)
         setBooks(data.books)
+        setProjectId(data.projectId)
       }
     })
     .catch((error) => {
@@ -40,7 +42,7 @@ return (
 
     <SidebarProvider>
       <div className="flex flex-1 min-h-0">
-        <LeftSidebar projectTitle={projectTitle} books={books} />
+        <LeftSidebar projectTitle={projectTitle} books={books} projectId={projectId} />
 
         <main className="flex-1 min-h-0 overflow-y-auto p-4">
           <div className="mx-auto max-w-4xl">
