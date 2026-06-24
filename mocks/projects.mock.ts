@@ -5,7 +5,6 @@ export const projectMock: SidebarBook[] = [
   {
     id: "1",
     title: "La Sombra del Abismo",
-    subtitle: "Novela · Draft v2.3",
     parts: [
       {
         id: "Capitulo 1",

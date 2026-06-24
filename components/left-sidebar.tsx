@@ -3,7 +3,7 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 
 import {
-    SidebarProvider, SidebarTrigger, Sidebar, SidebarContent, SidebarFooter, 
+    SidebarTrigger, Sidebar, SidebarContent, SidebarFooter, 
     SidebarGroup, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton
 } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,8 @@ import {Collapsible,CollapsibleContent,CollapsibleTrigger,} from "@/components/u
 import {BookOpen, Earth,Layers3,GitBranch,TrendingUp, Plus,ChevronRight} from "lucide-react"
 
 import { NewProjectForm } from "./form/new-project-form";
-import { Header } from "./header";
+import { NewItemModal } from "@/components/modal/new-section-modal"
+import { createChapter } from "@/services/project.service";
 
 export type SidebarChapter = {
   id: string
@@ -28,7 +29,6 @@ export type SidebarPart = {
 export type SidebarBook = {
   id: string
   title: string
-  subtitle: string
   parts: SidebarPart[]
 }
 
@@ -36,13 +36,21 @@ type LeftSidebarProps = {
     books: SidebarBook[];
 };
 
+//LLega ID del proyecto elegido
 export function LeftSidebar({ books, }: LeftSidebarProps) {
     const [showNewProjectForm, setShowNewProjectForm] = useState(false)
+    const [modalType, setModalType] = useState<{
+    type: "chapter" | "section"
+    parentId: string
+    } | null>(null)
+    
     const router = useRouter()
+
 return (
         <div className=" h-full">
             <Sidebar className="relative overflow-hidden flex border-r bg-background">
                 <SidebarHeader className="border-b bg-background">
+                    
                     <div className="flex items-center justify-between px-4 py-3">
                         <h2 className="font-semibold">
                             Proyecto
@@ -68,19 +76,29 @@ return (
                                     <SidebarMenuItem>
 
                                         <CollapsibleTrigger asChild>
-                                            <SidebarMenuButton>
+                                            <SidebarMenuButton className="w-full">
                                                 <ChevronRight
                                                     className="size-4 transition-transform group-data-[state=open]:rotate-90"
                                                 />
 
                                                 <BookOpen className="size-4" />
 
-                                                <span>{book.title}</span>
+                                                <span className="truncate">{book.title}</span>
+                                                <Button
+                                                    size="icon"
+                                                    variant="ghost"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation()
+                                                        setModalType({ type: "chapter", parentId: book.id })
+                                                    }}
+                                                >
+                                                    <Plus className="size-4" />
+                                                </Button>
                                             </SidebarMenuButton>
                                         </CollapsibleTrigger>
 
                                         <CollapsibleContent>
-                                            <SidebarMenu className="ml-4 mt-1">
+                                            <SidebarMenu className="ml-3 mt-1">
 
                                                 {book.parts.map((part) => (
                                                     <Collapsible
@@ -90,11 +108,22 @@ return (
                                                         <SidebarMenuItem>
 
                                                             <CollapsibleTrigger asChild>
-                                                                <SidebarMenuButton size="sm">
+                                                                <SidebarMenuButton className="w-full">
                                                                     <ChevronRight
-                                                                        className="size-3 transition-transform group-data-[state=open]:rotate-9"
+                                                                        className="size-3 transition-transform group-data-[state=open]:rotate-90"
                                                                     />
-                                                                    <span>{part.title}</span>
+                                                                    <span className="truncate">{part.title}</span>
+
+                                                                    <Button
+                                                                        size="icon"
+                                                                        variant="ghost"
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation()
+                                                                            setModalType({ type: "section", parentId: part.id })
+                                                                        }}
+                                                                    >
+                                                                        <Plus className="size-4" />
+                                                                    </Button>
                                                                 </SidebarMenuButton>
                                                             </CollapsibleTrigger>
 
@@ -158,6 +187,36 @@ return (
           <NewProjectForm onCancel={() => setShowNewProjectForm(false)} />
         </div>
       )}
+
+        <NewItemModal
+        show={modalType?.type === "chapter"}
+        onClose={() => setModalType(null)}
+        onSubmit={async (name) => {
+            await createChapter({
+            title: name,
+            partId: modalType!.parentId,
+            })
+        }}
+        title="Nuevo Capítulo"
+        label="Nombre del Capítulo"
+        placeholder="Ej: Capítulo 1: ..."
+        submitText="Crear Capítulo"
+        />
+
+        <NewItemModal
+        show={modalType?.type === "section"}
+        onClose={() => setModalType(null)}
+        onSubmit={async (name) => {
+            await createSection({
+            title: name,
+            partId: modalType!.parentId,
+            })
+        }}
+        title="Nueva Sección"
+        label="Nombre de la Sección"
+        placeholder="Ej: Sección 1: ..."
+        submitText="Crear Sección"
+        />
         </div>
     )
 }
