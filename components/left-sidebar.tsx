@@ -12,7 +12,7 @@ import {BookOpen, Earth,Layers3,GitBranch,TrendingUp, Plus,ChevronRight} from "l
 
 import { NewProjectForm } from "./form/new-project-form";
 import { NewItemModal } from "@/components/modal/new-section-modal"
-import { createChapter } from "@/services/project.service";
+import { createBook, createChapter, createSection } from "@/services/project.service";
 
 export type SidebarChapter = {
   id: string
@@ -36,14 +36,16 @@ export type SidebarBook = {
 type LeftSidebarProps = {
     projectTitle: string;
     books: SidebarBook[];
+    projectId: string ;
 };
 
 //LLega ID del proyecto elegido
-export function LeftSidebar({ projectTitle, books, }: LeftSidebarProps) {
+export function LeftSidebar({ projectTitle, books, projectId }: LeftSidebarProps) {
     const [showNewProjectForm, setShowNewProjectForm] = useState(false)
     const [modalType, setModalType] = useState<{
-    type: "chapter" | "section"
+    type: "book" | "chapter" | "section"
     parentId: string
+    sortKey: string
     } | null>(null)
     
     const router = useRouter()
@@ -62,7 +64,7 @@ return (
                             size="icon"
                             variant="ghost"
                             onClick={() => {
-                                setShowNewProjectForm(true)
+                                setModalType({ type: "book", parentId: projectId, sortKey: (books.length + 1).toString(), })
                             }}
                         >
                             <Plus className="size-4" />
@@ -95,7 +97,7 @@ return (
                                                 variant="ghost"
                                                 onClick={(e) => {
                                                     e.stopPropagation()
-                                                    setModalType({ type: "chapter", parentId: book.id })
+                                                    setModalType({ type: "chapter", parentId: book.id, sortKey: (book.chapters.length + 1).toString(), })
                                                 }}
                                             >
                                                 <Plus className="size-4" />
@@ -127,7 +129,7 @@ return (
                                                                     variant="ghost"
                                                                     onClick={(e) => {
                                                                         e.stopPropagation()
-                                                                        setModalType({ type: "section", parentId: chapter.id })
+                                                                        setModalType({ type: "section", parentId: chapter.id, sortKey: (chapter.scenes.length + 1).toString() })
                                                                     }}
                                                                 >
                                                                     <Plus className="size-4" />
@@ -189,11 +191,6 @@ return (
                 <SidebarTrigger />  
                 Arbol
             </main>
-      {showNewProjectForm && (
-        <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/50">
-          <NewProjectForm onCancel={() => setShowNewProjectForm(false)} />
-        </div>
-      )}
 
         <NewItemModal
         show={modalType?.type === "chapter"}
@@ -202,6 +199,7 @@ return (
             await createChapter({
             title: name,
             partId: modalType!.parentId,
+            sortKey: modalType!.sortKey,
             })
         }}
         title="Nuevo Capítulo"
@@ -217,12 +215,29 @@ return (
             await createSection({
             title: name,
             partId: modalType!.parentId,
+            sortKey: modalType!.sortKey,
             })
         }}
         title="Nueva Sección"
         label="Nombre de la Sección"
         placeholder="Ej: Sección 1: ..."
         submitText="Crear Sección"
+        />
+
+        <NewItemModal
+        show={modalType?.type === "book"}
+        onClose={() => setModalType(null)}
+        onSubmit={async (name) => {
+            await createBook({
+            title: name,
+            partId: modalType!.parentId,
+            sortKey: modalType!.sortKey,
+            })
+        }}
+        title="Nuevo Libro"
+        label="Nombre del Libro"
+        placeholder="Ej: Libro 1: ..."
+        submitText="Crear Libro"
         />
         </div>
     )
