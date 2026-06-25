@@ -2,9 +2,20 @@
 import { api } from "@/services/api.service";
 import type { SidebarBook } from "@/components/left-sidebar";
 
-type ProjectResponse = {
+export type ProjectResponse = {
   id: string
+  userId: string
   title: string
+  description: string
+  genre: string
+  genreRules: {
+    tone: string
+    audience: string
+  }
+  wordCountTarget: number
+  status: string
+  createdAt: string
+  updatedAt: string
 }
 
 type ProjectWithTreeResponse = ProjectResponse & {
@@ -24,22 +35,12 @@ type ProjectWithTreeResponse = ProjectResponse & {
 }
 
 
-export async function getProjects() {
-  const projects = await api.get<ProjectResponse[]>("/projects")
-  if (projects.length === 0) {
-    return {
-      projectTitle: "Proyecto",
-      books: [] as SidebarBook[],
-      projectId: "0",
-    }
-  }
+export async function getDashboardProjects() {
+  return api.get<ProjectResponse[]>("/projects")
+}
 
-  const projectsWithTree = await Promise.all(
-    projects.map((project) =>
-      api.get<ProjectWithTreeResponse>(`/projects/${project.id}`),
-    ),
-  )
-  const selectedProject = projectsWithTree[0]
+export async function getProject(projectId: string) {
+  const selectedProject = await api.get<ProjectWithTreeResponse>(`/projects/${projectId}`)
 
   return {
     projectTitle: selectedProject.title,
@@ -88,7 +89,23 @@ export async function createSection(data: {
   return api.post(`/chapters/${data.partId}/scenes`, { title: data.title, sortKey: data.sortKey })
 }
 
-export async function createProject(){
+export type CreateProjectPayload = {
+  title: string
+  description?: string
+  genre?: string
+  genreRules?: Record<string, unknown>
+  wordCountTarget?: number
+}
 
+export async function createProject(payload: CreateProjectPayload) {
+  return api.post<ProjectResponse>("/projects", payload)
+}
+
+export async function getChapters() {
+  return [] as Array<{
+    id: string
+    title: string
+    wordCount: number
+  }>
 }
 
