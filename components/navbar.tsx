@@ -48,24 +48,22 @@ export function Navbar({ searchQuery, onSearchChange, onCreateProject }: NavbarP
                 </div>
             </div>
 
-            <div className="border-t">
-                <div className="container mx-auto flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="relative w-full max-w-md">
-                        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <div className="container mx-auto flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="relative w-full max-w-md">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 
-                        <Input
-                            placeholder="Buscar por título o género"
-                            className="pl-9"
-                            value={searchQuery}
-                            onChange={(event) => onSearchChange(event.target.value)}
-                        />
-                    </div>
-
-                    <Button onClick={onCreateProject}>
-                        <Plus className="mr-2 h-4 w-4" />
-                        Crear proyecto
-                    </Button>
+                    <Input
+                        placeholder="Buscar por título o género"
+                        className="pl-9"
+                        value={searchQuery}
+                        onChange={(event) => onSearchChange(event.target.value)}
+                    />
                 </div>
+
+                <Button onClick={onCreateProject}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Crear proyecto
+                </Button>
             </div>
         </header>
     );
