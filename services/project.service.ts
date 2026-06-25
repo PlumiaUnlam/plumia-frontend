@@ -2,9 +2,20 @@
 import { api } from "@/services/api.service";
 import type { SidebarBook } from "@/components/left-sidebar";
 
-type ProjectResponse = {
+export type ProjectResponse = {
   id: string
+  userId: string
   title: string
+  description: string
+  genre: string
+  genreRules: {
+    tone: string
+    audience: string
+  }
+  wordCountTarget: number
+  status: string
+  createdAt: string
+  updatedAt: string
 }
 
 type ProjectWithTreeResponse = ProjectResponse & {
@@ -23,6 +34,10 @@ type ProjectWithTreeResponse = ProjectResponse & {
   }[]
 }
 
+
+export async function getDashboardProjects() {
+  return api.get<ProjectResponse[]>("/projects")
+}
 
 export async function getProjects() {
   const projects = await api.get<ProjectResponse[]>("/projects")
@@ -88,7 +103,15 @@ export async function createSection(data: {
   return api.post(`/chapters/${data.partId}/scenes`, { title: data.title, sortKey: data.sortKey })
 }
 
-export async function createProject(){
+export async function createProject(title: string) {
+  return api.post<ProjectResponse>("/projects", { title })
+}
 
+export async function getChapters() {
+  return [] as Array<{
+    id: string
+    title: string
+    wordCount: number
+  }>
 }
 
