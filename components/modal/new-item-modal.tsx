@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input"
 type NewItemModalProps = {
   show: boolean
   onClose: () => void
-  onSubmit: (name: string) => void
+  onSubmit: (name: string) => void | Promise<void>
 
   title: string
   label: string
@@ -32,18 +32,26 @@ export function NewItemModal({
   submitText,
 }: NewItemModalProps) {
   const [name, setName] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const trimmedName = name.trim()
 
-    if (!trimmedName) return
+    if (!trimmedName || isSubmitting) return
 
-    onSubmit(trimmedName)
-    setName("")
-    onClose()
+    setIsSubmitting(true)
+    try {
+      await onSubmit(trimmedName)
+      setName("")
+      onClose()
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const handleClose = () => {
+    if (isSubmitting) return
+
     setName("")
     onClose()
   }
@@ -72,13 +80,14 @@ export function NewItemModal({
         <DialogFooter className="border-t px-6 py-4">
           <Button
             variant="outline"
+            disabled={isSubmitting}
             onClick={handleClose}
           >
             Cancelar
           </Button>
 
           <Button
-            disabled={!name.trim()}
+            disabled={!name.trim() || isSubmitting}
             onClick={handleSubmit}
           >
             {submitText}

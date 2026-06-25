@@ -1,6 +1,5 @@
 
 import { api } from "@/services/api.service";
-import type { SidebarBook } from "@/components/left-sidebar";
 
 type ProjectResponse = {
   id: string
@@ -11,13 +10,17 @@ type ProjectWithTreeResponse = ProjectResponse & {
   books: {
     id: string
     title: string
+    sortKey: string
     chapters: {
       id: string
       title: string
+      sortKey: string
       scenes: {
         id: string
         title: string | null
+        sortKey: string
         wordCount: number
+        order: number
       }[]
     }[]
   }[]
@@ -47,17 +50,21 @@ export async function getProjects() {
     books: selectedProject.books.map((book) => ({
       id: book.id,
       title: book.title,
+      sortKey: book.sortKey,
       chapters: book.chapters.map((chapter) => ({
         id: chapter.id,
         title: chapter.title,
+        sortKey: chapter.sortKey,
         wordCount: chapter.scenes.reduce(
           (total, scene) => total + scene.wordCount,
           0,
         ),
         scenes: chapter.scenes.map((scene) => ({
           id: scene.id,
+          sortKey: scene.sortKey,
           title: scene.title ?? "Escena sin título",
           wordCount: scene.wordCount,
+          order: scene.order,
         })),
       })),
     })),
@@ -84,8 +91,9 @@ export async function createSection(data: {
   title: string
   partId: string
   sortKey: string
+  order: number
 }) {
-  return api.post(`/chapters/${data.partId}/scenes`, { title: data.title, sortKey: data.sortKey })
+  return api.post(`/chapters/${data.partId}/scenes`, { title: data.title, sortKey: data.sortKey, order: data.order })
 }
 
 export async function createProject(){
