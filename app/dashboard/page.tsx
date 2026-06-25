@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { BookOpen, Clock3 } from "lucide-react";
 
+import { useRouter } from "next/navigation";
+
 import { Navbar } from "@/components/navbar";
 import { NewProjectForm } from "@/components/form/new-project-form";
 import { Badge } from "@/components/ui/badge";
@@ -35,6 +37,7 @@ function formatLabel(value: string) {
 }
 
 export default function DashboardPage() {
+    const router = useRouter();
     const [projects, setProjects] = useState<ProjectResponse[]>([]);
     const [searchQuery, setSearchQuery] = useState("");
     const [isLoading, setIsLoading] = useState(true);
@@ -144,7 +147,11 @@ export default function DashboardPage() {
                 ) : (
                     <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
                         {filteredProjects.map((project) => (
-                            <Card key={project.id} className="flex h-full flex-col">
+                            <Card
+                                key={project.id}
+                                className="flex h-full cursor-pointer flex-col transition hover:border-primary/40 hover:shadow-md"
+                                onClick={() => router.push(`/editor?projectId=${project.id}`)}
+                            >
                                 <CardHeader className="gap-3">
                                     <div className="flex items-start justify-between gap-3">
                                         <div>

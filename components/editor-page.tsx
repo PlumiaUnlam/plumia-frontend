@@ -1,10 +1,11 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useSearchParams } from "next/navigation"
 import { Header } from "./header"
 import { RichTextEditor } from "@/components/RichTextEditor"
 import { LeftSidebar, type SidebarBook } from "./left-sidebar"
-import { getProjects } from "@/services/project.service";
+import { getProject } from "@/services/project.service";
 import { SidebarProvider } from "@/components/ui/sidebar"
 
 export function EditorLayout() {
@@ -12,11 +13,21 @@ const [projectTitle, setProjectTitle] = useState("Proyecto")
 const [books, setBooks] = useState<SidebarBook[]>([])
 const [projectId, setProjectId] = useState("0")
 const [projectsError, setProjectsError] = useState<string | null>(null)
+const searchParams = useSearchParams()
 
 useEffect(() => {
   let isMounted = true
+  const selectedProjectId = searchParams.get("projectId")
 
-  getProjects()
+  if (!selectedProjectId) {
+    if (isMounted) {
+      setProjectsError("No se seleccionó un proyecto.")
+    }
+
+    return
+  }
+
+  getProject(selectedProjectId)
     .then((data) => {
       if (isMounted) {
         setProjectTitle(data.projectTitle)
@@ -34,7 +45,7 @@ useEffect(() => {
   return () => {
     isMounted = false
   }
-}, [])
+}, [searchParams])
 
 return (
   <div className="flex h-screen flex-col bg-background text-foreground">

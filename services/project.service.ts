@@ -39,22 +39,8 @@ export async function getDashboardProjects() {
   return api.get<ProjectResponse[]>("/projects")
 }
 
-export async function getProjects() {
-  const projects = await api.get<ProjectResponse[]>("/projects")
-  if (projects.length === 0) {
-    return {
-      projectTitle: "Proyecto",
-      books: [] as SidebarBook[],
-      projectId: "0",
-    }
-  }
-
-  const projectsWithTree = await Promise.all(
-    projects.map((project) =>
-      api.get<ProjectWithTreeResponse>(`/projects/${project.id}`),
-    ),
-  )
-  const selectedProject = projectsWithTree[0]
+export async function getProject(projectId: string) {
+  const selectedProject = await api.get<ProjectWithTreeResponse>(`/projects/${projectId}`)
 
   return {
     projectTitle: selectedProject.title,
