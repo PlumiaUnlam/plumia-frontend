@@ -103,8 +103,16 @@ export async function createSection(data: {
   return api.post(`/chapters/${data.partId}/scenes`, { title: data.title, sortKey: data.sortKey })
 }
 
-export async function createProject(title: string) {
-  return api.post<ProjectResponse>("/projects", { title })
+export type CreateProjectPayload = {
+  title: string
+  description?: string
+  genre?: string
+  genreRules?: Record<string, unknown>
+  wordCountTarget?: number
+}
+
+export async function createProject(payload: CreateProjectPayload) {
+  return api.post<ProjectResponse>("/projects", payload)
 }
 
 export async function getChapters() {

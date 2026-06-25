@@ -15,9 +15,10 @@ import { Input } from "./ui/input";
 type NavbarProps = {
     searchQuery: string;
     onSearchChange: (value: string) => void;
+    onCreateProject?: () => void;
 };
 
-export function Navbar({ searchQuery, onSearchChange }: NavbarProps) {
+export function Navbar({ searchQuery, onSearchChange, onCreateProject }: NavbarProps) {
     return (
         <header className="border-b bg-background">
             <div className="container mx-auto flex h-16 items-center justify-between px-4">
@@ -60,7 +61,7 @@ export function Navbar({ searchQuery, onSearchChange }: NavbarProps) {
                         />
                     </div>
 
-                    <Button>
+                    <Button onClick={onCreateProject}>
                         <Plus className="mr-2 h-4 w-4" />
                         Crear proyecto
                     </Button>

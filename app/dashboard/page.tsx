@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { BookOpen, Clock3, FileText } from "lucide-react";
+import { BookOpen, Clock3 } from "lucide-react";
 
 import { Navbar } from "@/components/navbar";
+import { NewProjectForm } from "@/components/form/new-project-form";
 import { Badge } from "@/components/ui/badge";
 import {
     Card,
@@ -12,6 +13,12 @@ import {
     CardHeader,
     CardTitle,
 } from "@/components/ui/card";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 import {
     getDashboardProjects,
     type ProjectResponse,
@@ -31,6 +38,7 @@ export default function DashboardPage() {
     const [projects, setProjects] = useState<ProjectResponse[]>([]);
     const [searchQuery, setSearchQuery] = useState("");
     const [isLoading, setIsLoading] = useState(true);
+    const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
     useEffect(() => {
@@ -84,9 +92,19 @@ export default function DashboardPage() {
         });
     }, [projects, searchQuery]);
 
+    const handleCreateSuccess = (project: ProjectResponse) => {
+        setProjects((currentProjects) => [project, ...currentProjects]);
+        setErrorMessage(null);
+        setIsCreateDialogOpen(false);
+    };
+
     return (
         <div className="min-h-screen bg-background">
-            <Navbar searchQuery={searchQuery} onSearchChange={setSearchQuery} />
+            <Navbar
+                searchQuery={searchQuery}
+                onSearchChange={setSearchQuery}
+                onCreateProject={() => setIsCreateDialogOpen(true)}
+            />
 
             <main className="container mx-auto px-4 py-8">
                 <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -140,9 +158,6 @@ export default function DashboardPage() {
 
                                     <div className="flex flex-wrap gap-2">
                                         <Badge>{project.genre}</Badge>
-                                        <Badge variant="outline">
-                                            {formatLabel(project.genreRules.tone)}
-                                        </Badge>
                                     </div>
                                 </CardHeader>
 
@@ -163,17 +178,24 @@ export default function DashboardPage() {
                                             })}
                                         </span>
                                     </div>
-
-                                    <div className="flex items-center gap-2">
-                                        <FileText className="h-4 w-4" />
-                                        <span>Audiencia: {formatLabel(project.genreRules.audience)}</span>
-                                    </div>
                                 </CardContent>
                             </Card>
                         ))}
                     </div>
                 )}
             </main>
+
+            <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+                <DialogContent className="max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle>Crear nuevo proyecto</DialogTitle>
+                    </DialogHeader>
+                    <NewProjectForm
+                        onCancel={() => setIsCreateDialogOpen(false)}
+                        onSuccess={handleCreateSuccess}
+                    />
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
