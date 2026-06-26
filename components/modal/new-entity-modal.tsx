@@ -1,5 +1,5 @@
-import { useState } from "react"
-import {Users,Map,Star,Shield,Calendar,Sparkles,Upload,Tag,X,} from "lucide-react"
+import { useState, useEffect, useRef } from "react"
+import { Loader2, Users, Map, Star, Shield, Calendar, Sparkles, Upload, Tag, X, ImageIcon, Trash2 } from "lucide-react"
 
 import {
   Dialog,
@@ -13,32 +13,85 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 
-import { Entity } from "@/components/worldbuilding/wiki-panel"
+import type { Entity, EntityType, CreateEntityInput, UpdateEntityInput } from "@/types/entity"
+import { CATEGORY_TO_TYPE, TYPE_TO_CATEGORY } from "@/types/entity"
+import type { EntityCategory } from "@/components/worldbuilding/wiki-panel"
 
 const categories = [
-  { id: "Personaje", label: "Personaje", icon: Users },
-  { id: "Lugar", label: "Lugar", icon: Map },
-  { id: "Objeto", label: "Objeto", icon: Star },
-  { id: "Faccion", label: "Facción", icon: Shield },
-  { id: "Evento", label: "Evento", icon: Calendar },
-  { id: "Concepto", label: "Concepto", icon: Sparkles },
-] as const
+  { id: "Personaje" as EntityCategory, label: "Personaje", icon: Users },
+  { id: "Lugar" as EntityCategory, label: "Lugar", icon: Map },
+  { id: "Objeto" as EntityCategory, label: "Objeto", icon: Star },
+  { id: "Faccion" as EntityCategory, label: "Facción", icon: Shield },
+  { id: "Evento" as EntityCategory, label: "Evento", icon: Calendar },
+  { id: "Concepto" as EntityCategory, label: "Concepto", icon: Sparkles },
+]
 
 type NewEntityModalProps = {
   show: boolean
   onClose: () => void
+  onSubmit: (data: CreateEntityInput | UpdateEntityInput, file?: File | null) => Promise<void>
+  entity?: Entity | null
 }
 
 export function NewEntityModal({
   show,
   onClose,
+  onSubmit,
+  entity,
 }: NewEntityModalProps) {
   const [name, setName] = useState("")
-  const [category, setCategory] =
-    useState<Entity["category"]>("Personaje")
+  const [category, setCategory] = useState<EntityCategory>("Personaje")
   const [description, setDescription] = useState("")
   const [tags, setTags] = useState<string[]>([])
   const [tagInput, setTagInput] = useState("")
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const isEditing = !!entity
+
+  useEffect(() => {
+    if (show) {
+      if (entity) {
+        setName(entity.canonicalName)
+        setCategory(TYPE_TO_CATEGORY[entity.type])
+        setDescription(entity.description ?? "")
+        setTags(entity.aliases)
+      } else {
+        setName("")
+        setCategory("Personaje")
+        setDescription("")
+        setTags([])
+      }
+      setTagInput("")
+      setError(null)
+      setSubmitting(false)
+      setSelectedFile(null)
+      setPreviewUrl(null)
+    }
+  }, [show, entity])
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl)
+    }
+  }, [previewUrl])
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setSelectedFile(file)
+    setPreviewUrl(URL.createObjectURL(file))
+  }
+
+  const handleRemoveFile = () => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl)
+    setSelectedFile(null)
+    setPreviewUrl(null)
+    if (fileInputRef.current) fileInputRef.current.value = ""
+  }
 
   const addTag = () => {
     if (!tagInput.trim()) return
@@ -54,17 +107,56 @@ export function NewEntityModal({
     setTags(tags.filter((t) => t !== tag))
   }
 
+  const handleSubmit = async () => {
+    if (!name.trim()) return
+
+    setSubmitting(true)
+    setError(null)
+
+    try {
+      const type = CATEGORY_TO_TYPE[category]
+      if (isEditing && entity) {
+        const input: UpdateEntityInput = {
+          canonicalName: name.trim(),
+          type,
+          description: description.trim() || undefined,
+          aliases: tags.length > 0 ? tags : undefined,
+        }
+        await onSubmit(input, selectedFile)
+      } else {
+        const input: CreateEntityInput = {
+          canonicalName: name.trim(),
+          type,
+          description: description.trim() || undefined,
+          aliases: tags.length > 0 ? tags : undefined,
+        }
+        await onSubmit(input, selectedFile)
+      }
+      onClose()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error al guardar la entidad")
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   return (
     <Dialog open={show} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="min-w-[600px] gap-0 overflow-hidden">
 
         <DialogHeader className="p-6 py-4 border-b">
           <div className="flex items-center justify-between">
-            <DialogTitle>Nueva Entidad</DialogTitle>
+            <DialogTitle>{isEditing ? "Editar Entidad" : "Nueva Entidad"}</DialogTitle>
           </div>
         </DialogHeader>
 
         <div className="px-6 py-6 space-y-5 max-h-[65vh] overflow-y-auto">
+
+          {error && (
+            <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
+              {error}
+            </div>
+          )}
 
           <div className="space-y-2">
             <label className="text-sm font-medium">
@@ -90,9 +182,7 @@ export function NewEntityModal({
                     key={id}
                     type="button"
                     onClick={() =>
-                      setCategory(
-                        id as Entity["category"]
-                      )
+                      setCategory(id)
                     }
                     className={`
                       flex items-center gap-2
@@ -135,25 +225,53 @@ export function NewEntityModal({
 
           <div className="space-y-2">
             <label className="text-sm font-medium">
-              Imagen (Opcional)
+              Imagen {selectedFile ? "(1 seleccionada)" : "(Opcional)"}
             </label>
 
-            <div className="border-2 border-dashed border-border rounded-lg p-6 text-center hover:border-primary/40 transition-colors cursor-pointer">
-              <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/avif"
+              onChange={handleFileSelect}
+              className="hidden"
+            />
 
+            {previewUrl ? (
+              <div className="relative rounded-lg overflow-hidden border border-border">
+                <img
+                  src={previewUrl}
+                  alt="Preview"
+                  className="w-full h-48 object-contain bg-muted"
+                />
+                <button
+                  type="button"
+                  onClick={handleRemoveFile}
+                  className="absolute top-2 right-2 p-1.5 rounded-full bg-background/80 hover:bg-background text-muted-foreground hover:text-destructive transition-colors"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            ) : isEditing && entity?.imageUrl ? (
+              <div className="relative rounded-lg overflow-hidden border border-border">
+                <img
+                  src={`/api/storage/image/${entity.id}?v=${Date.parse(entity.updatedAt)}`}
+                  alt={entity.canonicalName}
+                  className="w-full h-48 object-contain bg-muted"
+                  loading="lazy"
+                />
+              </div>
+            ) : null}
+
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="w-full border-2 border-dashed border-border rounded-lg p-4 text-center hover:border-primary/40 hover:bg-muted/50 transition-colors cursor-pointer"
+            >
+              <ImageIcon className="h-6 w-6 mx-auto mb-1 text-muted-foreground" />
               <p className="text-sm text-muted-foreground">
-                Click para subir imagen o usa IA para
-                generar
+                {selectedFile ? "Cambiar imagen" : "Seleccionar imagen"}
               </p>
-
-              <Button
-                variant="secondary"
-                className="mt-3"
-              >
-                <Sparkles className="h-4 w-4 mr-2" />
-                Generar con IA
-              </Button>
-            </div>
+            </button>
           </div>
 
           <div className="space-y-2">
@@ -176,7 +294,7 @@ export function NewEntityModal({
                 }}
               />
 
-              <Button onClick={addTag}>
+              <Button onClick={addTag} type="button">
                 Agregar
               </Button>
             </div>
@@ -195,6 +313,7 @@ export function NewEntityModal({
                     onClick={() =>
                       removeTag(tag)
                     }
+                    type="button"
                   >
                     <X className="h-3 w-3" />
                   </button>
@@ -208,14 +327,17 @@ export function NewEntityModal({
           <Button
             variant="outline"
             onClick={onClose}
+            disabled={submitting}
           >
             Cancelar
           </Button>
 
           <Button
-            disabled={!name.trim()}
+            disabled={!name.trim() || submitting}
+            onClick={handleSubmit}
           >
-            Crear entidad
+            {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            {isEditing ? "Guardar cambios" : "Crear entidad"}
           </Button>
         </DialogFooter>
       </DialogContent>

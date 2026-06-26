@@ -3,7 +3,7 @@ import {type SidebarBook } from "@/components/left-sidebar"
 
 export const projectMock: SidebarBook[] = [
   {
-    id: "1",
+    id: "00000000-0000-0000-0000-000000000001",
     title: "La Sombra del Abismo",
     subtitle: "Novela · Draft v2.3",
     parts: [
