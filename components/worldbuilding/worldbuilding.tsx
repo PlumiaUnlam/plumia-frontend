@@ -6,8 +6,8 @@ import useSWR from "swr"
 import useSWRMutation from "swr/mutation"
 
 import { Header } from "../header"
-import { WikiTab } from "./wiki-panel"
 import { SummariesPanel } from "./summaries-panel"
+import { WikiTab } from "./wiki-panel"
 
 import { NewEntityModal } from "@/components/modal/new-entity-modal"
 

@@ -1,8 +1,22 @@
+import { signInWithEmailAndPassword } from "firebase/auth"
 import { auth } from "@/lib/firebase"
 
-async function getToken(): Promise<string | null> {
-  if (!auth.currentUser) return null
-  return auth.currentUser.getIdToken()
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000"
+const DEV_USER_EMAIL = "user@example.com"
+const DEV_USER_PASSWORD = "user1234"
+
+async function getToken(): Promise<string> {
+  if (!auth.currentUser) {
+    await signInWithEmailAndPassword(auth, DEV_USER_EMAIL, DEV_USER_PASSWORD)
+  }
+
+  const token = await auth.currentUser?.getIdToken()
+
+  if (!token) {
+    throw new Error("No se pudo obtener el token de Firebase")
+  }
+
+  return token
 }
 
 async function request<T>(
@@ -11,32 +25,36 @@ async function request<T>(
 ): Promise<T> {
   const token = await getToken()
   const headers: Record<string, string> = {
+    Accept: "application/json",
     "Content-Type": "application/json",
-    ...(options.headers as Record<string, string>),
+    ...(options.headers as Record<string, string> | undefined),
+    Authorization: `Bearer ${token}`,
   }
 
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`
-  }
-
-  const res = await fetch(`/api${path}`, {
+  const response = await fetch(`${API_URL}${path}`, {
     ...options,
     headers,
   })
 
-  if (!res.ok) {
-    throw new Error(`API error: ${res.status} ${res.statusText}`)
+  console.log(`${path} status:`, response.status)
+
+  if (!response.ok) {
+    const errorText = await response.text()
+    throw new Error(`API error ${response.status}: ${errorText}`)
   }
 
-  if (res.status === 204 || res.status === 205) {
+  if (response.status === 204 || response.status === 205) {
     return undefined as T
   }
 
-  return res.json() as Promise<T>
+  const data = (await response.json()) as T
+  console.log(`${path} response:`, data)
+
+  return data
 }
 
 export const api = {
-  get: <T>(path: string) => request<T>(path),
+  get: <T>(path: string) => request<T>(path), 
   post: <T>(path: string, body: unknown) =>
     request<T>(path, { method: "POST", body: JSON.stringify(body) }),
   patch: <T>(path: string, body: unknown) =>

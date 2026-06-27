@@ -82,7 +82,7 @@ export function RegisterForm() {
 
     try {
       await register(values.email.trim(), values.password)
-      router.push("/editor")
+      router.push("/dashboard")
     } catch {
       setGeneralError("No se pudo crear la cuenta. El email podría estar en uso.")
     } finally {

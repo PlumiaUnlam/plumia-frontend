@@ -1,14 +1,22 @@
 "use client"
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
 import {
-  signInWithEmailAndPassword,
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from "react"
+import {
   createUserWithEmailAndPassword,
-  signOut,
   onIdTokenChanged,
+  signInWithEmailAndPassword,
+  signOut,
   type User as FirebaseUser,
 } from "firebase/auth"
 import { auth } from "@/lib/firebase"
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000"
 
 export interface BackendUser {
   id: string
@@ -41,19 +49,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   const syncBackendUser = async (idToken: string) => {
-    const res = await fetch("/api/auth/login", {
+    const response = await fetch(`${API_URL}/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ idToken }),
     })
-    if (!res.ok) throw new Error("Failed to sync user with backend")
-    const data = await res.json()
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      throw new Error(
+        `Failed to sync user with backend (${response.status}): ${errorText}`,
+      )
+    }
+
+    const data = (await response.json()) as { user: BackendUser }
     setUser(data.user)
   }
 
   useEffect(() => {
     const unsubscribe = onIdTokenChanged(auth, async (fbUser) => {
       setFirebaseUser(fbUser)
+
       try {
         if (fbUser) {
           const token = await fbUser.getIdToken()
@@ -63,22 +79,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           document.cookie = "__session=; path=/; max-age=0"
           setUser(null)
         }
+      } catch (error) {
+        console.error("Error syncing Firebase user with backend:", error)
+        document.cookie = "__session=; path=/; max-age=0"
+        setUser(null)
       } finally {
         setLoading(false)
       }
     })
+
     return unsubscribe
   }, [])
 
   const login = async (email: string, password: string) => {
-    const cred = await signInWithEmailAndPassword(auth, email, password)
-    const token = await cred.user.getIdToken()
+    const credential = await signInWithEmailAndPassword(auth, email, password)
+    const token = await credential.user.getIdToken()
     await syncBackendUser(token)
   }
 
   const register = async (email: string, password: string) => {
-    const cred = await createUserWithEmailAndPassword(auth, email, password)
-    const token = await cred.user.getIdToken()
+    const credential = await createUserWithEmailAndPassword(
+      auth,
+      email,
+      password,
+    )
+    const token = await credential.user.getIdToken()
     await syncBackendUser(token)
   }
 
@@ -88,19 +113,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const getIdToken = async (): Promise<string | null> => {
-    if (!firebaseUser) return null
-    return firebaseUser.getIdToken()
+    if (!auth.currentUser) {
+      return null
+    }
+
+    return auth.currentUser.getIdToken()
   }
 
   return (
-    <AuthContext.Provider value={{ firebaseUser, user, loading, login, register, logout, getIdToken }}>
+    <AuthContext.Provider
+      value={{ firebaseUser, user, loading, login, register, logout, getIdToken }}
+    >
       {children}
     </AuthContext.Provider>
   )
 }
 
 export function useAuth(): AuthContextType {
-  const ctx = useContext(AuthContext)
-  if (!ctx) throw new Error("useAuth must be used within AuthProvider")
-  return ctx
+  const context = useContext(AuthContext)
+
+  if (!context) {
+    throw new Error("useAuth must be used within AuthProvider")
+  }
+
+  return context
 }
