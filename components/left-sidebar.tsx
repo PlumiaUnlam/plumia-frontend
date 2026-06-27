@@ -3,56 +3,86 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 
 import {
-    SidebarProvider, SidebarTrigger, Sidebar, SidebarContent, SidebarFooter, 
+    SidebarTrigger, Sidebar, SidebarContent, SidebarFooter, 
     SidebarGroup, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton
 } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button";
 import {Collapsible,CollapsibleContent,CollapsibleTrigger,} from "@/components/ui/collapsible"
 import {BookOpen, Earth,Layers3,GitBranch,TrendingUp, Plus,ChevronRight} from "lucide-react"
 
-import { NewProjectForm } from "./form/new-project-form";
-import { Header } from "./header";
+import { NewItemModal } from "@/components/modal/new-item-modal"
+import { createBook, createChapter, createSection } from "@/services/project.service";
 
 export type SidebarChapter = {
   id: string
   title: string
+  sortKey: string
   wordCount?: number
+  scenes: SidebarScene[]
 }
 
-export type SidebarPart = {
+export type SidebarScene = {
   id: string
   title: string
-  chapters: SidebarChapter[]
+  sortKey: string
+  wordCount?: number
+  order: number
 }
 
 export type SidebarBook = {
   id: string
   title: string
-  subtitle: string
-  parts: SidebarPart[]
+  sortKey: string
+  chapters: SidebarChapter[]
 }
 
 type LeftSidebarProps = {
+    projectTitle: string;
     books: SidebarBook[];
+    projectId: string ;
+    onRefresh: () => Promise<void>;
 };
 
-export function LeftSidebar({ books, }: LeftSidebarProps) {
-    const [showNewProjectForm, setShowNewProjectForm] = useState(false)
+function nextSortKey(items: Array<{ sortKey?: string }>) {
+    const next = Math.max(
+        0,
+        ...items.map((item) => Number.parseInt(item.sortKey ?? "", 10)).filter(Number.isFinite),
+    ) + 1
+
+    return next.toString().padStart(3, "0")
+}
+
+function nextOrder(items: Array<{ order?: number }>) {
+    return Math.max(0, ...items.map((item) => item.order ?? 0)) + 1
+}
+
+//LLega ID del proyecto elegido
+export function LeftSidebar({ projectTitle, books, projectId, onRefresh }: LeftSidebarProps) {
+    const [modalType, setModalType] = useState<{
+    type: "book" | "chapter" | "section"
+    parentId: string
+    sortKey: string
+    order?: number
+    } | null>(null)
+    
     const router = useRouter()
+
 return (
         <div className=" h-full">
             <Sidebar className="relative overflow-hidden flex border-r bg-background">
                 <SidebarHeader className="border-b bg-background">
-                    <div className="flex items-center justify-between px-4 py-3">
-                        <h2 className="font-semibold">
-                            Proyecto
+                    
+                    <div className="grid w-full grid-cols-[minmax(0,1fr)_2rem] items-center gap-1 py-3">
+                        <h2 className="truncate font-semibold center text-[15px] justify-center">
+                            {projectTitle}
                         </h2>
 
                         <Button
                             size="icon"
                             variant="ghost"
+                            className="size-8"
                             onClick={() => {
-                                setShowNewProjectForm(true)
+                                setModalType({ type: "book", parentId: projectId, sortKey: nextSortKey(books), })
                             }}
                         >
                             <Plus className="size-4" />
@@ -67,48 +97,85 @@ return (
                                 <Collapsible defaultOpen>
                                     <SidebarMenuItem>
 
-                                        <CollapsibleTrigger asChild>
-                                            <SidebarMenuButton>
-                                                <ChevronRight
-                                                    className="size-4 transition-transform group-data-[state=open]:rotate-90"
-                                                />
+                                        <div className="grid w-full grid-cols-[minmax(0,1fr)_2rem] items-center gap-1">
+                                            <CollapsibleTrigger asChild>
+                                                <SidebarMenuButton className="min-w-0 flex-1">
+                                                    <ChevronRight
+                                                        className="size-4 transition-transform group-data-[state=open]:rotate-90"
+                                                    />
 
-                                                <BookOpen className="size-4" />
+                                                    <BookOpen className="size-4" />
 
-                                                <span>{book.title}</span>
-                                            </SidebarMenuButton>
-                                        </CollapsibleTrigger>
+                                                    <span className="text-[12px] font-bold text-foreground truncate">{book.title}</span>
+                                                </SidebarMenuButton>
+                                            </CollapsibleTrigger>
+
+                                            <Button
+                                                size="icon"
+                                                variant="ghost"
+                                                className="size-8"
+                                                onClick={(e) => {
+                                                    e.stopPropagation()
+                                                    setModalType({ type: "chapter", parentId: book.id, sortKey: nextSortKey(book.chapters), })
+                                                }}
+                                            >
+                                                <Plus className="size-4" />
+                                            </Button>
+                                        </div>
 
                                         <CollapsibleContent>
-                                            <SidebarMenu className="ml-4 mt-1">
+                                            <SidebarMenu className="mt-1 pl-3">
 
-                                                {book.parts.map((part) => (
+                                                {book.chapters.map((chapter) => (
                                                     <Collapsible
-                                                        key={part.id}
+                                                        key={chapter.id}
                                                         defaultOpen
                                                     >
                                                         <SidebarMenuItem>
 
-                                                            <CollapsibleTrigger asChild>
-                                                                <SidebarMenuButton size="sm">
-                                                                    <ChevronRight
-                                                                        className="size-3 transition-transform group-data-[state=open]:rotate-9"
-                                                                    />
-                                                                    <span>{part.title}</span>
-                                                                </SidebarMenuButton>
-                                                            </CollapsibleTrigger>
+                                                            <div className="grid w-full grid-cols-[minmax(0,1fr)_2rem] items-center gap-1">
+                                                                <CollapsibleTrigger asChild>
+                                                                    <SidebarMenuButton className="min-w-0 flex-1">
+                                                                        <ChevronRight
+                                                                            className="size-3 transition-transform group-data-[state=open]:rotate-90"
+                                                                        />
+                                                                        <span className="text-[11px] font-medium text-foreground truncate">{chapter.title}</span>
+                                                                    </SidebarMenuButton>
+                                                                </CollapsibleTrigger>
+
+                                                                <Button
+                                                                    size="icon"
+                                                                    variant="ghost"
+                                                                    className="size-8"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation()
+                                                                        setModalType({
+                                                                            type: "section",
+                                                                            parentId: chapter.id,
+                                                                            sortKey: nextSortKey(chapter.scenes),
+                                                                            order: nextOrder(chapter.scenes),
+                                                                        })
+                                                                    }}
+                                                                >
+                                                                    <Plus className="size-4" />
+                                                                </Button>
+                                                            </div>
 
                                                             <CollapsibleContent>
-                                                                <SidebarMenu className="ml-4">
+                                                                <SidebarMenu className="pl-4">
 
-                                                                    {part.chapters.map((chapter) => (
+                                                                    {chapter.scenes.map((scene) => (
                                                                         <SidebarMenuItem
-                                                                            key={chapter.id}
+                                                                            key={scene.id}
                                                                         >
                                                                             <SidebarMenuButton
-                                                                                size="sm"
+                                                                                size="lg"
                                                                             >
-                                                                                {chapter.title}
+                                                                                <div className="flex flex-col items-start gap-1 padding-4">
+                                                                                    <span className="text-[11px] font-medium text-foreground truncate">{scene.title}</span>
+                                                                                    <span className="text-[9px] text-muted-foreground"> {scene.wordCount?.toLocaleString()} palabras</span>
+                                                                                </div>
+                                                                            
                                                                             </SidebarMenuButton>
                                                                         </SidebarMenuItem>
                                                                     ))}
@@ -153,11 +220,58 @@ return (
                 <SidebarTrigger />  
                 Arbol
             </main>
-      {showNewProjectForm && (
-        <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/50">
-          <NewProjectForm onCancel={() => setShowNewProjectForm(false)} />
-        </div>
-      )}
+
+        <NewItemModal
+        show={modalType?.type === "chapter"}
+        onClose={() => setModalType(null)}
+        onSubmit={async (name) => {
+            await createChapter({
+            title: name,
+            partId: modalType!.parentId,
+            sortKey: modalType!.sortKey,
+            })
+            await onRefresh()
+        }}
+        title="Nuevo Capítulo"
+        label="Nombre del Capítulo"
+        placeholder="Ej: Capítulo 1: ..."
+        submitText="Crear Capítulo"
+        />
+
+        <NewItemModal
+        show={modalType?.type === "section"}
+        onClose={() => setModalType(null)}
+        onSubmit={async (name) => {
+            await createSection({
+            title: name,
+            partId: modalType!.parentId,
+            sortKey: modalType!.sortKey,
+            order: modalType!.order ?? 1,
+            })
+            await onRefresh()
+        }}
+        title="Nueva Sección"
+        label="Nombre de la Sección"
+        placeholder="Ej: Sección 1: ..."
+        submitText="Crear Sección"
+        />
+
+        <NewItemModal
+        show={modalType?.type === "book"}
+        onClose={() => setModalType(null)}
+        onSubmit={async (name) => {
+            await createBook({
+            title: name,
+            partId: modalType!.parentId,
+            sortKey: modalType!.sortKey,
+            })
+            await onRefresh()
+        }}
+        title="Nuevo Libro"
+        label="Nombre del Libro"
+        placeholder="Ej: Libro 1: ..."
+        submitText="Crear Libro"
+        />
         </div>
     )
 }
