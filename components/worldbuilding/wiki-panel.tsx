@@ -5,103 +5,61 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Skeleton } from "@/components/ui/skeleton"
 
-interface Entity {
-  id: string;
-  name: string;
-  description: string;
-  category: EntityCategory;
-  tags: string[];
-  hasImage: boolean;
-  imageUrl?: string; // Añade este campo para la URL de la imagen
+import type { Entity } from "@/types/entity"
+import { TYPE_TO_CATEGORY } from "@/types/entity"
+
+export type EntityCategory = 'Personaje' | 'Lugar' | 'Objeto' | 'Faccion' | 'Evento' | 'Concepto';
+
+interface WikiTabProps {
+  readonly entities: readonly Entity[]
+  readonly loading: boolean
+  readonly error: Error | undefined
+  readonly onEdit: (entity: Entity) => void
+  readonly onDelete: (entity: Entity) => void
+  readonly selectedEntity: Entity | null
+  readonly onSelectEntity: (entity: Entity | null) => void
 }
 
-const entities: Entity[] = [
-  {
-    id: '1',
-    name: 'John Doe',
-    description: 'Un personaje misterioso con un pasado oscuro.',
-    category: 'Personaje',
-    tags: ['Protagonista', 'Humano'],
-    hasImage: false,
-    imageUrl: '' // Añade la URL de la imagen
-  },
-  {
-    id: '2',
-    name: 'Ciudad de las Sombras',
-    description: 'Una ciudad oscura y peligrosa donde se desarrollan muchas de las historias.',
-    category: 'Lugar',
-    tags: ['Ciudad', 'Peligrosa'],
-    hasImage: false,
-    imageUrl: '' // Añade la URL de la imagen
-  },
-    {
-    id: '3',
-    name: 'John Doe',
-    description: 'Un personaje misterioso con un pasado oscuro.',
-    category: 'Personaje',
-    tags: ['Protagonista', 'Humano'],
-    hasImage: false,
-    imageUrl: '' // Añade la URL de la imagen
-  },
-  {
-    id: '4',
-    name: 'Ciudad de las Sombras',
-    description: 'Una ciudad oscura y peligrosa donde se desarrollan muchas de las historias.',
-    category: 'Lugar',
-    tags: ['Ciudad', 'Peligrosa'],
-    hasImage: false,
-    imageUrl: '' // Añade la URL de la imagen
-  },
-    {
-    id: '5',
-    name: 'John Doe',
-    description: 'Un personaje misterioso con un pasado oscuro.',
-    category: 'Personaje',
-    tags: ['Protagonista', 'Humano'],
-    hasImage: false,
-    imageUrl: '' // Añade la URL de la imagen
-  },
-  {
-    id: '6',
-    name: 'Ciudad de las Sombras',
-    description: 'Una ciudad oscura y peligrosa donde se desarrollan muchas de las historias.',
-    category: 'Lugar',
-    tags: ['Ciudad', 'Peligrosa'],
-    hasImage: false,
-    imageUrl: '' // Añade la URL de la imagen
-  }
-];
-
-type EntityCategory = 'Personaje' | 'Lugar' | 'Objeto' | 'Evento';
-
-export function WikiTab() {
+export function WikiTab({ entities, loading, error, onEdit, onDelete, selectedEntity, onSelectEntity }: WikiTabProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string[]>([]);
-  const [selectedEntity, setSelectedEntity] = useState<Entity | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<EntityCategory[]>([]);
 
-  // Filtrar entidades basándose en el query de búsqueda y categorías seleccionadas
   const filteredEntities = useMemo(() => {
-    return entities.filter(entity =>
-      entity.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      entity.description.toLowerCase().includes(searchQuery.toLowerCase())
-    ).filter(entity => selectedCategory.length === 0 || selectedCategory.includes(entity.category));
-  }, [searchQuery, selectedCategory]);
+    return entities.filter(entity => {
+      const category = TYPE_TO_CATEGORY[entity.type]
+      const matchesSearch = entity.canonicalName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (entity.description ?? '').toLowerCase().includes(searchQuery.toLowerCase())
+      const matchesCategory = selectedCategory.length === 0 || selectedCategory.includes(category)
+      return matchesSearch && matchesCategory
+    })
+  }, [entities, searchQuery, selectedCategory])
 
-  // Obtener categorías únicas
   const categories = useMemo(() => {
-    return Array.from(new Set(filteredEntities.map(entity => entity.category)));
-  }, [filteredEntities]);
+    return Array.from(new Set(entities.map(e => TYPE_TO_CATEGORY[e.type])))
+  }, [entities])
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center space-y-3">
+          <p className="text-muted-foreground">Error al cargar entidades</p>
+          <p className="text-sm text-muted-foreground">{error.message}</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <div className="flex w-full h-screen">
-      <aside className="w-90 px-4 py-6 text-foreground flex flex-col gap-4 border-r border-border">
-        <Input
+    <div className="flex w-full h-full">
+      <aside className="w-80 border-r border-border flex flex-col bg-muted/30">
+        <Input className="p-4 border-b border-border bg-card/50"
           placeholder="Buscar entidades..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
-        <h2 className="font-bold">Filtrar por categorías</h2>
+        <h2 className="p-3 border-b border-border bg-card/30">Filtrar por categorías</h2>
         <div className="flex flex-wrap gap-2">
           {categories.map(category => (
             <Button
@@ -116,19 +74,41 @@ export function WikiTab() {
           ))}
         </div>
         <h2 className="font-bold">Lista de entidades</h2>
-        <ScrollArea className="w-full h-[calc(130vh-364px)]">
-          {filteredEntities.map(entity => (
-            <Card key={entity.id} onClick={() => setSelectedEntity(entity)}>
-              <CardHeader>
-                <CardTitle>{entity.name}</CardTitle>
-                <div className="flex flex-wrap gap-2">
-                  {entity.tags.map(tag => (
-                    <Badge key={tag}>{tag}</Badge>
-                  ))}
-                </div>
-              </CardHeader>
-            </Card>
-          ))}
+        <ScrollArea className="w-full flex-1 min-h-0">
+          {loading ? (
+            Array.from({ length: 4 }).map((_, i) => (
+              <Card key={i} className="m-2">
+                <CardHeader>
+                  <Skeleton className="h-5 w-32 mb-2" />
+                  <div className="flex gap-2">
+                    <Skeleton className="h-4 w-16" />
+                    <Skeleton className="h-4 w-16" />
+                  </div>
+                </CardHeader>
+              </Card>
+            ))
+          ) : (
+            filteredEntities.map(entity => (
+              <Card
+                key={entity.id}
+                onClick={() => onSelectEntity(entity)}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelectEntity(entity); } }}
+                tabIndex={0}
+                role="button"
+                className="cursor-pointer focus-visible:ring-2 focus-visible:ring-primary"
+              >
+                <CardHeader>
+                  <CardTitle>{entity.canonicalName}</CardTitle>
+                  <div className="flex flex-wrap gap-2">
+                    <Badge variant="secondary">{TYPE_TO_CATEGORY[entity.type]}</Badge>
+                    {entity.aliases.map(tag => (
+                      <Badge key={tag}>{tag}</Badge>
+                    ))}
+                  </div>
+                </CardHeader>
+              </Card>
+            ))
+          )}
         </ScrollArea>
       </aside>
 
@@ -137,21 +117,34 @@ export function WikiTab() {
           <>
             <header className="mb-6 flex items-center gap-2 justify-between">
               <div className="flex flex-wrap gap-2">
-                {selectedEntity.name}
-                {selectedEntity.tags.map(tag => (
+                <h2 className="text-lg font-semibold">{selectedEntity.canonicalName}</h2>
+                <Badge variant="secondary">{TYPE_TO_CATEGORY[selectedEntity.type]}</Badge>
+                {selectedEntity.aliases.map(tag => (
                   <Badge key={tag}>{tag}</Badge>
                 ))}
               </div>
               <div className="flex flex-wrap gap-2">
-                <Button variant="default">Editar</Button>
-                <Button variant="default">Eliminar</Button>
+                <Button variant="default" onClick={() => onEdit(selectedEntity)}>Editar</Button>
+                <Button variant="destructive" onClick={() => onDelete(selectedEntity)}>Eliminar</Button>
               </div>
             </header>
 
-            {/* Descripción */}
+            {selectedEntity.imageUrl && (
+              <div className="mb-6 rounded-lg overflow-hidden border border-border">
+                <img
+                  src={`/api/storage/image/${selectedEntity.id}?v=${Date.parse(selectedEntity.updatedAt)}`}
+                  alt={selectedEntity.canonicalName}
+                  className="w-full max-h-64 object-contain bg-muted"
+                  loading="lazy"
+                />
+              </div>
+            )}
+
             <Card className="mb-6">
-              <CardContent>
-                {selectedEntity.description}
+              <CardContent className="pt-6">
+                {selectedEntity.description || (
+                  <span className="text-muted-foreground italic">Sin descripción</span>
+                )}
               </CardContent>
             </Card>
           </>

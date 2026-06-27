@@ -1,33 +1,158 @@
 "use client"
 
-import { useState } from "react"
-import {Plus, Users, Star, Calendar, FileText} from "lucide-react"
+import { useState, useEffect, useRef } from "react"
+import { Loader2, Plus, Star, Users, Calendar, FileText } from "lucide-react"
+import useSWR from "swr"
+import useSWRMutation from "swr/mutation"
 
 import { Header } from "../header"
 import { SummariesPanel } from "./summaries-panel"
 import { WikiTab } from "./wiki-panel"
 
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { NewEntityModal } from "@/components/modal/new-entity-modal"
+
+import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+
+import { useProject } from "@/contexts/ProjectContext"
+import { useAuth } from "@/contexts/AuthContext"
+import {
+  getEntities,
+  createEntity,
+  updateEntity,
+  deleteEntity,
+} from "@/services/entities.service"
+import { uploadEntityImage } from "@/services/upload.service"
+
+import type { Entity, CreateEntityInput, UpdateEntityInput } from "@/types/entity"
 
 type WorldbuildingTab = "wiki" | "relationships" | "timeline" | "summaries"
 
+function useActiveProject() {
+  const { projectId } = useProject()
+  return projectId
+}
+
 export function Worldbuilding() {
+  const projectId = useActiveProject()
+  const { loading, firebaseUser } = useAuth()
+  const shouldFetch = !!projectId && !loading && !!firebaseUser
 
   const tabs = [
-  { id: "wiki", label: "Wiki del Universo", icon: Star },
-  { id: "relationships", label: "Relaciones", icon: Users },
-  { id: "timeline", label: "Línea Temporal", icon: Calendar },
-  { id: "summaries", label: "Resúmenes", icon: FileText },
-  ];
+    { id: "wiki" as const, label: "Wiki del Universo", icon: Star },
+    { id: "relationships" as const, label: "Relaciones", icon: Users },
+    { id: "timeline" as const, label: "Línea Temporal", icon: Calendar },
+    { id: "summaries" as const, label: "Resúmenes", icon: FileText },
+  ]
 
   const [activeTab, setActiveTab] = useState<WorldbuildingTab>("wiki")
+  const [showNewEntityModal, setShowNewEntityModal] = useState(false)
+  const [editingEntity, setEditingEntity] = useState<Entity | null>(null)
+  const [selectedEntity, setSelectedEntity] = useState<Entity | null>(null)
+  const [deleteConfirmEntity, setDeleteConfirmEntity] = useState<Entity | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const pendingSelectIds = useRef<string[]>([])
+
+  const { data: entities, error, isLoading, mutate } = useSWR(
+    shouldFetch ? `/knowledge/entities?projectId=${projectId}` : null,
+    () => getEntities(projectId!),
+  )
+
+  const { trigger: triggerDelete } = useSWRMutation(
+    projectId ? `/knowledge/entities?projectId=${projectId}` : null,
+    async (_key: string, { arg }: { arg: string }) => {
+      await deleteEntity(arg)
+    },
+  )
+
+  useEffect(() => {
+    if (entities && pendingSelectIds.current.length > 0) {
+      for (const id of pendingSelectIds.current) {
+        const updated = entities.find(e => e.id === id)
+        if (updated) {
+          setSelectedEntity(updated)
+        }
+      }
+      pendingSelectIds.current = []
+    }
+  }, [entities])
+
+  useEffect(() => {
+    if (!selectedEntity || !entities) return
+    const updated = entities.find(e => e.id === selectedEntity.id)
+    if (updated && updated.updatedAt !== selectedEntity.updatedAt) {
+      setSelectedEntity(updated)
+    }
+  }, [entities, selectedEntity])
+
+  const handleSubmitModal = async (data: CreateEntityInput | UpdateEntityInput, file?: File | null) => {
+    let entityId: string
+    if (editingEntity) {
+      entityId = editingEntity.id
+      await updateEntity(entityId, data as UpdateEntityInput)
+      if (file) {
+        const publicUrl = await uploadEntityImage(entityId, file, editingEntity.imageUrl ?? undefined)
+        await updateEntity(entityId, { imageUrl: publicUrl } as UpdateEntityInput)
+      }
+      setEditingEntity(null)
+    } else {
+      const entity = await createEntity(projectId!, data as CreateEntityInput)
+      entityId = entity.id
+      if (file) {
+        try {
+          const publicUrl = await uploadEntityImage(entityId, file)
+          await updateEntity(entity.id, { imageUrl: publicUrl } as UpdateEntityInput)
+        } catch (err) {
+          await deleteEntity(entityId).catch(() => {})
+          throw err
+        }
+      }
+    }
+    pendingSelectIds.current.push(entityId)
+    await mutate()
+  }
+
+  const handleDelete = (entity: Entity) => {
+    setDeleteConfirmEntity(entity)
+  }
+
+  const handleDeleteConfirmed = async (id: string) => {
+    try {
+      await triggerDelete(id)
+      mutate((currentData?: Entity[]) => currentData?.filter(e => e.id !== id) ?? [], { revalidate: false })
+      await mutate()
+    } finally {
+      setDeleteConfirmEntity(null)
+      setDeleting(false)
+    }
+  }
+
+  const handleEdit = (entity: Entity) => {
+    setEditingEntity(entity)
+    setShowNewEntityModal(true)
+  }
+
+  const handleModalClose = () => {
+    setShowNewEntityModal(false)
+    setEditingEntity(null)
+  }
+
+  const currentEntity = showNewEntityModal ? editingEntity : null
 
   return (
-    <div className="h-full flex flex-col bg-background text-foreground overflow-hidden">
+    <div className="min-h-screen flex flex-col bg-background text-foreground overflow-hidden">
 
       <Header />
 
-      <div className="shrink-0 border-b border-border bg-card px-6 py-4 ">
+      <div className="flex-1 flex flex-col overflow-hidden border-b border-border bg-card px-6 py-4 ">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-xl font-semibold text-foreground">Worldbuilding</h1>
@@ -37,57 +162,102 @@ export function Worldbuilding() {
           </div>
           <button
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+            onClick={() => setShowNewEntityModal(true)}
           >
             <Plus size={16} />
             Nueva Entidad
           </button>
         </div>
 
-        {/* Tabs */}
+        <NewEntityModal
+          show={showNewEntityModal}
+          onClose={handleModalClose}
+          onSubmit={handleSubmitModal}
+          entity={currentEntity}
+        />
+
         <Tabs
-        value={activeTab}
-        onValueChange={(value) =>
-          setActiveTab(
-            value as "wiki" | "relationships" | "timeline" | "summaries"
-          )
-        }
-        className="mt-4">
-          
-        <TabsList className="h-auto gap-1 bg-transparent p-0">
-          {tabs.map(({ id, label, icon: Icon }) => (
-            <TabsTrigger
-              key={id}
-              value={id}
-              className="
-                flex items-center gap-2 px-4 py-2.5 rounded-lg
-                data-[state=active]:bg-primary/10
-                data-[state=active]:text-primary
-                data-[state=active]:border
-                data-[state=active]:border-primary/20
-              "
-            >
-              <Icon size={16} />
-              {label}
-            </TabsTrigger>
-          ))}
-        </TabsList >
-              <TabsContent value="wiki" className=" flex flex-1 h-full mt-4 bg-card rounded-lg border border-border p-4">
-                <WikiTab />
-              </TabsContent>
+          value={activeTab}
+          onValueChange={(value) =>
+            setActiveTab(
+              value as WorldbuildingTab
+            )
+          }
+          className="mt-4 flex flex-col flex-1 min-h-0 overflow-hidden">
 
-              <TabsContent value="relationships">
-                
-              </TabsContent>
+          <TabsList className="h-auto gap-1 bg-transparent p-0">
+            {tabs.map(({ id, label, icon: Icon }) => (
+              <TabsTrigger
+                key={id}
+                value={id}
+                className="
+                  flex items-center gap-2 px-4 py-2.5 rounded-lg
+                  data-[state=active]:bg-primary/10
+                  data-[state=active]:text-primary
+                  data-[state=active]:border
+                  data-[state=active]:border-primary/20
+                "
+              >
+                <Icon size={16} />
+                {label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
 
-              <TabsContent value="timeline">
-                
-              </TabsContent>
+          <TabsContent value="wiki" className="flex-1 mt-4 bg-card rounded-lg border border-border p-4 overflow-hidden">
+            <WikiTab
+              entities={entities ?? []}
+              loading={isLoading}
+              error={error}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              selectedEntity={selectedEntity}
+              onSelectEntity={setSelectedEntity}
+            />
+          </TabsContent>
 
-              <TabsContent value="summaries" className=" flex flex-1 h-full mt-4 bg-card rounded-lg border border-border p-4">
-                <SummariesPanel />
-              </TabsContent>
-      </Tabs>
+          <TabsContent value="relationships">
+
+          </TabsContent>
+
+          <TabsContent value="timeline">
+
+          </TabsContent>
+
+          <TabsContent value="summaries" className="flex-1 mt-4 bg-card rounded-lg border border-border p-4 overflow-hidden">
+            <SummariesPanel />
+          </TabsContent>
+        </Tabs>
       </div>
+
+      <Dialog open={!!deleteConfirmEntity} onOpenChange={(open) => !open && setDeleteConfirmEntity(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmar eliminación</DialogTitle>
+            <DialogDescription>
+              ¿Estás seguro de que querés eliminar &ldquo;{deleteConfirmEntity?.canonicalName}&rdquo;? Esta acción no se puede deshacer.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteConfirmEntity(null)} disabled={deleting}>
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={deleting}
+              onClick={() => {
+                if (!deleteConfirmEntity) return
+                setSelectedEntity(null)
+                setDeleting(true)
+                void handleDeleteConfirmed(deleteConfirmEntity.id)
+              }}
+            >
+              {deleting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Eliminar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
