@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react"
-import { Loader2, Users, Map, Star, Shield, Calendar, Sparkles, Upload, Tag, X, ImageIcon, Trash2 } from "lucide-react"
+import { Loader2, Users, Map, Star, Shield, Calendar, Sparkles, Tag, X, ImageIcon, Trash2 } from "lucide-react"
 
 import {
   Dialog,
@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 
-import type { Entity, EntityType, CreateEntityInput, UpdateEntityInput } from "@/types/entity"
+import type { Entity, CreateEntityInput, UpdateEntityInput } from "@/types/entity"
 import { CATEGORY_TO_TYPE, TYPE_TO_CATEGORY } from "@/types/entity"
 import type { EntityCategory } from "@/components/worldbuilding/wiki-panel"
 
@@ -27,10 +27,10 @@ const categories = [
 ]
 
 type NewEntityModalProps = {
-  show: boolean
-  onClose: () => void
-  onSubmit: (data: CreateEntityInput | UpdateEntityInput, file?: File | null) => Promise<void>
-  entity?: Entity | null
+  readonly show: boolean
+  readonly onClose: () => void
+  readonly onSubmit: (data: CreateEntityInput | UpdateEntityInput, file?: File | null) => Promise<void>
+  readonly entity?: Entity | null
 }
 
 export function NewEntityModal({
@@ -140,6 +140,32 @@ export function NewEntityModal({
     }
   }
 
+  const imagePreview = previewUrl ? (
+    <div className="relative rounded-lg overflow-hidden border border-border">
+      <img
+        src={previewUrl}
+        alt="Preview"
+        className="w-full h-48 object-contain bg-muted"
+      />
+      <button
+        type="button"
+        onClick={handleRemoveFile}
+        className="absolute top-2 right-2 p-1.5 rounded-full bg-background/80 hover:bg-background text-muted-foreground hover:text-destructive transition-colors"
+      >
+        <Trash2 size={16} />
+      </button>
+    </div>
+  ) : isEditing && entity?.imageUrl ? (
+    <div className="relative rounded-lg overflow-hidden border border-border">
+      <img
+        src={`/api/storage/image/${entity.id}?v=${Date.parse(entity.updatedAt)}`}
+        alt={entity.canonicalName}
+        className="w-full h-48 object-contain bg-muted"
+        loading="lazy"
+      />
+    </div>
+  ) : null
+
   return (
     <Dialog open={show} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="min-w-[600px] gap-0 overflow-hidden">
@@ -159,21 +185,22 @@ export function NewEntityModal({
           )}
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">
+            <label htmlFor="entity-name" className="text-sm font-medium">
               Nombre *
             </label>
 
             <Input
+              id="entity-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Ej: Maren Solís"
             />
           </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium">
+          <fieldset className="space-y-2">
+            <legend className="text-sm font-medium">
               Tipo *
-            </label>
+            </legend>
 
             <div className="grid grid-cols-3 gap-2">
               {categories.map(
@@ -206,14 +233,15 @@ export function NewEntityModal({
                 )
               )}
             </div>
-          </div>
+          </fieldset>
 
           <div className="space-y-2 y-max-h-40">
-            <label className="text-sm font-medium">
+            <label htmlFor="entity-description" className="text-sm font-medium">
               Descripción
             </label>
 
             <Textarea
+              id="entity-description"
               value={description}
               onChange={(e) =>
                 setDescription(e.target.value)
@@ -224,11 +252,12 @@ export function NewEntityModal({
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">
+            <label htmlFor="entity-image" className="text-sm font-medium">
               Imagen {selectedFile ? "(1 seleccionada)" : "(Opcional)"}
             </label>
 
             <input
+              id="entity-image"
               ref={fileInputRef}
               type="file"
               accept="image/jpeg,image/png,image/webp,image/avif"
@@ -236,31 +265,7 @@ export function NewEntityModal({
               className="hidden"
             />
 
-            {previewUrl ? (
-              <div className="relative rounded-lg overflow-hidden border border-border">
-                <img
-                  src={previewUrl}
-                  alt="Preview"
-                  className="w-full h-48 object-contain bg-muted"
-                />
-                <button
-                  type="button"
-                  onClick={handleRemoveFile}
-                  className="absolute top-2 right-2 p-1.5 rounded-full bg-background/80 hover:bg-background text-muted-foreground hover:text-destructive transition-colors"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            ) : isEditing && entity?.imageUrl ? (
-              <div className="relative rounded-lg overflow-hidden border border-border">
-                <img
-                  src={`/api/storage/image/${entity.id}?v=${Date.parse(entity.updatedAt)}`}
-                  alt={entity.canonicalName}
-                  className="w-full h-48 object-contain bg-muted"
-                  loading="lazy"
-                />
-              </div>
-            ) : null}
+            {imagePreview}
 
             <button
               type="button"

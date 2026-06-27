@@ -13,13 +13,13 @@ import { TYPE_TO_CATEGORY } from "@/types/entity"
 export type EntityCategory = 'Personaje' | 'Lugar' | 'Objeto' | 'Faccion' | 'Evento' | 'Concepto';
 
 interface WikiTabProps {
-  entities: Entity[]
-  loading: boolean
-  error: Error | undefined
-  onEdit: (entity: Entity) => void
-  onDelete: (entity: Entity) => void
-  selectedEntity: Entity | null
-  onSelectEntity: (entity: Entity | null) => void
+  readonly entities: readonly Entity[]
+  readonly loading: boolean
+  readonly error: Error | undefined
+  readonly onEdit: (entity: Entity) => void
+  readonly onDelete: (entity: Entity) => void
+  readonly selectedEntity: Entity | null
+  readonly onSelectEntity: (entity: Entity | null) => void
 }
 
 export function WikiTab({ entities, loading, error, onEdit, onDelete, selectedEntity, onSelectEntity }: WikiTabProps) {
