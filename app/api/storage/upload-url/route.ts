@@ -5,6 +5,7 @@ const BACKEND_URL = process.env.API_URL ?? "http://localhost:3000"
 export async function POST(request: Request) {
   const headers = new Headers(request.headers)
   headers.delete("host")
+  headers.delete("content-length")
   headers.set("Content-Type", "application/json")
 
   const body = await request.json()

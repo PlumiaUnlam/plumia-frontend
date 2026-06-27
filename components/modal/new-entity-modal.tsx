@@ -119,8 +119,8 @@ export function NewEntityModal({
         const input: UpdateEntityInput = {
           canonicalName: name.trim(),
           type,
-          description: description.trim() || undefined,
-          aliases: tags.length > 0 ? tags : undefined,
+          description: description.trim() || null,
+          aliases: tags.length > 0 ? tags : null,
         }
         await onSubmit(input, selectedFile)
       } else {

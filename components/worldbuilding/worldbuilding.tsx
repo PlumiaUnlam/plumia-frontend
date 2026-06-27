@@ -31,20 +31,13 @@ import {
   deleteEntity,
 } from "@/services/entities.service"
 import { uploadEntityImage } from "@/services/upload.service"
-import { projectMock } from "@/mocks/projects.mock"
+
 import type { Entity, CreateEntityInput, UpdateEntityInput } from "@/types/entity"
 
 type WorldbuildingTab = "wiki" | "relationships" | "timeline" | "summaries"
 
 function useActiveProject() {
-  const { projectId, setProjectId } = useProject()
-
-  useEffect(() => {
-    if (!projectId && projectMock.length > 0) {
-      setProjectId(projectMock[0].id)
-    }
-  }, [projectId, setProjectId])
-
+  const { projectId } = useProject()
   return projectId
 }
 
@@ -114,8 +107,13 @@ export function Worldbuilding() {
       const entity = await createEntity(projectId!, data as CreateEntityInput)
       entityId = entity.id
       if (file) {
-        const publicUrl = await uploadEntityImage(entityId, file)
-        await updateEntity(entity.id, { imageUrl: publicUrl } as UpdateEntityInput)
+        try {
+          const publicUrl = await uploadEntityImage(entityId, file)
+          await updateEntity(entity.id, { imageUrl: publicUrl } as UpdateEntityInput)
+        } catch (err) {
+          await deleteEntity(entityId).catch(() => {})
+          throw err
+        }
       }
     }
     pendingSelectIds.current.push(entityId)

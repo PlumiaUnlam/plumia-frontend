@@ -54,7 +54,14 @@ async function proxy(request: Request, path?: string[]) {
       body,
     })
 
-    const data = response.status === 204 ? null : await response.json()
+    if (response.status === 204 || response.status === 205) {
+      return new Response(null, {
+        status: response.status,
+        statusText: response.statusText,
+      })
+    }
+
+    const data = await response.json()
 
     return NextResponse.json(data, {
       status: response.status,

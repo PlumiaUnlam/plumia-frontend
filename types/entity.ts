@@ -52,8 +52,8 @@ export interface CreateEntityInput {
 export interface UpdateEntityInput {
   canonicalName?: string
   type?: EntityType
-  description?: string
-  aliases?: string[]
+  description?: string | null
+  aliases?: string[] | null
   attributes?: Record<string, unknown>
   imageUrl?: string
   isActive?: boolean

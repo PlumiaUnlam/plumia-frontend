@@ -89,7 +89,14 @@ export function WikiTab({ entities, loading, error, onEdit, onDelete, selectedEn
             ))
           ) : (
             filteredEntities.map(entity => (
-              <Card key={entity.id} onClick={() => onSelectEntity(entity)} className="cursor-pointer">
+              <Card
+                key={entity.id}
+                onClick={() => onSelectEntity(entity)}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelectEntity(entity); } }}
+                tabIndex={0}
+                role="button"
+                className="cursor-pointer focus-visible:ring-2 focus-visible:ring-primary"
+              >
                 <CardHeader>
                   <CardTitle>{entity.canonicalName}</CardTitle>
                   <div className="flex flex-wrap gap-2">
