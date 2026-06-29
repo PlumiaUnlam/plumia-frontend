@@ -48,11 +48,11 @@ export function EditorLayout() {
   }, [loadProject])
 
   return (
-    <div className="flex h-screen flex-col bg-background text-foreground">
+    <div className="flex h-screen max-h-screen flex-col overflow-hidden bg-background text-foreground">
       <Header />
 
-      <SidebarProvider>
-        <div className="flex flex-1 min-h-0">
+      <SidebarProvider className="flex min-h-0 flex-1">
+        <div className="flex min-h-0 flex-1 overflow-hidden">
           <LeftSidebar
             projectTitle={projectTitle}
             books={books}
@@ -60,21 +60,19 @@ export function EditorLayout() {
             onRefresh={loadProject}
           />
 
-          <main className="flex-1 min-h-0 overflow-y-auto p-4">
-            <div className="mx-auto max-w-4xl">
-              {projectsError && (
-                <p className="mb-4 text-sm text-destructive">{projectsError}</p>
-              )}
-              <RichTextEditor
-                initialContent="<p>Hola mundo</p>"
-                onChange={(html) => console.log(html)}
-              />
-            </div>
+          <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            {projectsError && (
+              <p className="mb-4 text-sm text-destructive">{projectsError}</p>
+            )}
+            <RichTextEditor
+              initialContent="<p>Hola mundo</p>"
+              onChange={(html) => console.log(html)}
+            />
           </main>
         </div>
       </SidebarProvider>
 
-      <footer className="h-8 shrink-0 border-t border-border bg-muted/50 px-5 text-[10px] text-muted-foreground flex items-center">
+      <footer className="flex h-8 shrink-0 items-center border-t border-border bg-muted/50 px-5 text-[10px] text-muted-foreground">
       </footer>
     </div>
   )

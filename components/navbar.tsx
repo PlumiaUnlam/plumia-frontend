@@ -20,7 +20,7 @@ type NavbarProps = {
 
 export function Navbar({ searchQuery, onSearchChange, onCreateProject }: NavbarProps) {
     return (
-        <header className="border-b bg-background">
+        <header className="border-b bg-white">
             <div className="container mx-auto flex h-16 items-center justify-between px-4">
                 {/* Logo */}
                 <Link
