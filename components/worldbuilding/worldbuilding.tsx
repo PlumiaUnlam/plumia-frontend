@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useMemo, useState } from "react"
 import { Loader2, Plus, Star, Users, Calendar, FileText } from "lucide-react"
 import useSWR from "swr"
 import useSWRMutation from "swr/mutation"
@@ -22,7 +22,6 @@ import {
 } from "@/components/ui/dialog"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 
-import { useProject } from "@/contexts/ProjectContext"
 import { useAuth } from "@/contexts/AuthContext"
 import {
   getEntities,
@@ -36,13 +35,11 @@ import type { Entity, CreateEntityInput, UpdateEntityInput } from "@/types/entit
 
 type WorldbuildingTab = "wiki" | "relationships" | "timeline" | "summaries"
 
-function useActiveProject() {
-  const { projectId } = useProject()
-  return projectId
+type WorldbuildingProps = {
+  projectId: string
 }
 
-export function Worldbuilding() {
-  const projectId = useActiveProject()
+export function Worldbuilding({ projectId }: WorldbuildingProps) {
   const { loading, firebaseUser } = useAuth()
   const shouldFetch = !!projectId && !loading && !!firebaseUser
 
@@ -56,14 +53,13 @@ export function Worldbuilding() {
   const [activeTab, setActiveTab] = useState<WorldbuildingTab>("wiki")
   const [showNewEntityModal, setShowNewEntityModal] = useState(false)
   const [editingEntity, setEditingEntity] = useState<Entity | null>(null)
-  const [selectedEntity, setSelectedEntity] = useState<Entity | null>(null)
+  const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null)
   const [deleteConfirmEntity, setDeleteConfirmEntity] = useState<Entity | null>(null)
   const [deleting, setDeleting] = useState(false)
-  const pendingSelectIds = useRef<string[]>([])
 
   const { data: entities, error, isLoading, mutate } = useSWR(
     shouldFetch ? `/knowledge/entities?projectId=${projectId}` : null,
-    () => getEntities(projectId!),
+    () => getEntities(projectId),
   )
 
   const { trigger: triggerDelete } = useSWRMutation(
@@ -73,25 +69,10 @@ export function Worldbuilding() {
     },
   )
 
-  useEffect(() => {
-    if (entities && pendingSelectIds.current.length > 0) {
-      for (const id of pendingSelectIds.current) {
-        const updated = entities.find(e => e.id === id)
-        if (updated) {
-          setSelectedEntity(updated)
-        }
-      }
-      pendingSelectIds.current = []
-    }
-  }, [entities])
-
-  useEffect(() => {
-    if (!selectedEntity || !entities) return
-    const updated = entities.find(e => e.id === selectedEntity.id)
-    if (updated && updated.updatedAt !== selectedEntity.updatedAt) {
-      setSelectedEntity(updated)
-    }
-  }, [entities, selectedEntity])
+  const selectedEntity = useMemo(
+    () => entities?.find((entity) => entity.id === selectedEntityId) ?? null,
+    [entities, selectedEntityId],
+  )
 
   const handleSubmitModal = async (data: CreateEntityInput | UpdateEntityInput, file?: File | null) => {
     let entityId: string
@@ -104,7 +85,7 @@ export function Worldbuilding() {
       }
       setEditingEntity(null)
     } else {
-      const entity = await createEntity(projectId!, data as CreateEntityInput)
+      const entity = await createEntity(projectId, data as CreateEntityInput)
       entityId = entity.id
       if (file) {
         try {
@@ -116,8 +97,8 @@ export function Worldbuilding() {
         }
       }
     }
-    pendingSelectIds.current.push(entityId)
     await mutate()
+    setSelectedEntityId(entityId)
   }
 
   const handleDelete = (entity: Entity) => {
@@ -212,7 +193,7 @@ export function Worldbuilding() {
               onEdit={handleEdit}
               onDelete={handleDelete}
               selectedEntity={selectedEntity}
-              onSelectEntity={setSelectedEntity}
+              onSelectEntity={(entity) => setSelectedEntityId(entity?.id ?? null)}
             />
           </TabsContent>
 
@@ -247,7 +228,7 @@ export function Worldbuilding() {
               disabled={deleting}
               onClick={() => {
                 if (!deleteConfirmEntity) return
-                setSelectedEntity(null)
+                setSelectedEntityId(null)
                 setDeleting(true)
                 void handleDeleteConfirmed(deleteConfirmEntity.id)
               }}

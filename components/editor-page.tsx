@@ -1,34 +1,33 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { useSearchParams } from "next/navigation"
 import { Header } from "./header"
 import { RichTextEditor } from "@/components/RichTextEditor"
 import { LeftSidebar, type SidebarBook } from "./left-sidebar"
 import { getProject } from "@/services/project.service"
 import { SidebarProvider } from "@/components/ui/sidebar"
 
-export function EditorLayout() {
+type EditorLayoutProps = {
+  projectId: string
+}
+
+export function EditorLayout({ projectId }: EditorLayoutProps) {
   const [projectTitle, setProjectTitle] = useState("Proyecto")
   const [books, setBooks] = useState<SidebarBook[]>([])
-  const [projectId, setProjectId] = useState("0")
   const [projectsError, setProjectsError] = useState<string | null>(null)
-  const searchParams = useSearchParams()
-  const selectedProjectId = searchParams.get("projectId")
 
   const loadProject = useCallback(async () => {
-    if (!selectedProjectId) {
+    if (!projectId) {
       setProjectsError("No se selecciono un proyecto.")
       return
     }
 
-    const data = await getProject(selectedProjectId)
+    const data = await getProject(projectId)
 
     setProjectTitle(data.projectTitle)
     setBooks(data.books)
-    setProjectId(data.projectId)
     setProjectsError(null)
-  }, [selectedProjectId])
+  }, [projectId])
 
   useEffect(() => {
     let isMounted = true

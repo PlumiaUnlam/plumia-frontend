@@ -200,7 +200,7 @@ export function LeftSidebar({ projectTitle, books, projectId, onRefresh }: LeftS
                 <SidebarFooter className="flex border-t p-2 bg-background ">
                     <div className="flex gap-1 justify-center">
                         <Button variant="ghost" className="justify-start"
-                            onClick={() => router.push("/worldbuilding")}>
+                            onClick={() => router.push(`/projects/${encodeURIComponent(projectId)}/worldbuilding`)}>
                             <Earth className="mr-2 size-4" />
 
                         </Button>
