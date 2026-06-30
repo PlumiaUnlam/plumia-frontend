@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dialog"
 
 import { Button } from "@/components/ui/button"
+import { Field, FieldContent, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 
 type NewItemModalProps = {
@@ -64,17 +65,19 @@ export function NewItemModal({
         </DialogHeader>
 
         <div className="max-h-[65vh] space-y-5 overflow-y-auto px-6 py-6">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">
-              {label} *
-            </label>
-
-            <Input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder={placeholder}
-            />
-          </div>
+          <Field>
+            <FieldLabel htmlFor="new-item-name">
+              {label} <span className="text-destructive">*</span>
+            </FieldLabel>
+            <FieldContent>
+              <Input
+                id="new-item-name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder={placeholder}
+              />
+            </FieldContent>
+          </Field>
         </div>
 
         <DialogFooter className="border-t px-6 py-4">

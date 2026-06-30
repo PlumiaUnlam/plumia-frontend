@@ -53,7 +53,13 @@ export function NewEntityModal({
   const isEditing = !!entity
 
   useEffect(() => {
-    if (show) {
+    if (!show) return
+
+    let isCurrent = true
+
+    queueMicrotask(() => {
+      if (!isCurrent) return
+
       if (entity) {
         setName(entity.canonicalName)
         setCategory(TYPE_TO_CATEGORY[entity.type])
@@ -70,6 +76,10 @@ export function NewEntityModal({
       setSubmitting(false)
       setSelectedFile(null)
       setPreviewUrl(null)
+    })
+
+    return () => {
+      isCurrent = false
     }
   }, [show, entity])
 

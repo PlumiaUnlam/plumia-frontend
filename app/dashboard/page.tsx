@@ -150,7 +150,7 @@ export default function DashboardPage() {
                             <Card
                                 key={project.id}
                                 className="flex h-full cursor-pointer flex-col transition hover:border-primary/40 hover:shadow-md"
-                                onClick={() => router.push(`/editor?projectId=${project.id}`)}
+                                onClick={() => router.push(`/projects/${encodeURIComponent(project.id)}/editor`)}
                             >
                                 <CardHeader className="gap-3">
                                     <div className="flex items-start justify-between gap-3">

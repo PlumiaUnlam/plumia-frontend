@@ -23,35 +23,25 @@ export function RichTextEditor({
   if (!editor) return null
 
   return (
-    <div className="flex flex-col">
-      <EditorToolbar editor={editor} />
+    <div className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-background">
+      <div className="sticky top-0 z-20 shrink-0 border-b border-border bg-white">
+        <EditorToolbar editor={editor} />
+      </div>
 
-      <div className="bg-muted/30 py-10">
-        <div
-          className="
-            mx-auto
-            min-h-[297mm]
-            w-[148mm]
-            bg-card
-            border
-            px-[20mm]
-            py-[25mm]
-          "
-        >
+      <div className="flex-1 bg-background px-2 py-3 sm:px-3 lg:px-4 overflow-y-auto">
+        <div className="mx-auto min-h-[297mm] w-full max-w-[820px] bg-white px-5 py-6 shadow-sm sm:px-8 sm:py-8 lg:px-10 lg:py-10">
           <EditorContent
-          editor={editor}
-          className="
-            prose
-            prose-neutral
-            dark:prose-invert
-            max-w-none
-
-            prose-p:leading-8
-            prose-p:my-0
-
-            text-[16px]
-          "
-        />
+            editor={editor}
+            className="
+              prose
+              prose-neutral
+              dark:prose-invert
+              max-w-none
+              prose-p:leading-8
+              prose-p:my-0
+              text-[16px]
+            "
+          />
         </div>
       </div>
     </div>

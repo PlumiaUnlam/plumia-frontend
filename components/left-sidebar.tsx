@@ -3,43 +3,43 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 
 import {
-    SidebarTrigger, Sidebar, SidebarContent, SidebarFooter, 
+    SidebarTrigger, Sidebar, SidebarContent, SidebarFooter,
     SidebarGroup, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton
 } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button";
-import {Collapsible,CollapsibleContent,CollapsibleTrigger,} from "@/components/ui/collapsible"
-import {BookOpen, Earth,Layers3,GitBranch,TrendingUp, Plus,ChevronRight} from "lucide-react"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger, } from "@/components/ui/collapsible"
+import { BookOpen, Earth, Layers3, GitBranch, TrendingUp, Plus, ChevronRight } from "lucide-react"
 
 import { NewItemModal } from "@/components/modal/new-item-modal"
 import { createBook, createChapter, createSection } from "@/services/project.service";
 
 export type SidebarChapter = {
-  id: string
-  title: string
-  sortKey: string
-  wordCount?: number
-  scenes: SidebarScene[]
+    id: string
+    title: string
+    sortKey: string
+    wordCount?: number
+    scenes: SidebarScene[]
 }
 
 export type SidebarScene = {
-  id: string
-  title: string
-  sortKey: string
-  wordCount?: number
-  order: number
+    id: string
+    title: string
+    sortKey: string
+    wordCount?: number
+    order: number
 }
 
 export type SidebarBook = {
-  id: string
-  title: string
-  sortKey: string
-  chapters: SidebarChapter[]
+    id: string
+    title: string
+    sortKey: string
+    chapters: SidebarChapter[]
 }
 
 type LeftSidebarProps = {
     projectTitle: string;
     books: SidebarBook[];
-    projectId: string ;
+    projectId: string;
     onRefresh: () => Promise<void>;
 };
 
@@ -59,20 +59,20 @@ function nextOrder(items: Array<{ order?: number }>) {
 //LLega ID del proyecto elegido
 export function LeftSidebar({ projectTitle, books, projectId, onRefresh }: LeftSidebarProps) {
     const [modalType, setModalType] = useState<{
-    type: "book" | "chapter" | "section"
-    parentId: string
-    sortKey: string
-    order?: number
+        type: "book" | "chapter" | "section"
+        parentId: string
+        sortKey: string
+        order?: number
     } | null>(null)
-    
+
     const router = useRouter()
 
-return (
-        <div className=" h-full">
-            <Sidebar className="relative overflow-hidden flex border-r bg-background">
+    return (
+        <div className="flex h-full min-h-0">
+            <Sidebar className="relative flex h-full min-h-0 flex-col border-r bg-background">
                 <SidebarHeader className="border-b bg-background">
-                    
-                    <div className="grid w-full grid-cols-[minmax(0,1fr)_2rem] items-center gap-1 py-3">
+
+                    <div className="grid w-full grid-cols-[minmax(0,1fr)_2rem] items-center gap-1">
                         <h2 className="truncate font-semibold center text-[15px] justify-center">
                             {projectTitle}
                         </h2>
@@ -87,9 +87,9 @@ return (
                         >
                             <Plus className="size-4" />
                         </Button>
-                        </div>
+                    </div>
                 </SidebarHeader>
-                <SidebarContent className="bg-background">
+                <SidebarContent className="flex-1 overflow-y-auto bg-background">
                     {books.map((book) => (
                         <SidebarGroup key={book.id}>
                             <SidebarMenu>
@@ -175,7 +175,7 @@ return (
                                                                                     <span className="text-[11px] font-medium text-foreground truncate">{scene.title}</span>
                                                                                     <span className="text-[9px] text-muted-foreground"> {scene.wordCount?.toLocaleString()} palabras</span>
                                                                                 </div>
-                                                                            
+
                                                                             </SidebarMenuButton>
                                                                         </SidebarMenuItem>
                                                                     ))}
@@ -197,81 +197,81 @@ return (
                         </SidebarGroup>
                     ))}
                 </SidebarContent>
-                <SidebarFooter className="flex border-t p-2 bg-background "> 
-                    <div className="flex gap-1 justify-center"> 
+                <SidebarFooter className="flex border-t p-2 bg-background ">
+                    <div className="flex gap-1 justify-center">
                         <Button variant="ghost" className="justify-start"
-                            onClick={() => router.push("/worldbuilding")}>
-                            <Earth className="mr-2 size-4" /> 
-                            
-                        </Button> 
+                            onClick={() => router.push(`/projects/${encodeURIComponent(projectId)}/worldbuilding`)}>
+                            <Earth className="mr-2 size-4" />
+
+                        </Button>
                         <Button variant="ghost" className="justify-start">
-                            <Layers3 className="mr-2 size-4" /> 
-                        </Button> 
-                        <Button variant="ghost" className="justify-start"> 
-                            <TrendingUp className="mr-2 size-4" /> 
-                        </Button> 
-                        <Button variant="ghost" className="justify-start"> 
-                            <GitBranch className="mr-2 size-4" /> 
-                        </Button> 
-                    </div> 
+                            <Layers3 className="mr-2 size-4" />
+                        </Button>
+                        <Button variant="ghost" className="justify-start">
+                            <TrendingUp className="mr-2 size-4" />
+                        </Button>
+                        <Button variant="ghost" className="justify-start">
+                            <GitBranch className="mr-2 size-4" />
+                        </Button>
+                    </div>
                 </SidebarFooter>
             </Sidebar>
             <main className="fixed bottom-0 left-0 z-10 justify-center w-full">
-                <SidebarTrigger />  
+                <SidebarTrigger />
                 Arbol
             </main>
 
-        <NewItemModal
-        show={modalType?.type === "chapter"}
-        onClose={() => setModalType(null)}
-        onSubmit={async (name) => {
-            await createChapter({
-            title: name,
-            partId: modalType!.parentId,
-            sortKey: modalType!.sortKey,
-            })
-            await onRefresh()
-        }}
-        title="Nuevo Capítulo"
-        label="Nombre del Capítulo"
-        placeholder="Ej: Capítulo 1: ..."
-        submitText="Crear Capítulo"
-        />
+            <NewItemModal
+                show={modalType?.type === "chapter"}
+                onClose={() => setModalType(null)}
+                onSubmit={async (name) => {
+                    await createChapter({
+                        title: name,
+                        partId: modalType!.parentId,
+                        sortKey: modalType!.sortKey,
+                    })
+                    await onRefresh()
+                }}
+                title="Nuevo Capítulo"
+                label="Nombre del Capítulo"
+                placeholder="Ej: Capítulo 1: ..."
+                submitText="Crear Capítulo"
+            />
 
-        <NewItemModal
-        show={modalType?.type === "section"}
-        onClose={() => setModalType(null)}
-        onSubmit={async (name) => {
-            await createSection({
-            title: name,
-            partId: modalType!.parentId,
-            sortKey: modalType!.sortKey,
-            order: modalType!.order ?? 1,
-            })
-            await onRefresh()
-        }}
-        title="Nueva Sección"
-        label="Nombre de la Sección"
-        placeholder="Ej: Sección 1: ..."
-        submitText="Crear Sección"
-        />
+            <NewItemModal
+                show={modalType?.type === "section"}
+                onClose={() => setModalType(null)}
+                onSubmit={async (name) => {
+                    await createSection({
+                        title: name,
+                        partId: modalType!.parentId,
+                        sortKey: modalType!.sortKey,
+                        order: modalType!.order ?? 1,
+                    })
+                    await onRefresh()
+                }}
+                title="Nueva Sección"
+                label="Nombre de la Sección"
+                placeholder="Ej: Sección 1: ..."
+                submitText="Crear Sección"
+            />
 
-        <NewItemModal
-        show={modalType?.type === "book"}
-        onClose={() => setModalType(null)}
-        onSubmit={async (name) => {
-            await createBook({
-            title: name,
-            partId: modalType!.parentId,
-            sortKey: modalType!.sortKey,
-            })
-            await onRefresh()
-        }}
-        title="Nuevo Libro"
-        label="Nombre del Libro"
-        placeholder="Ej: Libro 1: ..."
-        submitText="Crear Libro"
-        />
+            <NewItemModal
+                show={modalType?.type === "book"}
+                onClose={() => setModalType(null)}
+                onSubmit={async (name) => {
+                    await createBook({
+                        title: name,
+                        partId: modalType!.parentId,
+                        sortKey: modalType!.sortKey,
+                    })
+                    await onRefresh()
+                }}
+                title="Nuevo Libro"
+                label="Nombre del Libro"
+                placeholder="Ej: Libro 1: ..."
+                submitText="Crear Libro"
+            />
         </div>
     )
 }
