@@ -26,6 +26,7 @@ import {
   PenLine,
   Trash2,
   Funnel,
+  StarIcon,
 } from "lucide-react";
 
 import type { Entity } from "@/types/entity";
@@ -292,8 +293,12 @@ export function WikiTab({
             </div>
           </>
         ) : (
-          <div className="flex-1 min-h-0 flex items-center justify-center bg-background text-muted-foreground">
-            Selecciona una entidad
+          <div className="flex-1 min-h-0 flex flex-col items-center justify-center text-primary opacity-70 gap-2">
+            <StarIcon size={48} />
+            <h2 className="text-lg font-semibold">Selecciona una entidad</h2>
+            <p>
+              Haz click en cualquier entidad de la lista para ver sus detalles
+            </p>
           </div>
         )}
       </main>
