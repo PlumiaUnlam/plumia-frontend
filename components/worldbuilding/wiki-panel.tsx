@@ -26,6 +26,7 @@ import {
   Sparkles,
   PenLine,
   Trash2,
+  Funnel,
 } from "lucide-react";
 
 import type { Entity } from "@/types/entity";
@@ -127,7 +128,8 @@ export function WikiTab({
         </div>
 
         <div className="p-3 space-y-3 border-b border-border bg-card/50">
-          <div>
+          <div className="flex items-center gap-1">
+            <Funnel size={15} />
             <p className="text-sm font-semibold text-muted-foreground">
               CATEGORÍAS
             </p>
@@ -195,6 +197,7 @@ export function WikiTab({
               : filteredEntities.map((entity) => {
                   const category = TYPE_TO_CATEGORY[entity.type];
                   const CategoryIcon = categoryIcons[category] ?? Users;
+                  const src = `/api/storage/image/${entity.id}?v=${Date.parse(entity.updatedAt)}`
 
                   return (
                     <Item
@@ -212,13 +215,17 @@ export function WikiTab({
                       role="button"
                       className="cursor-pointer focus-visible:ring-2 focus-visible:ring-primary"
                     >
-                      <ItemMedia variant="icon">
-                        <CategoryIcon className="h-4 w-4" />
+                      <ItemMedia variant="image">
+                        <img
+                          src={src}
+                          alt={entity.canonicalName}
+                          width={128}
+                          height={128}
+                          className="aspect-square w-full rounded-sm object-cover"
+                        />
                       </ItemMedia>
                       <ItemContent>
-                        <ItemHeader>
-                          <ItemTitle>{entity.canonicalName}</ItemTitle>
-                        </ItemHeader>
+                        <ItemTitle>{entity.canonicalName}</ItemTitle>
                         {entity.aliases.length > 0 && (
                           <div className="flex flex-wrap gap-1">
                             {entity.aliases.map((tag) => (
