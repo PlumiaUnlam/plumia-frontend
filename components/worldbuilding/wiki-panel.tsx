@@ -24,6 +24,8 @@ import {
   Shield,
   Calendar,
   Sparkles,
+  PenLine,
+  Trash2,
 } from "lucide-react";
 
 import type { Entity } from "@/types/entity";
@@ -237,17 +239,14 @@ export function WikiTab({
         </ScrollArea>
       </aside>
 
-      <main className="flex-grow flex flex-col overflow-hidden p-4">
+      <main className="flex-grow flex flex-col overflow-hidden p-4 bg-muted/30">
         {selectedEntity ? (
           <>
             <header className="mb-6 flex-shrink-0 flex flex-wrap items-center gap-2 justify-between">
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-col gap-2">
                 <h2 className="text-lg font-semibold">
                   {selectedEntity.canonicalName}
                 </h2>
-                <Badge variant="secondary">
-                  {TYPE_TO_CATEGORY[selectedEntity.type]}
-                </Badge>
                 {selectedEntity.aliases.map((tag) => (
                   <Badge key={tag}>{tag}</Badge>
                 ))}
@@ -257,16 +256,28 @@ export function WikiTab({
                   variant="default"
                   onClick={() => onEdit(selectedEntity)}
                 >
+                  <PenLine size={16} />
                   Editar
                 </Button>
                 <Button
-                  variant="destructive"
+                  variant="outline"
                   onClick={() => onDelete(selectedEntity)}
                 >
+                  <Trash2 size={16} />
                   Eliminar
                 </Button>
               </div>
             </header>
+
+            <Card>
+              <CardContent>
+                {selectedEntity.description || (
+                  <span className="text-muted-foreground italic">
+                    Sin descripción
+                  </span>
+                )}
+              </CardContent>
+            </Card>
 
             <div className="flex-1 min-h-0 overflow-auto space-y-6">
               {selectedEntity.imageUrl && (
@@ -279,16 +290,6 @@ export function WikiTab({
                   />
                 </div>
               )}
-
-              <Card className="mb-6">
-                <CardContent className="pt-6">
-                  {selectedEntity.description || (
-                    <span className="text-muted-foreground italic">
-                      Sin descripción
-                    </span>
-                  )}
-                </CardContent>
-              </Card>
             </div>
           </>
         ) : (

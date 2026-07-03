@@ -168,13 +168,10 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
               Explora y gestiona el universo narrativo de tu obra
             </p>
           </div>
-          <button
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
-            onClick={() => setShowNewEntityModal(true)}
-          >
+          <Button onClick={() => setShowNewEntityModal(true)}>
             <Plus size={16} />
             Nueva Entidad
-          </button>
+          </Button>
         </div>
 
         <NewEntityModal
