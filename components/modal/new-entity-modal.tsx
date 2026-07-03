@@ -1,5 +1,17 @@
-import { useState, useEffect, useRef } from "react"
-import { Loader2, Users, Map, Star, Shield, Calendar, Sparkles, Tag, X, ImageIcon, Trash2 } from "lucide-react"
+import { useState, useEffect, useRef } from "react";
+import {
+  Loader2,
+  Users,
+  Map,
+  Star,
+  Shield,
+  Calendar,
+  Sparkles,
+  Tag,
+  X,
+  ImageIcon,
+  Trash2,
+} from "lucide-react";
 
 import {
   Dialog,
@@ -7,15 +19,27 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from "@/components/ui/dialog"
+} from "@/components/ui/dialog";
 
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Field,
+  FieldLabel,
+  FieldContent,
+  FieldSet,
+  FieldLegend,
+  FieldGroup,
+} from "@/components/ui/field";
 
-import type { Entity, CreateEntityInput, UpdateEntityInput } from "@/types/entity"
-import { CATEGORY_TO_TYPE, TYPE_TO_CATEGORY } from "@/types/entity"
-import type { EntityCategory } from "@/components/worldbuilding/wiki-panel"
+import type {
+  Entity,
+  CreateEntityInput,
+  UpdateEntityInput,
+} from "@/types/entity";
+import { CATEGORY_TO_TYPE, TYPE_TO_CATEGORY } from "@/types/entity";
+import type { EntityCategory } from "@/components/worldbuilding/wiki-panel";
 
 const categories = [
   { id: "Personaje" as EntityCategory, label: "Personaje", icon: Users },
@@ -24,14 +48,17 @@ const categories = [
   { id: "Faccion" as EntityCategory, label: "Facción", icon: Shield },
   { id: "Evento" as EntityCategory, label: "Evento", icon: Calendar },
   { id: "Concepto" as EntityCategory, label: "Concepto", icon: Sparkles },
-]
+];
 
 type NewEntityModalProps = {
-  readonly show: boolean
-  readonly onClose: () => void
-  readonly onSubmit: (data: CreateEntityInput | UpdateEntityInput, file?: File | null) => Promise<void>
-  readonly entity?: Entity | null
-}
+  readonly show: boolean;
+  readonly onClose: () => void;
+  readonly onSubmit: (
+    data: CreateEntityInput | UpdateEntityInput,
+    file?: File | null,
+  ) => Promise<void>;
+  readonly entity?: Entity | null;
+};
 
 export function NewEntityModal({
   show,
@@ -39,116 +66,118 @@ export function NewEntityModal({
   onSubmit,
   entity,
 }: NewEntityModalProps) {
-  const [name, setName] = useState("")
-  const [category, setCategory] = useState<EntityCategory>("Personaje")
-  const [description, setDescription] = useState("")
-  const [tags, setTags] = useState<string[]>([])
-  const [tagInput, setTagInput] = useState("")
-  const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [selectedFile, setSelectedFile] = useState<File | null>(null)
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [name, setName] = useState("");
+  const [category, setCategory] = useState<EntityCategory>("Personaje");
+  const [description, setDescription] = useState("");
+  const [tags, setTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const isEditing = !!entity
+  const isEditing = !!entity;
 
   useEffect(() => {
-    if (!show) return
+    if (!show) return;
 
-    let isCurrent = true
+    let isCurrent = true;
 
     queueMicrotask(() => {
-      if (!isCurrent) return
+      if (!isCurrent) return;
 
       if (entity) {
-        setName(entity.canonicalName)
-        setCategory(TYPE_TO_CATEGORY[entity.type])
-        setDescription(entity.description ?? "")
-        setTags(entity.aliases)
+        setName(entity.canonicalName);
+        setCategory(TYPE_TO_CATEGORY[entity.type]);
+        setDescription(entity.description ?? "");
+        setTags(entity.aliases);
       } else {
-        setName("")
-        setCategory("Personaje")
-        setDescription("")
-        setTags([])
+        setName("");
+        setCategory("Personaje");
+        setDescription("");
+        setTags([]);
       }
-      setTagInput("")
-      setError(null)
-      setSubmitting(false)
-      setSelectedFile(null)
-      setPreviewUrl(null)
-    })
+      setTagInput("");
+      setError(null);
+      setSubmitting(false);
+      setSelectedFile(null);
+      setPreviewUrl(null);
+    });
 
     return () => {
-      isCurrent = false
-    }
-  }, [show, entity])
+      isCurrent = false;
+    };
+  }, [show, entity]);
 
   useEffect(() => {
     return () => {
-      if (previewUrl) URL.revokeObjectURL(previewUrl)
-    }
-  }, [previewUrl])
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setSelectedFile(file)
-    setPreviewUrl(URL.createObjectURL(file))
-  }
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setSelectedFile(file);
+    setPreviewUrl(URL.createObjectURL(file));
+  };
 
   const handleRemoveFile = () => {
-    if (previewUrl) URL.revokeObjectURL(previewUrl)
-    setSelectedFile(null)
-    setPreviewUrl(null)
-    if (fileInputRef.current) fileInputRef.current.value = ""
-  }
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setSelectedFile(null);
+    setPreviewUrl(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
 
   const addTag = () => {
-    if (!tagInput.trim()) return
+    if (!tagInput.trim()) return;
 
     if (!tags.includes(tagInput.trim())) {
-      setTags([...tags, tagInput.trim()])
+      setTags([...tags, tagInput.trim()]);
     }
 
-    setTagInput("")
-  }
+    setTagInput("");
+  };
 
   const removeTag = (tag: string) => {
-    setTags(tags.filter((t) => t !== tag))
-  }
+    setTags(tags.filter((t) => t !== tag));
+  };
 
   const handleSubmit = async () => {
-    if (!name.trim()) return
+    if (!name.trim()) return;
 
-    setSubmitting(true)
-    setError(null)
+    setSubmitting(true);
+    setError(null);
 
     try {
-      const type = CATEGORY_TO_TYPE[category]
+      const type = CATEGORY_TO_TYPE[category];
       if (isEditing && entity) {
         const input: UpdateEntityInput = {
           canonicalName: name.trim(),
           type,
           description: description.trim() || null,
           aliases: tags.length > 0 ? tags : null,
-        }
-        await onSubmit(input, selectedFile)
+        };
+        await onSubmit(input, selectedFile);
       } else {
         const input: CreateEntityInput = {
           canonicalName: name.trim(),
           type,
           description: description.trim() || undefined,
           aliases: tags.length > 0 ? tags : undefined,
-        }
-        await onSubmit(input, selectedFile)
+        };
+        await onSubmit(input, selectedFile);
       }
-      onClose()
+      onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error al guardar la entidad")
+      setError(
+        err instanceof Error ? err.message : "Error al guardar la entidad",
+      );
     } finally {
-      setSubmitting(false)
+      setSubmitting(false);
     }
-  }
+  };
 
   const imagePreview = previewUrl ? (
     <div className="relative rounded-lg overflow-hidden border border-border">
@@ -174,54 +203,49 @@ export function NewEntityModal({
         loading="lazy"
       />
     </div>
-  ) : null
+  ) : null;
 
   return (
     <Dialog open={show} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="min-w-[600px] gap-0 overflow-hidden">
-
         <DialogHeader className="p-6 py-4 border-b">
           <div className="flex items-center justify-between">
-            <DialogTitle>{isEditing ? "Editar Entidad" : "Nueva Entidad"}</DialogTitle>
+            <DialogTitle>
+              {isEditing ? "Editar Entidad" : "Nueva Entidad"}
+            </DialogTitle>
           </div>
         </DialogHeader>
 
         <div className="px-6 py-6 space-y-5 max-h-[65vh] overflow-y-auto">
-
           {error && (
             <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
               {error}
             </div>
           )}
 
-          <div className="space-y-2">
-            <label htmlFor="entity-name" className="text-sm font-medium">
-              Nombre *
-            </label>
+          <Field>
+            <FieldLabel htmlFor="entity-name">Nombre *</FieldLabel>
 
-            <Input
-              id="entity-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Ej: Maren Solís"
-            />
-          </div>
+            <FieldContent>
+              <Input
+                id="entity-name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Ej: Maren Solís"
+              />
+            </FieldContent>
+          </Field>
 
-          <fieldset className="space-y-2">
-            <legend className="text-sm font-medium">
-              Tipo *
-            </legend>
+          <FieldSet className="space-y-2">
+            <FieldLegend>Tipo *</FieldLegend>
 
-            <div className="grid grid-cols-3 gap-2">
-              {categories.map(
-                ({ id, label, icon: Icon }) => (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() =>
-                      setCategory(id)
-                    }
-                    className={`
+            <FieldGroup className="grid grid-cols-3 gap-2">
+              {categories.map(({ id, label, icon: Icon }) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setCategory(id)}
+                  className={`
                       flex items-center gap-2
                       px-3 py-2
                       rounded-lg border
@@ -233,129 +257,112 @@ export function NewEntityModal({
                           : "border-border hover:border-primary/40 hover:bg-muted"
                       }
                     `}
-                  >
-                    <Icon className="h-4 w-4" />
+                >
+                  <Icon className="h-4 w-4" />
 
-                    <span className="text-sm font-medium">
-                      {label}
-                    </span>
-                  </button>
-                )
-              )}
-            </div>
-          </fieldset>
+                  <span className="text-sm font-medium">{label}</span>
+                </button>
+              ))}
+            </FieldGroup>
+          </FieldSet>
 
-          <div className="space-y-2 y-max-h-40">
-            <label htmlFor="entity-description" className="text-sm font-medium">
-              Descripción
-            </label>
+          <Field>
+            <FieldLabel htmlFor="entity-description">Descripción</FieldLabel>
 
-            <Textarea
-              id="entity-description"
-              value={description}
-              onChange={(e) =>
-                setDescription(e.target.value)
-              }
-              placeholder="Describe la entidad..."
-              rows={4}
-            />
-          </div>
+            <FieldContent>
+              <Textarea
+                id="entity-description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Describe la entidad..."
+                rows={4}
+              />
+            </FieldContent>
+          </Field>
 
-          <div className="space-y-2">
-            <label htmlFor="entity-image" className="text-sm font-medium">
+          <Field>
+            <FieldLabel htmlFor="entity-image">
               Imagen {selectedFile ? "(1 seleccionada)" : "(Opcional)"}
-            </label>
+            </FieldLabel>
 
-            <input
-              id="entity-image"
-              ref={fileInputRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp,image/avif"
-              onChange={handleFileSelect}
-              className="hidden"
-            />
-
-            {imagePreview}
-
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="w-full border-2 border-dashed border-border rounded-lg p-4 text-center hover:border-primary/40 hover:bg-muted/50 transition-colors cursor-pointer"
-            >
-              <ImageIcon className="h-6 w-6 mx-auto mb-1 text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">
-                {selectedFile ? "Cambiar imagen" : "Seleccionar imagen"}
-              </p>
-            </button>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium">
-              Etiquetas
-            </label>
-
-            <div className="flex gap-2">
-              <Input
-                value={tagInput}
-                onChange={(e) =>
-                  setTagInput(e.target.value)
-                }
-                placeholder="Agregar etiqueta..."
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault()
-                    addTag()
-                  }
-                }}
+            <FieldContent>
+              <input
+                id="entity-image"
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/avif"
+                onChange={handleFileSelect}
+                className="hidden"
               />
 
-              <Button onClick={addTag} type="button">
-                Agregar
-              </Button>
-            </div>
+              {imagePreview}
 
-            <div className="flex flex-wrap gap-2">
-              {tags.map((tag) => (
-                <div
-                  key={tag}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-sm"
-                >
-                  <Tag className="h-3 w-3" />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full border-2 border-dashed border-border rounded-lg p-4 text-center hover:border-primary/40 hover:bg-muted/50 transition-colors cursor-pointer"
+              >
+                <ImageIcon className="h-6 w-6 mx-auto mb-1 text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">
+                  {selectedFile ? "Cambiar imagen" : "Seleccionar imagen"}
+                </p>
+              </button>
+            </FieldContent>
+          </Field>
 
-                  {tag}
+          <Field>
+            <FieldLabel>Etiquetas</FieldLabel>
 
-                  <button
-                    onClick={() =>
-                      removeTag(tag)
+            <FieldContent className="grid gap-2">
+              <div className="flex gap-2">
+                <Input
+                  value={tagInput}
+                  onChange={(e) => setTagInput(e.target.value)}
+                  placeholder="Agregar etiqueta..."
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      addTag();
                     }
-                    type="button"
+                  }}
+                />
+
+                <Button onClick={addTag} type="button">
+                  Agregar
+                </Button>
+              </div>
+
+              <div className="flex min-w-0 gap-2 overflow-x-auto px-1">
+                {tags.map((tag) => (
+                  <div
+                    key={tag}
+                    className="inline-flex shrink-0 items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-sm"
                   >
-                    <X className="h-3 w-3" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
+                    <Tag className="h-3 w-3" />
+
+                    {tag}
+
+                    <button onClick={() => removeTag(tag)} type="button">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </FieldContent>
+          </Field>
         </div>
 
         <DialogFooter className="px-6 py-4 border-t">
-          <Button
-            variant="outline"
-            onClick={onClose}
-            disabled={submitting}
-          >
+          <Button variant="outline" onClick={onClose} disabled={submitting}>
             Cancelar
           </Button>
 
-          <Button
-            disabled={!name.trim() || submitting}
-            onClick={handleSubmit}
-          >
+          <Button disabled={!name.trim() || submitting} onClick={handleSubmit}>
             {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             {isEditing ? "Guardar cambios" : "Crear entidad"}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
+  );
 }
