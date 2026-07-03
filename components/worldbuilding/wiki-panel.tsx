@@ -89,6 +89,13 @@ export function WikiTab({
     });
   }, [entities, searchQuery, selectedCategory]);
 
+  const selectedEntityCategory = selectedEntity
+    ? TYPE_TO_CATEGORY[selectedEntity.type]
+    : null;
+  const selectedEntityImageSrc = selectedEntity
+    ? `/api/storage/image/${selectedEntity.id}?v=${Date.parse(selectedEntity.updatedAt)}`
+    : "";
+
   if (error) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -239,17 +246,36 @@ export function WikiTab({
         </ScrollArea>
       </aside>
 
-      <main className="flex-grow flex flex-col min-h-0 min-w-0 overflow-y-auto overscroll-contain p-10 bg-muted/30">
+      <main className="flex-grow flex flex-col min-h-0 min-w-0 overflow-y-auto overscroll-contain p-12 bg-muted/30">
         {selectedEntity ? (
           <>
-            <header className="mb-6 flex-shrink-0 flex flex-wrap items-center gap-3 justify-between">
-              <div className="flex min-w-0 flex-col gap-2">
-                <h2 className="truncate text-lg font-semibold">
-                  {selectedEntity.canonicalName}
-                </h2>
-                {selectedEntity.aliases.map((tag) => (
-                  <Badge key={tag}>{tag}</Badge>
-                ))}
+            <header className="mb-8 flex-shrink-0 flex flex-wrap items-start gap-4 justify-between">
+              <div className="flex min-w-0 items-start gap-4">
+                <img
+                  src={selectedEntityImageSrc}
+                  alt={selectedEntity.canonicalName}
+                  width={112}
+                  height={112}
+                  className="size-28 shrink-0 rounded-lg border border-border bg-background object-cover"
+                />
+
+                <div className="flex min-w-0 flex-col gap-2 pt-1">
+                  {selectedEntityCategory && (
+                    <p className="text-xs font-semibold uppercase text-muted-foreground">
+                      {selectedEntityCategory}
+                    </p>
+                  )}
+                  <h2 className="truncate text-3xl font-semibold leading-tight">
+                    {selectedEntity.canonicalName}
+                  </h2>
+                  {selectedEntity.aliases.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {selectedEntity.aliases.map((tag) => (
+                        <Badge key={tag}>{tag}</Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="flex shrink-0 flex-wrap gap-2">
                 <Button
@@ -270,15 +296,20 @@ export function WikiTab({
             </header>
 
             <div className="min-w-0 flex-1 space-y-6">
-              <Card className="min-w-0 w-full bg-muted/30">
-                <CardContent className="whitespace-pre-wrap break-words text-sm leading-relaxed">
-                  {selectedEntity.description || (
-                    <span className="text-muted-foreground italic">
-                      Sin descripción
-                    </span>
-                  )}
-                </CardContent>
-              </Card>
+              <section className="space-y-3">
+                <h3 className="text-sm font-semibold uppercase text-muted-foreground">
+                  DESCRIPCION
+                </h3>
+                <Card className="min-w-0 w-full bg-muted/30">
+                  <CardContent className="whitespace-pre-wrap break-words text-sm leading-relaxed">
+                    {selectedEntity.description || (
+                      <span className="text-muted-foreground italic">
+                        Sin descripción
+                      </span>
+                    )}
+                  </CardContent>
+                </Card>
+              </section>
 
               {/* {selectedEntity.imageUrl && (
                 <div className="rounded-lg overflow-hidden border border-border">
