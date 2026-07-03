@@ -238,7 +238,7 @@ export function WikiTab({
         </ScrollArea>
       </aside>
 
-      <main className="flex-grow flex flex-col min-h-0 min-w-0 overflow-y-auto overscroll-contain p-4 bg-muted/30">
+      <main className="flex-grow flex flex-col min-h-0 min-w-0 overflow-y-auto overscroll-contain p-10 bg-muted/30">
         {selectedEntity ? (
           <>
             <header className="mb-6 flex-shrink-0 flex flex-wrap items-center gap-3 justify-between">
@@ -269,7 +269,7 @@ export function WikiTab({
             </header>
 
             <div className="min-w-0 flex-1 space-y-6">
-              <Card className="min-w-0 w-full">
+              <Card className="min-w-0 w-full bg-muted/30">
                 <CardContent className="whitespace-pre-wrap break-words text-sm leading-relaxed">
                   {selectedEntity.description || (
                     <span className="text-muted-foreground italic">
