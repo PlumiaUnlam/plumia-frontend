@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Plus, Search } from "lucide-react";
 import { Input } from "./ui/input";
+import Image from "next/image";
 
 type NavbarProps = {
     searchQuery: string;
@@ -23,12 +24,16 @@ export function Navbar({ searchQuery, onSearchChange, onCreateProject }: NavbarP
         <header className="border-b bg-white">
             <div className="container mx-auto flex h-16 items-center justify-between px-4">
                 {/* Logo */}
-                <Link
-                    href="/"
-                    className="text-xl font-bold tracking-tight"
-                >
-                    PlumIA
-                </Link>
+                <div className="flex items-center gap-1">
+                    <Image src="/logo.png" alt="PlumIA Logo" width={40} height={40} />
+                    <Link
+                        href="/"
+                        className="text-xl font-semibold tracking-tight"
+                    >
+                        Plum<span className="text-primary">IA</span>
+                    </Link>
+
+                </div>
 
                 {/* Right Section */}
                 <div className="flex items-center gap-3">
