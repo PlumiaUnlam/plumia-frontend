@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,7 +11,6 @@ import {
   ItemContent,
   ItemDescription,
   ItemGroup,
-  ItemHeader,
   ItemMedia,
   ItemTitle,
 } from "@/components/ui/item";
@@ -89,18 +88,6 @@ export function WikiTab({
     });
   }, [entities, searchQuery, selectedCategory]);
 
-  const categoryIcons: Record<
-    EntityCategory,
-    React.ComponentType<React.ComponentProps<typeof Search>>
-  > = {
-    Personaje: Users,
-    Lugar: Map,
-    Objeto: Star,
-    Faccion: Shield,
-    Evento: Calendar,
-    Concepto: Sparkles,
-  };
-
   if (error) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -113,8 +100,8 @@ export function WikiTab({
   }
 
   return (
-    <div className="flex w-full h-full">
-      <aside className="w-80 border-r border-border flex flex-col bg-muted/30 overflow-hidden">
+    <div className="flex w-full h-full min-h-0 min-w-0 overflow-hidden">
+      <aside className="w-80 shrink-0 border-r border-border flex flex-col min-h-0 h-full bg-muted/30 overflow-hidden">
         <div className="p-4 border-b border-border bg-card/50">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -175,8 +162,8 @@ export function WikiTab({
           </div>
         </div>
 
-        <ScrollArea className="w-full flex-1 min-h-0 p-3">
-          <ItemGroup>
+        <ScrollArea className="w-full flex-1 min-h-0 h-full p-3">
+          <ItemGroup className="min-w-0">
             {loading
               ? Array.from({ length: 4 }).map((_, i) => (
                   <Item
@@ -195,9 +182,8 @@ export function WikiTab({
                   </Item>
                 ))
               : filteredEntities.map((entity) => {
-                  const category = TYPE_TO_CATEGORY[entity.type];
-                  const CategoryIcon = categoryIcons[category] ?? Users;
-                  const src = `/api/storage/image/${entity.id}?v=${Date.parse(entity.updatedAt)}`
+                  const src = `/api/storage/image/${entity.id}?v=${Date.parse(entity.updatedAt)}`;
+                  const isSelected = selectedEntity?.id === entity.id;
 
                   return (
                     <Item
@@ -213,7 +199,11 @@ export function WikiTab({
                       }}
                       tabIndex={0}
                       role="button"
-                      className="cursor-pointer focus-visible:ring-2 focus-visible:ring-primary"
+                      className={`cursor-pointer focus-visible:ring-2 focus-visible:ring-primary transition-colors ${
+                        isSelected
+                          ? "bg-primary/10 border-primary"
+                          : "bg-white hover:bg-muted/50"
+                      }`}
                     >
                       <ItemMedia variant="image">
                         <img
@@ -224,8 +214,10 @@ export function WikiTab({
                           className="aspect-square w-full rounded-sm object-cover"
                         />
                       </ItemMedia>
-                      <ItemContent>
-                        <ItemTitle>{entity.canonicalName}</ItemTitle>
+                      <ItemContent className="min-w-0">
+                        <ItemTitle className="max-w-full">
+                          {entity.canonicalName}
+                        </ItemTitle>
                         {entity.aliases.length > 0 && (
                           <div className="flex flex-wrap gap-1">
                             {entity.aliases.map((tag) => (
@@ -235,7 +227,7 @@ export function WikiTab({
                             ))}
                           </div>
                         )}
-                        <ItemDescription>
+                        <ItemDescription className="break-words">
                           {entity.description ?? "Sin descripción"}
                         </ItemDescription>
                       </ItemContent>
@@ -246,19 +238,19 @@ export function WikiTab({
         </ScrollArea>
       </aside>
 
-      <main className="flex-grow flex flex-col overflow-hidden p-4 bg-muted/30">
+      <main className="flex-grow flex flex-col min-h-0 min-w-0 overflow-y-auto overscroll-contain p-4 bg-muted/30">
         {selectedEntity ? (
           <>
-            <header className="mb-6 flex-shrink-0 flex flex-wrap items-center gap-2 justify-between">
-              <div className="flex flex-col gap-2">
-                <h2 className="text-lg font-semibold">
+            <header className="mb-6 flex-shrink-0 flex flex-wrap items-center gap-3 justify-between">
+              <div className="flex min-w-0 flex-col gap-2">
+                <h2 className="truncate text-lg font-semibold">
                   {selectedEntity.canonicalName}
                 </h2>
                 {selectedEntity.aliases.map((tag) => (
                   <Badge key={tag}>{tag}</Badge>
                 ))}
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex shrink-0 flex-wrap gap-2">
                 <Button
                   variant="default"
                   onClick={() => onEdit(selectedEntity)}
@@ -276,18 +268,18 @@ export function WikiTab({
               </div>
             </header>
 
-            <Card>
-              <CardContent>
-                {selectedEntity.description || (
-                  <span className="text-muted-foreground italic">
-                    Sin descripción
-                  </span>
-                )}
-              </CardContent>
-            </Card>
+            <div className="min-w-0 flex-1 space-y-6">
+              <Card className="min-w-0 w-full">
+                <CardContent className="whitespace-pre-wrap break-words text-sm leading-relaxed">
+                  {selectedEntity.description || (
+                    <span className="text-muted-foreground italic">
+                      Sin descripción
+                    </span>
+                  )}
+                </CardContent>
+              </Card>
 
-            <div className="flex-1 min-h-0 overflow-auto space-y-6">
-              {selectedEntity.imageUrl && (
+              {/* {selectedEntity.imageUrl && (
                 <div className="rounded-lg overflow-hidden border border-border">
                   <img
                     src={`/api/storage/image/${selectedEntity.id}?v=${Date.parse(selectedEntity.updatedAt)}`}
@@ -296,7 +288,7 @@ export function WikiTab({
                     loading="lazy"
                   />
                 </div>
-              )}
+              )} */}
             </div>
           </>
         ) : (

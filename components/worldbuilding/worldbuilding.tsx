@@ -155,11 +155,11 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
   const currentEntity = showNewEntityModal ? editingEntity : null;
 
   return (
-    <div className="min-h-screen flex flex-col bg-background text-foreground overflow-hidden">
+    <div className="flex h-screen max-h-screen flex-col overflow-hidden bg-background text-foreground">
       <Header />
 
-      <div className="flex-1 flex flex-col overflow-hidden border-b border-border bg-card py-4 ">
-        <div className="flex items-center justify-between px-4">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden border-b border-border bg-card">
+        <div className="flex shrink-0 items-center justify-between px-4 py-4">
           <div>
             <h1 className="text-xl font-semibold text-foreground">
               Worldbuilding
@@ -184,7 +184,7 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
         <Tabs
           value={activeTab}
           onValueChange={(value) => setActiveTab(value as WorldbuildingTab)}
-          className="mt-4 flex flex-col flex-1 min-h-0 overflow-hidden"
+          className="flex min-h-0 flex-1 flex-col overflow-hidden"
         >
           <TabsList className="sticky top-0 z-10 flex h-auto gap-1 bg-card px-4 py-0">
             {tabs.map(({ id, label, icon: Icon }) => (
@@ -207,7 +207,7 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
 
           <TabsContent
             value="wiki"
-            className="flex-1 mt-4 bg-card overflow-hidden border-t"
+            className="mt-4 min-h-0 flex-1 overflow-hidden border-t bg-card"
           >
             <WikiTab
               entities={entities ?? []}
