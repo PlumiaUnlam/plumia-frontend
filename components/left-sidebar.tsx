@@ -12,6 +12,7 @@ import {BookOpen, Earth,Layers3,GitBranch,TrendingUp, Plus,ChevronRight} from "l
 
 import { NewProjectForm } from "./form/new-project-form";
 import { Header } from "./header";
+import { useEditorStore } from "@/stores/editor.store";
 
 export type SidebarChapter = {
   id: string
@@ -39,6 +40,8 @@ type LeftSidebarProps = {
 export function LeftSidebar({ books, }: LeftSidebarProps) {
     const [showNewProjectForm, setShowNewProjectForm] = useState(false)
     const router = useRouter()
+    const setActiveChapter = useEditorStore((s) => s.setActiveChapter)
+    const activeChapterId = useEditorStore((s) => s.activeChapterId)
 return (
         <div className=" h-full">
             <Sidebar className="relative overflow-hidden flex border-r bg-background">
@@ -107,6 +110,8 @@ return (
                                                                         >
                                                                             <SidebarMenuButton
                                                                                 size="sm"
+                                                                                isActive={activeChapterId === chapter.id}
+                                                                                onClick={() => setActiveChapter(chapter.id)}
                                                                             >
                                                                                 {chapter.title}
                                                                             </SidebarMenuButton>

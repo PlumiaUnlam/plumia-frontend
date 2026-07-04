@@ -1,14 +1,17 @@
 "use client"
 
-import { Header } from "./header"
-import { RichTextEditor } from "@/components/RichTextEditor"
-import { LeftSidebar } from "./left-sidebar"
+import { Header } from "../header"
+import { EditorContainer } from "@/components/editor/editor-container"
+import { LeftSidebar } from "../left-sidebar"
 import { getProjects } from "@/services/project.service";
 import { SidebarProvider } from "@/components/ui/sidebar"
+import { useEditorStore } from "@/stores/editor.store"
 
 const projects = await getProjects();
 
 export function EditorLayout() {
+
+const activeChapterId = useEditorStore((s) => s.activeChapterId)
 
 return (
   <div className="flex h-screen flex-col bg-background text-foreground">
@@ -18,13 +21,8 @@ return (
       <div className="flex flex-1 min-h-0">
         <LeftSidebar books={projects} />
 
-        <main className="flex-1 min-h-0 overflow-y-auto p-4">
-          <div className="mx-auto max-w-4xl">
-            <RichTextEditor
-              initialContent="<p>Hola mundo</p>"
-              onChange={(html) => console.log(html)}
-            />
-          </div>
+        <main className="flex flex-1 min-h-0 flex-col">
+          <EditorContainer chapterId={activeChapterId ?? "ch1"} />
         </main>
       </div>
     </SidebarProvider>

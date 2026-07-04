@@ -1,6 +1,7 @@
 import type { Editor } from "@tiptap/react"
-import { Bold, Italic, Heading1 } from "lucide-react"
+import { Bold, Italic } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { SaveStatusIndicator } from "./save-status-indicator"
 
 interface EditorToolbarProps {
   editor: Editor
@@ -10,7 +11,7 @@ export function EditorToolbar({
   editor,
 }: EditorToolbarProps) {
   return (
-    <div className="flex items-center gap-2 border-b p-2">
+    <div className="flex shrink-0 items-center gap-2 border-b p-2">
       <Button
         size="icon"
         variant={
@@ -39,6 +40,7 @@ export function EditorToolbar({
         <Italic className="h-4 w-4" />
       </Button>
 
+      <SaveStatusIndicator className="ml-auto pr-1" />
     </div>
   )
 }
