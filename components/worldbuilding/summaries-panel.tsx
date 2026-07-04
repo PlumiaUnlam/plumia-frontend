@@ -1,173 +1,186 @@
-"use client"
+"use client";
 
-import { useState } from "react"
+import { useMemo, useState } from "react";
+import { Album, FileText, Search, Sparkles } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
-  FileText,
-  Sparkles,
-  RefreshCw,
-  Copy,
-  Save,
-} from "lucide-react"
+  Item,
+  ItemContent,
+  ItemDescription,
+  ItemGroup,
+  ItemMedia,
+  ItemTitle,
+} from "@/components/ui/item";
 
-import { getChapters } from "@/services/project.service";
-import { getSummary } from "@/services/worldbuilding.service";
-
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Checkbox } from "@/components/ui/checkbox"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Separator } from "@/components/ui/separator"
-
-const chapters = await getChapters();
-
-export function SummariesPanel() {
-const [selectedChapters, setSelectedChapters] = useState<string[]>([])
-const [generatedSummary, setGeneratedSummary] = useState("")
-const [loading, setLoading] = useState(false);
-
-const handleGenerateSummary = async () => {
-  try {
-    setLoading(true);
-
-    const summary = await getSummary();
-
-    setGeneratedSummary(summary);
-  } catch (error) {
-    console.error(error);
-  } finally {
-    setLoading(false);
-  }
+export type SummaryChapter = {
+  id: string;
+  title: string;
+  wordCount: number;
 };
 
-  const toggleChapter = (chapterId: string, checked: boolean) => {
-    if (checked) {
-      setSelectedChapters((prev) => [...prev, chapterId])
-    } else {
-      setSelectedChapters((prev) =>
-        prev.filter((id) => id !== chapterId)
-      )
+type SummariesPanelProps = {
+  chapters: SummaryChapter[];
+  loading: boolean;
+  error?: Error;
+};
+
+export function SummariesPanel({
+  chapters,
+  loading,
+  error,
+}: SummariesPanelProps) {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedChapterId, setSelectedChapterId] = useState<string | null>(
+    null,
+  );
+
+  const filteredChapters = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLowerCase();
+
+    if (!normalizedQuery) {
+      return chapters;
     }
-  }
+
+    return chapters.filter((chapter) =>
+      chapter.title.toLowerCase().includes(normalizedQuery),
+    );
+  }, [chapters, searchQuery]);
+
+  const toggleChapter = (chapterId: string, checked: boolean) => {
+    setSelectedChapterId(checked ? chapterId : null);
+  };
+
+  const hasNoSearchResults =
+    !loading && !error && chapters.length > 0 && filteredChapters.length === 0;
 
   return (
-    <div className="flex flex-1 h-full bg-background text-foreground">
-      <Card className="w-90 rounded border-y-0 border-l-0 bg-card">
-        <CardHeader>
-          <CardTitle className="text-sm">
-            Seleccionar capítulos
-          </CardTitle>
-        </CardHeader>
-
-        <CardContent className="space-y-4">
-          <div className="space-y max-h-[600px] overflow-y-auto">
-            {chapters.map((chapter) => (
-              <Card key={chapter.id}>
-                <CardContent className="">
-                  <label className="flex items-start gap-3 cursor-pointer hover:bg-muted rounded p-2">
-                    <Checkbox 
-                      checked={selectedChapters.includes(chapter.id)}
-                      onCheckedChange={(checked) =>
-                        toggleChapter(
-                          chapter.id,
-                          checked === true
-                        )
-                      }
-                    />
-
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium">
-                        {chapter.title}
-                      </p>
-
-                      <p className="text-xs text-muted-foreground">
-                       {chapter.wordCount} palabras
-                      </p>
-                    </div>
-                  </label>
-                </CardContent>
-              </Card>
-            ))}
+    <div className="flex h-full min-h-0 w-full min-w-0 overflow-hidden">
+      <aside className="flex h-full min-h-0 w-80 shrink-0 flex-col overflow-hidden border-r border-border bg-muted/30">
+        <div className="border-b border-border bg-card/50 p-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              className="pl-9"
+              placeholder="Buscar capítulos..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
           </div>
-
-          <Separator />
-
-          <Button
-            className="w-full"
-            disabled={selectedChapters.length === 0}
-            onClick={handleGenerateSummary}
-          >
-            <Sparkles className="mr-2 h-4 w-4" />
-            {loading ? "Generando..." : "Generar resumen"}
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* Content */}
-      <ScrollArea className="flex-1">
-        <div className="p-6">
-          {generatedSummary ? (
-            <div className="max-w-4xl mx-auto space-y-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold">
-                  Resumen generado
-                </h2>
-
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleGenerateSummary}
-                  >
-                    <RefreshCw className="mr-2 h-4 w-4" />
-                    {loading ? "Regenerando..." : "Generar resumen"}
-                  </Button>
-
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      navigator.clipboard.writeText(
-                        generatedSummary
-                      )
-                    }
-                  >
-                    <Copy className="mr-2 h-4 w-4" />
-                    Copiar
-                  </Button>
-
-                  <Button size="sm">
-                    <Save className="mr-2 h-4 w-4" />
-                    Guardar
-                  </Button>
-                </div>
-              </div>
-
-              <Card>
-                <CardContent className="p-6">
-                  <p className="whitespace-pre-wrap leading-relaxed">
-                    {generatedSummary}
-                  </p>
-                </CardContent>
-              </Card>
-
-            </div>
-          ) : (
-            <div className="flex h-[600px] items-center justify-center">
-              <div className="text-center">
-                <FileText className="mx-auto mb-4 h-12 w-12 text-muted-foreground/40" />
-
-                <h3 className="mb-2 text-lg font-medium">
-                  No hay resumen generado
-                </h3>
-
-                <p className="text-sm text-muted-foreground">
-                  Selecciona uno o más capítulos y genera un resumen.
-                </p>
-              </div>
-            </div>
-          )}
         </div>
-      </ScrollArea>
+
+        <div className="space-y-3 border-b border-border bg-card/50 p-3">
+          <div className="flex items-center gap-1">
+            <Album size={15} className="text-muted-foreground" />
+            <p className="text-sm font-semibold text-muted-foreground">
+              SELECCIONAR CAPÍTULOS
+            </p>
+          </div>
+        </div>
+
+        <ScrollArea className="min-h-0 flex-1 p-3">
+          <ItemGroup className="min-w-0">
+            {loading
+              ? Array.from({ length: 4 }).map((_, index) => (
+                  <Item
+                    key={index}
+                    variant="outline"
+                    size="sm"
+                    className="cursor-default"
+                  >
+                    <ItemMedia variant="icon">
+                      <Skeleton className="size-4 rounded-[4px]" />
+                    </ItemMedia>
+                    <ItemContent>
+                      <Skeleton className="h-4 w-32" />
+                      <Skeleton className="h-3 w-20" />
+                    </ItemContent>
+                  </Item>
+                ))
+              : filteredChapters.map((chapter) => {
+                  const isSelected = selectedChapterId === chapter.id;
+
+                  return (
+                    <Item
+                      key={chapter.id}
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSelectedChapterId(chapter.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          setSelectedChapterId(chapter.id);
+                        }
+                      }}
+                      tabIndex={0}
+                      role="button"
+                      className={`cursor-pointer focus-visible:ring-2 focus-visible:ring-primary ${
+                        isSelected
+                          ? "border-primary bg-primary/10"
+                          : "bg-white hover:bg-muted/50"
+                      }`}
+                    >
+                      <ItemMedia variant="icon">
+                        <Checkbox
+                          checked={isSelected}
+                          onClick={(event) => event.stopPropagation()}
+                          onCheckedChange={(checked) =>
+                            toggleChapter(chapter.id, checked === true)
+                          }
+                        />
+                      </ItemMedia>
+
+                      <ItemContent className="min-w-0">
+                        <ItemTitle className="max-w-full">
+                          {chapter.title}
+                        </ItemTitle>
+                        <ItemDescription>
+                          {chapter.wordCount.toLocaleString()} palabras
+                        </ItemDescription>
+                      </ItemContent>
+                    </Item>
+                  );
+                })}
+
+            {!loading && error && (
+              <div className="rounded-lg border border-dashed border-border bg-background p-4 text-sm text-muted-foreground">
+                No se pudieron cargar los capítulos.
+              </div>
+            )}
+
+            {!loading && !error && chapters.length === 0 && (
+              <div className="rounded-lg border border-dashed border-border bg-background p-4 text-sm text-muted-foreground">
+                No hay capítulos disponibles.
+              </div>
+            )}
+
+            {hasNoSearchResults && (
+              <div className="rounded-lg border border-dashed border-border bg-background p-4 text-sm text-muted-foreground">
+                No se encontraron capítulos.
+              </div>
+            )}
+          </ItemGroup>
+        </ScrollArea>
+
+        <div className="border-t border-border bg-card/50 p-4">
+          <Button className="w-full" disabled={!selectedChapterId}>
+            <Sparkles className="mr-2 h-4 w-4" />
+            Generar resumen
+          </Button>
+        </div>
+      </aside>
+
+      <main className="flex-1 min-h-0 flex flex-col items-center justify-center text-primary opacity-70 gap-2 bg-muted/30 p-12">
+        <FileText size={48} />
+        <h2 className="text-lg font-semibold">Selecciona un capítulo</h2>
+        <p>
+          Haz click en cualquier capítulo de la lista para generar un resumen
+        </p>
+      </main>
     </div>
-  )
+  );
 }

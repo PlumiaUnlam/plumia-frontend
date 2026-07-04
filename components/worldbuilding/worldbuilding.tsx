@@ -6,7 +6,7 @@ import useSWR from "swr";
 import useSWRMutation from "swr/mutation";
 
 import { Header } from "../header";
-import { SummariesPanel } from "./summaries-panel";
+import { SummariesPanel, type SummaryChapter } from "./summaries-panel";
 import { WikiTab } from "./wiki-panel";
 
 import { NewEntityModal } from "@/components/modal/new-entity-modal";
@@ -29,6 +29,7 @@ import {
   updateEntity,
   deleteEntity,
 } from "@/services/entities.service";
+import { getProject } from "@/services/project.service";
 import { uploadEntityImage } from "@/services/upload.service";
 
 import type {
@@ -73,6 +74,15 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
     () => getEntities(projectId),
   );
 
+  const {
+    data: project,
+    error: projectError,
+    isLoading: isLoadingProject,
+  } = useSWR(
+    shouldFetch ? `/projects/${projectId}` : null,
+    () => getProject(projectId),
+  );
+
   const { trigger: triggerDelete } = useSWRMutation(
     projectId ? `/knowledge/entities?projectId=${projectId}` : null,
     async (_key: string, { arg }: { arg: string }) => {
@@ -84,6 +94,18 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
     () => entities?.find((entity) => entity.id === selectedEntityId) ?? null,
     [entities, selectedEntityId],
   );
+
+  const chapters = useMemo<SummaryChapter[]>(() => {
+    return (
+      project?.books.flatMap((book) =>
+        book.chapters.map((chapter) => ({
+          id: chapter.id,
+          title: chapter.title,
+          wordCount: chapter.wordCount,
+        })),
+      ) ?? []
+    );
+  }, [project]);
 
   const handleSubmitModal = async (
     data: CreateEntityInput | UpdateEntityInput,
@@ -228,9 +250,13 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
 
           <TabsContent
             value="summaries"
-            className="flex-1 mt-4 bg-card rounded-lg border border-border p-4 overflow-hidden"
+            className="mt-4 min-h-0 flex-1 overflow-hidden border-t bg-card"
           >
-            <SummariesPanel />
+            <SummariesPanel
+              chapters={chapters}
+              loading={isLoadingProject}
+              error={projectError}
+            />
           </TabsContent>
         </Tabs>
       </div>
