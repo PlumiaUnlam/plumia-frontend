@@ -124,7 +124,7 @@ export function WikiTab({
 
         <div className="p-3 space-y-3 border-b border-border bg-card/50">
           <div className="flex items-center gap-1">
-            <Funnel size={15} />
+            <Funnel size={15} className="text-muted-foreground" />
             <p className="text-sm font-semibold text-muted-foreground">
               CATEGORÍAS
             </p>
