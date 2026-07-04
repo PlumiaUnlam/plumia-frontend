@@ -190,10 +190,12 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
               Explora y gestiona el universo narrativo de tu obra
             </p>
           </div>
-          <Button onClick={() => setShowNewEntityModal(true)}>
-            <Plus size={16} />
-            Nueva Entidad
-          </Button>
+          {activeTab === "wiki" && (
+            <Button onClick={() => setShowNewEntityModal(true)}>
+              <Plus size={16} />
+              Nueva Entidad
+            </Button>
+          )}
         </div>
 
         <NewEntityModal

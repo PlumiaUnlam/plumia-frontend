@@ -2,17 +2,15 @@
 
 import { useMemo, useState } from "react";
 import {
+  Album,
   AlertCircle,
-  Book,
   BookOpen,
   CheckCircle2,
-  ChevronLeft,
   Copy,
   FileText,
   Hash,
   Loader2,
   RefreshCw,
-  Save,
   Sparkles,
   Wand2,
 } from "lucide-react";
@@ -257,7 +255,7 @@ export function SummariesPanel({
         </ScrollArea>
       </aside>
 
-      <main className="min-h-0 flex-1 overflow-y-auto">
+      <main className="min-h-0 flex-1 overflow-y-auto bg-muted/30">
         {activeChapter ? (
           <div className="flex min-h-full flex-col">
             <div className="shrink-0 border-b border-border bg-card/30 px-8 py-6">
@@ -384,30 +382,21 @@ export function SummariesPanel({
                   </Alert>
                 </div>
               ) : (
-                <div className="flex h-full min-h-80 flex-col items-center justify-center gap-4">
-                  <div className="flex size-20 items-center justify-center rounded-2xl bg-muted/60">
-                    <FileText className="size-8 text-muted-foreground/40" />
-                  </div>
-                  <div className="text-center">
-                    <p className="mb-1 font-semibold text-foreground">
-                      Sin resumen todavía
-                    </p>
-                    <p className="max-w-xs text-sm text-muted-foreground">
-                      PlumIA leerá el capítulo y generará una síntesis concisa
-                      de la trama y los personajes.
-                    </p>
-                  </div>
-                  <Button onClick={() => handleGenerate(activeChapter)}>
-                    <Sparkles className="size-4" />
-                    Generar resumen con IA
-                  </Button>
+                <div className="flex h-full min-h-80 flex-col items-center justify-center gap-2 text-primary opacity-70">
+                  <FileText size={48} />
+                  <h2 className="text-lg font-semibold">
+                    Sin resumen todavía
+                  </h2>
+                  <p className="text-center">
+                    PlumIA leerá el capítulo y generará una sintesis concisa de la trama y de los personajes
+                  </p>
                 </div>
               )}
             </div>
           </div>
         ) : (
-          <div className="flex-1 min-h-0 flex flex-col items-center justify-center text-primary opacity-70 gap-2">
-            <Book size={48} />
+          <div className="flex h-full min-h-80 flex-col items-center justify-center gap-2 text-center text-primary opacity-70">
+            <Album size={48} />
             <h2 className="text-lg font-semibold">Selecciona un capítulo</h2>
             <p>
               Haz click en cualquier capítulo de la lista para ver su resumen.
