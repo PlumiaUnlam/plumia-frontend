@@ -1,4 +1,10 @@
-import type { EntityCategory } from "@/components/worldbuilding/wiki-panel"
+export type EntityCategory =
+  | "Personaje"
+  | "Lugar"
+  | "Objeto"
+  | "Faccion"
+  | "Evento"
+  | "Concepto"
 
 export type EntityType =
   | "CHARACTER"

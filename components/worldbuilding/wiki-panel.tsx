@@ -15,39 +15,12 @@ import {
   ItemTitle,
 } from "@/components/ui/item";
 
-import {
-  Search,
-  Users,
-  Map,
-  Star,
-  Shield,
-  Calendar,
-  Sparkles,
-  PenLine,
-  Trash2,
-  Funnel,
-  StarIcon,
-} from "lucide-react";
+import { Search, PenLine, Trash2, Funnel, StarIcon } from "lucide-react";
 
-import type { Entity } from "@/types/entity";
+import type { Entity, EntityCategory } from "@/types/entity";
 import { TYPE_TO_CATEGORY } from "@/types/entity";
-
-const CATEGORY_FILTERS = [
-  { id: "Personaje" as const, label: "Personaje", icon: Users },
-  { id: "Lugar" as const, label: "Lugar", icon: Map },
-  { id: "Objeto" as const, label: "Objeto", icon: Star },
-  { id: "Faccion" as const, label: "Facción", icon: Shield },
-  { id: "Evento" as const, label: "Evento", icon: Calendar },
-  { id: "Concepto" as const, label: "Concepto", icon: Sparkles },
-];
-
-export type EntityCategory =
-  | "Personaje"
-  | "Lugar"
-  | "Objeto"
-  | "Faccion"
-  | "Evento"
-  | "Concepto";
+import { ENTITY_CATEGORY_STYLES } from "@/lib/entity-category-style";
+import { EntityIconTile } from "@/components/worldbuilding/entity-icon-tile";
 
 interface WikiTabProps {
   readonly entities: readonly Entity[];
@@ -143,7 +116,8 @@ export function WikiTab({
               Todas
             </button>
 
-            {CATEGORY_FILTERS.map(({ id, label, icon: Icon }) => {
+            {ENTITY_CATEGORY_STYLES.map((categoryStyle) => {
+              const { id, label, icon: Icon } = categoryStyle;
               const isSelected = selectedCategory.includes(id);
               return (
                 <button
@@ -162,7 +136,10 @@ export function WikiTab({
                     )
                   }
                 >
-                  <Icon className="h-4 w-4" />
+                  <Icon
+                    className="h-4 w-4"
+                    style={{ color: categoryStyle.color }}
+                  />
                   {label}
                 </button>
               );
@@ -192,6 +169,7 @@ export function WikiTab({
               : filteredEntities.map((entity) => {
                   const src = `/api/storage/image/${entity.id}?v=${Date.parse(entity.updatedAt)}`;
                   const isSelected = selectedEntity?.id === entity.id;
+                  const entityCategory = TYPE_TO_CATEGORY[entity.type];
 
                   return (
                     <Item
@@ -213,15 +191,25 @@ export function WikiTab({
                           : "bg-white hover:bg-muted/50"
                       }`}
                     >
-                      <ItemMedia variant="image">
-                        <img
-                          src={src}
-                          alt={entity.canonicalName}
-                          width={128}
-                          height={128}
-                          className="aspect-square w-full rounded-sm object-cover"
-                        />
-                      </ItemMedia>
+                      {entity.imageUrl ? (
+                        <ItemMedia variant="image">
+                          <img
+                            src={src}
+                            alt={entity.canonicalName}
+                            width={128}
+                            height={128}
+                            className="aspect-square w-full rounded-sm object-cover"
+                          />
+                        </ItemMedia>
+                      ) : (
+                        <ItemMedia variant="image">
+                          <EntityIconTile
+                            category={entityCategory}
+                            className="size-full rounded-sm"
+                            iconClassName="h-4 w-4"
+                          />
+                        </ItemMedia>
+                      )}
                       <ItemContent className="min-w-0">
                         <ItemTitle className="max-w-full">
                           {entity.canonicalName}
@@ -251,13 +239,21 @@ export function WikiTab({
           <>
             <header className="mb-8 flex-shrink-0 flex flex-wrap items-start gap-4 justify-between">
               <div className="flex min-w-0 items-start gap-4">
-                <img
-                  src={selectedEntityImageSrc}
-                  alt={selectedEntity.canonicalName}
-                  width={112}
-                  height={112}
-                  className="size-28 shrink-0 rounded-lg border border-border bg-background object-cover"
-                />
+                {selectedEntity.imageUrl && selectedEntityCategory ? (
+                  <img
+                    src={selectedEntityImageSrc}
+                    alt={selectedEntity.canonicalName}
+                    width={112}
+                    height={112}
+                    className="size-28 shrink-0 rounded-lg border border-border bg-background object-cover"
+                  />
+                ) : selectedEntityCategory ? (
+                  <EntityIconTile
+                    category={selectedEntityCategory}
+                    className="size-28 rounded-lg"
+                    iconClassName="h-10 w-10"
+                  />
+                ) : null}
 
                 <div className="flex min-w-0 flex-col gap-2 pt-1">
                   {selectedEntityCategory && (
