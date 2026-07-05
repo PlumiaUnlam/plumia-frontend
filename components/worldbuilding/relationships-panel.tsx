@@ -16,7 +16,6 @@ import {
   Funnel,
   GitBranch,
   Loader2,
-  Network,
   Users,
 } from "lucide-react";
 
@@ -32,39 +31,9 @@ import {
 } from "@/components/ui/item";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
+import { relationStyleOptions, relationStyles } from "@/lib/relation-style";
 import type { Entity } from "@/types/entity";
 import type { Relationship, RelationType } from "@/types/relationship";
-
-const relationLabels: Record<RelationType, string> = {
-  ALLY: "Aliado",
-  ENEMY: "Enemigo",
-  FAMILY: "Familia",
-  ROMANTIC: "Romance",
-  MENTOR: "Mentor",
-  RIVAL: "Rival",
-  MEMBER_OF: "Miembro",
-  LOCATED_IN: "Ubicado",
-  OWNS: "Posee",
-  KNOWS: "Conoce",
-};
-
-const relationColors: Record<RelationType, string> = {
-  ALLY: "#10b981",
-  ENEMY: "#ef4444",
-  FAMILY: "#8b5cf6",
-  ROMANTIC: "#ec4899",
-  MENTOR: "#0ea5e9",
-  RIVAL: "#f59e0b",
-  MEMBER_OF: "#6366f1",
-  LOCATED_IN: "#14b8a6",
-  OWNS: "#a855f7",
-  KNOWS: "#64748b",
-};
-
-const relationFilters = Object.entries(relationLabels).map(([id, label]) => ({
-  id: id as RelationType,
-  label,
-}));
 
 type RelationshipsPanelProps = {
   readonly entities: readonly Entity[];
@@ -191,30 +160,30 @@ export function RelationshipsPanel({
     () =>
       filteredRelationships.map((relationship) => {
         const isSelected = relationship.id === selectedRelationshipId;
-        const color = relationColors[relationship.relationType];
+        const relationStyle = relationStyles[relationship.relationType];
 
         return {
           id: relationship.id,
           source: relationship.sourceEntityId,
           target: relationship.targetEntityId,
-          label: relationLabels[relationship.relationType],
+          label: relationStyle.label,
           animated: isSelected,
           type: "smoothstep",
           markerEnd: {
             type: MarkerType.ArrowClosed,
-            color,
+            color: relationStyle.color,
             width: 16,
             height: 16,
           },
           style: {
-            stroke: color,
+            stroke: relationStyle.color,
             strokeWidth: isSelected
               ? Math.max(4, relationship.intensity + 1)
               : Math.max(2, relationship.intensity * 0.85),
             opacity: isSelected || !selectedRelationshipId ? 0.95 : 0.28,
           },
           labelStyle: {
-            fill: color,
+            fill: relationStyle.color,
             fontWeight: 700,
             fontSize: 12,
           },
@@ -336,7 +305,7 @@ export function RelationshipsPanel({
               Todas
             </button>
 
-            {relationFilters.map(({ id, label }) => {
+            {relationStyleOptions.map(({ id, label, color, icon: Icon }) => {
               const isSelected = selectedTypes.includes(id);
 
               return (
@@ -350,10 +319,7 @@ export function RelationshipsPanel({
                   }`}
                   onClick={() => toggleType(id)}
                 >
-                  <span
-                    className="size-2 rounded-full"
-                    style={{ backgroundColor: relationColors[id] }}
-                  />
+                  <Icon className="size-3.5" style={{ color }} />
                   {label}
                 </button>
               );
@@ -375,6 +341,8 @@ export function RelationshipsPanel({
                 const source = entityById.get(relationship.sourceEntityId);
                 const target = entityById.get(relationship.targetEntityId);
                 const isSelected = selectedRelationshipId === relationship.id;
+                const relationStyle = relationStyles[relationship.relationType];
+                const RelationIcon = relationStyle.icon;
 
                 return (
                   <Item
@@ -397,11 +365,9 @@ export function RelationshipsPanel({
                     }`}
                   >
                     <ItemMedia variant="icon">
-                      <Network
+                      <RelationIcon
                         className="size-4"
-                        style={{
-                          color: relationColors[relationship.relationType],
-                        }}
+                        style={{ color: relationStyle.color }}
                       />
                     </ItemMedia>
                     <ItemContent className="min-w-0">
@@ -410,7 +376,7 @@ export function RelationshipsPanel({
                         {target?.canonicalName ?? "Personaje"}
                       </ItemTitle>
                       <div className="flex flex-wrap items-center gap-1.5">
-                        <Badge>{relationLabels[relationship.relationType]}</Badge>
+                        <Badge>{relationStyle.label}</Badge>
                         <span className="text-xs font-medium text-primary">
                           {relationship.intensity} / 5
                         </span>

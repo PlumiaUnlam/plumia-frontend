@@ -1,7 +1,14 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Loader2, Plus, Star, Users, Calendar, FileText, GitBranch } from "lucide-react";
+import {
+  Loader2,
+  Plus,
+  Star,
+  Calendar,
+  FileText,
+  GitBranch,
+} from "lucide-react";
 import useSWR from "swr";
 import useSWRMutation from "swr/mutation";
 
@@ -57,7 +64,7 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
 
   const tabs = [
     { id: "wiki" as const, label: "Wiki del Universo", icon: Star },
-    { id: "relationships" as const, label: "Relaciones", icon: Users },
+    { id: "relationships" as const, label: "Relaciones", icon: GitBranch },
     { id: "timeline" as const, label: "Línea Temporal", icon: Calendar },
     { id: "summaries" as const, label: "Resúmenes", icon: FileText },
   ];

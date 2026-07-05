@@ -1,18 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ComponentType } from "react";
-import {
-  Heart,
-  Handshake,
-  Swords,
-  Users,
-  GraduationCap,
-  Shield,
-  Link,
-  MapPin,
-  Package,
-  UserRoundCheck,
-} from "lucide-react";
+import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -32,28 +20,12 @@ import {
 } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
 
+import { relationStyleOptions } from "@/lib/relation-style";
 import type { Entity } from "@/types/entity";
 import type {
   CreateRelationshipInput,
   RelationType,
 } from "@/types/relationship";
-
-const relationTypes: Array<{
-  id: RelationType;
-  label: string;
-  icon: ComponentType<{ className?: string }>;
-}> = [
-  { id: "ALLY", label: "Aliado", icon: Handshake },
-  { id: "ENEMY", label: "Enemigo", icon: Swords },
-  { id: "FAMILY", label: "Familia", icon: Users },
-  { id: "ROMANTIC", label: "Romance", icon: Heart },
-  { id: "MENTOR", label: "Mentor", icon: GraduationCap },
-  { id: "RIVAL", label: "Rival", icon: Shield },
-  { id: "KNOWS", label: "Conoce", icon: UserRoundCheck },
-  { id: "MEMBER_OF", label: "Miembro", icon: Link },
-  { id: "LOCATED_IN", label: "Ubicado", icon: MapPin },
-  { id: "OWNS", label: "Posee", icon: Package },
-];
 
 type NewRelationModalProps = {
   readonly show: boolean;
@@ -162,7 +134,7 @@ export function NewRelationModal({
             <FieldLegend>Tipo de relación</FieldLegend>
 
             <FieldGroup className="grid grid-cols-5 gap-2">
-              {relationTypes.map(({ id, label, icon: Icon }) => (
+              {relationStyleOptions.map(({ id, label, color, icon: Icon }) => (
                 <button
                   key={id}
                   type="button"
@@ -173,7 +145,10 @@ export function NewRelationModal({
                       : "border-border text-muted-foreground hover:border-primary/40 hover:bg-muted"
                   }`}
                 >
-                  <Icon className="size-4" />
+                  <Icon
+                    className="size-4"
+                    style={{ color: relationType === id ? undefined : color }}
+                  />
                   {label}
                 </button>
               ))}
