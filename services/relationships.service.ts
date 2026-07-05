@@ -2,6 +2,7 @@ import { api } from "./api.service"
 import type {
   CreateRelationshipInput,
   Relationship,
+  UpdateRelationshipInput,
 } from "@/types/relationship"
 
 export async function getRelationships(
@@ -20,4 +21,15 @@ export async function createRelationship(
     `/knowledge/relationships?projectId=${encodeURIComponent(projectId)}`,
     input,
   )
+}
+
+export async function updateRelationship(
+  id: string,
+  input: UpdateRelationshipInput,
+): Promise<Relationship> {
+  return api.patch<Relationship>(`/knowledge/relationships/${id}`, input)
+}
+
+export async function deleteRelationship(id: string): Promise<void> {
+  return api.delete<void>(`/knowledge/relationships/${id}`)
 }

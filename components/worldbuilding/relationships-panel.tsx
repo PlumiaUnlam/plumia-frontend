@@ -16,6 +16,8 @@ import {
   Funnel,
   GitBranch,
   Loader2,
+  PenLine,
+  Trash2,
   Users,
 } from "lucide-react";
 
@@ -40,6 +42,8 @@ type RelationshipsPanelProps = {
   readonly relationships: readonly Relationship[];
   readonly loading: boolean;
   readonly error?: Error;
+  readonly onEditRelationship: (relationship: Relationship) => void;
+  readonly onDeleteRelationship: (relationship: Relationship) => void;
 };
 
 export function RelationshipsPanel({
@@ -47,6 +51,8 @@ export function RelationshipsPanel({
   relationships,
   loading,
   error,
+  onEditRelationship,
+  onDeleteRelationship,
 }: RelationshipsPanelProps) {
   const [selectedTypes, setSelectedTypes] = useState<RelationType[]>([]);
   const [selectedRelationshipId, setSelectedRelationshipId] = useState<
@@ -328,10 +334,12 @@ export function RelationshipsPanel({
         </div>
 
         <div className="flex items-center gap-1 border-b border-border bg-card/50 p-3">
-          <GitBranch className="size-4 text-muted-foreground" />
-          <p className="text-sm font-semibold text-muted-foreground">
-            RELACIONES
-          </p>
+          <div className="flex items-center gap-1">
+            <GitBranch className="size-4 text-muted-foreground" />
+            <p className="text-sm font-semibold text-muted-foreground">
+              RELACIONES
+            </p>
+          </div>
         </div>
 
         <ScrollArea className="min-h-0 flex-1 p-3">
@@ -399,7 +407,27 @@ export function RelationshipsPanel({
         </ScrollArea>
       </aside>
 
-      <main className="min-h-0 flex-1 bg-muted/30">
+      <main className="relative min-h-0 flex-1 bg-muted/30">
+        {selectedRelationship && (
+          <div className="absolute right-4 top-4 z-10 flex items-center gap-2 rounded-lg border border-border bg-card/95 p-2 shadow-sm">
+            <button
+              type="button"
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+              onClick={() => onEditRelationship(selectedRelationship)}
+            >
+              <PenLine className="size-3.5" />
+              Editar
+            </button>
+            <button
+              type="button"
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-destructive transition-colors hover:bg-destructive/10"
+              onClick={() => onDeleteRelationship(selectedRelationship)}
+            >
+              <Trash2 className="size-3.5" />
+              Eliminar
+            </button>
+          </div>
+        )}
         <ReactFlow
           nodes={flowNodes}
           edges={flowEdges}

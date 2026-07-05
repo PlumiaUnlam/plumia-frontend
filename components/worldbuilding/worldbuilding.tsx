@@ -41,7 +41,9 @@ import {
 import { getProject } from "@/services/project.service";
 import {
   createRelationship,
+  deleteRelationship,
   getRelationships,
+  updateRelationship,
 } from "@/services/relationships.service";
 import { uploadEntityImage } from "@/services/upload.service";
 
@@ -50,7 +52,11 @@ import type {
   CreateEntityInput,
   UpdateEntityInput,
 } from "@/types/entity";
-import type { CreateRelationshipInput } from "@/types/relationship";
+import type {
+  CreateRelationshipInput,
+  Relationship,
+  UpdateRelationshipInput,
+} from "@/types/relationship";
 
 type WorldbuildingTab = "wiki" | "relationships" | "timeline" | "summaries";
 
@@ -72,12 +78,17 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
   const [activeTab, setActiveTab] = useState<WorldbuildingTab>("wiki");
   const [showNewEntityModal, setShowNewEntityModal] = useState(false);
   const [showNewRelationModal, setShowNewRelationModal] = useState(false);
+  const [editingRelationship, setEditingRelationship] =
+    useState<Relationship | null>(null);
+  const [deleteConfirmRelationship, setDeleteConfirmRelationship] =
+    useState<Relationship | null>(null);
   const [editingEntity, setEditingEntity] = useState<Entity | null>(null);
   const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
   const [deleteConfirmEntity, setDeleteConfirmEntity] = useState<Entity | null>(
     null,
   );
   const [deleting, setDeleting] = useState(false);
+  const [deletingRelationship, setDeletingRelationship] = useState(false);
 
   const {
     data: entities,
@@ -170,8 +181,14 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
     setSelectedEntityId(entityId);
   };
 
-  const handleSubmitRelation = async (input: CreateRelationshipInput) => {
-    await createRelationship(projectId, input);
+  const handleSubmitRelation = async (
+    input: CreateRelationshipInput | UpdateRelationshipInput,
+  ) => {
+    if (editingRelationship) {
+      await updateRelationship(editingRelationship.id, input);
+    } else {
+      await createRelationship(projectId, input as CreateRelationshipInput);
+    }
     await mutateRelationships();
   };
 
@@ -204,6 +221,21 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
     setEditingEntity(null);
   };
 
+  const handleRelationModalClose = () => {
+    setShowNewRelationModal(false);
+    setEditingRelationship(null);
+  };
+
+  const handleDeleteRelationshipConfirmed = async (id: string) => {
+    try {
+      await deleteRelationship(id);
+      await mutateRelationships();
+    } finally {
+      setDeleteConfirmRelationship(null);
+      setDeletingRelationship(false);
+    }
+  };
+
   const characterEntities = useMemo(
     () => (entities ?? []).filter((entity) => entity.type === "CHARACTER"),
     [entities],
@@ -233,7 +265,10 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
           )}
           {activeTab === "relationships" && (
             <Button
-              onClick={() => setShowNewRelationModal(true)}
+              onClick={() => {
+                setEditingRelationship(null);
+                setShowNewRelationModal(true);
+              }}
               disabled={characterEntities.length < 2}
             >
               <GitBranch size={16} />
@@ -252,8 +287,9 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
         <NewRelationModal
           show={showNewRelationModal}
           entities={characterEntities}
-          onClose={() => setShowNewRelationModal(false)}
+          onClose={handleRelationModalClose}
           onSubmit={handleSubmitRelation}
+          relationship={editingRelationship}
         />
 
         <Tabs
@@ -306,6 +342,11 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
               relationships={relationships ?? []}
               loading={isLoading || isLoadingRelationships}
               error={error ?? relationshipsError}
+              onEditRelationship={(relationship) => {
+                setEditingRelationship(relationship);
+                setShowNewRelationModal(true);
+              }}
+              onDeleteRelationship={setDeleteConfirmRelationship}
             />
           </TabsContent>
 
@@ -356,6 +397,50 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
               }}
             >
               {deleting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Eliminar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!deleteConfirmRelationship}
+        onOpenChange={(open) => {
+          if (!open && !deletingRelationship) {
+            setDeleteConfirmRelationship(null);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmar eliminación</DialogTitle>
+            <DialogDescription>
+              ¿Estás seguro de que querés eliminar esta relación? Esta acción no
+              se puede deshacer.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteConfirmRelationship(null)}
+              disabled={deletingRelationship}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={deletingRelationship}
+              onClick={() => {
+                if (!deleteConfirmRelationship) return;
+                setDeletingRelationship(true);
+                void handleDeleteRelationshipConfirmed(
+                  deleteConfirmRelationship.id,
+                );
+              }}
+            >
+              {deletingRelationship && (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              )}
               Eliminar
             </Button>
           </DialogFooter>

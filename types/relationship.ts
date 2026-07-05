@@ -29,3 +29,11 @@ export interface CreateRelationshipInput {
   intensity: number
   description?: string
 }
+
+export interface UpdateRelationshipInput {
+  sourceEntityId?: string
+  targetEntityId?: string
+  relationType?: RelationType
+  intensity?: number
+  description?: string | null
+}

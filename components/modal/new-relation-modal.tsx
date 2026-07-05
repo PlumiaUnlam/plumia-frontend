@@ -24,14 +24,19 @@ import { relationStyleOptions } from "@/lib/relation-style";
 import type { Entity } from "@/types/entity";
 import type {
   CreateRelationshipInput,
+  Relationship,
   RelationType,
+  UpdateRelationshipInput,
 } from "@/types/relationship";
 
 type NewRelationModalProps = {
   readonly show: boolean;
   readonly entities: readonly Entity[];
   readonly onClose: () => void;
-  readonly onSubmit: (input: CreateRelationshipInput) => Promise<void>;
+  readonly onSubmit: (
+    input: CreateRelationshipInput | UpdateRelationshipInput,
+  ) => Promise<void>;
+  readonly relationship?: Relationship | null;
 };
 
 export function NewRelationModal({
@@ -39,6 +44,7 @@ export function NewRelationModal({
   entities,
   onClose,
   onSubmit,
+  relationship,
 }: NewRelationModalProps) {
   const [sourceEntityId, setSourceEntityId] = useState("");
   const [targetEntityId, setTargetEntityId] = useState("");
@@ -47,6 +53,7 @@ export function NewRelationModal({
   const [description, setDescription] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const isEditing = !!relationship;
 
   useEffect(() => {
     if (!show) return;
@@ -56,11 +63,11 @@ export function NewRelationModal({
     queueMicrotask(() => {
       if (!isCurrent) return;
 
-      setSourceEntityId("");
-      setTargetEntityId("");
-      setRelationType("ALLY");
-      setIntensity(3);
-      setDescription("");
+      setSourceEntityId(relationship?.sourceEntityId ?? "");
+      setTargetEntityId(relationship?.targetEntityId ?? "");
+      setRelationType(relationship?.relationType ?? "ALLY");
+      setIntensity(relationship?.intensity ?? 3);
+      setDescription(relationship?.description ?? "");
       setSubmitting(false);
       setError(null);
     });
@@ -68,7 +75,7 @@ export function NewRelationModal({
     return () => {
       isCurrent = false;
     };
-  }, [show]);
+  }, [show, relationship]);
 
   const canSubmit =
     !!sourceEntityId && !!targetEntityId && sourceEntityId !== targetEntityId;
@@ -80,17 +87,18 @@ export function NewRelationModal({
     setError(null);
 
     try {
-      await onSubmit({
+      const input = {
         sourceEntityId,
         targetEntityId,
         relationType,
         intensity,
-        description: description.trim() || undefined,
-      });
+        description: description.trim() || (isEditing ? null : undefined),
+      };
+      await onSubmit(input);
       onClose();
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Error al crear la relación",
+        err instanceof Error ? err.message : "Error al guardar la relación",
       );
     } finally {
       setSubmitting(false);
@@ -101,7 +109,9 @@ export function NewRelationModal({
     <Dialog open={show} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="min-w-[600px] gap-0 overflow-hidden">
         <DialogHeader className="border-b p-6 py-4">
-          <DialogTitle>Nueva Relación</DialogTitle>
+          <DialogTitle>
+            {isEditing ? "Editar Relación" : "Nueva Relación"}
+          </DialogTitle>
         </DialogHeader>
 
         <div className="max-h-[65vh] space-y-5 overflow-y-auto px-6 py-6">
@@ -201,7 +211,7 @@ export function NewRelationModal({
             Cancelar
           </Button>
           <Button disabled={!canSubmit || submitting} onClick={handleSubmit}>
-            Crear relación
+            {isEditing ? "Guardar cambios" : "Crear relación"}
           </Button>
         </DialogFooter>
       </DialogContent>
