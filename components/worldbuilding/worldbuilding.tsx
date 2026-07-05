@@ -1,15 +1,17 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Loader2, Plus, Star, Users, Calendar, FileText } from "lucide-react";
+import { Loader2, Plus, Star, Users, Calendar, FileText, GitBranch } from "lucide-react";
 import useSWR from "swr";
 import useSWRMutation from "swr/mutation";
 
 import { Header } from "../header";
+import { RelationshipsPanel } from "./relationships-panel";
 import { SummariesPanel, type SummaryChapter } from "./summaries-panel";
 import { WikiTab } from "./wiki-panel";
 
 import { NewEntityModal } from "@/components/modal/new-entity-modal";
+import { NewRelationModal } from "@/components/modal/new-relation-modal";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -30,6 +32,10 @@ import {
   deleteEntity,
 } from "@/services/entities.service";
 import { getProject } from "@/services/project.service";
+import {
+  createRelationship,
+  getRelationships,
+} from "@/services/relationships.service";
 import { uploadEntityImage } from "@/services/upload.service";
 
 import type {
@@ -37,6 +43,7 @@ import type {
   CreateEntityInput,
   UpdateEntityInput,
 } from "@/types/entity";
+import type { CreateRelationshipInput } from "@/types/relationship";
 
 type WorldbuildingTab = "wiki" | "relationships" | "timeline" | "summaries";
 
@@ -57,6 +64,7 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
 
   const [activeTab, setActiveTab] = useState<WorldbuildingTab>("wiki");
   const [showNewEntityModal, setShowNewEntityModal] = useState(false);
+  const [showNewRelationModal, setShowNewRelationModal] = useState(false);
   const [editingEntity, setEditingEntity] = useState<Entity | null>(null);
   const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
   const [deleteConfirmEntity, setDeleteConfirmEntity] = useState<Entity | null>(
@@ -81,6 +89,16 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
   } = useSWR(
     shouldFetch ? `/projects/${projectId}` : null,
     () => getProject(projectId),
+  );
+
+  const {
+    data: relationships,
+    error: relationshipsError,
+    isLoading: isLoadingRelationships,
+    mutate: mutateRelationships,
+  } = useSWR(
+    shouldFetch ? `/knowledge/relationships?projectId=${projectId}` : null,
+    () => getRelationships(projectId),
   );
 
   const { trigger: triggerDelete } = useSWRMutation(
@@ -145,6 +163,11 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
     setSelectedEntityId(entityId);
   };
 
+  const handleSubmitRelation = async (input: CreateRelationshipInput) => {
+    await createRelationship(projectId, input);
+    await mutateRelationships();
+  };
+
   const handleDelete = (entity: Entity) => {
     setDeleteConfirmEntity(entity);
   };
@@ -174,6 +197,11 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
     setEditingEntity(null);
   };
 
+  const characterEntities = useMemo(
+    () => (entities ?? []).filter((entity) => entity.type === "CHARACTER"),
+    [entities],
+  );
+
   const currentEntity = showNewEntityModal ? editingEntity : null;
 
   return (
@@ -196,6 +224,15 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
               Nueva Entidad
             </Button>
           )}
+          {activeTab === "relationships" && (
+            <Button
+              onClick={() => setShowNewRelationModal(true)}
+              disabled={characterEntities.length < 2}
+            >
+              <GitBranch size={16} />
+              Nueva Relación
+            </Button>
+          )}
         </div>
 
         <NewEntityModal
@@ -203,6 +240,13 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
           onClose={handleModalClose}
           onSubmit={handleSubmitModal}
           entity={currentEntity}
+        />
+
+        <NewRelationModal
+          show={showNewRelationModal}
+          entities={characterEntities}
+          onClose={() => setShowNewRelationModal(false)}
+          onSubmit={handleSubmitRelation}
         />
 
         <Tabs
@@ -246,7 +290,17 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
             />
           </TabsContent>
 
-          <TabsContent value="relationships"></TabsContent>
+          <TabsContent
+            value="relationships"
+            className="mt-4 min-h-0 flex-1 overflow-hidden border-t bg-card"
+          >
+            <RelationshipsPanel
+              entities={entities ?? []}
+              relationships={relationships ?? []}
+              loading={isLoading || isLoadingRelationships}
+              error={error ?? relationshipsError}
+            />
+          </TabsContent>
 
           <TabsContent value="timeline"></TabsContent>
 
