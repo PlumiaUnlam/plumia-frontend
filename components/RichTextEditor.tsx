@@ -24,7 +24,7 @@ export function RichTextEditor({
 
   return (
     <div className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-background">
-      <div className="sticky top-0 z-20 shrink-0 border-b border-border bg-white">
+      <div className="sticky top-0 z-20 h-12 shrink-0 border-b border-border bg-white">
         <EditorToolbar editor={editor} />
       </div>
 

@@ -70,7 +70,7 @@ export function LeftSidebar({ projectTitle, books, projectId, onRefresh }: LeftS
     return (
         <div className="flex h-full min-h-0">
             <Sidebar className="relative flex h-full min-h-0 flex-col border-r bg-background">
-                <SidebarHeader className="border-b bg-background">
+                <SidebarHeader className="h-12 shrink-0 justify-center border-b bg-background p-2">
 
                     <div className="grid w-full grid-cols-[minmax(0,1fr)_2rem] items-center gap-1">
                         <h2 className="truncate font-semibold center text-[15px] justify-center">

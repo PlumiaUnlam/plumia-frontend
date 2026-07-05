@@ -1,5 +1,5 @@
 import type { Editor } from "@tiptap/react"
-import { Bold, Italic, Heading1 } from "lucide-react"
+import { Bold, Italic } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 interface EditorToolbarProps {
@@ -10,7 +10,7 @@ export function EditorToolbar({
   editor,
 }: EditorToolbarProps) {
   return (
-    <div className="flex w-full items-center gap-2 bg-white px-4 py-1">
+    <div className="flex h-full w-full items-center gap-2 bg-white px-4">
       <Button
         size="icon"
         variant={
