@@ -236,11 +236,6 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
     }
   };
 
-  const characterEntities = useMemo(
-    () => (entities ?? []).filter((entity) => entity.type === "CHARACTER"),
-    [entities],
-  );
-
   const currentEntity = showNewEntityModal ? editingEntity : null;
 
   return (
@@ -269,7 +264,7 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
                 setEditingRelationship(null);
                 setShowNewRelationModal(true);
               }}
-              disabled={characterEntities.length < 2}
+              disabled={(entities ?? []).length < 2}
             >
               <GitBranch size={16} />
               Nueva Relación
@@ -286,7 +281,7 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
 
         <NewRelationModal
           show={showNewRelationModal}
-          entities={characterEntities}
+          entities={entities ?? []}
           onClose={handleRelationModalClose}
           onSubmit={handleSubmitRelation}
           relationship={editingRelationship}

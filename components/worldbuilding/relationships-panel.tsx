@@ -36,6 +36,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 
 import { relationStyleOptions, relationStyles } from "@/lib/relation-style";
 import type { Entity } from "@/types/entity";
+import { TYPE_TO_CATEGORY } from "@/types/entity";
 import type { Relationship, RelationType } from "@/types/relationship";
 
 type RelationshipsPanelProps = {
@@ -62,26 +63,22 @@ export function RelationshipsPanel({
   const [flowNodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [flowEdges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
 
-  const characterEntities = useMemo(
-    () => entities.filter((entity) => entity.type === "CHARACTER"),
+  const entityById = useMemo(
+    () => new Map(entities.map((entity) => [entity.id, entity])),
     [entities],
   );
-  const entityById = useMemo(
-    () => new Map(characterEntities.map((entity) => [entity.id, entity])),
-    [characterEntities],
-  );
-  const characterIds = useMemo(
-    () => new Set(characterEntities.map((entity) => entity.id)),
-    [characterEntities],
+  const entityIds = useMemo(
+    () => new Set(entities.map((entity) => entity.id)),
+    [entities],
   );
   const visibleRelationships = useMemo(
     () =>
       relationships.filter(
         (relationship) =>
-          characterIds.has(relationship.sourceEntityId) &&
-          characterIds.has(relationship.targetEntityId),
+          entityIds.has(relationship.sourceEntityId) &&
+          entityIds.has(relationship.targetEntityId),
       ),
-    [characterIds, relationships],
+    [entityIds, relationships],
   );
   const filteredRelationships = useMemo(
     () =>
@@ -113,8 +110,8 @@ export function RelationshipsPanel({
   );
   const layoutedNodes = useMemo<Node[]>(
     () =>
-      characterEntities.map((entity, index) => {
-        const total = Math.max(characterEntities.length, 1);
+      entities.map((entity, index) => {
+        const total = Math.max(entities.length, 1);
         const angle = (index / total) * Math.PI * 2;
         const radius = total > 5 ? 320 : total > 2 ? 230 : 150;
         const isSelected = selectedEntityIds.has(entity.id);
@@ -132,7 +129,7 @@ export function RelationshipsPanel({
                   {entity.canonicalName}
                 </p>
                 <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                  {entity.aliases[0] ?? "Personaje"}
+                  {entity.aliases[0] ?? TYPE_TO_CATEGORY[entity.type]}
                 </p>
               </div>
             ),
@@ -154,7 +151,7 @@ export function RelationshipsPanel({
           },
         };
       }),
-    [characterEntities, selectedEntityIds],
+    [entities, selectedEntityIds],
   );
 
   const toggleSelectedRelationship = (relationshipId: string) => {
@@ -276,13 +273,13 @@ export function RelationshipsPanel({
     );
   }
 
-  if (characterEntities.length === 0) {
+  if (entities.length === 0) {
     return (
       <div className="flex h-full items-center justify-center p-12 text-center text-primary opacity-70">
         <div className="space-y-2">
           <Users className="mx-auto size-12" />
-          <h2 className="text-lg font-semibold">No hay personajes</h2>
-          <p>Crea personajes en la wiki para construir el mapa de relaciones.</p>
+          <h2 className="text-lg font-semibold">No hay entidades</h2>
+          <p>Crea entidades en la wiki para construir el mapa de relaciones.</p>
         </div>
       </div>
     );
@@ -381,8 +378,8 @@ export function RelationshipsPanel({
                     </ItemMedia>
                     <ItemContent className="min-w-0">
                       <ItemTitle className="max-w-full">
-                        {source?.canonicalName ?? "Personaje"} →{" "}
-                        {target?.canonicalName ?? "Personaje"}
+                        {source?.canonicalName ?? "Entidad"} →{" "}
+                        {target?.canonicalName ?? "Entidad"}
                       </ItemTitle>
                       <div className="flex flex-wrap items-center gap-1.5">
                         <Badge>{relationStyle.label}</Badge>
@@ -401,7 +398,7 @@ export function RelationshipsPanel({
               <div className="rounded-lg border border-dashed border-border bg-background p-4 text-sm text-muted-foreground">
                 {visibleRelationships.length > 0
                   ? "No hay relaciones para los filtros seleccionados."
-                  : "Crea una relación para conectar personajes en el grafo."}
+                  : "Crea una relación para conectar entidades en el grafo."}
               </div>
             )}
           </ItemGroup>
