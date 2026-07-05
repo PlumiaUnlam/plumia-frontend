@@ -138,11 +138,14 @@ export function SummariesPanel({
   return (
     <div className="flex h-full min-h-0 w-full min-w-0 overflow-hidden">
       <aside className="flex h-full min-h-0 w-80 shrink-0 flex-col overflow-hidden border-r border-border bg-muted/30">
-        <div className="space-y-3 border-b border-border bg-card/60 p-4">
+        <div className="space-y-3 border-b border-border bg-card/50 p-3">
           <div className="flex items-center justify-between gap-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Capítulos
-            </p>
+            <div className="flex items-center gap-1">
+              <BookOpen className="size-4 text-muted-foreground" />
+              <p className="text-sm font-semibold text-muted-foreground">
+                CAPÍTULOS
+              </p>
+            </div>
             <div className="flex items-center gap-1 text-xs text-muted-foreground">
               <CheckCircle2 className="size-3.5 text-emerald-500" />
               <span>
@@ -337,9 +340,9 @@ export function SummariesPanel({
               </div>
             </div>
 
-            <div className="flex-1 px-8 py-8">
+            <div className="flex min-h-0 flex-1 px-8 py-8">
               {generatingIds.has(activeChapter.id) ? (
-                <div className="flex h-full min-h-80 flex-col items-center justify-center gap-4 text-muted-foreground">
+                <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 text-muted-foreground">
                   <div className="relative">
                     <div className="size-16 animate-spin rounded-full border-4 border-primary/20 border-t-primary" />
                     <Sparkles className="absolute inset-0 m-auto size-6 text-primary" />
@@ -382,7 +385,7 @@ export function SummariesPanel({
                   </Alert>
                 </div>
               ) : (
-                <div className="flex h-full min-h-80 flex-col items-center justify-center gap-2 text-primary opacity-70">
+                <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 text-primary opacity-70">
                   <FileText size={48} />
                   <h2 className="text-lg font-semibold">
                     Sin resumen todavía

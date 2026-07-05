@@ -1,17 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import {
-  Loader2,
-  Users,
-  Map,
-  Star,
-  Shield,
-  Calendar,
-  Sparkles,
-  Tag,
-  X,
-  ImageIcon,
-  Trash2,
-} from "lucide-react";
+import { Loader2, Tag, X, ImageIcon, Trash2 } from "lucide-react";
 
 import {
   Dialog,
@@ -35,20 +23,13 @@ import {
 
 import type {
   Entity,
+  EntityCategory,
   CreateEntityInput,
   UpdateEntityInput,
 } from "@/types/entity";
 import { CATEGORY_TO_TYPE, TYPE_TO_CATEGORY } from "@/types/entity";
-import type { EntityCategory } from "@/components/worldbuilding/wiki-panel";
-
-const categories = [
-  { id: "Personaje" as EntityCategory, label: "Personaje", icon: Users },
-  { id: "Lugar" as EntityCategory, label: "Lugar", icon: Map },
-  { id: "Objeto" as EntityCategory, label: "Objeto", icon: Star },
-  { id: "Faccion" as EntityCategory, label: "Facción", icon: Shield },
-  { id: "Evento" as EntityCategory, label: "Evento", icon: Calendar },
-  { id: "Concepto" as EntityCategory, label: "Concepto", icon: Sparkles },
-];
+import { ENTITY_CATEGORY_STYLES } from "@/lib/entity-category-style";
+import { EntityIconTile } from "@/components/worldbuilding/entity-icon-tile";
 
 type NewEntityModalProps = {
   readonly show: boolean;
@@ -203,7 +184,13 @@ export function NewEntityModal({
         loading="lazy"
       />
     </div>
-  ) : null;
+  ) : (
+    <EntityIconTile
+      category={category}
+      className="h-48 w-full rounded-lg"
+      iconClassName="h-12 w-12"
+    />
+  );
 
   return (
     <Dialog open={show} onOpenChange={(open) => !open && onClose()}>
@@ -240,29 +227,36 @@ export function NewEntityModal({
             <FieldLegend>Tipo *</FieldLegend>
 
             <FieldGroup className="grid grid-cols-3 gap-2">
-              {categories.map(({ id, label, icon: Icon }) => (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => setCategory(id)}
-                  className={`
-                      flex items-center gap-2
-                      px-3 py-2
-                      rounded-lg border
-                      transition-colors
+              {ENTITY_CATEGORY_STYLES.map((categoryStyle) => {
+                const { id, label, icon: Icon } = categoryStyle;
+                const isSelected = category === id;
 
-                      ${
-                        category === id
-                          ? "border-primary bg-primary/10 text-primary"
-                          : "border-border hover:border-primary/40 hover:bg-muted"
-                      }
-                    `}
-                >
-                  <Icon className="h-4 w-4" />
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => setCategory(id)}
+                    className={`
+                        flex items-center gap-2
+                        rounded-lg border px-3 py-2
+                        transition-colors hover:bg-muted
 
-                  <span className="text-sm font-medium">{label}</span>
-                </button>
-              ))}
+                        ${
+                          isSelected
+                            ? "border-primary bg-primary/10 text-primary"
+                            : "border-border"
+                        }
+                      `}
+                  >
+                    <Icon
+                      className="h-4 w-4"
+                      style={{ color: categoryStyle.color }}
+                    />
+
+                    <span className="text-sm font-medium">{label}</span>
+                  </button>
+                );
+              })}
             </FieldGroup>
           </FieldSet>
 
