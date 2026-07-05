@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Item,
@@ -409,23 +410,23 @@ export function RelationshipsPanel({
 
       <main className="relative min-h-0 flex-1 bg-muted/30">
         {selectedRelationship && (
-          <div className="absolute right-4 top-4 z-10 flex items-center gap-2 rounded-lg border border-border bg-card/95 p-2 shadow-sm">
-            <button
+          <div className="absolute right-4 top-4 z-10 flex shrink-0 flex-wrap gap-2">
+            <Button
               type="button"
-              className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+              variant="default"
               onClick={() => onEditRelationship(selectedRelationship)}
             >
-              <PenLine className="size-3.5" />
+              <PenLine size={16} />
               Editar
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
-              className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-destructive transition-colors hover:bg-destructive/10"
+              variant="outline"
               onClick={() => onDeleteRelationship(selectedRelationship)}
             >
-              <Trash2 className="size-3.5" />
+              <Trash2 size={16} />
               Eliminar
-            </button>
+            </Button>
           </div>
         )}
         <ReactFlow
