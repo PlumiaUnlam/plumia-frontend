@@ -20,6 +20,23 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Field, FieldContent, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import {
+  Menubar,
+  MenubarContent,
+  MenubarItem,
+  MenubarMenu,
+  MenubarTrigger,
+} from "@/components/ui/menubar";
+import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -34,6 +51,9 @@ import {
   ChevronRight,
   ChevronLeft,
   Undo2,
+  Ellipsis,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 
 import { NewItemModal } from "@/components/modal/new-item-modal";
@@ -41,6 +61,12 @@ import {
   createBook,
   createChapter,
   createSection,
+  deleteBook,
+  deleteChapter,
+  deleteSection,
+  updateBook,
+  updateChapter,
+  updateSection,
 } from "@/services/project.service";
 
 export type SidebarChapter = {
@@ -73,6 +99,14 @@ type LeftSidebarProps = {
   onRefresh: () => Promise<void>;
 };
 
+type EditableItemType = "book" | "chapter" | "section";
+
+type EditableItem = {
+  type: EditableItemType;
+  id: string;
+  title: string;
+};
+
 function nextSortKey(items: Array<{ sortKey?: string }>) {
   const next =
     Math.max(
@@ -102,10 +136,117 @@ export function LeftSidebar({
     sortKey: string;
     order?: number;
   } | null>(null);
+  const [editingItem, setEditingItem] = useState<EditableItem | null>(null);
+  const [itemToDelete, setItemToDelete] = useState<EditableItem | null>(null);
+  const [editName, setEditName] = useState("");
+  const [isItemActionSubmitting, setIsItemActionSubmitting] = useState(false);
 
   const router = useRouter();
   const { state: sidebarState, toggleSidebar } = useSidebar();
   const showFooterTooltips = sidebarState === "collapsed";
+
+  const openEditItem = (item: EditableItem) => {
+    setEditingItem(item);
+    setEditName(item.title);
+  };
+
+  const closeEditItem = () => {
+    if (isItemActionSubmitting) return;
+
+    setEditingItem(null);
+    setEditName("");
+  };
+
+  const handleUpdateItem = async () => {
+    const trimmedName = editName.trim();
+
+    if (!editingItem || !trimmedName || isItemActionSubmitting) return;
+
+    setIsItemActionSubmitting(true);
+    try {
+      if (editingItem.type === "book") {
+        await updateBook(editingItem.id, { title: trimmedName });
+      } else if (editingItem.type === "chapter") {
+        await updateChapter(editingItem.id, { title: trimmedName });
+      } else {
+        await updateSection(editingItem.id, { title: trimmedName });
+      }
+
+      await onRefresh();
+      setEditingItem(null);
+      setEditName("");
+    } finally {
+      setIsItemActionSubmitting(false);
+    }
+  };
+
+  const handleDeleteItem = async () => {
+    if (!itemToDelete || isItemActionSubmitting) return;
+
+    setIsItemActionSubmitting(true);
+    try {
+      if (itemToDelete.type === "book") {
+        await deleteBook(itemToDelete.id);
+      } else if (itemToDelete.type === "chapter") {
+        await deleteChapter(itemToDelete.id);
+      } else {
+        await deleteSection(itemToDelete.id);
+      }
+
+      await onRefresh();
+      setItemToDelete(null);
+    } finally {
+      setIsItemActionSubmitting(false);
+    }
+  };
+
+  const renderItemMenu = (item: EditableItem) => (
+    <Menubar className="h-auto border-0 bg-transparent p-0">
+      <MenubarMenu>
+        <MenubarTrigger asChild>
+          <Button
+            size="icon-xs"
+            variant="ghost"
+            className="size-6 text-sidebar-primary hover:bg-sidebar-primary/10 hover:text-sidebar-primary active:not-aria-[haspopup]:translate-y-0"
+            aria-label={`Opciones de ${item.title}`}
+            onMouseDown={(e) => {
+              e.stopPropagation();
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+            }}
+          >
+            <Ellipsis className="size-3.5" />
+          </Button>
+        </MenubarTrigger>
+        <MenubarContent
+          align="end"
+          sideOffset={6}
+          className="min-w-24 rounded-md p-0.5"
+        >
+          <MenubarItem
+            className="gap-1 px-1.5 py-0.5 text-xs"
+            onSelect={() => {
+              openEditItem(item);
+            }}
+          >
+            <Pencil className="size-3" />
+            Editar
+          </MenubarItem>
+          <MenubarItem
+            variant="destructive"
+            className="gap-1 px-1.5 py-0.5 text-xs"
+            onSelect={() => {
+              setItemToDelete(item);
+            }}
+          >
+            <Trash2 className="size-3" />
+            Eliminar
+          </MenubarItem>
+        </MenubarContent>
+      </MenubarMenu>
+    </Menubar>
+  );
 
   return (
     <div className="flex h-full min-h-0">
@@ -162,7 +303,7 @@ export function LeftSidebar({
                   <SidebarMenuItem>
                     <div className="group/book-row relative w-full">
                       <CollapsibleTrigger asChild>
-                        <SidebarMenuButton className="min-w-0 gap-1.5 pr-2 group-hover/book-row:bg-sidebar-accent group-hover/book-row:pr-8 group-hover/book-row:text-sidebar-accent-foreground [&_.tree-book-icon]:size-2.5 [&_.tree-chevron]:size-2.5 [&[data-state=open]_.tree-chevron]:rotate-90">
+                        <SidebarMenuButton className="min-w-0 gap-1.5 pr-2 group-hover/book-row:bg-sidebar-accent group-hover/book-row:pr-14 group-hover/book-row:text-sidebar-accent-foreground [&_.tree-book-icon]:size-2.5 [&_.tree-chevron]:size-2.5 [&[data-state=open]_.tree-chevron]:rotate-90">
                           <ChevronRight className="tree-chevron text-sidebar-primary transition-transform" />
 
                           <BookOpen className="tree-book-icon text-sidebar-primary" />
@@ -173,25 +314,33 @@ export function LeftSidebar({
                         </SidebarMenuButton>
                       </CollapsibleTrigger>
 
-                      <Button
-                        size="icon-xs"
-                        variant="ghost"
-                        className="pointer-events-none absolute right-1 top-1/2 size-6 -translate-y-1/2 text-sidebar-primary opacity-0 transition-colors transition-opacity hover:bg-sidebar-primary/10 hover:text-sidebar-primary active:not-aria-[haspopup]:-translate-y-1/2 group-hover/book-row:pointer-events-auto group-hover/book-row:opacity-100 focus-visible:pointer-events-auto focus-visible:opacity-100"
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                        }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setModalType({
-                            type: "chapter",
-                            parentId: book.id,
-                            sortKey: nextSortKey(book.chapters),
-                          });
-                        }}
-                      >
-                        <Plus className="size-3" />
-                      </Button>
+                      <div className="pointer-events-none absolute right-1 top-1/2 flex -translate-y-1/2 items-center gap-0.5 opacity-0 transition-opacity group-hover/book-row:pointer-events-auto group-hover/book-row:opacity-100 focus-within:pointer-events-auto focus-within:opacity-100">
+                        <Button
+                          size="icon-xs"
+                          variant="ghost"
+                          className="size-6 text-sidebar-primary hover:bg-sidebar-primary/10 hover:text-sidebar-primary active:not-aria-[haspopup]:translate-y-0"
+                          aria-label={`Agregar capítulo a ${book.title}`}
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setModalType({
+                              type: "chapter",
+                              parentId: book.id,
+                              sortKey: nextSortKey(book.chapters),
+                            });
+                          }}
+                        >
+                          <Plus className="size-3" />
+                        </Button>
+                        {renderItemMenu({
+                          type: "book",
+                          id: book.id,
+                          title: book.title,
+                        })}
+                      </div>
                     </div>
 
                     <CollapsibleContent>
@@ -201,7 +350,7 @@ export function LeftSidebar({
                             <SidebarMenuItem>
                               <div className="group/chapter-row relative w-full">
                                 <CollapsibleTrigger asChild>
-                                  <SidebarMenuButton className="min-w-0 gap-1.5 pr-2 group-hover/chapter-row:bg-sidebar-accent group-hover/chapter-row:pr-8 group-hover/chapter-row:text-sidebar-accent-foreground [&_.tree-chevron]:size-2.5 [&[data-state=open]_.tree-chevron]:rotate-90">
+                                  <SidebarMenuButton className="min-w-0 gap-1.5 pr-2 group-hover/chapter-row:bg-sidebar-accent group-hover/chapter-row:pr-14 group-hover/chapter-row:text-sidebar-accent-foreground [&_.tree-chevron]:size-2.5 [&[data-state=open]_.tree-chevron]:rotate-90">
                                     <ChevronRight className="tree-chevron -mr-1 text-sidebar-primary transition-transform" />
                                     <span className="truncate text-[11px] font-medium text-sidebar-primary">
                                       {chapter.title}
@@ -209,44 +358,64 @@ export function LeftSidebar({
                                   </SidebarMenuButton>
                                 </CollapsibleTrigger>
 
-                                <Button
-                                  size="icon-xs"
-                                  variant="ghost"
-                                  className="pointer-events-none absolute right-1 top-1/2 size-6 -translate-y-1/2 text-sidebar-primary opacity-0 transition-colors transition-opacity hover:bg-sidebar-primary/10 hover:text-sidebar-primary active:not-aria-[haspopup]:-translate-y-1/2 group-hover/chapter-row:pointer-events-auto group-hover/chapter-row:opacity-100 focus-visible:pointer-events-auto focus-visible:opacity-100"
-                                  onMouseDown={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                  }}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setModalType({
-                                      type: "section",
-                                      parentId: chapter.id,
-                                      sortKey: nextSortKey(chapter.scenes),
-                                      order: nextOrder(chapter.scenes),
-                                    });
-                                  }}
-                                >
-                                  <Plus className="size-3" />
-                                </Button>
+                                <div className="pointer-events-none absolute right-1 top-1/2 flex -translate-y-1/2 items-center gap-0.5 opacity-0 transition-opacity group-hover/chapter-row:pointer-events-auto group-hover/chapter-row:opacity-100 focus-within:pointer-events-auto focus-within:opacity-100">
+                                  <Button
+                                    size="icon-xs"
+                                    variant="ghost"
+                                    className="size-6 text-sidebar-primary hover:bg-sidebar-primary/10 hover:text-sidebar-primary active:not-aria-[haspopup]:translate-y-0"
+                                    aria-label={`Agregar sección a ${chapter.title}`}
+                                    onMouseDown={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                    }}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setModalType({
+                                        type: "section",
+                                        parentId: chapter.id,
+                                        sortKey: nextSortKey(chapter.scenes),
+                                        order: nextOrder(chapter.scenes),
+                                      });
+                                    }}
+                                  >
+                                    <Plus className="size-3" />
+                                  </Button>
+                                  {renderItemMenu({
+                                    type: "chapter",
+                                    id: chapter.id,
+                                    title: chapter.title,
+                                  })}
+                                </div>
                               </div>
 
                               <CollapsibleContent>
                                 <SidebarMenu className="pl-4">
                                   {chapter.scenes.map((scene) => (
                                     <SidebarMenuItem key={scene.id}>
-                                      <SidebarMenuButton size="lg">
-                                        <div className="flex flex-col items-start gap-1 padding-4">
-                                          <span className="text-[11px] font-medium text-foreground truncate">
-                                            {scene.title}
-                                          </span>
-                                          <span className="text-[9px] text-muted-foreground">
-                                            {" "}
-                                            {scene.wordCount?.toLocaleString()}{" "}
-                                            palabras
-                                          </span>
+                                      <div className="group/scene-row relative w-full">
+                                        <SidebarMenuButton
+                                          size="lg"
+                                          className="pr-2 group-hover/scene-row:bg-sidebar-accent group-hover/scene-row:pr-8 group-hover/scene-row:text-sidebar-accent-foreground"
+                                        >
+                                          <div className="flex min-w-0 flex-col items-start gap-1 padding-4">
+                                            <span className="truncate text-[11px] font-medium text-foreground">
+                                              {scene.title}
+                                            </span>
+                                            <span className="text-[9px] text-muted-foreground">
+                                              {" "}
+                                              {scene.wordCount?.toLocaleString()}{" "}
+                                              palabras
+                                            </span>
+                                          </div>
+                                        </SidebarMenuButton>
+                                        <div className="pointer-events-none absolute right-1 top-1/2 flex -translate-y-1/2 items-center opacity-0 transition-opacity group-hover/scene-row:pointer-events-auto group-hover/scene-row:opacity-100 focus-within:pointer-events-auto focus-within:opacity-100">
+                                          {renderItemMenu({
+                                            type: "section",
+                                            id: scene.id,
+                                            title: scene.title,
+                                          })}
                                         </div>
-                                      </SidebarMenuButton>
+                                      </div>
                                     </SidebarMenuItem>
                                   ))}
                                 </SidebarMenu>
@@ -355,6 +524,91 @@ export function LeftSidebar({
         </SidebarFooter>
         <SidebarRail />
       </Sidebar>
+      <Dialog
+        open={!!editingItem}
+        onOpenChange={(open) => {
+          if (!open) closeEditItem();
+        }}
+      >
+        <DialogContent className="min-w-[520px] gap-0 overflow-hidden">
+          <DialogHeader className="border-b p-6 py-4">
+            <DialogTitle>Editar elemento</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-5 px-6 py-6">
+            <Field>
+              <FieldLabel htmlFor="edit-sidebar-item-name">
+                Nombre <span className="text-destructive">*</span>
+              </FieldLabel>
+              <FieldContent>
+                <Input
+                  id="edit-sidebar-item-name"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      void handleUpdateItem();
+                    }
+                  }}
+                  placeholder="Nombre"
+                />
+              </FieldContent>
+            </Field>
+          </div>
+
+          <DialogFooter className="border-t px-6 py-4">
+            <Button
+              variant="outline"
+              disabled={isItemActionSubmitting}
+              onClick={closeEditItem}
+            >
+              Cancelar
+            </Button>
+            <Button
+              disabled={!editName.trim() || isItemActionSubmitting}
+              onClick={() => {
+                void handleUpdateItem();
+              }}
+            >
+              Guardar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={!!itemToDelete}
+        onOpenChange={(open) => {
+          if (!open && !isItemActionSubmitting) setItemToDelete(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Eliminar elemento</DialogTitle>
+            <DialogDescription>
+              ¿Seguro que quieres eliminar &ldquo;{itemToDelete?.title}&rdquo;?
+              Esta acción no se puede deshacer.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              disabled={isItemActionSubmitting}
+              onClick={() => setItemToDelete(null)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={isItemActionSubmitting}
+              onClick={() => {
+                void handleDeleteItem();
+              }}
+            >
+              Eliminar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <NewItemModal
         show={modalType?.type === "chapter"}
         onClose={() => setModalType(null)}
