@@ -167,7 +167,7 @@ export function LeftSidebar({
 
                           <BookOpen className="tree-book-icon text-sidebar-primary" />
 
-                          <span className="text-xs font-bold text-foreground truncate">
+                          <span className="text-xs font-semibold text-foreground truncate">
                             {book.title}
                           </span>
                         </SidebarMenuButton>
