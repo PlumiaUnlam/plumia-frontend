@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -20,7 +20,10 @@ import {
 } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
 
-import { relationStyleOptions } from "@/lib/relation-style";
+import {
+  getAvailableRelationTypes,
+  relationStyleOptions,
+} from "@/lib/relation-style";
 import type { Entity } from "@/types/entity";
 import type {
   CreateRelationshipInput,
@@ -54,6 +57,26 @@ export function NewRelationModal({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const isEditing = !!relationship;
+  const selectedSource = useMemo(
+    () => entities.find((entity) => entity.id === sourceEntityId),
+    [entities, sourceEntityId],
+  );
+  const selectedTarget = useMemo(
+    () => entities.find((entity) => entity.id === targetEntityId),
+    [entities, targetEntityId],
+  );
+  const availableRelationTypes = useMemo(
+    () =>
+      getAvailableRelationTypes(selectedSource?.type, selectedTarget?.type),
+    [selectedSource?.type, selectedTarget?.type],
+  );
+  const availableRelationOptions = useMemo(
+    () =>
+      relationStyleOptions.filter((option) =>
+        availableRelationTypes.includes(option.id),
+      ),
+    [availableRelationTypes],
+  );
 
   useEffect(() => {
     if (!show) return;
@@ -77,8 +100,15 @@ export function NewRelationModal({
     };
   }, [show, relationship]);
 
+  const activeRelationType = availableRelationTypes.includes(relationType)
+    ? relationType
+    : (availableRelationTypes[0] ?? "KNOWS");
+
   const canSubmit =
-    !!sourceEntityId && !!targetEntityId && sourceEntityId !== targetEntityId;
+    !!sourceEntityId &&
+    !!targetEntityId &&
+    sourceEntityId !== targetEntityId &&
+    availableRelationTypes.length > 0;
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
@@ -90,7 +120,7 @@ export function NewRelationModal({
       const input = {
         sourceEntityId,
         targetEntityId,
-        relationType,
+        relationType: activeRelationType,
         intensity,
         description: description.trim() || (isEditing ? null : undefined),
       };
@@ -144,24 +174,28 @@ export function NewRelationModal({
             <FieldLegend>Tipo de relación</FieldLegend>
 
             <FieldGroup className="grid grid-cols-5 gap-2">
-              {relationStyleOptions.map(({ id, label, color, icon: Icon }) => (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => setRelationType(id)}
-                  className={`flex flex-col items-center gap-1.5 rounded-lg border px-2 py-2.5 text-xs font-medium transition-colors ${
-                    relationType === id
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border text-muted-foreground hover:border-primary/40 hover:bg-muted"
-                  }`}
-                >
-                  <Icon
-                    className="size-4"
-                    style={{ color: relationType === id ? undefined : color }}
-                  />
-                  {label}
-                </button>
-              ))}
+              {availableRelationOptions.map(
+                ({ id, label, color, icon: Icon }) => (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => setRelationType(id)}
+                    className={`flex flex-col items-center gap-1.5 rounded-lg border px-2 py-2.5 text-xs font-medium transition-colors ${
+                      activeRelationType === id
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border text-muted-foreground hover:border-primary/40 hover:bg-muted"
+                    }`}
+                  >
+                    <Icon
+                      className="size-4"
+                      style={{
+                        color: activeRelationType === id ? undefined : color,
+                      }}
+                    />
+                    {label}
+                  </button>
+                ),
+              )}
             </FieldGroup>
           </FieldSet>
 
@@ -199,7 +233,7 @@ export function NewRelationModal({
                 id="relation-description"
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
-                placeholder="Describe brevemente el vínculo entre estos personajes..."
+                placeholder="Describe brevemente el vínculo entre estas entidades..."
                 rows={3}
               />
             </FieldContent>
@@ -246,7 +280,7 @@ function EntitySelect({
           onChange={(event) => onChange(event.target.value)}
           className="h-10 w-full min-w-0 rounded-lg border border-border bg-background px-3.5 py-2 text-sm text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
         >
-          <option value="">Seleccionar personaje...</option>
+          <option value="">Seleccionar entidad...</option>
           {entities
             .filter((entity) => entity.id !== excludeId)
             .map((entity) => (

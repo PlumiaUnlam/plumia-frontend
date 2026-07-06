@@ -97,6 +97,30 @@ export async function createSection(data: {
   return api.post(`/chapters/${data.partId}/scenes`, { title: data.title, sortKey: data.sortKey, order: data.order })
 }
 
+export async function updateBook(id: string, data: { title: string }) {
+  return api.patch(`/books/${id}`, data)
+}
+
+export async function deleteBook(id: string) {
+  return api.delete(`/books/${id}`)
+}
+
+export async function updateChapter(id: string, data: { title: string }) {
+  return api.patch(`/chapters/${id}`, data)
+}
+
+export async function deleteChapter(id: string) {
+  return api.delete(`/chapters/${id}`)
+}
+
+export async function updateSection(id: string, data: { title: string }) {
+  return api.patch(`/scenes/${id}`, data)
+}
+
+export async function deleteSection(id: string) {
+  return api.delete(`/scenes/${id}`)
+}
+
 export type CreateProjectPayload = {
   title: string
   description?: string
@@ -116,4 +140,3 @@ export async function getChapters() {
     wordCount: number
   }>
 }
-

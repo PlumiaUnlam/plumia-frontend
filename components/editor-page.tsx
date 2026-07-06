@@ -6,6 +6,7 @@ import { RichTextEditor } from "@/components/RichTextEditor"
 import { LeftSidebar, type SidebarBook } from "./left-sidebar"
 import { getProject } from "@/services/project.service"
 import { SidebarProvider } from "@/components/ui/sidebar"
+import { EditorRightPanel } from "@/components/editor-right-panel"
 
 type EditorLayoutProps = {
   projectId: string
@@ -68,6 +69,8 @@ export function EditorLayout({ projectId }: EditorLayoutProps) {
               onChange={(html) => console.log(html)}
             />
           </main>
+
+          <EditorRightPanel projectId={projectId} />
         </div>
       </SidebarProvider>
 

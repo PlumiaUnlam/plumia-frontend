@@ -12,6 +12,7 @@ import {
   type LucideIcon,
 } from "lucide-react"
 
+import type { EntityType } from "@/types/entity"
 import type { RelationType } from "@/types/relationship"
 
 export const relationStyles: Record<
@@ -40,3 +41,79 @@ export const relationStyleOptions = Object.entries(relationStyles).map(
     ...style,
   }),
 )
+
+const characterRelations: readonly RelationType[] = [
+  "ALLY",
+  "ENEMY",
+  "FAMILY",
+  "ROMANTIC",
+  "MENTOR",
+  "RIVAL",
+  "KNOWS",
+]
+
+const organizationRelations: readonly RelationType[] = [
+  "ALLY",
+  "ENEMY",
+  "RIVAL",
+  "MEMBER_OF",
+  "KNOWS",
+]
+
+function includesType(types: readonly EntityType[], type: EntityType) {
+  return types.includes(type)
+}
+
+export function getAvailableRelationTypes(
+  sourceType?: EntityType,
+  targetType?: EntityType,
+): readonly RelationType[] {
+  if (!sourceType || !targetType) {
+    return relationStyleOptions.map((option) => option.id)
+  }
+
+  const pair = [sourceType, targetType] as const
+
+  if (sourceType === "CHARACTER" && targetType === "CHARACTER") {
+    return characterRelations
+  }
+
+  if (sourceType === "ORGANIZATION" && targetType === "ORGANIZATION") {
+    return organizationRelations
+  }
+
+  if (includesType(pair, "LOCATION")) {
+    return ["LOCATED_IN"]
+  }
+
+  if (includesType(pair, "OBJECT")) {
+    return ["OWNS"]
+  }
+
+  if (
+    includesType(pair, "CHARACTER") &&
+    includesType(pair, "ORGANIZATION")
+  ) {
+    return ["MEMBER_OF", "ALLY", "ENEMY"]
+  }
+
+  if (includesType(pair, "CHARACTER")) {
+    return ["KNOWS"]
+  }
+
+  if (includesType(pair, "ORGANIZATION")) {
+    return ["ALLY", "ENEMY", "MEMBER_OF"]
+  }
+
+  return ["KNOWS"]
+}
+
+export function isRelationTypeAvailable(
+  relationType: RelationType,
+  sourceType?: EntityType,
+  targetType?: EntityType,
+) {
+  return getAvailableRelationTypes(sourceType, targetType).includes(
+    relationType,
+  )
+}
