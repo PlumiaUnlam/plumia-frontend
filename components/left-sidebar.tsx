@@ -162,10 +162,10 @@ export function LeftSidebar({
                   <SidebarMenuItem>
                     <div className="group/book-row relative w-full">
                       <CollapsibleTrigger asChild>
-                        <SidebarMenuButton className="min-w-0 gap-1.5 pr-2 group-hover/book-row:pr-8">
-                          <ChevronRight className="size-sm transition-transform group-data-[state=open]:rotate-90" />
+                        <SidebarMenuButton className="min-w-0 gap-1.5 pr-2 group-hover/book-row:bg-sidebar-accent group-hover/book-row:pr-8 group-hover/book-row:text-sidebar-accent-foreground [&_.tree-book-icon]:size-2.5 [&_.tree-chevron]:size-2.5 [&[data-state=open]_.tree-chevron]:rotate-90">
+                          <ChevronRight className="tree-chevron text-sidebar-primary transition-transform" />
 
-                          <BookOpen size={10} />
+                          <BookOpen className="tree-book-icon text-sidebar-primary" />
 
                           <span className="text-xs font-bold text-foreground truncate">
                             {book.title}
@@ -176,7 +176,11 @@ export function LeftSidebar({
                       <Button
                         size="icon-xs"
                         variant="ghost"
-                        className="pointer-events-none absolute right-1 top-1/2 size-6 -translate-y-1/2 opacity-0 transition-opacity group-hover/book-row:pointer-events-auto group-hover/book-row:opacity-100 focus-visible:pointer-events-auto focus-visible:opacity-100"
+                        className="pointer-events-none absolute right-1 top-1/2 size-6 -translate-y-1/2 text-sidebar-primary opacity-0 transition-colors transition-opacity hover:bg-sidebar-primary/10 hover:text-sidebar-primary active:not-aria-[haspopup]:-translate-y-1/2 group-hover/book-row:pointer-events-auto group-hover/book-row:opacity-100 focus-visible:pointer-events-auto focus-visible:opacity-100"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                        }}
                         onClick={(e) => {
                           e.stopPropagation();
                           setModalType({
@@ -197,9 +201,9 @@ export function LeftSidebar({
                             <SidebarMenuItem>
                               <div className="group/chapter-row relative w-full">
                                 <CollapsibleTrigger asChild>
-                                  <SidebarMenuButton className="min-w-0 gap-1 pr-2 group-hover/chapter-row:pr-8">
-                                    <ChevronRight className="-mr-1 size-2 transition-transform group-data-[state=open]:rotate-90" />
-                                    <span className="text-[11px] font-medium text-foreground truncate">
+                                  <SidebarMenuButton className="min-w-0 gap-1.5 pr-2 group-hover/chapter-row:bg-sidebar-accent group-hover/chapter-row:pr-8 group-hover/chapter-row:text-sidebar-accent-foreground [&_.tree-chevron]:size-2.5 [&[data-state=open]_.tree-chevron]:rotate-90">
+                                    <ChevronRight className="tree-chevron -mr-1 text-sidebar-primary transition-transform" />
+                                    <span className="truncate text-[11px] font-medium text-sidebar-primary">
                                       {chapter.title}
                                     </span>
                                   </SidebarMenuButton>
@@ -208,7 +212,11 @@ export function LeftSidebar({
                                 <Button
                                   size="icon-xs"
                                   variant="ghost"
-                                  className="pointer-events-none absolute right-1 top-1/2 size-6 -translate-y-1/2 opacity-0 transition-opacity group-hover/chapter-row:pointer-events-auto group-hover/chapter-row:opacity-100 focus-visible:pointer-events-auto focus-visible:opacity-100"
+                                  className="pointer-events-none absolute right-1 top-1/2 size-6 -translate-y-1/2 text-sidebar-primary opacity-0 transition-colors transition-opacity hover:bg-sidebar-primary/10 hover:text-sidebar-primary active:not-aria-[haspopup]:-translate-y-1/2 group-hover/chapter-row:pointer-events-auto group-hover/chapter-row:opacity-100 focus-visible:pointer-events-auto focus-visible:opacity-100"
+                                  onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                  }}
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     setModalType({
