@@ -10,7 +10,7 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core"
-import { Loader2 } from "lucide-react"
+import { Columns3, Grid3x3, Loader2 } from "lucide-react"
 import useSWR from "swr"
 
 import { Header } from "@/components/header"
@@ -18,6 +18,7 @@ import { CardDialog } from "@/components/storyboard/card-dialog"
 import { StoryboardCardPreview } from "@/components/storyboard/storyboard-card-preview"
 import { StoryboardColumn } from "@/components/storyboard/storyboard-column"
 import { STORYBOARD_COLUMNS } from "@/components/storyboard/storyboard-config"
+import { StoryboardMatrix } from "@/components/storyboard/storyboard-matrix"
 import type { CardDialogState } from "@/components/storyboard/storyboard-types"
 import { Button } from "@/components/ui/button"
 import {
@@ -36,6 +37,8 @@ import {
   updateStoryboardCard,
 } from "@/services/storyboard.service"
 import { getEntities } from "@/services/entities.service"
+import { getProject } from "@/services/project.service"
+import { getRelationships } from "@/services/relationships.service"
 import type { Entity } from "@/types/entity"
 import type {
   CreateStoryboardCardInput,
@@ -46,6 +49,8 @@ import type {
 type StoryboardProps = {
   projectId: string
 }
+
+type StoryboardViewMode = "kanban" | "matrix"
 
 const COLUMN_IDS = STORYBOARD_COLUMNS.map((column) => column.id)
 
@@ -147,6 +152,7 @@ export function Storyboard({ projectId }: StoryboardProps) {
   const [dialogState, setDialogState] = useState<CardDialogState>(null)
   const [cardToDelete, setCardToDelete] = useState<StoryboardCard | null>(null)
   const [activeCardId, setActiveCardId] = useState<string | null>(null)
+  const [viewMode, setViewMode] = useState<StoryboardViewMode>("kanban")
   const [submitting, setSubmitting] = useState(false)
 
   const {
@@ -161,6 +167,14 @@ export function Storyboard({ projectId }: StoryboardProps) {
   const { data: entities } = useSWR(
     shouldFetch ? `/knowledge/entities?projectId=${projectId}` : null,
     () => getEntities(projectId),
+  )
+  const { data: relationships } = useSWR(
+    shouldFetch ? `/knowledge/relationships?projectId=${projectId}` : null,
+    () => getRelationships(projectId),
+  )
+  const { data: project, isLoading: isProjectLoading } = useSWR(
+    shouldFetch ? `/projects/${projectId}` : null,
+    () => getProject(projectId),
   )
 
   const entitiesById = useMemo(() => {
@@ -189,6 +203,17 @@ export function Storyboard({ projectId }: StoryboardProps) {
     () => cards?.find((card) => card.id === activeCardId) ?? null,
     [activeCardId, cards],
   )
+  const chapters = useMemo(() => {
+    return (
+      project?.books.flatMap((book) =>
+        book.chapters.map((chapter) => ({
+          id: chapter.id,
+          title: chapter.title,
+          sortKey: `${book.sortKey}:${chapter.sortKey}`,
+        })),
+      ) ?? []
+    )
+  }, [project])
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveCardId(String(event.active.id))
@@ -274,55 +299,88 @@ export function Storyboard({ projectId }: StoryboardProps) {
             </p>
           </div>
           <div className="flex items-center gap-3 text-sm text-muted-foreground">
-            <span>
-              {(cards ?? []).length} tarjeta{(cards ?? []).length === 1 ? "" : "s"}
-            </span>
+            {viewMode === "kanban" ? (
+              <span>
+                {(cards ?? []).length} tarjeta
+                {(cards ?? []).length === 1 ? "" : "s"}
+              </span>
+            ) : null}
+            <div className="flex items-center gap-1 rounded-lg bg-muted p-1">
+              <Button
+                size="xs"
+                variant={viewMode === "kanban" ? "default" : "ghost"}
+                onClick={() => setViewMode("kanban")}
+              >
+                <Columns3 className="size-3.5" />
+                Kanban
+              </Button>
+              <Button
+                size="xs"
+                variant={viewMode === "matrix" ? "default" : "ghost"}
+                onClick={() => setViewMode("matrix")}
+              >
+                <Grid3x3 className="size-3.5" />
+                Matriz
+              </Button>
+            </div>
           </div>
         </div>
 
-        <DndContext
-          sensors={sensors}
-          onDragStart={handleDragStart}
-          onDragCancel={() => setActiveCardId(null)}
-          onDragEnd={handleDragEnd}
-        >
-          <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden p-4">
-            {isLoading ? (
-              <div className="flex h-full items-center justify-center text-muted-foreground">
-                <Loader2 className="mr-2 size-4 animate-spin" />
-                Cargando tablero
-              </div>
-            ) : error ? (
-              <div className="flex h-full items-center justify-center text-sm text-destructive">
-                No se pudo cargar el storyboard.
-              </div>
-            ) : (
-              <div className="flex h-full min-w-max gap-4">
-                {STORYBOARD_COLUMNS.map((column) => (
-                  <StoryboardColumn
-                    key={column.id}
-                    column={column}
-                    cards={cardsByStatus[column.id]}
-                    entitiesById={entitiesById}
-                    onAddCard={(status) => setDialogState({ card: null, status })}
-                    onEditCard={(card) =>
-                      setDialogState({ card, status: card.status })
-                    }
-                    onDeleteCard={setCardToDelete}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-          <DragOverlay>
-            {activeCard ? (
-              <StoryboardCardPreview
-                card={activeCard}
-                entitiesById={entitiesById}
-              />
-            ) : null}
-          </DragOverlay>
-        </DndContext>
+        {viewMode === "kanban" ? (
+          <DndContext
+            sensors={sensors}
+            onDragStart={handleDragStart}
+            onDragCancel={() => setActiveCardId(null)}
+            onDragEnd={handleDragEnd}
+          >
+            <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden p-4">
+              {isLoading ? (
+                <div className="flex h-full items-center justify-center text-muted-foreground">
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                  Cargando tablero
+                </div>
+              ) : error ? (
+                <div className="flex h-full items-center justify-center text-sm text-destructive">
+                  No se pudo cargar el storyboard.
+                </div>
+              ) : (
+                <div className="flex h-full min-w-[1040px] gap-4">
+                  {STORYBOARD_COLUMNS.map((column) => (
+                    <StoryboardColumn
+                      key={column.id}
+                      column={column}
+                      cards={cardsByStatus[column.id]}
+                      entitiesById={entitiesById}
+                      onAddCard={(status) =>
+                        setDialogState({ card: null, status })
+                      }
+                      onEditCard={(card) =>
+                        setDialogState({ card, status: card.status })
+                      }
+                      onDeleteCard={setCardToDelete}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+            <DragOverlay>
+              {activeCard ? (
+                <StoryboardCardPreview
+                  card={activeCard}
+                  entitiesById={entitiesById}
+                />
+              ) : null}
+            </DragOverlay>
+          </DndContext>
+        ) : (
+          <StoryboardMatrix
+            projectId={projectId}
+            chapters={chapters}
+            entities={entities ?? []}
+            relationships={relationships ?? []}
+            loadingSources={isProjectLoading}
+          />
+        )}
       </div>
 
       <CardDialog
