@@ -35,7 +35,7 @@ export function StoryboardColumn({
   const ColumnIcon = column.icon
 
   return (
-    <section className="flex h-full w-[300px] shrink-0 flex-col">
+    <section className="flex h-full min-w-[260px] flex-1 flex-col">
       <div className="mb-3 shrink-0">
         <div className="mb-2 flex items-center gap-2">
           <div className="flex size-8 items-center justify-center rounded-lg bg-muted">
