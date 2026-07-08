@@ -3,7 +3,12 @@
 import { useState, type FormEvent } from "react"
 
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { Spinner } from "@/components/ui/spinner"
 import {
   Field,
@@ -12,18 +17,21 @@ import {
   FieldLabel,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import { createProject } from "@/services/project.service";
+import { Textarea } from "@/components/ui/textarea"
+import { createProject, type ProjectResponse } from "@/services/project.service"
 
 type NewProjectFormProps = {
   onCancel: () => void
+  onSuccess?: (project: ProjectResponse) => void
 }
 
-export function NewProjectForm({ onCancel }: NewProjectFormProps) {
-
+export function NewProjectForm({ onCancel, onSuccess }: NewProjectFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [values, setValues] = useState({
-    projectName: "",
+    title: "",
     description: "",
+    genre: "",
+    wordCountTarget: "",
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
 
@@ -35,15 +43,15 @@ export function NewProjectForm({ onCancel }: NewProjectFormProps) {
   const validate = () => {
     const nextErrors: Record<string, string> = {}
 
-    if (!values.projectName.trim()) {
-      nextErrors.projectName = "El nombre del proyecto es obligatorio."
+    if (!values.title.trim()) {
+      nextErrors.title = "El nombre del proyecto es obligatorio."
     }
 
     setErrors(nextErrors)
     return Object.keys(nextErrors).length === 0
   }
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
 
     if (!validate()) {
@@ -52,83 +60,118 @@ export function NewProjectForm({ onCancel }: NewProjectFormProps) {
 
     setIsSubmitting(true)
 
-    handleCreateProject(values.projectName)
-    setTimeout(() => {
+    try {
+      const payload = {
+        title: values.title.trim(),
+        description: values.description.trim() || undefined,
+        genre: values.genre.trim() || undefined,
+        wordCountTarget: values.wordCountTarget.trim()
+          ? Number(values.wordCountTarget)
+          : undefined,
+      }
+
+      const newProject = await createProject(payload)
+      onSuccess?.(newProject)
+      onCancel()
+    } catch (error) {
+      console.error("Error creating project:", error)
+      setErrors((prev) => ({
+        ...prev,
+        submit: "No se pudo crear el proyecto. Inténtalo nuevamente.",
+      }))
+    } finally {
       setIsSubmitting(false)
-    }, 900)
-    onCancel()
+    }
   }
 
-  const handleCreateProject = async (projectName: string) => {
-    const newProject = await createProject(projectName);
-  };
-
   return (
-    <Card className="w-full max-w-md rounded-3xl bg-card shadow-[0_24px_60px_-30px_rgba(28,15,51,0.45)]">
-      <CardHeader className="space-y-3">
-        <div className="flex items-center justify-between gap-3">
-          <CardTitle className="text-2xl md:text-3xl">Nuevo Proyecto</CardTitle>
+    <DialogContent className="max-w-2xl">
+      <DialogHeader>
+        <DialogTitle>Crear nuevo proyecto</DialogTitle>
+        <DialogDescription>
+          Completa los datos básicos para empezar a trabajar en tu nueva historia.
+        </DialogDescription>
+      </DialogHeader>
 
-          {onCancel ? (
-            <Button type="button" variant="outline" onClick={onCancel} className="gap-2">
-              x 
-            </Button>
-          ) : null}
-        </div>
-      </CardHeader>
-
-      <CardContent className="space-y-4">
+      <div className="w-full space-y-4">
         <form className="space-y-4" onSubmit={handleSubmit}>
-          <Field data-invalid={!!errors.projectName}>
-            <FieldLabel htmlFor="projectName">Nombre del Proyecto</FieldLabel>
+          <Field data-invalid={!!errors.title}>
+            <FieldLabel htmlFor="title">Nombre del Proyecto</FieldLabel>
             <FieldContent>
               <Input
-                id="projectName"
-                value={values.projectName}
-                onChange={(event) => setField("projectName", event.target.value)}
+                id="title"
+                value={values.title}
+                onChange={(event) => setField("title", event.target.value)}
                 type="text"
                 placeholder="Nombre del Proyecto"
-                autoComplete="Project Name"
-                aria-invalid={!!errors.projectName}
+                autoComplete="off"
+                aria-invalid={!!errors.title}
               />
             </FieldContent>
-            <FieldError>{errors.projectName}</FieldError>
+            <FieldError>{errors.title}</FieldError>
           </Field>
 
-          <Field data-invalid={!!errors.description}>
+          <Field>
             <FieldLabel htmlFor="description">Descripción</FieldLabel>
             <FieldContent>
-              <Input
+              <Textarea
                 id="description"
                 value={values.description}
                 onChange={(event) => setField("description", event.target.value)}
-                type="text"
                 placeholder="Describe brevemente tu proyecto"
-                autoComplete="description"
-                aria-invalid={!!errors.description}
+                rows={4}
               />
             </FieldContent>
-            <FieldError>{errors.description}</FieldError>
           </Field>
 
+          <div className="grid gap-4 md:grid-cols-2">
+            <Field>
+              <FieldLabel htmlFor="genre">Género</FieldLabel>
+              <FieldContent>
+                <Input
+                  id="genre"
+                  value={values.genre}
+                  onChange={(event) => setField("genre", event.target.value)}
+                  type="text"
+                  placeholder="Fantasía"
+                  autoComplete="off"
+                />
+              </FieldContent>
+            </Field>
 
-        <div className="flex items-right justify-end gap-3">
-            {onCancel ? (
+            <Field>
+              <FieldLabel htmlFor="wordCountTarget">Objetivo de palabras</FieldLabel>
+              <FieldContent>
+                <Input
+                  id="wordCountTarget"
+                  value={values.wordCountTarget}
+                  onChange={(event) => setField("wordCountTarget", event.target.value)}
+                  type="number"
+                  min="1"
+                  placeholder="80000"
+                />
+              </FieldContent>
+            </Field>
+          </div>
+
+          {errors.submit ? (
+            <p className="text-sm text-destructive">{errors.submit}</p>
+          ) : null}
+
+          <div className="flex justify-end gap-3">
             <Button type="button" variant="outline" onClick={onCancel} className="gap-2">
               Cancelar
             </Button>
-          ) : null}
-          <Button
-            type="submit"
-            disabled={isSubmitting}
-            className="rounded-xl shadow-sm text-base"
-          >
-            {isSubmitting ? <Spinner className="size-4" /> : "Crear proyecto"}
-          </Button>
-
-        </div>
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              className="rounded-xl shadow-sm text-base"
+            >
+              {isSubmitting ? <Spinner className="size-4" /> : "Crear proyecto"}
+            </Button>
+          </div>
         </form>
-      </CardContent>
-    </Card>
+      </div>
+    </DialogContent>
   )
 }

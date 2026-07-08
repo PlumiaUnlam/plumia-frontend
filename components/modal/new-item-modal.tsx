@@ -9,12 +9,13 @@ import {
 } from "@/components/ui/dialog"
 
 import { Button } from "@/components/ui/button"
+import { Field, FieldContent, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 
 type NewItemModalProps = {
   show: boolean
   onClose: () => void
-  onSubmit: (name: string) => void
+  onSubmit: (name: string) => void | Promise<void>
 
   title: string
   label: string
@@ -32,18 +33,26 @@ export function NewItemModal({
   submitText,
 }: NewItemModalProps) {
   const [name, setName] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const trimmedName = name.trim()
 
-    if (!trimmedName) return
+    if (!trimmedName || isSubmitting) return
 
-    onSubmit(trimmedName)
-    setName("")
-    onClose()
+    setIsSubmitting(true)
+    try {
+      await onSubmit(trimmedName)
+      setName("")
+      onClose()
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const handleClose = () => {
+    if (isSubmitting) return
+
     setName("")
     onClose()
   }
@@ -56,29 +65,32 @@ export function NewItemModal({
         </DialogHeader>
 
         <div className="max-h-[65vh] space-y-5 overflow-y-auto px-6 py-6">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">
-              {label} *
-            </label>
-
-            <Input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder={placeholder}
-            />
-          </div>
+          <Field>
+            <FieldLabel htmlFor="new-item-name">
+              {label} <span className="text-destructive">*</span>
+            </FieldLabel>
+            <FieldContent>
+              <Input
+                id="new-item-name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder={placeholder}
+              />
+            </FieldContent>
+          </Field>
         </div>
 
         <DialogFooter className="border-t px-6 py-4">
           <Button
             variant="outline"
+            disabled={isSubmitting}
             onClick={handleClose}
           >
             Cancelar
           </Button>
 
           <Button
-            disabled={!name.trim()}
+            disabled={!name.trim() || isSubmitting}
             onClick={handleSubmit}
           >
             {submitText}

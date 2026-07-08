@@ -11,7 +11,7 @@ export function EditorToolbar({
   editor,
 }: EditorToolbarProps) {
   return (
-    <div className="flex shrink-0 items-center gap-2 border-b p-2">
+    <div className="flex w-full items-center gap-2 bg-white px-4 py-1">
       <Button
         size="icon"
         variant={

@@ -65,7 +65,7 @@ export function LoginForm() {
     try {
       await login(values.email.trim(), values.password)
       const params = new URLSearchParams(globalThis.location?.search ?? "")
-      router.push(params.get("redirect") || "/editor")
+      router.push(params.get("redirect") || "/dashboard")
     } catch {
       setGeneralError("Email o contraseña incorrectos.")
     } finally {

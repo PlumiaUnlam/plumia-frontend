@@ -1,58 +1,79 @@
 "use client"
 
+import { useCallback, useEffect, useState } from "react"
 import { Header } from "../header"
-import { EditorContainer } from "@/components/editor/editor-container"
-import { LeftSidebar, SidebarBook } from "../left-sidebar"
-import { getProjects } from "@/services/project.service";
+import { LeftSidebar, type SidebarBook } from "../left-sidebar"
+import { getProject } from "@/services/project.service"
 import { SidebarProvider } from "@/components/ui/sidebar"
 import { useEditorStore } from "@/stores/editor.store"
-import { useState } from "react";
+import { EditorContainer } from "./editor-container"
 
-export function EditorLayout() {
-const [projectTitle, setProjectTitle] = useState("Proyecto")
-const [books, setBooks] = useState<SidebarBook[]>([])
-const [projectsError, setProjectsError] = useState<string | null>(null)
+type EditorLayoutProps = {
+  projectId: string
+}
 
-useEffect(() => {
-  let isMounted = true
+export function EditorLayout({ projectId }: EditorLayoutProps) {
+  const [projectTitle, setProjectTitle] = useState("Proyecto")
+  const [books, setBooks] = useState<SidebarBook[]>([])
+  const [projectsError, setProjectsError] = useState<string | null>(null)
+  const activeChapterId = useEditorStore((s) => s.activeChapterId)
 
-  getProjects()
-    .then((data) => {
-      if (isMounted) {
-        setProjectTitle(data.projectTitle)
-        setBooks(data.books)
-      }
-    })
-    .catch((error) => {
-      console.error("Error loading projects:", error)
-      if (isMounted) {
-        setProjectsError("No se pudieron cargar los proyectos.")
-      }
-    })
 
-  return () => {
-    isMounted = false
-  }
-}, [])
+  const loadProject = useCallback(async () => {
+    if (!projectId) {
+      setProjectsError("No se selecciono un proyecto.")
+      return
+    }
 
-const activeChapterId = useEditorStore((s) => s.activeChapterId)
+    const data = await getProject(projectId)
 
-return (
-  <div className="flex h-screen flex-col bg-background text-foreground">
-    <Header />
+    setProjectTitle(data.projectTitle)
+    setBooks(data.books)
+    setProjectsError(null)
+  }, [projectId])
 
-    <SidebarProvider>
-      <div className="flex flex-1 min-h-0">
-        <LeftSidebar projectTitle={projectTitle} books={books} />
+  useEffect(() => {
+    let isMounted = true
 
-        <main className="flex flex-1 min-h-0 flex-col">
-          <EditorContainer chapterId={activeChapterId ?? "ch1"} />
-        </main>
-      </div>
-    </SidebarProvider>
+    void Promise.resolve()
+      .then(() => loadProject())
+      .catch((error) => {
+        console.error("Error loading projects:", error)
+        if (isMounted) {
+          setProjectsError("No se pudieron cargar los proyectos.")
+        }
+      })
 
-    <footer className="h-8 shrink-0 border-t border-border bg-muted/50 px-5 text-[10px] text-muted-foreground flex items-center">
-    </footer>
-  </div>
-)
+    return () => {
+      isMounted = false
+    }
+  }, [loadProject])
+
+  return (
+    <div className="flex h-screen max-h-screen flex-col overflow-hidden bg-background text-foreground">
+      <Header />
+
+      <SidebarProvider className="flex min-h-0 flex-1">
+        <div className="flex min-h-0 flex-1 overflow-hidden">
+          <LeftSidebar
+            projectTitle={projectTitle}
+            books={books}
+            projectId={projectId}
+            onRefresh={loadProject}
+          />
+
+          <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            {projectsError && (
+              <p className="mb-4 text-sm text-destructive">{projectsError}</p>
+            )}
+                      <EditorContainer chapterId={activeChapterId ?? "ch1"} />
+
+          </main>
+        </div>
+      </SidebarProvider>
+
+      <footer className="flex h-8 shrink-0 items-center border-t border-border bg-muted/50 px-5 text-[10px] text-muted-foreground">
+      </footer>
+    </div>
+  )
 }
