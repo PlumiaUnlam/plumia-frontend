@@ -11,7 +11,7 @@ export function EditorToolbar({
   editor,
 }: EditorToolbarProps) {
   return (
-    <div className="flex h-full w-full items-center gap-2 bg-white px-4">
+    <div className="flex h-12 w-full items-center gap-2 bg-white px-4">
       <Button
         size="icon"
         variant={
