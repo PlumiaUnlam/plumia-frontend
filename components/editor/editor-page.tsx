@@ -72,12 +72,13 @@ export function EditorLayout({ projectId }: EditorLayoutProps) {
             {projectsError && (
               <p className="mb-4 text-sm text-destructive">{projectsError}</p>
             )}
-                      <EditorContainer
-                        sceneId={activeSceneId ?? "ch1"}
-                        chapterTitle={chapterTitle}
-                        sceneTitle={sceneTitle}
-                      />
-
+            {activeSceneId && (
+              <EditorContainer
+                sceneId={activeSceneId}
+                chapterTitle={chapterTitle}
+                sceneTitle={sceneTitle}
+              />
+            )}
           </main>
         </div>
       </SidebarProvider>
