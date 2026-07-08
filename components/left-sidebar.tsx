@@ -68,6 +68,7 @@ import {
   updateChapter,
   updateSection,
 } from "@/services/project.service";
+import { useEditorStore } from "@/stores/editor.store";
 
 export type SidebarChapter = {
   id: string;
@@ -142,6 +143,8 @@ export function LeftSidebar({
   const [isItemActionSubmitting, setIsItemActionSubmitting] = useState(false);
 
   const router = useRouter();
+  const setActiveScene = useEditorStore((s) => s.setActiveScene)
+  const activeSceneId = useEditorStore((s) => s.activeSceneId)
   const { state: sidebarState, toggleSidebar } = useSidebar();
   const showFooterTooltips = sidebarState === "collapsed";
 
@@ -394,6 +397,7 @@ export function LeftSidebar({
                                     <SidebarMenuItem key={scene.id}>
                                       <div className="group/scene-row relative w-full">
                                         <SidebarMenuButton
+                                          onClick={() => setActiveScene(scene.id)}
                                           size="lg"
                                           className="pr-2 group-hover/scene-row:bg-sidebar-accent group-hover/scene-row:pr-8 group-hover/scene-row:text-sidebar-accent-foreground"
                                         >

@@ -1,12 +1,13 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { Header } from "./header"
-import { RichTextEditor } from "@/components/RichTextEditor"
-import { LeftSidebar, type SidebarBook } from "./left-sidebar"
+import { Header } from "../header"
+import { LeftSidebar, type SidebarBook } from "../left-sidebar"
 import { getProject } from "@/services/project.service"
 import { SidebarProvider } from "@/components/ui/sidebar"
 import { EditorRightPanel } from "@/components/editor-right-panel"
+import { useEditorStore } from "@/stores/editor.store"
+import { EditorContainer } from "./editor-container"
 
 type EditorLayoutProps = {
   projectId: string
@@ -16,6 +17,14 @@ export function EditorLayout({ projectId }: EditorLayoutProps) {
   const [projectTitle, setProjectTitle] = useState("Proyecto")
   const [books, setBooks] = useState<SidebarBook[]>([])
   const [projectsError, setProjectsError] = useState<string | null>(null)
+  const activeSceneId = useEditorStore((s) => s.activeSceneId)
+
+  const activeChapter = books
+    .flatMap((book) => book.chapters)
+    .find((chapter) => chapter.scenes.some((s) => s.id === activeSceneId))
+  const activeScene = activeChapter?.scenes.find((s) => s.id === activeSceneId)
+  const chapterTitle = activeChapter?.title ?? ""
+  const sceneTitle = activeScene?.title
 
   const loadProject = useCallback(async () => {
     if (!projectId) {
@@ -64,10 +73,13 @@ export function EditorLayout({ projectId }: EditorLayoutProps) {
             {projectsError && (
               <p className="mb-4 text-sm text-destructive">{projectsError}</p>
             )}
-            <RichTextEditor
-              initialContent="<p>Hola mundo</p>"
-              onChange={(html) => console.log(html)}
-            />
+            {activeSceneId && (
+              <EditorContainer
+                sceneId={activeSceneId}
+                chapterTitle={chapterTitle}
+                sceneTitle={sceneTitle}
+              />
+            )}
           </main>
 
           <EditorRightPanel projectId={projectId} />
