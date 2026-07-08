@@ -1,4 +1,4 @@
-import { EditorLayout } from "@/components/editor-page"
+import { EditorLayout } from "@/components/editor/editor-page"
 
 type ProjectEditorPageProps = {
   params: Promise<{
