@@ -8,13 +8,13 @@ export type ProseMirrorJSON = JSONContent
 
 /**
  * Capítulo completo tal como lo entrega/recibe el backend.
- * Unidad de carga y guardado del editor (por ahora el capítulo es tratado
- * como una escena 1:1; migrable a Escena más adelante).
+ * Unidad de carga y guardado del editor (por ahora la escena es tratada
+ * como un capítulo 1:1; migrable a Capítulo más adelante).
  */
-export type ChapterDocument = {
+export type SceneDocument = {
   id: string
   title: string
-  /** Documento completo del capítulo en ProseMirror JSON. */
+  /** Documento completo de la escena en ProseMirror JSON. */
   content: ProseMirrorJSON | null
   /** ISO timestamp del último guardado. */
   updatedAt: string
@@ -22,8 +22,8 @@ export type ChapterDocument = {
   hash: string
 }
 
-/** Respuesta del backend al persistir el contenido de un capítulo. */
-export type SaveChapterResult = {
+/** Respuesta del backend al persistir el contenido de una escena. */
+export type SaveSceneResult = {
   updatedAt: string
   hash: string
   /**

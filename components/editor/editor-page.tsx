@@ -16,8 +16,14 @@ export function EditorLayout({ projectId }: EditorLayoutProps) {
   const [projectTitle, setProjectTitle] = useState("Proyecto")
   const [books, setBooks] = useState<SidebarBook[]>([])
   const [projectsError, setProjectsError] = useState<string | null>(null)
-  const activeChapterId = useEditorStore((s) => s.activeChapterId)
+  const activeSceneId = useEditorStore((s) => s.activeSceneId)
 
+  const activeChapter = books
+    .flatMap((book) => book.chapters)
+    .find((chapter) => chapter.scenes.some((s) => s.id === activeSceneId))
+  const activeScene = activeChapter?.scenes.find((s) => s.id === activeSceneId)
+  const chapterTitle = activeChapter?.title ?? ""
+  const sceneTitle = activeScene?.title
 
   const loadProject = useCallback(async () => {
     if (!projectId) {
@@ -66,7 +72,11 @@ export function EditorLayout({ projectId }: EditorLayoutProps) {
             {projectsError && (
               <p className="mb-4 text-sm text-destructive">{projectsError}</p>
             )}
-                      <EditorContainer chapterId={activeChapterId ?? "ch1"} />
+                      <EditorContainer
+                        sceneId={activeSceneId ?? "ch1"}
+                        chapterTitle={chapterTitle}
+                        sceneTitle={sceneTitle}
+                      />
 
           </main>
         </div>

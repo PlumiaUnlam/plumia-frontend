@@ -67,8 +67,8 @@ export function LeftSidebar({ projectTitle, books, projectId, onRefresh }: LeftS
     } | null>(null)
 
     const router = useRouter()
-    const setActiveChapter = useEditorStore((s) => s.setActiveChapter)
-    const activeChapterId = useEditorStore((s) => s.activeChapterId)
+    const setActiveScene = useEditorStore((s) => s.setActiveScene)
+    const activeSceneId = useEditorStore((s) => s.activeSceneId)
 
 return (
         <div className="flex h-full min-h-0">
@@ -171,8 +171,8 @@ return (
                                                                             key={scene.id}
                                                                         >
                                                                             <SidebarMenuButton
-                                                                                isActive={activeChapterId === chapter.id}
-                                                                                onClick={() => setActiveChapter(chapter.id)}
+                                                                                isActive={activeSceneId === scene.id}
+                                                                                onClick={() => setActiveScene(scene.id)}
                                                                                 size="lg"
                                                                             >
                                                                                 <div className="flex flex-col items-start gap-1 padding-4">

@@ -1,17 +1,19 @@
 import { EditorContent, useEditor } from "@tiptap/react"
 import StarterKit from "@tiptap/starter-kit"
 
-import type { ProseMirrorJSON } from "@/types/chapter"
+import type { ProseMirrorJSON } from "@/types/scene"
 import { EditorToolbar } from "./toolbar"
 
 type RichTextEditorProps = {
-  title?: string
+  title: string
+  subtitle?: string
   content?: ProseMirrorJSON | null
   onChange?: (json: ProseMirrorJSON) => void
 }
 
 export function RichTextEditor({
   title,
+  subtitle,
   content,
   onChange,
 }: RichTextEditorProps) {
@@ -51,10 +53,10 @@ export function RichTextEditor({
             {title && (
               <>
               <h2 className="mb-6 shrink-0 text-center text-3xl font-bold text-foreground">
-                Capitulo 3
+                {title}
               </h2>
               <h1 className="mb-6 shrink-0 text-center text-2xl font-bold text-foreground">
-                {title}
+                {subtitle}
               </h1>
               </>
             )}

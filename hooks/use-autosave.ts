@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useRef } from "react"
 
-import { saveChapter } from "@/services/chapter.service"
+import { saveScene } from "@/services/scene.service"
 import { useEditorStore } from "@/stores/editor.store"
-import type { ProseMirrorJSON } from "@/types/chapter"
+import type { ProseMirrorJSON } from "@/types/scene"
 
 const DEBOUNCE_MS = 2000
 const MAX_RETRIES = 3
 
 type UseAutosaveArgs = {
-  chapterId: string
+  sceneId: string
   /** Contenido vivo del editor (ProseMirror JSON). `null` mientras carga. */
   content: ProseMirrorJSON | null
 }
@@ -25,7 +25,7 @@ type UseAutosaveArgs = {
  *
  * Nunca bloquea el input: todo ocurre de forma asíncrona fuera del buffer del editor.
  */
-export function useAutosave({ chapterId, content }: UseAutosaveArgs) {
+export function useAutosave({ sceneId, content }: UseAutosaveArgs) {
   const setSaveStatus = useEditorStore((s) => s.setSaveStatus)
   const markSaved = useEditorStore((s) => s.markSaved)
   const setError = useEditorStore((s) => s.setError)
@@ -47,7 +47,7 @@ export function useAutosave({ chapterId, content }: UseAutosaveArgs) {
     retriesRef.current = 0
     // Solo al (re)montar el capítulo; `content` inicial es el cargado.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chapterId])
+  }, [sceneId])
 
   const runSave = useCallback(async () => {
     if (savingRef.current) {
@@ -66,7 +66,7 @@ export function useAutosave({ chapterId, content }: UseAutosaveArgs) {
     setSaveStatus("saving")
 
     try {
-      const res = await saveChapter(chapterId, current)
+      const res = await saveScene(sceneId, current)
       lastSavedSerializedRef.current = serialized
       retriesRef.current = 0
       markSaved(res.updatedAt)
@@ -88,7 +88,7 @@ export function useAutosave({ chapterId, content }: UseAutosaveArgs) {
         )
       }
     }
-  }, [chapterId, setSaveStatus, markSaved, setError])
+  }, [sceneId, setSaveStatus, markSaved, setError])
 
   useEffect(() => {
     runSaveRef.current = runSave
