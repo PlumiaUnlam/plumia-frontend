@@ -469,6 +469,11 @@ export function LeftSidebar({
                   variant="ghost"
                   size="icon-sm"
                   className="h-10 w-full flex-col gap-0.5 px-0 text-muted-foreground hover:text-foreground group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:w-8"
+                  onClick={() =>
+                    router.push(
+                      `/projects/${encodeURIComponent(projectId)}/storyboard`,
+                    )
+                  }
                   aria-label="Tablero"
                 >
                   <Layers3 className="size-4" />
