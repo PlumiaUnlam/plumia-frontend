@@ -541,72 +541,66 @@ function ImageUploadActions({
     aliases: string[];
   }) => Promise<string>) | undefined;
 }) {
-  if (!aiGeneratedUrl && !aiGenerating) {
-    return (
-      <button
-        type="button"
-        onClick={onFileClick}
-        className="w-full border-2 border-dashed border-border rounded-lg p-4 text-center hover:border-primary/40 hover:bg-muted/50 transition-colors cursor-pointer"
-      >
-        <ImageIcon className="h-6 w-6 mx-auto mb-1 text-muted-foreground" />
-        <p className="text-sm text-muted-foreground">
-          {selectedFile ? "Cambiar imagen" : "Seleccionar imagen"}
-        </p>
-      </button>
-    );
-  }
-
-  if (aiGenerating) {
-    return (
-      <div className="space-y-2">
-        <div className="w-full border-2 border-border rounded-lg p-4 text-center bg-muted/30">
-          <Loader2 className="h-6 w-6 mx-auto mb-1 animate-spin text-primary" />
-          <p className="text-sm text-muted-foreground">
-            Generando imagen con IA ({aiElapsed}s)
-          </p>
-        </div>
+  return (
+    <>
+      {!aiGeneratedUrl && !aiGenerating && (
         <button
           type="button"
-          onClick={onCancelGeneration}
-          className="w-full border border-border rounded-lg p-2 text-center text-sm text-muted-foreground hover:text-destructive hover:border-destructive/50 transition-colors cursor-pointer"
+          onClick={onFileClick}
+          className="w-full border-2 border-dashed border-border rounded-lg p-4 text-center hover:border-primary/40 hover:bg-muted/50 transition-colors cursor-pointer"
         >
-          Cancelar
+          <ImageIcon className="h-6 w-6 mx-auto mb-1 text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">
+            {selectedFile ? "Cambiar imagen" : "Seleccionar imagen"}
+          </p>
         </button>
-      </div>
-    );
-  }
+      )}
 
-  if (aiError) {
-    return (
-      <div className="space-y-2">
-        <div className="w-full border-2 border-destructive/30 bg-destructive/5 rounded-lg p-4 text-center">
-          <p className="text-sm text-destructive mb-2">{aiError}</p>
+      {aiGenerating && (
+        <div className="space-y-2">
+          <div className="w-full border-2 border-border rounded-lg p-4 text-center bg-muted/30">
+            <Loader2 className="h-6 w-6 mx-auto mb-1 animate-spin text-primary" />
+            <p className="text-sm text-muted-foreground">
+              Generando imagen con IA ({aiElapsed}s)
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onCancelGeneration}
+            className="w-full border border-border rounded-lg p-2 text-center text-sm text-muted-foreground hover:text-destructive hover:border-destructive/50 transition-colors cursor-pointer"
+          >
+            Cancelar
+          </button>
         </div>
+      )}
+
+      {!aiGenerating && aiError && (
+        <div className="space-y-2">
+          <div className="w-full border-2 border-destructive/30 bg-destructive/5 rounded-lg p-4 text-center">
+            <p className="text-sm text-destructive mb-2">{aiError}</p>
+          </div>
+          <button
+            type="button"
+            onClick={onGenerateAi}
+            className="w-full border-2 border-border rounded-lg p-4 text-center hover:border-primary/40 hover:bg-muted/50 transition-colors cursor-pointer"
+          >
+            <RotateCcw className="h-5 w-5 mx-auto mb-1 text-primary" />
+            <p className="text-sm text-primary font-medium">Reintentar</p>
+          </button>
+        </div>
+      )}
+
+      {!aiGenerating && !aiError && !aiGeneratedUrl && (
         <button
           type="button"
           onClick={onGenerateAi}
-          className="w-full border-2 border-border rounded-lg p-4 text-center hover:border-primary/40 hover:bg-muted/50 transition-colors cursor-pointer"
+          disabled={!name.trim() || !onGenerateImage}
+          className="w-full border-2 border-border rounded-lg p-4 text-center hover:border-primary/40 hover:bg-muted/50 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <RotateCcw className="h-5 w-5 mx-auto mb-1 text-primary" />
-          <p className="text-sm text-primary font-medium">Reintentar</p>
+          <Sparkles className="h-6 w-6 mx-auto mb-1 text-primary" />
+          <p className="text-sm text-primary font-medium">Generar con IA</p>
         </button>
-      </div>
-    );
-  }
-
-  if (!aiGeneratedUrl) {
-    return (
-      <button
-        type="button"
-        onClick={onGenerateAi}
-        disabled={!name.trim() || !onGenerateImage}
-        className="w-full border-2 border-border rounded-lg p-4 text-center hover:border-primary/40 hover:bg-muted/50 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        <Sparkles className="h-6 w-6 mx-auto mb-1 text-primary" />
-        <p className="text-sm text-primary font-medium">Generar con IA</p>
-      </button>
-    );
-  }
-
-  return null;
+      )}
+    </>
+  );
 }
