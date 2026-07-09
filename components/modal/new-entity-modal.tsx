@@ -1,5 +1,20 @@
+"use client";
+
 import { useState, useEffect, useRef } from "react";
-import { Loader2, Tag, X, ImageIcon, Trash2 } from "lucide-react";
+import {
+  Loader2,
+  Users,
+  Map,
+  Star,
+  Shield,
+  Calendar,
+  Sparkles,
+  Tag,
+  X,
+  ImageIcon,
+  Trash2,
+  RotateCcw,
+} from "lucide-react";
 
 import {
   Dialog,
@@ -39,6 +54,13 @@ type NewEntityModalProps = {
     file?: File | null,
   ) => Promise<void>;
   readonly entity?: Entity | null;
+  readonly onGenerateImage?: (data: {
+    canonicalName: string;
+    description: string;
+    type: string;
+    aliases: string[];
+  }) => Promise<string>;
+  readonly onClearAiPreview?: () => void;
 };
 
 export function NewEntityModal({
@@ -46,6 +68,8 @@ export function NewEntityModal({
   onClose,
   onSubmit,
   entity,
+  onGenerateImage,
+  onClearAiPreview,
 }: NewEntityModalProps) {
   const [name, setName] = useState("");
   const [category, setCategory] = useState<EntityCategory>("Personaje");
@@ -56,40 +80,55 @@ export function NewEntityModal({
   const [error, setError] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [aiGeneratedUrl, setAiGeneratedUrl] = useState<string | null>(null);
+  const [aiElapsed, setAiElapsed] = useState(0);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [imageRemoved, setImageRemoved] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const elapsedRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const cancelRef = useRef(false);
 
   const isEditing = !!entity;
 
   useEffect(() => {
     if (!show) return;
 
+    const initialEntity = entity;
+
     let isCurrent = true;
 
     queueMicrotask(() => {
       if (!isCurrent) return;
 
-      if (entity) {
-        setName(entity.canonicalName);
-        setCategory(TYPE_TO_CATEGORY[entity.type]);
-        setDescription(entity.description ?? "");
-        setTags(entity.aliases);
+      if (initialEntity) {
+        setName(initialEntity.canonicalName);
+        setCategory(TYPE_TO_CATEGORY[initialEntity.type]);
+        setDescription(initialEntity.description ?? "");
+        setTags(initialEntity.aliases);
       } else {
         setName("");
         setCategory("Personaje");
         setDescription("");
         setTags([]);
       }
+      setAiGenerating(false);
+      setAiGeneratedUrl(null);
+      setAiElapsed(0);
+      setAiError(null);
       setTagInput("");
       setError(null);
       setSubmitting(false);
       setSelectedFile(null);
       setPreviewUrl(null);
+      setImageRemoved(false);
     });
 
     return () => {
       isCurrent = false;
     };
-  }, [show, entity]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [show]);
 
   useEffect(() => {
     return () => {
@@ -97,18 +136,82 @@ export function NewEntityModal({
     };
   }, [previewUrl]);
 
+  useEffect(() => {
+    if (aiGenerating) {
+      const id = setInterval(() => {
+        setAiElapsed((s) => s + 1);
+      }, 1000);
+      elapsedRef.current = id;
+      return () => clearInterval(id);
+    }
+    if (elapsedRef.current) {
+      clearInterval(elapsedRef.current);
+      elapsedRef.current = null;
+    }
+  }, [aiGenerating]);
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setSelectedFile(file);
     setPreviewUrl(URL.createObjectURL(file));
+    setAiGeneratedUrl(null);
+    setAiError(null);
+    setImageRemoved(false);
+    onClearAiPreview?.();
+  };
+
+  const handleRemoveAiImage = () => {
+    setAiGeneratedUrl(null);
+    onClearAiPreview?.();
   };
 
   const handleRemoveFile = () => {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setSelectedFile(null);
     setPreviewUrl(null);
+    setAiGeneratedUrl(null);
+    setAiError(null);
+    onClearAiPreview?.();
     if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleGenerateAi = async () => {
+    if (!name.trim() || !onGenerateImage) return;
+
+    cancelRef.current = false;
+    setAiGenerating(true);
+    setAiElapsed(0);
+    setAiError(null);
+    setError(null);
+
+    try {
+      const url = await onGenerateImage({
+        canonicalName: name.trim(),
+        description: description.trim(),
+        type: CATEGORY_TO_TYPE[category],
+        aliases: tags,
+      });
+      if (cancelRef.current) return;
+      setAiGeneratedUrl(url);
+      setSelectedFile(null);
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(null);
+      setImageRemoved(false);
+    } catch (err) {
+      if (cancelRef.current) return;
+      const message =
+        err instanceof Error ? err.message : "Error al generar la imagen";
+      setAiError(message);
+    } finally {
+      setAiGenerating(false);
+    }
+  };
+
+  const handleCancelGeneration = () => {
+    cancelRef.current = true;
+    setAiGenerating(false);
+    setAiElapsed(0);
   };
 
   const addTag = () => {
@@ -138,15 +241,18 @@ export function NewEntityModal({
           canonicalName: name.trim(),
           type,
           description: description.trim() || null,
-          aliases: tags.length > 0 ? tags : null,
+          aliases: tags.length > 0 ? tags : [],
         };
+        if (imageRemoved && !selectedFile && !aiGeneratedUrl) {
+          input.imageUrl = null;
+        }
         await onSubmit(input, selectedFile);
       } else {
         const input: CreateEntityInput = {
           canonicalName: name.trim(),
           type,
           description: description.trim() || undefined,
-          aliases: tags.length > 0 ? tags : undefined,
+          aliases: tags.length > 0 ? tags : [],
         };
         await onSubmit(input, selectedFile);
       }
@@ -175,7 +281,22 @@ export function NewEntityModal({
         <Trash2 size={16} />
       </button>
     </div>
-  ) : isEditing && entity?.imageUrl ? (
+  ) : aiGeneratedUrl ? (
+    <div className="relative rounded-lg overflow-hidden border border-border">
+      <img
+        src={aiGeneratedUrl}
+        alt="AI Generated"
+        className="w-full h-48 object-contain bg-muted"
+      />
+      <button
+        type="button"
+        onClick={handleRemoveAiImage}
+        className="absolute top-2 right-2 p-1.5 rounded-full bg-background/80 hover:bg-background text-muted-foreground hover:text-destructive transition-colors"
+      >
+        <Trash2 size={16} />
+      </button>
+    </div>
+  ) : isEditing && entity?.imageUrl && !imageRemoved ? (
     <div className="relative rounded-lg overflow-hidden border border-border">
       <img
         src={`/api/storage/image/${entity.id}?v=${Date.parse(entity.updatedAt)}`}
@@ -183,6 +304,17 @@ export function NewEntityModal({
         className="w-full h-48 object-contain bg-muted"
         loading="lazy"
       />
+      <button
+        type="button"
+        onClick={() => setImageRemoved(true)}
+        className="absolute top-2 right-2 p-1.5 rounded-full bg-background/80 hover:bg-background text-muted-foreground hover:text-destructive transition-colors"
+      >
+        <Trash2 size={16} />
+      </button>
+    </div>
+  ) : imageRemoved && isEditing ? (
+    <div className="w-full border-2 border-dashed border-border rounded-lg p-4 text-center bg-muted/30">
+      <p className="text-sm text-muted-foreground">Imagen eliminada</p>
     </div>
   ) : (
     <EntityIconTile
@@ -276,7 +408,10 @@ export function NewEntityModal({
 
           <Field>
             <FieldLabel htmlFor="entity-image">
-              Imagen {selectedFile ? "(1 seleccionada)" : "(Opcional)"}
+              Imagen{" "}
+              {selectedFile || aiGeneratedUrl
+                ? "(1 seleccionada)"
+                : "(Opcional)"}
             </FieldLabel>
 
             <FieldContent>
@@ -291,16 +426,70 @@ export function NewEntityModal({
 
               {imagePreview}
 
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="w-full border-2 border-dashed border-border rounded-lg p-4 text-center hover:border-primary/40 hover:bg-muted/50 transition-colors cursor-pointer"
-              >
-                <ImageIcon className="h-6 w-6 mx-auto mb-1 text-muted-foreground" />
-                <p className="text-sm text-muted-foreground">
-                  {selectedFile ? "Cambiar imagen" : "Seleccionar imagen"}
-                </p>
-              </button>
+              <div className="space-y-2">
+                {!aiGeneratedUrl && !aiGenerating && (
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-full border-2 border-dashed border-border rounded-lg p-4 text-center hover:border-primary/40 hover:bg-muted/50 transition-colors cursor-pointer"
+                  >
+                    <ImageIcon className="h-6 w-6 mx-auto mb-1 text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground">
+                      {selectedFile
+                        ? "Cambiar imagen"
+                        : "Seleccionar imagen"}
+                    </p>
+                  </button>
+                )}
+
+                {aiGenerating ? (
+                  <div className="space-y-2">
+                    <div className="w-full border-2 border-border rounded-lg p-4 text-center bg-muted/30">
+                      <Loader2 className="h-6 w-6 mx-auto mb-1 animate-spin text-primary" />
+                      <p className="text-sm text-muted-foreground">
+                        Generando imagen con IA ({aiElapsed}s)
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleCancelGeneration}
+                      className="w-full border border-border rounded-lg p-2 text-center text-sm text-muted-foreground hover:text-destructive hover:border-destructive/50 transition-colors cursor-pointer"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                ) : aiError ? (
+                  <div className="space-y-2">
+                    <div className="w-full border-2 border-destructive/30 bg-destructive/5 rounded-lg p-4 text-center">
+                      <p className="text-sm text-destructive mb-2">
+                        {aiError}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleGenerateAi}
+                      className="w-full border-2 border-border rounded-lg p-4 text-center hover:border-primary/40 hover:bg-muted/50 transition-colors cursor-pointer"
+                    >
+                      <RotateCcw className="h-5 w-5 mx-auto mb-1 text-primary" />
+                      <p className="text-sm text-primary font-medium">
+                        Reintentar
+                      </p>
+                    </button>
+                  </div>
+                ) : !aiGeneratedUrl && (
+                  <button
+                    type="button"
+                    onClick={handleGenerateAi}
+                    disabled={!name.trim() || !onGenerateImage}
+                    className="w-full border-2 border-border rounded-lg p-4 text-center hover:border-primary/40 hover:bg-muted/50 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Sparkles className="h-6 w-6 mx-auto mb-1 text-primary" />
+                    <p className="text-sm text-primary font-medium">
+                      Generar con IA
+                    </p>
+                  </button>
+                )}
+              </div>
             </FieldContent>
           </Field>
 

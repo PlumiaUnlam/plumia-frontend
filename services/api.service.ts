@@ -39,8 +39,12 @@ async function request<T>(
   console.log(`${path} status:`, response.status)
 
   if (!response.ok) {
-    const errorText = await response.text()
-    throw new Error(`API error ${response.status}: ${errorText}`)
+    let errorText = await response.text()
+    try {
+      const parsed = JSON.parse(errorText)
+      if (parsed.message) errorText = parsed.message
+    } catch {}
+    throw new Error(errorText)
   }
 
   if (response.status === 204 || response.status === 205) {
