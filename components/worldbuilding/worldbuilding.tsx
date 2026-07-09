@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef } from "react";
 import {
   Loader2,
   Plus,
@@ -14,7 +14,7 @@ import useSWRMutation from "swr/mutation";
 
 import { Header } from "../header";
 import { RelationshipsPanel } from "./relationships-panel";
-import { SummariesPanel, type SummaryChapter } from "./summaries-panel";
+import { SummariesPanel } from "./summaries-panel";
 import { WikiTab } from "./wiki-panel";
 
 import { NewEntityModal } from "@/components/modal/new-entity-modal";
@@ -46,6 +46,10 @@ import {
   updateRelationship,
 } from "@/services/relationships.service";
 import { uploadEntityImage } from "@/services/upload.service";
+import {
+  generatePreviewImage,
+  attachImage,
+} from "@/services/image-generation.service";
 
 import type {
   Entity,
@@ -88,6 +92,9 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
     null,
   );
   const [deleting, setDeleting] = useState(false);
+  const aiStorageKeyRef = useRef<string | null>(null);
+  const aiPromptRef = useRef<string | null>(null);
+  const aiImageTypeRef = useRef<string | null>(null);
   const [deletingRelationship, setDeletingRelationship] = useState(false);
 
   const {
@@ -131,7 +138,26 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
     [entities, selectedEntityId],
   );
 
-  const chapters = useMemo<SummaryChapter[]>(() => {
+  const handleGenerateImage = async (data: {
+    canonicalName: string;
+    description: string;
+    type: string;
+    aliases: string[];
+  }): Promise<string> => {
+    const result = await generatePreviewImage({
+      name: data.canonicalName,
+      type: data.type,
+      description: data.description || undefined,
+    });
+
+    aiStorageKeyRef.current = result.storageKey;
+    aiPromptRef.current = result.prompt;
+    aiImageTypeRef.current = result.imageType;
+
+    return result.imageUrl;
+  };
+
+  const chapters = useMemo(() => {
     return (
       project?.books.flatMap((book) =>
         book.chapters.map((chapter) => ({
@@ -151,6 +177,17 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
     if (editingEntity) {
       entityId = editingEntity.id;
       await updateEntity(entityId, data as UpdateEntityInput);
+      if (aiStorageKeyRef.current) {
+        await attachImage({
+          entityId,
+          storageKey: aiStorageKeyRef.current,
+          prompt: aiPromptRef.current!,
+          imageType: aiImageTypeRef.current!,
+        });
+        aiStorageKeyRef.current = null;
+        aiPromptRef.current = null;
+        aiImageTypeRef.current = null;
+      }
       if (file) {
         const publicUrl = await uploadEntityImage(
           entityId,
@@ -162,6 +199,24 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
         } as UpdateEntityInput);
       }
       setEditingEntity(null);
+    } else if (aiStorageKeyRef.current) {
+      const entity = await createEntity(projectId, data as CreateEntityInput);
+      entityId = entity.id;
+      await attachImage({
+        entityId,
+        storageKey: aiStorageKeyRef.current,
+        prompt: aiPromptRef.current!,
+        imageType: aiImageTypeRef.current!,
+      });
+      aiStorageKeyRef.current = null;
+      aiPromptRef.current = null;
+      aiImageTypeRef.current = null;
+      if (file) {
+        const publicUrl = await uploadEntityImage(entityId, file);
+        await updateEntity(entity.id, {
+          imageUrl: publicUrl,
+        } as UpdateEntityInput);
+      }
     } else {
       const entity = await createEntity(projectId, data as CreateEntityInput);
       entityId = entity.id;
@@ -216,9 +271,18 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
     setShowNewEntityModal(true);
   };
 
+  const handleClearAiPreview = () => {
+    aiStorageKeyRef.current = null;
+    aiPromptRef.current = null;
+    aiImageTypeRef.current = null;
+  };
+
   const handleModalClose = () => {
     setShowNewEntityModal(false);
     setEditingEntity(null);
+    aiStorageKeyRef.current = null;
+    aiPromptRef.current = null;
+    aiImageTypeRef.current = null;
   };
 
   const handleRelationModalClose = () => {
@@ -277,6 +341,8 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
           onClose={handleModalClose}
           onSubmit={handleSubmitModal}
           entity={currentEntity}
+          onGenerateImage={handleGenerateImage}
+          onClearAiPreview={handleClearAiPreview}
         />
 
         <NewRelationModal

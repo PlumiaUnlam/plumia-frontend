@@ -61,6 +61,6 @@ export interface UpdateEntityInput {
   description?: string | null
   aliases?: string[] | null
   attributes?: Record<string, unknown>
-  imageUrl?: string
+  imageUrl?: string | null
   isActive?: boolean
 }
