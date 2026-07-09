@@ -5,7 +5,6 @@ import {
   Loader2,
   Plus,
   Star,
-  Users,
   Calendar,
   FileText,
   GitBranch,
@@ -15,7 +14,7 @@ import useSWRMutation from "swr/mutation";
 
 import { Header } from "../header";
 import { RelationshipsPanel } from "./relationships-panel";
-import { SummariesPanel, type SummaryChapter } from "./summaries-panel";
+import { SummariesPanel } from "./summaries-panel";
 import { WikiTab } from "./wiki-panel";
 
 import { NewEntityModal } from "@/components/modal/new-entity-modal";

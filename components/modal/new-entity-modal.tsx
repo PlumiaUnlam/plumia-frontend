@@ -3,11 +3,6 @@
 import { useState, useEffect, useRef } from "react";
 import {
   Loader2,
-  Users,
-  Map,
-  Star,
-  Shield,
-  Calendar,
   Sparkles,
   Tag,
   X,
@@ -266,63 +261,81 @@ export function NewEntityModal({
     }
   };
 
-  const imagePreview = previewUrl ? (
-    <div className="relative rounded-lg overflow-hidden border border-border">
-      <img
-        src={previewUrl}
-        alt="Preview"
-        className="w-full h-48 object-contain bg-muted"
+  const renderImagePreview = () => {
+    if (previewUrl) {
+      return (
+        <div className="relative rounded-lg overflow-hidden border border-border">
+          <img
+            src={previewUrl}
+            alt="Preview"
+            className="w-full h-48 object-contain bg-muted"
+          />
+          <button
+            type="button"
+            onClick={handleRemoveFile}
+            className="absolute top-2 right-2 p-1.5 rounded-full bg-background/80 hover:bg-background text-muted-foreground hover:text-destructive transition-colors"
+          >
+            <Trash2 size={16} />
+          </button>
+        </div>
+      );
+    }
+
+    if (aiGeneratedUrl) {
+      return (
+        <div className="relative rounded-lg overflow-hidden border border-border">
+          <img
+            src={aiGeneratedUrl}
+            alt="AI Generated"
+            className="w-full h-48 object-contain bg-muted"
+          />
+          <button
+            type="button"
+            onClick={handleRemoveAiImage}
+            className="absolute top-2 right-2 p-1.5 rounded-full bg-background/80 hover:bg-background text-muted-foreground hover:text-destructive transition-colors"
+          >
+            <Trash2 size={16} />
+          </button>
+        </div>
+      );
+    }
+
+    if (isEditing && entity?.imageUrl && !imageRemoved) {
+      return (
+        <div className="relative rounded-lg overflow-hidden border border-border">
+          <img
+            src={`/api/storage/image/${entity.id}?v=${Date.parse(entity.updatedAt)}`}
+            alt={entity.canonicalName}
+            className="w-full h-48 object-contain bg-muted"
+            loading="lazy"
+          />
+          <button
+            type="button"
+            onClick={() => setImageRemoved(true)}
+            className="absolute top-2 right-2 p-1.5 rounded-full bg-background/80 hover:bg-background text-muted-foreground hover:text-destructive transition-colors"
+          >
+            <Trash2 size={16} />
+          </button>
+        </div>
+      );
+    }
+
+    if (imageRemoved && isEditing) {
+      return (
+        <div className="w-full border-2 border-dashed border-border rounded-lg p-4 text-center bg-muted/30">
+          <p className="text-sm text-muted-foreground">Imagen eliminada</p>
+        </div>
+      );
+    }
+
+    return (
+      <EntityIconTile
+        category={category}
+        className="h-48 w-full rounded-lg"
+        iconClassName="h-12 w-12"
       />
-      <button
-        type="button"
-        onClick={handleRemoveFile}
-        className="absolute top-2 right-2 p-1.5 rounded-full bg-background/80 hover:bg-background text-muted-foreground hover:text-destructive transition-colors"
-      >
-        <Trash2 size={16} />
-      </button>
-    </div>
-  ) : aiGeneratedUrl ? (
-    <div className="relative rounded-lg overflow-hidden border border-border">
-      <img
-        src={aiGeneratedUrl}
-        alt="AI Generated"
-        className="w-full h-48 object-contain bg-muted"
-      />
-      <button
-        type="button"
-        onClick={handleRemoveAiImage}
-        className="absolute top-2 right-2 p-1.5 rounded-full bg-background/80 hover:bg-background text-muted-foreground hover:text-destructive transition-colors"
-      >
-        <Trash2 size={16} />
-      </button>
-    </div>
-  ) : isEditing && entity?.imageUrl && !imageRemoved ? (
-    <div className="relative rounded-lg overflow-hidden border border-border">
-      <img
-        src={`/api/storage/image/${entity.id}?v=${Date.parse(entity.updatedAt)}`}
-        alt={entity.canonicalName}
-        className="w-full h-48 object-contain bg-muted"
-        loading="lazy"
-      />
-      <button
-        type="button"
-        onClick={() => setImageRemoved(true)}
-        className="absolute top-2 right-2 p-1.5 rounded-full bg-background/80 hover:bg-background text-muted-foreground hover:text-destructive transition-colors"
-      >
-        <Trash2 size={16} />
-      </button>
-    </div>
-  ) : imageRemoved && isEditing ? (
-    <div className="w-full border-2 border-dashed border-border rounded-lg p-4 text-center bg-muted/30">
-      <p className="text-sm text-muted-foreground">Imagen eliminada</p>
-    </div>
-  ) : (
-    <EntityIconTile
-      category={category}
-      className="h-48 w-full rounded-lg"
-      iconClassName="h-12 w-12"
-    />
-  );
+    );
+  };
 
   return (
     <Dialog open={show} onOpenChange={(open) => !open && onClose()}>
@@ -424,71 +437,21 @@ export function NewEntityModal({
                 className="hidden"
               />
 
-              {imagePreview}
+              {renderImagePreview()}
 
               <div className="space-y-2">
-                {!aiGeneratedUrl && !aiGenerating && (
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="w-full border-2 border-dashed border-border rounded-lg p-4 text-center hover:border-primary/40 hover:bg-muted/50 transition-colors cursor-pointer"
-                  >
-                    <ImageIcon className="h-6 w-6 mx-auto mb-1 text-muted-foreground" />
-                    <p className="text-sm text-muted-foreground">
-                      {selectedFile
-                        ? "Cambiar imagen"
-                        : "Seleccionar imagen"}
-                    </p>
-                  </button>
-                )}
-
-                {aiGenerating ? (
-                  <div className="space-y-2">
-                    <div className="w-full border-2 border-border rounded-lg p-4 text-center bg-muted/30">
-                      <Loader2 className="h-6 w-6 mx-auto mb-1 animate-spin text-primary" />
-                      <p className="text-sm text-muted-foreground">
-                        Generando imagen con IA ({aiElapsed}s)
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handleCancelGeneration}
-                      className="w-full border border-border rounded-lg p-2 text-center text-sm text-muted-foreground hover:text-destructive hover:border-destructive/50 transition-colors cursor-pointer"
-                    >
-                      Cancelar
-                    </button>
-                  </div>
-                ) : aiError ? (
-                  <div className="space-y-2">
-                    <div className="w-full border-2 border-destructive/30 bg-destructive/5 rounded-lg p-4 text-center">
-                      <p className="text-sm text-destructive mb-2">
-                        {aiError}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handleGenerateAi}
-                      className="w-full border-2 border-border rounded-lg p-4 text-center hover:border-primary/40 hover:bg-muted/50 transition-colors cursor-pointer"
-                    >
-                      <RotateCcw className="h-5 w-5 mx-auto mb-1 text-primary" />
-                      <p className="text-sm text-primary font-medium">
-                        Reintentar
-                      </p>
-                    </button>
-                  </div>
-                ) : !aiGeneratedUrl && (
-                  <button
-                    type="button"
-                    onClick={handleGenerateAi}
-                    disabled={!name.trim() || !onGenerateImage}
-                    className="w-full border-2 border-border rounded-lg p-4 text-center hover:border-primary/40 hover:bg-muted/50 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <Sparkles className="h-6 w-6 mx-auto mb-1 text-primary" />
-                    <p className="text-sm text-primary font-medium">
-                      Generar con IA
-                    </p>
-                  </button>
-                )}
+                <ImageUploadActions
+                  aiGeneratedUrl={aiGeneratedUrl}
+                  aiGenerating={aiGenerating}
+                  aiError={aiError}
+                  aiElapsed={aiElapsed}
+                  name={name}
+                  selectedFile={selectedFile}
+                  onFileClick={() => fileInputRef.current?.click()}
+                  onGenerateAi={handleGenerateAi}
+                  onCancelGeneration={handleCancelGeneration}
+                  onGenerateImage={onGenerateImage}
+                />
               </div>
             </FieldContent>
           </Field>
@@ -548,4 +511,102 @@ export function NewEntityModal({
       </DialogContent>
     </Dialog>
   );
+}
+
+function ImageUploadActions({
+  aiGeneratedUrl,
+  aiGenerating,
+  aiError,
+  aiElapsed,
+  name,
+  selectedFile,
+  onFileClick,
+  onGenerateAi,
+  onCancelGeneration,
+  onGenerateImage,
+}: {
+  readonly aiGeneratedUrl: string | null;
+  readonly aiGenerating: boolean;
+  readonly aiError: string | null;
+  readonly aiElapsed: number;
+  readonly name: string;
+  readonly selectedFile: File | null;
+  readonly onFileClick: () => void;
+  readonly onGenerateAi: () => Promise<void>;
+  readonly onCancelGeneration: () => void;
+  readonly onGenerateImage: ((data: {
+    canonicalName: string;
+    description: string;
+    type: string;
+    aliases: string[];
+  }) => Promise<string>) | undefined;
+}) {
+  if (!aiGeneratedUrl && !aiGenerating) {
+    return (
+      <button
+        type="button"
+        onClick={onFileClick}
+        className="w-full border-2 border-dashed border-border rounded-lg p-4 text-center hover:border-primary/40 hover:bg-muted/50 transition-colors cursor-pointer"
+      >
+        <ImageIcon className="h-6 w-6 mx-auto mb-1 text-muted-foreground" />
+        <p className="text-sm text-muted-foreground">
+          {selectedFile ? "Cambiar imagen" : "Seleccionar imagen"}
+        </p>
+      </button>
+    );
+  }
+
+  if (aiGenerating) {
+    return (
+      <div className="space-y-2">
+        <div className="w-full border-2 border-border rounded-lg p-4 text-center bg-muted/30">
+          <Loader2 className="h-6 w-6 mx-auto mb-1 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground">
+            Generando imagen con IA ({aiElapsed}s)
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onCancelGeneration}
+          className="w-full border border-border rounded-lg p-2 text-center text-sm text-muted-foreground hover:text-destructive hover:border-destructive/50 transition-colors cursor-pointer"
+        >
+          Cancelar
+        </button>
+      </div>
+    );
+  }
+
+  if (aiError) {
+    return (
+      <div className="space-y-2">
+        <div className="w-full border-2 border-destructive/30 bg-destructive/5 rounded-lg p-4 text-center">
+          <p className="text-sm text-destructive mb-2">{aiError}</p>
+        </div>
+        <button
+          type="button"
+          onClick={onGenerateAi}
+          className="w-full border-2 border-border rounded-lg p-4 text-center hover:border-primary/40 hover:bg-muted/50 transition-colors cursor-pointer"
+        >
+          <RotateCcw className="h-5 w-5 mx-auto mb-1 text-primary" />
+          <p className="text-sm text-primary font-medium">Reintentar</p>
+        </button>
+      </div>
+    );
+  }
+
+  if (!aiGeneratedUrl) {
+    return (
+      <button
+        type="button"
+        onClick={onGenerateAi}
+        disabled={!name.trim() || !onGenerateImage}
+        className="w-full border-2 border-border rounded-lg p-4 text-center hover:border-primary/40 hover:bg-muted/50 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        <Sparkles className="h-6 w-6 mx-auto mb-1 text-primary" />
+        <p className="text-sm text-primary font-medium">Generar con IA</p>
+      </button>
+    );
+  }
+
+  return null;
 }
