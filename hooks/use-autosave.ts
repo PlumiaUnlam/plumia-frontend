@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from "react"
 
-import { saveScene } from "@/services/scene.service"
+import { saveScene, saveSceneVersion } from "@/services/scene.service"
 import { useEditorStore } from "@/stores/editor.store"
 import type { ProseMirrorJSON } from "@/types/scene"
 
@@ -9,6 +9,7 @@ const MAX_RETRIES = 3
 
 type UseAutosaveArgs = {
   sceneId: string
+  versionId?: string | null
   /** Contenido vivo del editor (ProseMirror JSON). `null` mientras carga. */
   content: ProseMirrorJSON | null
 }
@@ -25,7 +26,7 @@ type UseAutosaveArgs = {
  *
  * Nunca bloquea el input: todo ocurre de forma asíncrona fuera del buffer del editor.
  */
-export function useAutosave({ sceneId, content }: UseAutosaveArgs) {
+export function useAutosave({ sceneId, versionId, content }: UseAutosaveArgs) {
   const setSaveStatus = useEditorStore((s) => s.setSaveStatus)
   const markSaved = useEditorStore((s) => s.markSaved)
   const setError = useEditorStore((s) => s.setError)
@@ -47,7 +48,7 @@ export function useAutosave({ sceneId, content }: UseAutosaveArgs) {
     retriesRef.current = 0
     // Solo al (re)montar el capítulo; `content` inicial es el cargado.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sceneId])
+  }, [sceneId, versionId])
 
   const runSave = useCallback(async () => {
     if (savingRef.current) {
@@ -66,7 +67,9 @@ export function useAutosave({ sceneId, content }: UseAutosaveArgs) {
     setSaveStatus("saving")
 
     try {
-      const res = await saveScene(sceneId, current)
+      const res = versionId
+        ? await saveSceneVersion(sceneId, versionId, current)
+        : await saveScene(sceneId, current)
       lastSavedSerializedRef.current = serialized
       retriesRef.current = 0
       markSaved(res.updatedAt)
@@ -88,7 +91,7 @@ export function useAutosave({ sceneId, content }: UseAutosaveArgs) {
         )
       }
     }
-  }, [sceneId, setSaveStatus, markSaved, setError])
+  }, [sceneId, versionId, setSaveStatus, markSaved, setError])
 
   useEffect(() => {
     runSaveRef.current = runSave
