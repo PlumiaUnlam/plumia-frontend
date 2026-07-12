@@ -1,19 +1,11 @@
-import { useRef, useState, type ChangeEvent } from "react"
+import { useEffect } from "react"
 import { EditorContent, useEditor } from "@tiptap/react"
-import Image from "@tiptap/extension-image"
 import StarterKit from "@tiptap/starter-kit"
 
-import { uploadSceneImage } from "@/services/upload.service"
 import type { ProseMirrorJSON } from "@/types/scene"
 import { EditorToolbar } from "./toolbar"
-
-const MAX_IMAGE_BYTES = 10 * 1024 * 1024
-const ALLOWED_IMAGE_MIME_TYPES = new Set([
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "image/avif",
-])
+import { EditorImage } from "./image/editor-image-extension"
+import { useEditorImage } from "./image/use-editor-image"
 
 type RichTextEditorProps = {
   title: string
@@ -30,93 +22,63 @@ export function RichTextEditor({
   content,
   onChange,
 }: RichTextEditorProps) {
-  const fileInputRef = useRef<HTMLInputElement | null>(null)
-  const [uploadError, setUploadError] = useState<string | null>(null)
-  const [isUploadingImage, setIsUploadingImage] = useState(false)
+  const {
+    error,
+    isUploading,
+    registerFileInput,
+    openImagePicker,
+    handleFileSelected,
+    handlePaste,
+    bindEditor,
+  } = useEditorImage({ sceneId })
 
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
         heading: { levels: [1, 2, 3] },
       }),
-      Image.configure({
+      EditorImage.configure({
         inline: false,
         allowBase64: false,
         HTMLAttributes: {
-          class: "mx-auto my-6 max-w-full rounded-lg border border-border shadow-sm",
+          class: "mx-auto my-6 max-w-full",
         },
       }),
     ],
     content: content ?? "",
+    editorProps: {
+      handlePaste,
+    },
     onUpdate: ({ editor }) => {
       onChange?.(editor.getJSON())
     },
   })
 
-  const openImagePicker = () => {
-    setUploadError(null)
-    fileInputRef.current?.click()
-  }
-
-  const handleImageSelected = async (
-    event: ChangeEvent<HTMLInputElement>,
-  ) => {
-    const file = event.target.files?.[0]
-    event.target.value = ""
-
-    if (!file) return
-
-    if (!ALLOWED_IMAGE_MIME_TYPES.has(file.type)) {
-      setUploadError("Solo se permiten imagenes JPG, PNG, WEBP o AVIF.")
-      return
-    }
-
-    if (file.size > MAX_IMAGE_BYTES) {
-      setUploadError("La imagen no puede superar los 10 MB.")
-      return
-    }
-
-    if (!editor) return
-
-    setIsUploadingImage(true)
-    setUploadError(null)
-
-    try {
-      const publicUrl = await uploadSceneImage(sceneId, file)
-
-      editor.chain().focus().setImage({ src: publicUrl, alt: file.name }).run()
-    } catch (error) {
-      setUploadError(
-        error instanceof Error
-          ? error.message
-          : "No se pudo subir la imagen.",
-      )
-    } finally {
-      setIsUploadingImage(false)
-    }
-  }
+  useEffect(() => {
+    bindEditor(editor ?? null)
+  }, [editor, bindEditor])
 
   if (!editor) return null
 
   return (
     <div className="flex h-full min-h-0 flex-col">
       <input
-        ref={fileInputRef}
+        ref={registerFileInput}
         className="hidden"
         type="file"
         accept="image/jpeg,image/png,image/webp,image/avif"
-        onChange={handleImageSelected}
+        onChange={handleFileSelected}
       />
 
       <EditorToolbar
         editor={editor}
         onInsertImage={openImagePicker}
-        isUploadingImage={isUploadingImage}
+        isUploadingImage={isUploading}
       />
 
-      {uploadError && (
+      {error && (
         <div className="border-b border-border bg-destructive/10 px-4 py-2 text-xs text-destructive">
-          {uploadError}
+          {error}
         </div>
       )}
 

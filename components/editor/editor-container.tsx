@@ -2,7 +2,10 @@
 
 import { useEffect, useState } from "react"
 
-import { getScene } from "@/services/scene.service"
+import {
+  getScene,
+  resolveSceneContentImages,
+} from "@/services/scene.service"
 import { useEditorStore } from "@/stores/editor.store"
 import type { SceneDocument, ProseMirrorJSON } from "@/types/scene"
 import { useAutosave } from "@/hooks/use-autosave"
@@ -55,9 +58,17 @@ export function EditorContainer({
 
   useEffect(() => {
     let cancelled = false
-    getScene(sceneId).then((doc) => {
-      if (!cancelled) setScene(doc)
-    })
+    void (async () => {
+      const doc = await getScene(sceneId)
+      const resolvedContent = await resolveSceneContentImages(doc.content)
+
+      if (!cancelled) {
+        setScene({
+          ...doc,
+          content: resolvedContent,
+        })
+      }
+    })()
     return () => {
       cancelled = true
     }
