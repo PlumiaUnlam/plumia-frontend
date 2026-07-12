@@ -30,6 +30,7 @@ function SceneEditor({
     <RichTextEditor
       title={chapterTitle}
       subtitle={sceneTitle}
+      sceneId={scene.id}
       content={content}
       onChange={setContent}
     />

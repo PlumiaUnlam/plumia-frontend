@@ -1,6 +1,6 @@
 import { auth } from "@/lib/firebase"
 
-export async function uploadEntityImage(
+async function uploadImage(
   entityId: string,
   file: File,
   existingImageUrl?: string,
@@ -42,4 +42,19 @@ export async function uploadEntityImage(
   }
 
   return publicUrl
+}
+
+export async function uploadEntityImage(
+  entityId: string,
+  file: File,
+  existingImageUrl?: string,
+): Promise<string> {
+  return uploadImage(entityId, file, existingImageUrl)
+}
+
+export async function uploadSceneImage(
+  sceneId: string,
+  file: File,
+): Promise<string> {
+  return uploadImage(sceneId, file)
 }
