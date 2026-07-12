@@ -12,6 +12,7 @@ type RichTextEditorProps = {
   subtitle?: string
   sceneId: string
   content?: ProseMirrorJSON | null
+  versionLabel: string
   onChange?: (json: ProseMirrorJSON) => void
 }
 
@@ -20,6 +21,7 @@ export function RichTextEditor({
   subtitle,
   sceneId,
   content,
+  versionLabel,
   onChange,
 }: RichTextEditorProps) {
   const {
@@ -72,6 +74,7 @@ export function RichTextEditor({
 
       <EditorToolbar
         editor={editor}
+        versionLabel={versionLabel}
         onInsertImage={openImagePicker}
         isUploadingImage={isUploading}
       />

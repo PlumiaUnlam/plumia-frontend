@@ -32,3 +32,22 @@ export type SaveSceneResult = {
    */
   contentChanged: boolean
 }
+
+export type SceneVersionSummary = {
+  id: string
+  sceneId: string
+  label: string | null
+  wordCount: number
+  hash: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export type SceneVersionDocument = SceneVersionSummary & {
+  content: ProseMirrorJSON | null
+  createdFromId: string | null
+}
+
+export type SaveSceneVersionResult = SceneVersionDocument & {
+  contentChanged: boolean
+}
