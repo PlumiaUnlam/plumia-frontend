@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 
 import {
   getScene,
+  resolveSceneContentImages,
   getSceneVersion,
 } from "@/services/scene.service"
 import { useEditorStore } from "@/stores/editor.store"
@@ -48,6 +49,7 @@ function SceneEditor({
     <RichTextEditor
       title={chapterTitle}
       subtitle={sceneTitle}
+      sceneId={sceneId}
       content={content}
       versionLabel={
         selectedVersionId
@@ -79,20 +81,26 @@ export function EditorContainer({
 
   useEffect(() => {
     setActiveScene(sceneId)
-    setDocument(null)
   }, [sceneId, setActiveScene])
 
   useEffect(() => {
     let cancelled = false
-    setDocument(null)
-    const request = selectedVersionId
-      ? getSceneVersion(sceneId, selectedVersionId)
-      : getScene(sceneId)
+    void (async () => {
+      setDocument(null)
+      const request = selectedVersionId
+        ? getSceneVersion(sceneId, selectedVersionId)
+        : getScene(sceneId)
 
-    request.then((doc) => {
-      if (!cancelled) setDocument(doc)
-    })
+      const doc = await request
+      const resolvedContent = await resolveSceneContentImages(doc.content)
 
+      if (!cancelled) {
+        setDocument({
+          ...doc,
+          content: resolvedContent,
+        })
+      }
+    })()
     return () => {
       cancelled = true
     }

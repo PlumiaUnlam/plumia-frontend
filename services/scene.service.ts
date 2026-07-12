@@ -1,4 +1,5 @@
 import { api } from "@/services/api.service"
+import { resolveStorageKeyUrl } from "@/services/upload.service"
 import type {
   SceneDocument,
   ProseMirrorJSON,
@@ -31,6 +32,130 @@ function extractPlainText(node: ProseMirrorJSON | null | undefined): string {
   return node.content.map(extractPlainText).join("")
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+}
+
+function cloneNode<T>(node: T): T {
+  return structuredClone(node)
+}
+
+function isLikelyStorageKey(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    value.length > 0 &&
+    !/^https?:\/\//i.test(value) &&
+    !value.startsWith("data:")
+  )
+}
+
+function transformImageNodes(
+  node: unknown,
+  transform: (attrs: Record<string, unknown>) => Record<string, unknown>,
+): unknown {
+  if (Array.isArray(node)) {
+    return node.map((child) => transformImageNodes(child, transform))
+  }
+
+  if (!isRecord(node)) {
+    return node
+  }
+
+  const next: Record<string, unknown> = { ...node }
+
+  if (Array.isArray(node.content)) {
+    next.content = node.content.map((child) =>
+      transformImageNodes(child, transform),
+    )
+  }
+
+  if (node.type === "image") {
+    const attrs = isRecord(node.attrs) ? { ...node.attrs } : {}
+    next.attrs = transform(attrs)
+  }
+
+  return next
+}
+
+export function normalizeSceneContentForSave(
+  content: ProseMirrorJSON | null | undefined,
+): ProseMirrorJSON | null {
+  if (!content) return content ?? null
+
+  return transformImageNodes(content, (attrs) => {
+    const storageKey = attrs.storageKey
+    if (typeof storageKey !== "string" || storageKey.length === 0) {
+      return attrs
+    }
+
+    return {
+      ...attrs,
+      src: storageKey,
+    }
+  }) as ProseMirrorJSON
+}
+
+export async function resolveSceneContentImages(
+  content: ProseMirrorJSON | null | undefined,
+): Promise<ProseMirrorJSON | null> {
+  if (!content) return content ?? null
+
+  const urlCache = new Map<string, Promise<string>>()
+
+  const resolveKey = (storageKey: string): Promise<string> => {
+    const cached = urlCache.get(storageKey)
+    if (cached) return cached
+
+    const promise = resolveStorageKeyUrl(storageKey)
+    urlCache.set(storageKey, promise)
+    return promise
+  }
+
+  const resolved = await (async function walk(
+    node: unknown,
+  ): Promise<unknown> {
+    if (Array.isArray(node)) {
+      return Promise.all(node.map((child) => walk(child)))
+    }
+
+    if (!isRecord(node)) {
+      return node
+    }
+
+    const next: Record<string, unknown> = { ...node }
+
+    if (Array.isArray(node.content)) {
+      next.content = await Promise.all(node.content.map((child) => walk(child)))
+    }
+
+    if (node.type === "image") {
+      const attrs = isRecord(node.attrs) ? { ...node.attrs } : {}
+      const storageKey = isLikelyStorageKey(attrs.storageKey)
+        ? attrs.storageKey
+        : isLikelyStorageKey(attrs.src)
+          ? attrs.src
+          : null
+
+      if (storageKey) {
+        try {
+          next.attrs = {
+            ...attrs,
+            src: await resolveKey(storageKey),
+          }
+        } catch {
+          next.attrs = attrs
+        }
+      } else {
+        next.attrs = attrs
+      }
+    }
+
+    return next
+  })(cloneNode(content))
+
+  return resolved as ProseMirrorJSON
+}
+
 /** Cuenta palabras del documento (texto plano, separadas por espacios). */
 export function countWords(content: ProseMirrorJSON | null | undefined): number {
   const text = extractPlainText(content).trim()
@@ -51,9 +176,11 @@ export async function saveScene(
   id: string,
   content: ProseMirrorJSON,
 ): Promise<SaveSceneResult> {
+  const normalizedContent = normalizeSceneContentForSave(content)
+
   return api.patch<SaveSceneResult>(`/scenes/${id}`, {
-    content,
-    wordCount: countWords(content),
+    content: normalizedContent,
+    wordCount: countWords(normalizedContent),
   })
 }
 
@@ -70,7 +197,12 @@ export async function createSceneVersion(
 ): Promise<SceneVersionDocument> {
   return api.post<SceneVersionDocument>(`/scenes/${sceneId}/versions`, {
     ...(label ? { label } : {}),
-    ...(content ? { content, wordCount: countWords(content) } : {}),
+    ...(content
+      ? {
+          content: normalizeSceneContentForSave(content),
+          wordCount: countWords(content),
+        }
+      : {}),
   })
 }
 
@@ -91,7 +223,7 @@ export async function saveSceneVersion(
   return api.patch<SaveSceneVersionResult>(
     `/scenes/${sceneId}/versions/${versionId}`,
     {
-      content,
+      content: normalizeSceneContentForSave(content),
       wordCount: countWords(content),
     },
   )
