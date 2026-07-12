@@ -8,6 +8,7 @@ type RichTextEditorProps = {
   title: string
   subtitle?: string
   content?: ProseMirrorJSON | null
+  versionLabel: string
   onChange?: (json: ProseMirrorJSON) => void
 }
 
@@ -15,6 +16,7 @@ export function RichTextEditor({
   title,
   subtitle,
   content,
+  versionLabel,
   onChange,
 }: RichTextEditorProps) {
   const editor = useEditor({
@@ -33,7 +35,7 @@ export function RichTextEditor({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <EditorToolbar editor={editor} />
+      <EditorToolbar editor={editor} versionLabel={versionLabel} />
 
       <div className="flex-1 min-h-0 overflow-y-auto">
         <div className="mx-auto max-w-3xl px-6 py-10">

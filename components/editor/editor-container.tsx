@@ -2,9 +2,16 @@
 
 import { useEffect, useState } from "react"
 
-import { getScene } from "@/services/scene.service"
+import {
+  getScene,
+  getSceneVersion,
+} from "@/services/scene.service"
 import { useEditorStore } from "@/stores/editor.store"
-import type { SceneDocument, ProseMirrorJSON } from "@/types/scene"
+import type {
+  SceneDocument,
+  SceneVersionDocument,
+  ProseMirrorJSON,
+} from "@/types/scene"
 import { useAutosave } from "@/hooks/use-autosave"
 import { RichTextEditor } from "./RichTextEditor"
 
@@ -13,24 +20,42 @@ import { RichTextEditor } from "./RichTextEditor"
  * Monta una instancia fresca del editor por escena (vía `key={sceneId}`).
  */
 function SceneEditor({
-  scene,
+  sceneId,
+  document,
   chapterTitle,
   sceneTitle,
+  selectedVersionId,
 }: {
-  scene: SceneDocument
+  sceneId: string
+  document: SceneDocument | SceneVersionDocument
   chapterTitle: string
   sceneTitle?: string
+  selectedVersionId: string | null
 }) {
+  const setCurrentContent = useEditorStore((s) => s.setCurrentContent)
   // Contenido vivo del editor; arranca en lo cargado del backend (baseline).
-  const [content, setContent] = useState<ProseMirrorJSON | null>(scene.content)
+  const [content, setContent] = useState<ProseMirrorJSON | null>(
+    document.content,
+  )
 
-  useAutosave({ sceneId: scene.id, content })
+  useAutosave({ sceneId, versionId: selectedVersionId, content })
+
+  useEffect(() => {
+    setCurrentContent(content)
+  }, [content, setCurrentContent])
 
   return (
     <RichTextEditor
       title={chapterTitle}
       subtitle={sceneTitle}
       content={content}
+      versionLabel={
+        selectedVersionId
+          ? "label" in document && document.label
+            ? document.label
+            : "Version sin titulo"
+          : "Borrador principal"
+      }
       onChange={setContent}
     />
   )
@@ -46,23 +71,38 @@ export function EditorContainer({
   sceneTitle?: string
 }) {
   const setActiveScene = useEditorStore((s) => s.setActiveScene)
-  const [scene, setScene] = useState<SceneDocument | null>(null)
+  const selectedVersionId = useEditorStore((s) => s.selectedSceneVersionId)
+  const documentReloadToken = useEditorStore((s) => s.documentReloadToken)
+  const [document, setDocument] = useState<
+    SceneDocument | SceneVersionDocument | null
+  >(null)
 
   useEffect(() => {
     setActiveScene(sceneId)
+    setDocument(null)
   }, [sceneId, setActiveScene])
 
   useEffect(() => {
     let cancelled = false
-    getScene(sceneId).then((doc) => {
-      if (!cancelled) setScene(doc)
+    setDocument(null)
+    const request = selectedVersionId
+      ? getSceneVersion(sceneId, selectedVersionId)
+      : getScene(sceneId)
+
+    request.then((doc) => {
+      if (!cancelled) setDocument(doc)
     })
+
     return () => {
       cancelled = true
     }
-  }, [sceneId])
+  }, [sceneId, selectedVersionId, documentReloadToken])
 
-  const loaded = scene?.id === sceneId
+  const loaded =
+    document &&
+    (selectedVersionId
+      ? document.id === selectedVersionId
+      : document.id === sceneId)
 
   if (!loaded) {
     return (
@@ -74,10 +114,12 @@ export function EditorContainer({
 
   return (
     <SceneEditor
-      key={scene.id}
-      scene={scene}
+      key={`${sceneId}:${selectedVersionId ?? "main"}`}
+      sceneId={sceneId}
+      document={document}
       chapterTitle={chapterTitle}
       sceneTitle={sceneTitle}
+      selectedVersionId={selectedVersionId}
     />
   )
 }

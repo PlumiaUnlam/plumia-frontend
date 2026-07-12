@@ -1,41 +1,14 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import {
   Sidebar,
-  SidebarContent,
   SidebarFooter,
-  SidebarGroup,
   SidebarHeader,
-  SidebarMenu,
-  SidebarMenuItem,
-  SidebarMenuButton,
   SidebarRail,
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Field, FieldContent, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
-import {
-  Menubar,
-  MenubarContent,
-  MenubarItem,
-  MenubarMenu,
-  MenubarTrigger,
-} from "@/components/ui/menubar";
 import {
   Tooltip,
   TooltipContent,
@@ -43,20 +16,15 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
-  BookOpen,
   Earth,
   Layers3,
   TrendingUp,
   Plus,
-  ChevronRight,
   ChevronLeft,
   Undo2,
-  Ellipsis,
-  Pencil,
-  Trash2,
+  ChevronRight,
 } from "lucide-react";
 
-import { NewItemModal } from "@/components/modal/new-item-modal";
 import {
   createBook,
   createChapter,
@@ -68,44 +36,31 @@ import {
   updateChapter,
   updateSection,
 } from "@/services/project.service";
+import {
+  createSceneVersion,
+  deleteSceneVersion,
+  getSceneVersions,
+  renameSceneVersion,
+  restoreSceneVersion,
+} from "@/services/scene.service";
 import { useEditorStore } from "@/stores/editor.store";
+import { LeftSidebarHistory } from "@/components/left-sidebar-history";
+import { LeftSidebarItemModals } from "@/components/left-sidebar-item-modals";
+import { LeftSidebarTree } from "@/components/left-sidebar-tree";
+import type {
+  EditableItem,
+  SidebarBook,
+  SidebarModalState,
+} from "@/components/left-sidebar-types";
+import type { SceneVersionSummary } from "@/types/scene";
 
-export type SidebarChapter = {
-  id: string;
-  title: string;
-  sortKey: string;
-  wordCount?: number;
-  scenes: SidebarScene[];
-};
-
-export type SidebarScene = {
-  id: string;
-  title: string;
-  sortKey: string;
-  wordCount?: number;
-  order: number;
-};
-
-export type SidebarBook = {
-  id: string;
-  title: string;
-  sortKey: string;
-  chapters: SidebarChapter[];
-};
+export type { SidebarBook, SidebarChapter, SidebarScene } from "@/components/left-sidebar-types";
 
 type LeftSidebarProps = {
   projectTitle: string;
   books: SidebarBook[];
   projectId: string;
   onRefresh: () => Promise<void>;
-};
-
-type EditableItemType = "book" | "chapter" | "section";
-
-type EditableItem = {
-  type: EditableItemType;
-  id: string;
-  title: string;
 };
 
 function nextSortKey(items: Array<{ sortKey?: string }>) {
@@ -131,12 +86,7 @@ export function LeftSidebar({
   projectId,
   onRefresh,
 }: LeftSidebarProps) {
-  const [modalType, setModalType] = useState<{
-    type: "book" | "chapter" | "section";
-    parentId: string;
-    sortKey: string;
-    order?: number;
-  } | null>(null);
+  const [modalType, setModalType] = useState<SidebarModalState | null>(null);
   const [editingItem, setEditingItem] = useState<EditableItem | null>(null);
   const [itemToDelete, setItemToDelete] = useState<EditableItem | null>(null);
   const [editName, setEditName] = useState("");
@@ -145,8 +95,63 @@ export function LeftSidebar({
   const router = useRouter();
   const setActiveScene = useEditorStore((s) => s.setActiveScene)
   const activeSceneId = useEditorStore((s) => s.activeSceneId)
+  const selectedSceneVersionId = useEditorStore((s) => s.selectedSceneVersionId)
+  const currentContent = useEditorStore((s) => s.currentContent)
+  const setSelectedSceneVersion = useEditorStore((s) => s.setSelectedSceneVersion)
+  const refreshEditorDocument = useEditorStore((s) => s.refreshEditorDocument)
   const { state: sidebarState, toggleSidebar } = useSidebar();
   const showFooterTooltips = sidebarState === "collapsed";
+  const activeScene = books
+    .flatMap((book) => book.chapters)
+    .flatMap((chapter) => chapter.scenes)
+    .find((scene) => scene.id === activeSceneId)
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [versions, setVersions] = useState<SceneVersionSummary[]>([]);
+  const [versionsError, setVersionsError] = useState<string | null>(null);
+  const [versionsLoading, setVersionsLoading] = useState(false);
+  const [createVersionOpen, setCreateVersionOpen] = useState(false);
+  const [newVersionName, setNewVersionName] = useState("");
+  const [restoreTarget, setRestoreTarget] = useState<SceneVersionSummary | null>(
+    null,
+  );
+  const [versionToRename, setVersionToRename] =
+    useState<SceneVersionSummary | null>(null);
+  const [versionToDelete, setVersionToDelete] =
+    useState<SceneVersionSummary | null>(null);
+  const [versionEditName, setVersionEditName] = useState("");
+  const [isVersionActionSubmitting, setIsVersionActionSubmitting] =
+    useState(false);
+
+  const loadVersions = async () => {
+    if (!activeSceneId) {
+      setVersions([]);
+      return;
+    }
+
+    setVersionsLoading(true);
+    try {
+      setVersions(await getSceneVersions(activeSceneId));
+      setVersionsError(null);
+    } catch (error) {
+      console.error("Error loading scene versions:", error);
+      setVersionsError("No se pudo cargar el historial.");
+    } finally {
+      setVersionsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!historyOpen) return;
+
+    const timeoutId = window.setTimeout(() => {
+      void loadVersions();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [historyOpen, activeSceneId]);
 
   const openEditItem = (item: EditableItem) => {
     setEditingItem(item);
@@ -158,6 +163,95 @@ export function LeftSidebar({
 
     setEditingItem(null);
     setEditName("");
+  };
+
+  const openCreateVersion = () => {
+    if (!activeSceneId) return;
+
+    setNewVersionName("");
+    setCreateVersionOpen(true);
+  };
+
+  const handleCreateVersion = async () => {
+    if (!activeSceneId || isVersionActionSubmitting) return;
+
+    setIsVersionActionSubmitting(true);
+    try {
+      const version = await createSceneVersion(
+        activeSceneId,
+        newVersionName.trim() || undefined,
+        currentContent,
+      );
+      setVersions((current) => [version, ...current]);
+      setSelectedSceneVersion(version.id);
+      setCreateVersionOpen(false);
+      setNewVersionName("");
+    } finally {
+      setIsVersionActionSubmitting(false);
+    }
+  };
+
+  const handleRestoreVersion = async () => {
+    if (!activeSceneId || !restoreTarget || isVersionActionSubmitting) return;
+
+    setIsVersionActionSubmitting(true);
+    try {
+      await restoreSceneVersion(activeSceneId, restoreTarget.id);
+      setSelectedSceneVersion(null);
+      refreshEditorDocument();
+      await Promise.all([loadVersions(), onRefresh()]);
+      setRestoreTarget(null);
+    } finally {
+      setIsVersionActionSubmitting(false);
+    }
+  };
+
+  const openRenameVersion = (version: SceneVersionSummary) => {
+    setVersionToRename(version);
+    setVersionEditName(version.label || "");
+  };
+
+  const handleRenameVersion = async () => {
+    if (!activeSceneId || !versionToRename || isVersionActionSubmitting) return;
+
+    setIsVersionActionSubmitting(true);
+    try {
+      const updated = await renameSceneVersion(
+        activeSceneId,
+        versionToRename.id,
+        versionEditName.trim(),
+      );
+      setVersions((current) =>
+        current.map((version) =>
+          version.id === updated.id ? { ...version, ...updated } : version,
+        ),
+      );
+      setVersionToRename(null);
+      setVersionEditName("");
+      if (selectedSceneVersionId === updated.id) {
+        refreshEditorDocument();
+      }
+    } finally {
+      setIsVersionActionSubmitting(false);
+    }
+  };
+
+  const handleDeleteVersion = async () => {
+    if (!activeSceneId || !versionToDelete || isVersionActionSubmitting) return;
+
+    setIsVersionActionSubmitting(true);
+    try {
+      await deleteSceneVersion(activeSceneId, versionToDelete.id);
+      setVersions((current) =>
+        current.filter((version) => version.id !== versionToDelete.id),
+      );
+      if (selectedSceneVersionId === versionToDelete.id) {
+        setSelectedSceneVersion(null);
+      }
+      setVersionToDelete(null);
+    } finally {
+      setIsVersionActionSubmitting(false);
+    }
   };
 
   const handleUpdateItem = async () => {
@@ -203,54 +297,6 @@ export function LeftSidebar({
     }
   };
 
-  const renderItemMenu = (item: EditableItem) => (
-    <Menubar className="h-auto border-0 bg-transparent p-0">
-      <MenubarMenu>
-        <MenubarTrigger asChild>
-          <Button
-            size="icon-xs"
-            variant="ghost"
-            className="size-6 text-sidebar-primary hover:bg-sidebar-primary/10 hover:text-sidebar-primary active:not-aria-[haspopup]:translate-y-0"
-            aria-label={`Opciones de ${item.title}`}
-            onMouseDown={(e) => {
-              e.stopPropagation();
-            }}
-            onClick={(e) => {
-              e.stopPropagation();
-            }}
-          >
-            <Ellipsis className="size-3.5" />
-          </Button>
-        </MenubarTrigger>
-        <MenubarContent
-          align="end"
-          sideOffset={6}
-          className="min-w-24 rounded-md p-0.5"
-        >
-          <MenubarItem
-            className="gap-1 px-1.5 py-0.5 text-xs"
-            onSelect={() => {
-              openEditItem(item);
-            }}
-          >
-            <Pencil className="size-3" />
-            Editar
-          </MenubarItem>
-          <MenubarItem
-            variant="destructive"
-            className="gap-1 px-1.5 py-0.5 text-xs"
-            onSelect={() => {
-              setItemToDelete(item);
-            }}
-          >
-            <Trash2 className="size-3" />
-            Eliminar
-          </MenubarItem>
-        </MenubarContent>
-      </MenubarMenu>
-    </Menubar>
-  );
-
   return (
     <div className="flex h-full min-h-0">
       <Sidebar
@@ -267,13 +313,13 @@ export function LeftSidebar({
               size="icon-xs"
               variant="ghost"
               className="size-6"
-              onClick={() => {
+              onClick={() =>
                 setModalType({
                   type: "book",
                   parentId: projectId,
                   sortKey: nextSortKey(books),
-                });
-              }}
+                })
+              }
             >
               <Plus className="size-3" />
             </Button>
@@ -298,143 +344,27 @@ export function LeftSidebar({
             <ChevronRight className="size-3.5" />
           </Button>
         </SidebarHeader>
-        <SidebarContent className="flex-1 overflow-y-auto bg-background group-data-[collapsible=icon]:hidden">
-          {books.map((book) => (
-            <SidebarGroup key={book.id}>
-              <SidebarMenu>
-                <Collapsible defaultOpen>
-                  <SidebarMenuItem>
-                    <div className="group/book-row relative w-full">
-                      <CollapsibleTrigger asChild>
-                        <SidebarMenuButton className="min-w-0 gap-1.5 pr-2 group-hover/book-row:bg-sidebar-accent group-hover/book-row:pr-14 group-hover/book-row:text-sidebar-accent-foreground [&_.tree-book-icon]:size-2.5 [&_.tree-chevron]:size-2.5 [&[data-state=open]_.tree-chevron]:rotate-90">
-                          <ChevronRight className="tree-chevron text-sidebar-primary transition-transform" />
-
-                          <BookOpen className="tree-book-icon text-sidebar-primary" />
-
-                          <span className="text-xs font-semibold text-foreground truncate">
-                            {book.title}
-                          </span>
-                        </SidebarMenuButton>
-                      </CollapsibleTrigger>
-
-                      <div className="pointer-events-none absolute right-1 top-1/2 flex -translate-y-1/2 items-center gap-0.5 opacity-0 transition-opacity group-hover/book-row:pointer-events-auto group-hover/book-row:opacity-100 focus-within:pointer-events-auto focus-within:opacity-100">
-                        <Button
-                          size="icon-xs"
-                          variant="ghost"
-                          className="size-6 text-sidebar-primary hover:bg-sidebar-primary/10 hover:text-sidebar-primary active:not-aria-[haspopup]:translate-y-0"
-                          aria-label={`Agregar capítulo a ${book.title}`}
-                          onMouseDown={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                          }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setModalType({
-                              type: "chapter",
-                              parentId: book.id,
-                              sortKey: nextSortKey(book.chapters),
-                            });
-                          }}
-                        >
-                          <Plus className="size-3" />
-                        </Button>
-                        {renderItemMenu({
-                          type: "book",
-                          id: book.id,
-                          title: book.title,
-                        })}
-                      </div>
-                    </div>
-
-                    <CollapsibleContent>
-                      <SidebarMenu className="mt-1 pl-3">
-                        {book.chapters.map((chapter) => (
-                          <Collapsible key={chapter.id} defaultOpen>
-                            <SidebarMenuItem>
-                              <div className="group/chapter-row relative w-full">
-                                <CollapsibleTrigger asChild>
-                                  <SidebarMenuButton className="min-w-0 gap-1.5 pr-2 group-hover/chapter-row:bg-sidebar-accent group-hover/chapter-row:pr-14 group-hover/chapter-row:text-sidebar-accent-foreground [&_.tree-chevron]:size-2.5 [&[data-state=open]_.tree-chevron]:rotate-90">
-                                    <ChevronRight className="tree-chevron -mr-1 text-sidebar-primary transition-transform" />
-                                    <span className="truncate text-[11px] font-medium text-sidebar-primary">
-                                      {chapter.title}
-                                    </span>
-                                  </SidebarMenuButton>
-                                </CollapsibleTrigger>
-
-                                <div className="pointer-events-none absolute right-1 top-1/2 flex -translate-y-1/2 items-center gap-0.5 opacity-0 transition-opacity group-hover/chapter-row:pointer-events-auto group-hover/chapter-row:opacity-100 focus-within:pointer-events-auto focus-within:opacity-100">
-                                  <Button
-                                    size="icon-xs"
-                                    variant="ghost"
-                                    className="size-6 text-sidebar-primary hover:bg-sidebar-primary/10 hover:text-sidebar-primary active:not-aria-[haspopup]:translate-y-0"
-                                    aria-label={`Agregar sección a ${chapter.title}`}
-                                    onMouseDown={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                    }}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setModalType({
-                                        type: "section",
-                                        parentId: chapter.id,
-                                        sortKey: nextSortKey(chapter.scenes),
-                                        order: nextOrder(chapter.scenes),
-                                      });
-                                    }}
-                                  >
-                                    <Plus className="size-3" />
-                                  </Button>
-                                  {renderItemMenu({
-                                    type: "chapter",
-                                    id: chapter.id,
-                                    title: chapter.title,
-                                  })}
-                                </div>
-                              </div>
-
-                              <CollapsibleContent>
-                                <SidebarMenu className="pl-4">
-                                  {chapter.scenes.map((scene) => (
-                                    <SidebarMenuItem key={scene.id}>
-                                      <div className="group/scene-row relative w-full">
-                                        <SidebarMenuButton
-                                          onClick={() => setActiveScene(scene.id)}
-                                          size="lg"
-                                          className="pr-2 group-hover/scene-row:bg-sidebar-accent group-hover/scene-row:pr-8 group-hover/scene-row:text-sidebar-accent-foreground"
-                                        >
-                                          <div className="flex min-w-0 flex-col items-start gap-1 padding-4">
-                                            <span className="truncate text-[11px] font-medium text-foreground">
-                                              {scene.title}
-                                            </span>
-                                            <span className="text-[9px] text-muted-foreground">
-                                              {" "}
-                                              {scene.wordCount?.toLocaleString()}{" "}
-                                              palabras
-                                            </span>
-                                          </div>
-                                        </SidebarMenuButton>
-                                        <div className="pointer-events-none absolute right-1 top-1/2 flex -translate-y-1/2 items-center opacity-0 transition-opacity group-hover/scene-row:pointer-events-auto group-hover/scene-row:opacity-100 focus-within:pointer-events-auto focus-within:opacity-100">
-                                          {renderItemMenu({
-                                            type: "section",
-                                            id: scene.id,
-                                            title: scene.title,
-                                          })}
-                                        </div>
-                                      </div>
-                                    </SidebarMenuItem>
-                                  ))}
-                                </SidebarMenu>
-                              </CollapsibleContent>
-                            </SidebarMenuItem>
-                          </Collapsible>
-                        ))}
-                      </SidebarMenu>
-                    </CollapsibleContent>
-                  </SidebarMenuItem>
-                </Collapsible>
-              </SidebarMenu>
-            </SidebarGroup>
-          ))}
-        </SidebarContent>
+        <LeftSidebarTree
+          books={books}
+          onAddChapter={(book) =>
+            setModalType({
+              type: "chapter",
+              parentId: book.id,
+              sortKey: nextSortKey(book.chapters),
+            })
+          }
+          onAddScene={(chapter) =>
+            setModalType({
+              type: "section",
+              parentId: chapter.id,
+              sortKey: nextSortKey(chapter.scenes),
+              order: nextOrder(chapter.scenes),
+            })
+          }
+          onSelectScene={setActiveScene}
+          onEditItem={openEditItem}
+          onDeleteItem={setItemToDelete}
+        />
         <SidebarFooter className="border-t bg-background p-2">
           <TooltipProvider>
             <div className="grid w-full grid-cols-4 gap-0.5 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:gap-1">
@@ -513,7 +443,12 @@ export function LeftSidebar({
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  className="h-10 w-full flex-col gap-0.5 px-0 text-muted-foreground hover:text-foreground group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:w-8"
+                  className={`h-10 w-full flex-col gap-0.5 px-0 hover:text-foreground group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:w-8 ${
+                    historyOpen
+                      ? "bg-sidebar-accent text-foreground"
+                      : "text-muted-foreground"
+                  }`}
+                  onClick={() => setHistoryOpen(true)}
                   aria-label="Historial"
                 >
                   <Undo2 className="size-4" />
@@ -533,95 +468,74 @@ export function LeftSidebar({
         </SidebarFooter>
         <SidebarRail />
       </Sidebar>
-      <Dialog
-        open={!!editingItem}
-        onOpenChange={(open) => {
-          if (!open) closeEditItem();
-        }}
-      >
-        <DialogContent className="min-w-[520px] gap-0 overflow-hidden">
-          <DialogHeader className="border-b p-6 py-4">
-            <DialogTitle>Editar elemento</DialogTitle>
-          </DialogHeader>
+      <LeftSidebarHistory
+        activeSceneId={activeSceneId}
+        activeSceneTitle={activeScene?.title}
+        historyOpen={historyOpen}
+        createVersionOpen={createVersionOpen}
+        versions={versions}
+        versionsError={versionsError}
+        versionsLoading={versionsLoading}
+        newVersionName={newVersionName}
+        restoreTarget={restoreTarget}
+        versionToRename={versionToRename}
+        versionToDelete={versionToDelete}
+        versionEditName={versionEditName}
+        selectedSceneVersionId={selectedSceneVersionId}
+        isVersionActionSubmitting={isVersionActionSubmitting}
+        onHistoryOpenChange={setHistoryOpen}
+        onCreateVersionOpen={openCreateVersion}
+        onCreateVersionOpenChange={(open) => {
+          if (!open && !isVersionActionSubmitting) {
+            setCreateVersionOpen(false);
+            setNewVersionName("");
+            return;
+          }
 
-          <div className="space-y-5 px-6 py-6">
-            <Field>
-              <FieldLabel htmlFor="edit-sidebar-item-name">
-                Nombre <span className="text-destructive">*</span>
-              </FieldLabel>
-              <FieldContent>
-                <Input
-                  id="edit-sidebar-item-name"
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      void handleUpdateItem();
-                    }
-                  }}
-                  placeholder="Nombre"
-                />
-              </FieldContent>
-            </Field>
-          </div>
-
-          <DialogFooter className="border-t px-6 py-4">
-            <Button
-              variant="outline"
-              disabled={isItemActionSubmitting}
-              onClick={closeEditItem}
-            >
-              Cancelar
-            </Button>
-            <Button
-              disabled={!editName.trim() || isItemActionSubmitting}
-              onClick={() => {
-                void handleUpdateItem();
-              }}
-            >
-              Guardar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      <Dialog
-        open={!!itemToDelete}
-        onOpenChange={(open) => {
-          if (!open && !isItemActionSubmitting) setItemToDelete(null);
+          if (open) {
+            setCreateVersionOpen(true);
+          }
         }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Eliminar elemento</DialogTitle>
-            <DialogDescription>
-              ¿Seguro que quieres eliminar &ldquo;{itemToDelete?.title}&rdquo;?
-              Esta acción no se puede deshacer.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              disabled={isItemActionSubmitting}
-              onClick={() => setItemToDelete(null)}
-            >
-              Cancelar
-            </Button>
-            <Button
-              variant="destructive"
-              disabled={isItemActionSubmitting}
-              onClick={() => {
-                void handleDeleteItem();
-              }}
-            >
-              Eliminar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      <NewItemModal
-        show={modalType?.type === "chapter"}
-        onClose={() => setModalType(null)}
-        onSubmit={async (name) => {
+        onCreateVersionNameChange={setNewVersionName}
+        onCreateVersion={handleCreateVersion}
+        onSelectDraft={() => setSelectedSceneVersion(null)}
+        onSelectVersion={setSelectedSceneVersion}
+        onOpenRestore={setRestoreTarget}
+        onRestoreVersion={handleRestoreVersion}
+        onOpenRename={(version) => {
+          if (!version) {
+            setVersionToRename(null);
+            return;
+          }
+
+          openRenameVersion(version);
+        }}
+        onRenameVersionNameChange={setVersionEditName}
+        onRenameVersion={handleRenameVersion}
+        onOpenDelete={setVersionToDelete}
+        onDeleteVersion={handleDeleteVersion}
+      />
+      <LeftSidebarItemModals
+        modalType={modalType}
+        editingItem={editingItem}
+        itemToDelete={itemToDelete}
+        editName={editName}
+        isItemActionSubmitting={isItemActionSubmitting}
+        onModalTypeChange={setModalType}
+        onEditNameChange={setEditName}
+        onCloseEditItem={closeEditItem}
+        onUpdateItem={handleUpdateItem}
+        onDeleteItemChange={setItemToDelete}
+        onDeleteItem={handleDeleteItem}
+        onCreateBook={async (name) => {
+          await createBook({
+            title: name,
+            partId: modalType!.parentId,
+            sortKey: modalType!.sortKey,
+          });
+          await onRefresh();
+        }}
+        onCreateChapter={async (name) => {
           await createChapter({
             title: name,
             partId: modalType!.parentId,
@@ -629,16 +543,7 @@ export function LeftSidebar({
           });
           await onRefresh();
         }}
-        title="Nuevo Capítulo"
-        label="Nombre del Capítulo"
-        placeholder="Ej: Capítulo 1: ..."
-        submitText="Crear Capítulo"
-      />
-
-      <NewItemModal
-        show={modalType?.type === "section"}
-        onClose={() => setModalType(null)}
-        onSubmit={async (name) => {
+        onCreateSection={async (name) => {
           await createSection({
             title: name,
             partId: modalType!.parentId,
@@ -647,27 +552,6 @@ export function LeftSidebar({
           });
           await onRefresh();
         }}
-        title="Nueva Sección"
-        label="Nombre de la Sección"
-        placeholder="Ej: Sección 1: ..."
-        submitText="Crear Sección"
-      />
-
-      <NewItemModal
-        show={modalType?.type === "book"}
-        onClose={() => setModalType(null)}
-        onSubmit={async (name) => {
-          await createBook({
-            title: name,
-            partId: modalType!.parentId,
-            sortKey: modalType!.sortKey,
-          });
-          await onRefresh();
-        }}
-        title="Nuevo Libro"
-        label="Nombre del Libro"
-        placeholder="Ej: Libro 1: ..."
-        submitText="Crear Libro"
       />
     </div>
   );

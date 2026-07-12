@@ -3,6 +3,9 @@ import type {
   SceneDocument,
   ProseMirrorJSON,
   SaveSceneResult,
+  SaveSceneVersionResult,
+  SceneVersionDocument,
+  SceneVersionSummary,
 } from "@/types/scene"
 
 /**
@@ -52,4 +55,72 @@ export async function saveScene(
     content,
     wordCount: countWords(content),
   })
+}
+
+export async function getSceneVersions(
+  sceneId: string,
+): Promise<SceneVersionSummary[]> {
+  return api.get<SceneVersionSummary[]>(`/scenes/${sceneId}/versions`)
+}
+
+export async function createSceneVersion(
+  sceneId: string,
+  label?: string,
+  content?: ProseMirrorJSON | null,
+): Promise<SceneVersionDocument> {
+  return api.post<SceneVersionDocument>(`/scenes/${sceneId}/versions`, {
+    ...(label ? { label } : {}),
+    ...(content ? { content, wordCount: countWords(content) } : {}),
+  })
+}
+
+export async function getSceneVersion(
+  sceneId: string,
+  versionId: string,
+): Promise<SceneVersionDocument> {
+  return api.get<SceneVersionDocument>(
+    `/scenes/${sceneId}/versions/${versionId}`,
+  )
+}
+
+export async function saveSceneVersion(
+  sceneId: string,
+  versionId: string,
+  content: ProseMirrorJSON,
+): Promise<SaveSceneVersionResult> {
+  return api.patch<SaveSceneVersionResult>(
+    `/scenes/${sceneId}/versions/${versionId}`,
+    {
+      content,
+      wordCount: countWords(content),
+    },
+  )
+}
+
+export async function renameSceneVersion(
+  sceneId: string,
+  versionId: string,
+  label: string,
+): Promise<SceneVersionDocument> {
+  return api.patch<SceneVersionDocument>(
+    `/scenes/${sceneId}/versions/${versionId}`,
+    { label },
+  )
+}
+
+export async function restoreSceneVersion(
+  sceneId: string,
+  versionId: string,
+): Promise<SaveSceneResult> {
+  return api.post<SaveSceneResult>(
+    `/scenes/${sceneId}/versions/${versionId}/restore`,
+    {},
+  )
+}
+
+export async function deleteSceneVersion(
+  sceneId: string,
+  versionId: string,
+): Promise<void> {
+  return api.delete<void>(`/scenes/${sceneId}/versions/${versionId}`)
 }
