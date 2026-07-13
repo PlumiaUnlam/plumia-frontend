@@ -8,8 +8,6 @@ import {
   Calendar,
   FileText,
   GitBranch,
-  Maximize2,
-  Minimize2,
 } from "lucide-react";
 import useSWR from "swr";
 import useSWRMutation from "swr/mutation";
@@ -96,7 +94,6 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
     null,
   );
   const [timelineNewEventRequest, setTimelineNewEventRequest] = useState(0);
-  const [isTimelineCompact, setIsTimelineCompact] = useState(false);
   const [mockEntities, setMockEntities] = useState<Entity[]>(
     worldbuildingEntitiesMock,
   );
@@ -371,24 +368,14 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
             </Button>
           )}
           {activeTab === "timeline" && (
-            <div className="flex flex-col items-end gap-2">
-              <Button
-                onClick={() =>
-                  setTimelineNewEventRequest((current) => current + 1)
-                }
-              >
-                <Plus size={16} />
-                Nuevo Evento
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsTimelineCompact((current) => !current)}
-              >
-                {isTimelineCompact ? <Maximize2 /> : <Minimize2 />}
-                {isTimelineCompact ? "Mostrar detalle" : "Vista global"}
-              </Button>
-            </div>
+            <Button
+              onClick={() =>
+                setTimelineNewEventRequest((current) => current + 1)
+              }
+            >
+              <Plus size={16} />
+              Nuevo Evento
+            </Button>
           )}
         </div>
 
@@ -473,7 +460,6 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
           >
             <TimelinePanel
               entities={worldbuildingEntities}
-              compact={isTimelineCompact}
               newEventRequest={timelineNewEventRequest}
               onCreateMockEntity={handleCreateMockEntity}
             />

@@ -1,6 +1,7 @@
 "use client"
 
-import { useRef } from "react"
+import { useRef, useState } from "react"
+import { Plus } from "lucide-react"
 
 import {
   Combobox,
@@ -23,18 +24,28 @@ type EntitySelectorProps = {
   entities: Entity[]
   selectedEntityIds: string[]
   onChange: (entityIds: string[]) => void
+  onCreateEntity?: (canonicalName: string) => void
 }
 
 export function EntitySelector({
   entities,
   selectedEntityIds,
   onChange,
+  onCreateEntity,
 }: EntitySelectorProps) {
   const portalContainerRef = useRef<HTMLDivElement | null>(null)
   const anchorRef = useComboboxAnchor()
+  const [searchValue, setSearchValue] = useState("")
   const selectedEntities = selectedEntityIds
     .map((entityId) => entities.find((entity) => entity.id === entityId))
     .filter((entity): entity is Entity => !!entity)
+  const normalizedSearchValue = searchValue.trim().toLocaleLowerCase()
+  const hasExactMatch = entities.some(
+    (entity) =>
+      entity.canonicalName.toLocaleLowerCase() === normalizedSearchValue,
+  )
+  const canCreateEntity =
+    !!onCreateEntity && normalizedSearchValue.length > 0 && !hasExactMatch
 
   return (
     <Field>
@@ -72,6 +83,7 @@ export function EntitySelector({
                   ))}
                   <ComboboxChipsInput
                     className="placeholder:text-muted-foreground"
+                    onChange={(event) => setSearchValue(event.target.value)}
                     placeholder={
                       value.length > 0 ? "" : "Buscar y seleccionar entidades..."
                     }
@@ -108,6 +120,20 @@ export function EntitySelector({
                 </ComboboxItem>
               )}
             </ComboboxList>
+            {canCreateEntity && (
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 border-t border-border px-3 py-2.5 text-left text-sm font-medium text-primary hover:bg-primary/5"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => {
+                  onCreateEntity(searchValue.trim())
+                  setSearchValue("")
+                }}
+              >
+                <Plus className="size-4" />
+                Crear &ldquo;{searchValue.trim()}&rdquo;
+              </button>
+            )}
           </ComboboxContent>
         </Combobox>
       </FieldContent>

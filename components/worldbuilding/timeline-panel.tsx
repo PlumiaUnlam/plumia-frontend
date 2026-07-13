@@ -33,7 +33,6 @@ import type { Entity, EntityType } from "@/types/entity"
 type TimelinePanelProps = {
   entities: Entity[]
   newEventRequest: number
-  compact: boolean
   onCreateMockEntity: (input: {
     canonicalName: string
     type: EntityType
@@ -68,7 +67,6 @@ function createEmptyEvent(): TimelineEvent {
 export function TimelinePanel({
   entities,
   newEventRequest,
-  compact,
   onCreateMockEntity,
 }: TimelinePanelProps) {
   const [events, setEvents] = useState<TimelineEvent[]>(timelineEventsMock)
@@ -84,6 +82,7 @@ export function TimelinePanel({
   const [selectedArc, setSelectedArc] = useState<string | null>(null)
   const [editingEvent, setEditingEvent] = useState<TimelineEvent | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [isCompact, setIsCompact] = useState(false)
 
   const entityById = useMemo(
     () => new Map(entities.map((entity) => [entity.id, entity])),
@@ -124,6 +123,12 @@ export function TimelinePanel({
     )
   }
 
+  const resetFilters = () => {
+    setSelectedEntityId(null)
+    setSelectedArc(null)
+    setSelectedImpacts(["high", "medium", "low"])
+  }
+
   const saveEvent = (event: TimelineEvent) => {
     setEvents((current) => {
       const exists = current.some((currentEvent) => currentEvent.id === event.id)
@@ -145,9 +150,13 @@ export function TimelinePanel({
         </p>
 
         <div className="space-y-3">
-          <div className="rounded-lg border border-border bg-card px-4 py-3 text-sm font-semibold text-foreground">
+          <button
+            type="button"
+            className="w-full rounded-lg border border-border bg-card px-4 py-3 text-left text-sm font-semibold text-foreground transition-colors hover:border-primary/35 hover:bg-primary/5"
+            onClick={resetFilters}
+          >
             Todos los eventos
-          </div>
+          </button>
           <FilterButton
             active={isParticipantFilterOpen}
             onClick={() => setIsParticipantFilterOpen((current) => !current)}
@@ -207,6 +216,16 @@ export function TimelinePanel({
 
       <main className="min-w-0 flex-1 overflow-y-auto px-5 py-8 sm:px-10 lg:px-16">
         <div className="mx-auto max-w-6xl">
+          <div className="mb-5 flex justify-end">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-9 w-40"
+              onClick={() => setIsCompact((current) => !current)}
+            >
+              {isCompact ? "Mostrar detalle" : "Vista global"}
+            </Button>
+          </div>
           {visibleEvents.length > 0 ? (
             <ol className="relative ml-3 space-y-10 border-l-2 border-primary/20 pl-9 sm:ml-8 sm:pl-16">
               {visibleEvents.map((event) => (
@@ -291,6 +310,7 @@ function TimelineEventCard({ compact, entities, event, onEdit, onDelete }: { com
 function TimelineEventDialog({ entities, event, open, onCreateMockEntity, onOpenChange, onSave }: { entities: Entity[]; event: TimelineEvent | null; open: boolean; onCreateMockEntity: TimelinePanelProps["onCreateMockEntity"]; onOpenChange: (open: boolean) => void; onSave: (event: TimelineEvent) => void }) {
   const [draft, setDraft] = useState<TimelineEvent | null>(null)
   const [isEntityDialogOpen, setIsEntityDialogOpen] = useState(false)
+  const [newEntityName, setNewEntityName] = useState("")
   const displayedDraft = draft ?? event
 
   useEffect(() => {
@@ -300,7 +320,7 @@ function TimelineEventDialog({ entities, event, open, onCreateMockEntity, onOpen
   if (!displayedDraft) return null
 
   const updateDraft = (changes: Partial<TimelineEvent>) => setDraft((current) => ({ ...(current ?? event ?? createEmptyEvent()), ...changes }))
-  const isEditing = eventsTitle(event.id) === "Editar"
+  const isEditing = event ? eventsTitle(event.id) === "Editar" : false
 
   return (
     <>
@@ -321,21 +341,33 @@ function TimelineEventDialog({ entities, event, open, onCreateMockEntity, onOpen
               </div>
             </div>
             <div className="space-y-3">
-              <div className="flex flex-wrap items-center justify-between gap-2"><Label>Entidades involucradas</Label><Button type="button" variant="link" size="sm" onClick={() => setIsEntityDialogOpen(true)}>Crear entidad</Button></div>
-              <EntitySelector entities={entities} selectedEntityIds={displayedDraft.entityIds} onChange={(entityIds) => updateDraft({ entityIds })} />
+              <Label>Entidades involucradas</Label>
+              <EntitySelector
+                entities={entities}
+                selectedEntityIds={displayedDraft.entityIds}
+                onChange={(entityIds) => updateDraft({ entityIds })}
+                onCreateEntity={(canonicalName) => {
+                  setNewEntityName(canonicalName)
+                  setIsEntityDialogOpen(true)
+                }}
+              />
             </div>
           </div>
           <DialogFooter className="px-9 py-5"><Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button><Button disabled={!displayedDraft.title.trim()} onClick={() => onSave(displayedDraft)}>{isEditing ? "Guardar cambios" : "Crear evento"}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
-      <CreateMockEntityDialog open={isEntityDialogOpen} onOpenChange={setIsEntityDialogOpen} onCreate={(input) => { const entity = onCreateMockEntity(input); updateDraft({ entityIds: [...displayedDraft.entityIds, entity.id] }) }} />
+      <CreateMockEntityDialog open={isEntityDialogOpen} initialName={newEntityName} onOpenChange={setIsEntityDialogOpen} onCreate={(input) => { const entity = onCreateMockEntity(input); updateDraft({ entityIds: [...displayedDraft.entityIds, entity.id] }) }} />
     </>
   )
 }
 
-function CreateMockEntityDialog({ open, onOpenChange, onCreate }: { open: boolean; onOpenChange: (open: boolean) => void; onCreate: (input: { canonicalName: string; type: EntityType }) => void }) {
+function CreateMockEntityDialog({ open, initialName, onOpenChange, onCreate }: { open: boolean; initialName: string; onOpenChange: (open: boolean) => void; onCreate: (input: { canonicalName: string; type: EntityType }) => void }) {
   const [name, setName] = useState("")
   const [type, setType] = useState<EntityType>("CHARACTER")
+
+  useEffect(() => {
+    if (open) setName(initialName)
+  }, [initialName, open])
 
   return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent className="sm:max-w-md"><DialogHeader><DialogTitle>Nueva entidad</DialogTitle></DialogHeader><FormField label="Nombre" htmlFor="timeline-entity-name"><Input id="timeline-entity-name" value={name} onChange={(event) => setName(event.target.value)} placeholder="Nombre de la entidad" /></FormField><FormField label="Tipo" htmlFor="timeline-entity-type"><select id="timeline-entity-type" className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm" value={type} onChange={(event) => setType(event.target.value as EntityType)}><option value="CHARACTER">Personaje</option><option value="LOCATION">Lugar</option><option value="OBJECT">Objeto</option><option value="ORGANIZATION">Facción</option><option value="CONCEPT">Concepto</option></select></FormField><DialogFooter><Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button><Button disabled={!name.trim()} onClick={() => { onCreate({ canonicalName: name.trim(), type }); setName(""); onOpenChange(false) }}>Crear entidad</Button></DialogFooter></DialogContent></Dialog>
 }
