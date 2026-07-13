@@ -15,7 +15,9 @@ import useSWRMutation from "swr/mutation";
 import { Header } from "../header";
 import { RelationshipsPanel } from "./relationships-panel";
 import { SummariesPanel } from "./summaries-panel";
+import { TimelinePanel } from "./timeline-panel";
 import { WikiTab } from "./wiki-panel";
+import { worldbuildingEntitiesMock } from "@/mocks/worldbuilding.mock";
 
 import { NewEntityModal } from "@/components/modal/new-entity-modal";
 import { NewRelationModal } from "@/components/modal/new-relation-modal";
@@ -91,6 +93,10 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
   const [deleteConfirmEntity, setDeleteConfirmEntity] = useState<Entity | null>(
     null,
   );
+  const [timelineNewEventRequest, setTimelineNewEventRequest] = useState(0);
+  const [mockEntities, setMockEntities] = useState<Entity[]>(
+    worldbuildingEntitiesMock,
+  );
   const [deleting, setDeleting] = useState(false);
   const aiStorageKeyRef = useRef<string | null>(null);
   const aiPromptRef = useRef<string | null>(null);
@@ -134,9 +140,36 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
   );
 
   const selectedEntity = useMemo(
-    () => entities?.find((entity) => entity.id === selectedEntityId) ?? null,
-    [entities, selectedEntityId],
+    () =>
+      (entities?.length ? entities : mockEntities).find(
+        (entity) => entity.id === selectedEntityId,
+      ) ?? null,
+    [entities, mockEntities, selectedEntityId],
   );
+
+  const worldbuildingEntities = entities?.length ? entities : mockEntities;
+
+  const handleCreateMockEntity = (input: {
+    canonicalName: string;
+    type: Entity["type"];
+  }): Entity => {
+    const now = new Date().toISOString();
+    const entity: Entity = {
+      id: crypto.randomUUID(),
+      canonicalName: input.canonicalName,
+      type: input.type,
+      description: null,
+      aliases: [],
+      imageUrl: null,
+      projectId,
+      isActive: true,
+      attributes: {},
+      createdAt: now,
+      updatedAt: now,
+    };
+    setMockEntities((current) => [...current, entity]);
+    return entity;
+  };
 
   const handleGenerateImage = async (data: {
     canonicalName: string;
@@ -328,10 +361,20 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
                 setEditingRelationship(null);
                 setShowNewRelationModal(true);
               }}
-              disabled={(entities ?? []).length < 2}
+              disabled={worldbuildingEntities.length < 2}
             >
               <GitBranch size={16} />
               Nueva Relación
+            </Button>
+          )}
+          {activeTab === "timeline" && (
+            <Button
+              onClick={() =>
+                setTimelineNewEventRequest((current) => current + 1)
+              }
+            >
+              <Plus size={16} />
+              Nuevo Evento
             </Button>
           )}
         </div>
@@ -347,7 +390,7 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
 
         <NewRelationModal
           show={showNewRelationModal}
-          entities={entities ?? []}
+          entities={worldbuildingEntities}
           onClose={handleRelationModalClose}
           onSubmit={handleSubmitRelation}
           relationship={editingRelationship}
@@ -382,7 +425,7 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
             className="mt-4 min-h-0 flex-1 overflow-hidden border-t bg-card"
           >
             <WikiTab
-              entities={entities ?? []}
+              entities={worldbuildingEntities}
               loading={isLoading}
               error={error}
               onEdit={handleEdit}
@@ -399,7 +442,7 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
             className="mt-4 min-h-0 flex-1 overflow-hidden border-t bg-card"
           >
             <RelationshipsPanel
-              entities={entities ?? []}
+              entities={worldbuildingEntities}
               relationships={relationships ?? []}
               loading={isLoading || isLoadingRelationships}
               error={error ?? relationshipsError}
@@ -411,7 +454,16 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
             />
           </TabsContent>
 
-          <TabsContent value="timeline"></TabsContent>
+          <TabsContent
+            value="timeline"
+            className="mt-4 min-h-0 flex-1 overflow-hidden border-t bg-card"
+          >
+            <TimelinePanel
+              entities={worldbuildingEntities}
+              newEventRequest={timelineNewEventRequest}
+              onCreateMockEntity={handleCreateMockEntity}
+            />
+          </TabsContent>
 
           <TabsContent
             value="summaries"
