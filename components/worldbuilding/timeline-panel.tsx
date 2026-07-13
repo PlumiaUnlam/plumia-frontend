@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react"
 import {
   CalendarDays,
+  Maximize2,
+  Minimize2,
   Pencil,
   Trash2,
   Users,
@@ -28,15 +30,13 @@ import {
   type TimelineEvent,
   type TimelineImpact,
 } from "@/mocks/timeline.mock"
-import type { Entity, EntityType } from "@/types/entity"
+import type { Entity } from "@/types/entity"
 
 type TimelinePanelProps = {
   entities: Entity[]
   newEventRequest: number
-  onCreateMockEntity: (input: {
-    canonicalName: string
-    type: EntityType
-  }) => Entity
+  createdEntity: { id: string; revision: number } | null
+  onRequestCreateEntity: (canonicalName: string) => void
 }
 
 const impactLabels: Record<TimelineImpact, string> = {
@@ -67,7 +67,8 @@ function createEmptyEvent(): TimelineEvent {
 export function TimelinePanel({
   entities,
   newEventRequest,
-  onCreateMockEntity,
+  createdEntity,
+  onRequestCreateEntity,
 }: TimelinePanelProps) {
   const [events, setEvents] = useState<TimelineEvent[]>(timelineEventsMock)
   const [isParticipantFilterOpen, setIsParticipantFilterOpen] =
@@ -83,6 +84,9 @@ export function TimelinePanel({
   const [editingEvent, setEditingEvent] = useState<TimelineEvent | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isCompact, setIsCompact] = useState(false)
+  const [expandedEventIds, setExpandedEventIds] = useState<Set<string>>(
+    new Set(),
+  )
 
   const entityById = useMemo(
     () => new Map(entities.map((entity) => [entity.id, entity])),
@@ -140,6 +144,22 @@ export function TimelinePanel({
     })
     setIsDialogOpen(false)
     setEditingEvent(null)
+  }
+
+  const toggleGlobalView = () => {
+    setIsCompact((current) => {
+      if (!current) setExpandedEventIds(new Set())
+      return !current
+    })
+  }
+
+  const toggleEventDetail = (eventId: string) => {
+    setExpandedEventIds((current) => {
+      const next = new Set(current)
+      if (next.has(eventId)) next.delete(eventId)
+      else next.add(eventId)
+      return next
+    })
   }
 
   return (
@@ -214,15 +234,16 @@ export function TimelinePanel({
         </div>
       </aside>
 
-      <main className="min-w-0 flex-1 overflow-y-auto px-5 py-8 sm:px-10 lg:px-16">
+      <main className="min-w-0 flex-1 overflow-y-scroll [scrollbar-gutter:stable] px-5 py-8 sm:px-10 lg:px-16">
         <div className="mx-auto max-w-6xl">
           <div className="mb-5 flex justify-end">
             <Button
               variant="outline"
               size="sm"
-              className="h-9 w-40"
-              onClick={() => setIsCompact((current) => !current)}
+              className="h-9 w-44"
+              onClick={toggleGlobalView}
             >
+              {isCompact ? <Maximize2 /> : <Minimize2 />}
               {isCompact ? "Mostrar detalle" : "Vista global"}
             </Button>
           </div>
@@ -233,8 +254,10 @@ export function TimelinePanel({
                   <span className="absolute -left-[2.85rem] top-3 size-5 rounded-full border-4 border-muted bg-primary sm:-left-[4.6rem]" />
                   <TimelineEventCard
                     compact={isCompact}
+                    expanded={expandedEventIds.has(event.id)}
                     entities={event.entityIds.map((id) => entityById.get(id)).filter((entity): entity is Entity => !!entity)}
                     event={event}
+                    onToggleDetail={() => toggleEventDetail(event.id)}
                     onEdit={() => {
                       setEditingEvent(event)
                       setIsDialogOpen(true)
@@ -256,9 +279,10 @@ export function TimelinePanel({
 
       <TimelineEventDialog
         entities={entities}
+        createdEntity={createdEntity}
         event={editingEvent}
         open={isDialogOpen}
-        onCreateMockEntity={onCreateMockEntity}
+        onRequestCreateEntity={onRequestCreateEntity}
         onOpenChange={(open) => {
           setIsDialogOpen(open)
           if (!open) setEditingEvent(null)
@@ -277,23 +301,24 @@ function FilterButton({ active, children, onClick }: { active: boolean; children
   )
 }
 
-function TimelineEventCard({ compact, entities, event, onEdit, onDelete }: { compact: boolean; entities: Entity[]; event: TimelineEvent; onEdit: () => void; onDelete: () => void }) {
+function TimelineEventCard({ compact, expanded, entities, event, onToggleDetail, onEdit, onDelete }: { compact: boolean; expanded: boolean; entities: Entity[]; event: TimelineEvent; onToggleDetail: () => void; onEdit: () => void; onDelete: () => void }) {
   const characters = entities.filter((entity) => entity.type !== "LOCATION")
   const locations = entities.filter((entity) => entity.type === "LOCATION")
+  const showDetails = !compact || expanded
 
   return (
-    <article className={`rounded-2xl border-2 shadow-sm ${impactStyles[event.impact]} ${compact ? "p-4" : "p-6"}`}>
+    <article className={`w-full rounded-2xl border-2 shadow-sm ${impactStyles[event.impact]} ${showDetails ? "p-6" : "p-4"} ${compact ? "cursor-pointer" : ""}`} onClick={compact ? onToggleDetail : undefined} onKeyDown={(eventKey) => { if (compact && (eventKey.key === "Enter" || eventKey.key === " ")) { eventKey.preventDefault(); onToggleDetail() } }} role={compact ? "button" : undefined} tabIndex={compact ? 0 : undefined}>
       <header className="flex items-start justify-between gap-4">
         <div>
           <p className="mb-2 text-sm font-medium text-primary/75">{event.temporalLabel || event.date || "Sin fecha"}</p>
-          <h2 className={`${compact ? "text-lg" : "text-xl sm:text-2xl"} font-bold tracking-tight`}>{event.title}</h2>
+          <h2 className={`${showDetails ? "text-xl sm:text-2xl" : "text-lg"} font-bold tracking-tight`}>{event.title}</h2>
         </div>
         <div className="flex shrink-0 gap-1">
-          <Button variant="ghost" size="icon-sm" aria-label={`Editar ${event.title}`} onClick={onEdit}><Pencil /></Button>
-          <Button variant="ghost" size="icon-sm" aria-label={`Eliminar ${event.title}`} onClick={onDelete}><Trash2 /></Button>
+          <Button variant="ghost" size="icon-sm" aria-label={`Editar ${event.title}`} onClick={(clickEvent) => { clickEvent.stopPropagation(); onEdit() }}><Pencil /></Button>
+          <Button variant="ghost" size="icon-sm" aria-label={`Eliminar ${event.title}`} onClick={(clickEvent) => { clickEvent.stopPropagation(); onDelete() }}><Trash2 /></Button>
         </div>
       </header>
-      {!compact && (
+      {showDetails && (
         <>
           <p className="mt-4 text-base leading-relaxed text-foreground/90">{event.description}</p>
           <div className="mt-5 flex flex-wrap gap-2">
@@ -307,15 +332,23 @@ function TimelineEventCard({ compact, entities, event, onEdit, onDelete }: { com
   )
 }
 
-function TimelineEventDialog({ entities, event, open, onCreateMockEntity, onOpenChange, onSave }: { entities: Entity[]; event: TimelineEvent | null; open: boolean; onCreateMockEntity: TimelinePanelProps["onCreateMockEntity"]; onOpenChange: (open: boolean) => void; onSave: (event: TimelineEvent) => void }) {
+function TimelineEventDialog({ entities, createdEntity, event, open, onRequestCreateEntity, onOpenChange, onSave }: { entities: Entity[]; createdEntity: TimelinePanelProps["createdEntity"]; event: TimelineEvent | null; open: boolean; onRequestCreateEntity: TimelinePanelProps["onRequestCreateEntity"]; onOpenChange: (open: boolean) => void; onSave: (event: TimelineEvent) => void }) {
   const [draft, setDraft] = useState<TimelineEvent | null>(null)
-  const [isEntityDialogOpen, setIsEntityDialogOpen] = useState(false)
-  const [newEntityName, setNewEntityName] = useState("")
   const displayedDraft = draft ?? event
 
   useEffect(() => {
     if (open) setDraft(event)
   }, [event, open])
+
+  useEffect(() => {
+    if (!open || !createdEntity) return
+
+    setDraft((current) => {
+      const base = current ?? event
+      if (!base || base.entityIds.includes(createdEntity.id)) return base
+      return { ...base, entityIds: [...base.entityIds, createdEntity.id] }
+    })
+  }, [createdEntity, event, open])
 
   if (!displayedDraft) return null
 
@@ -346,30 +379,15 @@ function TimelineEventDialog({ entities, event, open, onCreateMockEntity, onOpen
                 entities={entities}
                 selectedEntityIds={displayedDraft.entityIds}
                 onChange={(entityIds) => updateDraft({ entityIds })}
-                onCreateEntity={(canonicalName) => {
-                  setNewEntityName(canonicalName)
-                  setIsEntityDialogOpen(true)
-                }}
+                onCreateEntity={onRequestCreateEntity}
               />
             </div>
           </div>
           <DialogFooter className="px-9 py-5"><Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button><Button disabled={!displayedDraft.title.trim()} onClick={() => onSave(displayedDraft)}>{isEditing ? "Guardar cambios" : "Crear evento"}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
-      <CreateMockEntityDialog open={isEntityDialogOpen} initialName={newEntityName} onOpenChange={setIsEntityDialogOpen} onCreate={(input) => { const entity = onCreateMockEntity(input); updateDraft({ entityIds: [...displayedDraft.entityIds, entity.id] }) }} />
     </>
   )
-}
-
-function CreateMockEntityDialog({ open, initialName, onOpenChange, onCreate }: { open: boolean; initialName: string; onOpenChange: (open: boolean) => void; onCreate: (input: { canonicalName: string; type: EntityType }) => void }) {
-  const [name, setName] = useState("")
-  const [type, setType] = useState<EntityType>("CHARACTER")
-
-  useEffect(() => {
-    if (open) setName(initialName)
-  }, [initialName, open])
-
-  return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent className="sm:max-w-md"><DialogHeader><DialogTitle>Nueva entidad</DialogTitle></DialogHeader><FormField label="Nombre" htmlFor="timeline-entity-name"><Input id="timeline-entity-name" value={name} onChange={(event) => setName(event.target.value)} placeholder="Nombre de la entidad" /></FormField><FormField label="Tipo" htmlFor="timeline-entity-type"><select id="timeline-entity-type" className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm" value={type} onChange={(event) => setType(event.target.value as EntityType)}><option value="CHARACTER">Personaje</option><option value="LOCATION">Lugar</option><option value="OBJECT">Objeto</option><option value="ORGANIZATION">Facción</option><option value="CONCEPT">Concepto</option></select></FormField><DialogFooter><Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button><Button disabled={!name.trim()} onClick={() => { onCreate({ canonicalName: name.trim(), type }); setName(""); onOpenChange(false) }}>Crear entidad</Button></DialogFooter></DialogContent></Dialog>
 }
 
 function FormField({ label, htmlFor, children }: { label: string; htmlFor: string; children: ReactNode }) {

@@ -49,6 +49,7 @@ type NewEntityModalProps = {
     file?: File | null,
   ) => Promise<void>;
   readonly entity?: Entity | null;
+  readonly initialCanonicalName?: string;
   readonly onGenerateImage?: (data: {
     canonicalName: string;
     description: string;
@@ -63,6 +64,7 @@ export function NewEntityModal({
   onClose,
   onSubmit,
   entity,
+  initialCanonicalName,
   onGenerateImage,
   onClearAiPreview,
 }: NewEntityModalProps) {
@@ -102,7 +104,7 @@ export function NewEntityModal({
         setDescription(initialEntity.description ?? "");
         setTags(initialEntity.aliases);
       } else {
-        setName("");
+        setName(initialCanonicalName ?? "");
         setCategory("Personaje");
         setDescription("");
         setTags([]);

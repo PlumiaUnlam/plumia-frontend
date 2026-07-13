@@ -40,12 +40,8 @@ export function EntitySelector({
     .map((entityId) => entities.find((entity) => entity.id === entityId))
     .filter((entity): entity is Entity => !!entity)
   const normalizedSearchValue = searchValue.trim().toLocaleLowerCase()
-  const hasExactMatch = entities.some(
-    (entity) =>
-      entity.canonicalName.toLocaleLowerCase() === normalizedSearchValue,
-  )
   const canCreateEntity =
-    !!onCreateEntity && normalizedSearchValue.length > 0 && !hasExactMatch
+    !!onCreateEntity && normalizedSearchValue.length > 0
 
   return (
     <Field>

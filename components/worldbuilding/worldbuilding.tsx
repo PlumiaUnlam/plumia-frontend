@@ -94,6 +94,13 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
     null,
   );
   const [timelineNewEventRequest, setTimelineNewEventRequest] = useState(0);
+  const [timelineEntityInitialName, setTimelineEntityInitialName] = useState<
+    string | null
+  >(null);
+  const [timelineCreatedEntity, setTimelineCreatedEntity] = useState<{
+    id: string;
+    revision: number;
+  } | null>(null);
   const [mockEntities, setMockEntities] = useState<Entity[]>(
     worldbuildingEntitiesMock,
   );
@@ -139,15 +146,22 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
     },
   );
 
+  const createdMockEntities = mockEntities.filter(
+    (entity) =>
+      !worldbuildingEntitiesMock.some(
+        (mockEntity) => mockEntity.id === entity.id,
+      ),
+  );
+  const worldbuildingEntities = entities?.length
+    ? [...entities, ...createdMockEntities]
+    : mockEntities;
+
   const selectedEntity = useMemo(
     () =>
-      (entities?.length ? entities : mockEntities).find(
-        (entity) => entity.id === selectedEntityId,
-      ) ?? null,
-    [entities, mockEntities, selectedEntityId],
+      worldbuildingEntities.find((entity) => entity.id === selectedEntityId) ??
+      null,
+    [selectedEntityId, worldbuildingEntities],
   );
-
-  const worldbuildingEntities = entities?.length ? entities : mockEntities;
 
   const handleCreateMockEntity = (input: {
     canonicalName: string;
@@ -206,6 +220,19 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
     data: CreateEntityInput | UpdateEntityInput,
     file?: File | null,
   ) => {
+    if (timelineEntityInitialName !== null && !editingEntity) {
+      const entity = handleCreateMockEntity({
+        canonicalName: data.canonicalName ?? timelineEntityInitialName,
+        type: data.type ?? "CHARACTER",
+      });
+      setTimelineCreatedEntity((current) => ({
+        id: entity.id,
+        revision: (current?.revision ?? 0) + 1,
+      }));
+      setSelectedEntityId(entity.id);
+      return;
+    }
+
     let entityId: string;
     if (editingEntity) {
       entityId = editingEntity.id;
@@ -313,6 +340,7 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
   const handleModalClose = () => {
     setShowNewEntityModal(false);
     setEditingEntity(null);
+    setTimelineEntityInitialName(null);
     aiStorageKeyRef.current = null;
     aiPromptRef.current = null;
     aiImageTypeRef.current = null;
@@ -384,6 +412,7 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
           onClose={handleModalClose}
           onSubmit={handleSubmitModal}
           entity={currentEntity}
+          initialCanonicalName={timelineEntityInitialName ?? undefined}
           onGenerateImage={handleGenerateImage}
           onClearAiPreview={handleClearAiPreview}
         />
@@ -460,8 +489,13 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
           >
             <TimelinePanel
               entities={worldbuildingEntities}
+              createdEntity={timelineCreatedEntity}
               newEventRequest={timelineNewEventRequest}
-              onCreateMockEntity={handleCreateMockEntity}
+              onRequestCreateEntity={(canonicalName) => {
+                setEditingEntity(null);
+                setTimelineEntityInitialName(canonicalName);
+                setShowNewEntityModal(true);
+              }}
             />
           </TabsContent>
 
