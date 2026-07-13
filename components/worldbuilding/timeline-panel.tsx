@@ -232,7 +232,7 @@ export function TimelinePanel({
                 <li key={event.id} className="relative">
                   <span className="absolute -left-[2.85rem] top-3 size-5 rounded-full border-4 border-muted bg-primary sm:-left-[4.6rem]" />
                   <TimelineEventCard
-                    compact={compact}
+                    compact={isCompact}
                     entities={event.entityIds.map((id) => entityById.get(id)).filter((entity): entity is Entity => !!entity)}
                     event={event}
                     onEdit={() => {
