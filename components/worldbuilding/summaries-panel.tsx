@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Album,
   AlertCircle,
@@ -20,6 +20,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  generateChapterSummary,
+  getChapterSummary,
+  getSummaryJob,
+  type SummaryResponse,
+} from "@/services/worldbuilding.service";
 
 export type SummaryChapter = {
   id: string;
@@ -33,6 +39,46 @@ type SummariesPanelProps = {
   error?: Error;
 };
 
+type SummaryView = {
+  text: string;
+  generatedAt: string;
+  model: string;
+  isDirty: boolean;
+};
+
+const SUMMARY_JOB_POLL_MS = 1500;
+const SUMMARY_JOB_TIMEOUT_MS = 120000;
+
+function toSummaryView(summary: SummaryResponse): SummaryView {
+  return {
+    text: summary.content,
+    generatedAt: summary.updatedAt,
+    model: summary.model ?? summary.provider ?? "PlumIA",
+    isDirty: summary.isDirty,
+  };
+}
+
+function wait(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+async function waitForSummaryJob(jobId: string) {
+  const deadline = Date.now() + SUMMARY_JOB_TIMEOUT_MS;
+
+  while (Date.now() < deadline) {
+    const job = await getSummaryJob(jobId);
+
+    if (job.status === "COMPLETED") return;
+    if (job.status === "FAILED") {
+      throw new Error(job.errorMessage ?? "No se pudo generar el resumen");
+    }
+
+    await wait(SUMMARY_JOB_POLL_MS);
+  }
+
+  throw new Error("El resumen sigue en proceso. Intentalo nuevamente en unos minutos.");
+}
+
 export function SummariesPanel({
   chapters,
   loading,
@@ -40,16 +86,8 @@ export function SummariesPanel({
 }: SummariesPanelProps) {
   const [activeChapterId, setActiveChapterId] = useState<string | null>(null);
   const [generatingIds, setGeneratingIds] = useState<Set<string>>(new Set());
-  const [summaries, setSummaries] = useState<
-    Record<
-      string,
-      {
-        text: string;
-        generatedAt: string;
-        model: string;
-      }
-    >
-  >({});
+  const [summaries, setSummaries] = useState<Record<string, SummaryView>>({});
+  const [summaryError, setSummaryError] = useState<string | null>(null);
 
   const activeChapter =
     chapters.find((chapter) => chapter.id === activeChapterId) ?? null;
@@ -66,45 +104,84 @@ export function SummariesPanel({
     [chapters, generatingIds, summaries],
   );
 
-  const handleGenerate = (chapter: SummaryChapter) => {
-    setGeneratingIds((current) => new Set(current).add(chapter.id));
+  useEffect(() => {
+    if (loading || error || chapters.length === 0) return;
 
-    window.setTimeout(() => {
+    let cancelled = false;
+
+    async function loadSummaries() {
+      const results = await Promise.all(
+        chapters.map(async (chapter) => ({
+          chapterId: chapter.id,
+          summary: await getChapterSummary(chapter.id),
+        })),
+      );
+
+      if (cancelled) return;
+
+      setSummaries((current) => {
+        const next = { ...current };
+        results.forEach(({ chapterId, summary }) => {
+          if (summary) {
+            next[chapterId] = toSummaryView(summary);
+          } else {
+            delete next[chapterId];
+          }
+        });
+        return next;
+      });
+    }
+
+    void loadSummaries().catch((loadError: unknown) => {
+      if (!cancelled) {
+        setSummaryError(
+          loadError instanceof Error
+            ? loadError.message
+            : "No se pudieron cargar los resúmenes.",
+        );
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [chapters, error, loading]);
+
+  const handleGenerate = async (chapter: SummaryChapter) => {
+    setSummaryError(null);
+    setGeneratingIds((current) => new Set(current).add(chapter.id));
+    setActiveChapterId(chapter.id);
+
+    try {
+      const job = await generateChapterSummary(chapter.id);
+      if (job.status !== "COMPLETED") {
+        await waitForSummaryJob(job.id);
+      }
+      const summary = await getChapterSummary(chapter.id);
+      if (!summary) {
+        throw new Error("El backend no devolvió el resumen generado.");
+      }
       setSummaries((current) => ({
         ...current,
-        [chapter.id]: {
-          text: `Resumen generado automáticamente para "${chapter.title}". PlumIA analizó ${chapter.wordCount.toLocaleString()} palabras del capítulo e identificó los puntos principales de la trama, el desarrollo de personajes y los cambios relevantes para la continuidad de la obra.`,
-          generatedAt: new Date().toISOString(),
-          model: "PlumIA",
-        },
+        [chapter.id]: toSummaryView(summary),
       }));
+    } catch (generateError) {
+      setSummaryError(
+        generateError instanceof Error
+          ? generateError.message
+          : "No se pudo generar el resumen.",
+      );
+    } finally {
       setGeneratingIds((current) => {
         const next = new Set(current);
         next.delete(chapter.id);
         return next;
       });
-      setActiveChapterId(chapter.id);
-    }, 900);
+    }
   };
 
-  const handleRegenerate = (chapter: SummaryChapter) => {
-    setGeneratingIds((current) => new Set(current).add(chapter.id));
-
-    window.setTimeout(() => {
-      setSummaries((current) => ({
-        ...current,
-        [chapter.id]: {
-          text: `Resumen regenerado para "${chapter.title}". PlumIA revisitó el capítulo y produjo una síntesis actualizada de los eventos, motivaciones y cambios narrativos principales.`,
-          generatedAt: new Date().toISOString(),
-          model: "PlumIA",
-        },
-      }));
-      setGeneratingIds((current) => {
-        const next = new Set(current);
-        next.delete(chapter.id);
-        return next;
-      });
-    }, 900);
+  const handleRegenerate = async (chapter: SummaryChapter) => {
+    await handleGenerate(chapter);
   };
 
   const handleGenerateAll = () => {
@@ -114,7 +191,7 @@ export function SummariesPanel({
           !summaries[chapter.id] && !generatingIds.has(chapter.id),
       )
       .forEach((chapter, index) => {
-        window.setTimeout(() => handleGenerate(chapter), index * 250);
+        window.setTimeout(() => void handleGenerate(chapter), index * 250);
       });
   };
 
@@ -314,7 +391,7 @@ export function SummariesPanel({
                       </Button>
                       <Button
                         size="sm"
-                        onClick={() => handleRegenerate(activeChapter)}
+                        onClick={() => void handleRegenerate(activeChapter)}
                       >
                         <RefreshCw className="size-3.5" />
                         Regenerar
@@ -324,7 +401,7 @@ export function SummariesPanel({
                   {!activeSummary && !generatingIds.has(activeChapter.id) && (
                     <Button
                       size="sm"
-                      onClick={() => handleGenerate(activeChapter)}
+                      onClick={() => void handleGenerate(activeChapter)}
                     >
                       <Sparkles className="size-3.5" />
                       Generar resumen
@@ -358,6 +435,14 @@ export function SummariesPanel({
                 </div>
               ) : activeSummary ? (
                 <div className="w-full space-y-6">
+                  {summaryError && (
+                    <Alert className="border-destructive/20 bg-destructive/5 text-muted-foreground">
+                      <AlertCircle className="mt-0.5 size-4 shrink-0 text-destructive" />
+                      <AlertDescription className="text-xs leading-relaxed">
+                        {summaryError}
+                      </AlertDescription>
+                    </Alert>
+                  )}
                   <Card className="w-full shadow-sm">
                     <CardHeader className="border-b border-border/60">
                       <div className="flex items-center gap-2">
@@ -374,18 +459,28 @@ export function SummariesPanel({
                     </CardContent>
                   </Card>
 
-                  <Alert className="border-amber-500/20 bg-amber-500/5 text-muted-foreground">
-                    <AlertCircle className="mt-0.5 size-4 shrink-0 text-amber-500" />
-                    <AlertDescription className="text-xs leading-relaxed">
-                      Si has editado el capítulo desde que se generó este
-                      resumen, usa{" "}
-                      <strong className="text-foreground">Regenerar</strong>{" "}
-                      para actualizarlo con los cambios más recientes.
-                    </AlertDescription>
-                  </Alert>
+                  {activeSummary.isDirty && (
+                    <Alert className="border-amber-500/20 bg-amber-500/5 text-muted-foreground">
+                      <AlertCircle className="mt-0.5 size-4 shrink-0 text-amber-500" />
+                      <AlertDescription className="text-xs leading-relaxed">
+                        Si has editado el capítulo desde que se generó este
+                        resumen, usa{" "}
+                        <strong className="text-foreground">Regenerar</strong>{" "}
+                        para actualizarlo con los cambios más recientes.
+                      </AlertDescription>
+                    </Alert>
+                  )}
                 </div>
               ) : (
                 <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 text-primary opacity-70">
+                  {summaryError && (
+                    <Alert className="mb-4 max-w-md border-destructive/20 bg-destructive/5 text-muted-foreground opacity-100">
+                      <AlertCircle className="mt-0.5 size-4 shrink-0 text-destructive" />
+                      <AlertDescription className="text-xs leading-relaxed">
+                        {summaryError}
+                      </AlertDescription>
+                    </Alert>
+                  )}
                   <FileText size={48} />
                   <h2 className="text-lg font-semibold">
                     Sin resumen todavía
