@@ -3,9 +3,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react"
 import {
   CalendarDays,
-  ChevronDown,
-  Maximize2,
-  Minimize2,
   Pencil,
   Trash2,
   Users,
@@ -33,11 +30,10 @@ import {
 } from "@/mocks/timeline.mock"
 import type { Entity, EntityType } from "@/types/entity"
 
-type TimelineFilter = "all" | "participant" | "arc"
-
 type TimelinePanelProps = {
   entities: Entity[]
   newEventRequest: number
+  compact: boolean
   onCreateMockEntity: (input: {
     canonicalName: string
     type: EntityType
@@ -72,10 +68,13 @@ function createEmptyEvent(): TimelineEvent {
 export function TimelinePanel({
   entities,
   newEventRequest,
+  compact,
   onCreateMockEntity,
 }: TimelinePanelProps) {
   const [events, setEvents] = useState<TimelineEvent[]>(timelineEventsMock)
-  const [activeFilter, setActiveFilter] = useState<TimelineFilter>("all")
+  const [isParticipantFilterOpen, setIsParticipantFilterOpen] =
+    useState(false)
+  const [isArcFilterOpen, setIsArcFilterOpen] = useState(false)
   const [selectedImpacts, setSelectedImpacts] = useState<TimelineImpact[]>([
     "high",
     "medium",
@@ -85,7 +84,6 @@ export function TimelinePanel({
   const [selectedArc, setSelectedArc] = useState<string | null>(null)
   const [editingEvent, setEditingEvent] = useState<TimelineEvent | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [isCompact, setIsCompact] = useState(false)
 
   const entityById = useMemo(
     () => new Map(entities.map((entity) => [entity.id, entity])),
@@ -104,14 +102,11 @@ export function TimelinePanel({
       events.filter(
         (event) =>
           selectedImpacts.includes(event.impact) &&
-          (activeFilter !== "participant" ||
-            !selectedEntityId ||
+          (!selectedEntityId ||
             event.entityIds.includes(selectedEntityId)) &&
-          (activeFilter !== "arc" ||
-            !selectedArc ||
-            event.arc === selectedArc),
+          (!selectedArc || event.arc === selectedArc),
       ),
-    [activeFilter, events, selectedArc, selectedEntityId, selectedImpacts],
+    [events, selectedArc, selectedEntityId, selectedImpacts],
   )
 
   useEffect(() => {
@@ -120,12 +115,6 @@ export function TimelinePanel({
       setIsDialogOpen(true)
     }
   }, [newEventRequest])
-
-  const selectFilter = (filter: TimelineFilter) => {
-    setActiveFilter(filter)
-    if (filter !== "participant") setSelectedEntityId(null)
-    if (filter !== "arc") setSelectedArc(null)
-  }
 
   const toggleImpact = (impact: TimelineImpact) => {
     setSelectedImpacts((current) =>
@@ -156,13 +145,16 @@ export function TimelinePanel({
         </p>
 
         <div className="space-y-3">
-          <FilterButton active={activeFilter === "all"} onClick={() => selectFilter("all")}>
+          <div className="rounded-lg border border-border bg-card px-4 py-3 text-sm font-semibold text-foreground">
             Todos los eventos
-          </FilterButton>
-          <FilterButton active={activeFilter === "participant"} onClick={() => selectFilter("participant")}>
+          </div>
+          <FilterButton
+            active={isParticipantFilterOpen}
+            onClick={() => setIsParticipantFilterOpen((current) => !current)}
+          >
             Por personaje
           </FilterButton>
-          {activeFilter === "participant" && (
+          {isParticipantFilterOpen && (
             <select
               aria-label="Filtrar por personaje"
               className="h-9 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
@@ -177,10 +169,13 @@ export function TimelinePanel({
               ))}
             </select>
           )}
-          <FilterButton active={activeFilter === "arc"} onClick={() => selectFilter("arc")}>
+          <FilterButton
+            active={isArcFilterOpen}
+            onClick={() => setIsArcFilterOpen((current) => !current)}
+          >
             Por arco narrativo
           </FilterButton>
-          {activeFilter === "arc" && (
+          {isArcFilterOpen && (
             <select
               aria-label="Filtrar por arco narrativo"
               className="h-9 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
@@ -212,20 +207,13 @@ export function TimelinePanel({
 
       <main className="min-w-0 flex-1 overflow-y-auto px-5 py-8 sm:px-10 lg:px-16">
         <div className="mx-auto max-w-6xl">
-          <div className="mb-5 flex justify-end">
-            <Button variant="outline" size="sm" onClick={() => setIsCompact((current) => !current)}>
-              {isCompact ? <Maximize2 /> : <Minimize2 />}
-              {isCompact ? "Mostrar detalle" : "Vista global"}
-            </Button>
-          </div>
-
           {visibleEvents.length > 0 ? (
             <ol className="relative ml-3 space-y-10 border-l-2 border-primary/20 pl-9 sm:ml-8 sm:pl-16">
               {visibleEvents.map((event) => (
                 <li key={event.id} className="relative">
                   <span className="absolute -left-[2.85rem] top-3 size-5 rounded-full border-4 border-muted bg-primary sm:-left-[4.6rem]" />
                   <TimelineEventCard
-                    compact={isCompact}
+                    compact={compact}
                     entities={event.entityIds.map((id) => entityById.get(id)).filter((entity): entity is Entity => !!entity)}
                     event={event}
                     onEdit={() => {
@@ -266,7 +254,6 @@ function FilterButton({ active, children, onClick }: { active: boolean; children
   return (
     <button type="button" className={`flex w-full items-center justify-between rounded-lg border px-4 py-3 text-left text-sm font-semibold transition-colors ${active ? "border-primary/35 bg-primary/10 text-primary" : "border-border bg-card text-foreground hover:border-primary/35 hover:bg-primary/5"}`} onClick={onClick}>
       {children}
-      <ChevronDown className={`size-4 transition-transform ${active ? "rotate-180" : ""}`} />
     </button>
   )
 }
