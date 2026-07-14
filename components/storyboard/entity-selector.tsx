@@ -25,6 +25,7 @@ type EntitySelectorProps = {
   selectedEntityIds: string[]
   onChange: (entityIds: string[]) => void
   onCreateEntity?: (canonicalName: string) => void
+  label?: string
 }
 
 export function EntitySelector({
@@ -32,6 +33,7 @@ export function EntitySelector({
   selectedEntityIds,
   onChange,
   onCreateEntity,
+  label = "Entidades relacionadas",
 }: EntitySelectorProps) {
   const portalContainerRef = useRef<HTMLDivElement | null>(null)
   const anchorRef = useComboboxAnchor()
@@ -45,12 +47,14 @@ export function EntitySelector({
 
   return (
     <Field>
-      <FieldLabel>Entidades relacionadas</FieldLabel>
+      {label && <FieldLabel>{label}</FieldLabel>}
       <FieldContent>
         <div ref={portalContainerRef} />
         <Combobox<Entity, true>
           items={entities}
           multiple
+          inputValue={searchValue}
+          onInputValueChange={setSearchValue}
           value={selectedEntities}
           onValueChange={(nextEntities) => {
             onChange(nextEntities.map((entity) => entity.id))
@@ -79,7 +83,6 @@ export function EntitySelector({
                   ))}
                   <ComboboxChipsInput
                     className="placeholder:text-muted-foreground"
-                    onChange={(event) => setSearchValue(event.target.value)}
                     placeholder={
                       value.length > 0 ? "" : "Buscar y seleccionar entidades..."
                     }

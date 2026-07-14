@@ -377,6 +377,7 @@ function TimelineEventDialog({ entities, createdEntity, event, open, onRequestCr
               <Label>Entidades involucradas</Label>
               <EntitySelector
                 entities={entities}
+                label=""
                 selectedEntityIds={displayedDraft.entityIds}
                 onChange={(entityIds) => updateDraft({ entityIds })}
                 onCreateEntity={onRequestCreateEntity}
