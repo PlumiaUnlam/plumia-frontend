@@ -42,8 +42,7 @@ export function EntitySelector({
     .map((entityId) => entities.find((entity) => entity.id === entityId))
     .filter((entity): entity is Entity => !!entity)
   const normalizedSearchValue = searchValue.trim().toLocaleLowerCase()
-  const canCreateEntity =
-    !!onCreateEntity && normalizedSearchValue.length > 0
+  const canCreateEntity = !!onCreateEntity
 
   return (
     <Field>
@@ -130,7 +129,9 @@ export function EntitySelector({
                 }}
               >
                 <Plus className="size-4" />
-                Crear &ldquo;{searchValue.trim()}&rdquo;
+                {normalizedSearchValue.length > 0
+                  ? `Crear “${searchValue.trim()}”`
+                  : "Crear nueva entidad"}
               </button>
             )}
           </ComboboxContent>
