@@ -1,8 +1,10 @@
 "use client"
 
 import { useEffect, useMemo, useState, type ReactNode } from "react"
+import useSWR from "swr"
 import {
   CalendarDays,
+  Loader2,
   Maximize2,
   Minimize2,
   Pencil,
@@ -26,66 +28,133 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import {
-  timelineEventsMock,
-  type TimelineEvent,
-  type TimelineImpact,
-} from "@/mocks/timeline.mock"
+  createTimelineEvent,
+  deleteTimelineEvent,
+  getTimelineEvents,
+  updateTimelineEvent,
+} from "@/services/timeline.service"
+import { getStoryboardArcs } from "@/services/storyboard-matrix.service"
 import type { Entity } from "@/types/entity"
+import type { StoryboardArc } from "@/types/storyboard-matrix"
+import type {
+  CreateTimelineEventInput,
+  TimelineEvent,
+  TimelineEventInput,
+  TimelineImpact,
+} from "@/types/timeline"
 
 type TimelinePanelProps = {
+  projectId: string
+  enabled: boolean
   entities: Entity[]
   newEventRequest: number
   createdEntity: { id: string; revision: number } | null
   onRequestCreateEntity: (canonicalName: string) => void
 }
 
+type TimelineDraft = {
+  title: string
+  description: string
+  date: string
+  temporalLabel: string
+  impact: TimelineImpact
+  storyboardArcId: string | null
+  entityIds: string[]
+}
+
+const generalArcFilter = "__general_events__"
+
 const impactLabels: Record<TimelineImpact, string> = {
-  high: "Alto",
-  medium: "Medio",
-  low: "Bajo",
+  HIGH: "Alto",
+  MEDIUM: "Medio",
+  LOW: "Bajo",
 }
 
 const impactStyles: Record<TimelineImpact, string> = {
-  high: "border-red-500 bg-red-50/70 dark:bg-red-950/20",
-  medium: "border-amber-500 bg-amber-50/70 dark:bg-amber-950/20",
-  low: "border-primary/45 bg-card",
+  HIGH: "border-red-500 bg-red-50/70 dark:bg-red-950/20",
+  MEDIUM: "border-amber-500 bg-amber-50/70 dark:bg-amber-950/20",
+  LOW: "border-primary/45 bg-card",
 }
 
-function createEmptyEvent(): TimelineEvent {
+function createEmptyDraft(): TimelineDraft {
   return {
-    id: crypto.randomUUID(),
-    date: "",
-    temporalLabel: "",
     title: "",
     description: "",
+    date: "",
+    temporalLabel: "",
+    impact: "MEDIUM",
+    storyboardArcId: null,
     entityIds: [],
-    arc: "",
-    impact: "medium",
+  }
+}
+
+function toDraft(event: TimelineEvent): TimelineDraft {
+  return {
+    title: event.title,
+    description: event.description ?? "",
+    date: event.date ?? "",
+    temporalLabel: event.temporalLabel ?? "",
+    impact: event.impact,
+    storyboardArcId: event.storyboardArcId,
+    entityIds: event.entityIds,
+  }
+}
+
+function toInput(draft: TimelineDraft): TimelineEventInput {
+  return {
+    title: draft.title.trim(),
+    description: draft.description.trim() || null,
+    date: draft.date.trim() || null,
+    temporalLabel: draft.temporalLabel.trim() || null,
+    impact: draft.impact,
+    storyboardArcId: draft.storyboardArcId,
+    entityIds: draft.entityIds,
   }
 }
 
 export function TimelinePanel({
+  projectId,
+  enabled,
   entities,
   newEventRequest,
   createdEntity,
   onRequestCreateEntity,
 }: TimelinePanelProps) {
-  const [events, setEvents] = useState<TimelineEvent[]>(timelineEventsMock)
   const [isParticipantFilterOpen, setIsParticipantFilterOpen] =
     useState(false)
   const [isArcFilterOpen, setIsArcFilterOpen] = useState(false)
   const [selectedImpacts, setSelectedImpacts] = useState<TimelineImpact[]>([
-    "high",
-    "medium",
-    "low",
+    "HIGH",
+    "MEDIUM",
+    "LOW",
   ])
   const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null)
-  const [selectedArc, setSelectedArc] = useState<string | null>(null)
+  const [selectedArcId, setSelectedArcId] = useState<string | null>(null)
   const [editingEvent, setEditingEvent] = useState<TimelineEvent | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isCompact, setIsCompact] = useState(false)
+  const [actionError, setActionError] = useState<string | null>(null)
   const [expandedEventIds, setExpandedEventIds] = useState<Set<string>>(
     new Set(),
+  )
+
+  const {
+    data: events,
+    error: eventsError,
+    isLoading: isLoadingEvents,
+    mutate: mutateEvents,
+  } = useSWR(
+    enabled ? `/knowledge/timeline?projectId=${projectId}` : null,
+    () => getTimelineEvents(projectId),
+  )
+  const {
+    data: arcs,
+    error: arcsError,
+    isLoading: isLoadingArcs,
+    mutate: mutateArcs,
+  } = useSWR(
+    enabled ? `/projects/${projectId}/storyboard-arcs` : null,
+    () => getStoryboardArcs(projectId),
   )
 
   const entityById = useMemo(
@@ -96,26 +165,32 @@ export function TimelinePanel({
     () => entities.filter((entity) => entity.type === "CHARACTER"),
     [entities],
   )
-  const arcs = useMemo(
-    () => [...new Set(events.map((event) => event.arc).filter(Boolean))],
-    [events],
-  )
   const visibleEvents = useMemo(
     () =>
-      events.filter(
+      (events ?? []).filter(
         (event) =>
           selectedImpacts.includes(event.impact) &&
-          (!selectedEntityId ||
-            event.entityIds.includes(selectedEntityId)) &&
-          (!selectedArc || event.arc === selectedArc),
+          (!selectedEntityId || event.entityIds.includes(selectedEntityId)) &&
+          (!selectedArcId ||
+            (selectedArcId === generalArcFilter
+              ? event.storyboardArcId === null
+              : event.storyboardArcId === selectedArcId)),
       ),
-    [events, selectedArc, selectedEntityId, selectedImpacts],
+    [events, selectedArcId, selectedEntityId, selectedImpacts],
   )
 
   useEffect(() => {
-    if (newEventRequest > 0) {
-      setEditingEvent(createEmptyEvent())
+    if (newEventRequest === 0) return
+
+    let isCurrent = true
+    queueMicrotask(() => {
+      if (!isCurrent) return
+      setEditingEvent(null)
       setIsDialogOpen(true)
+    })
+
+    return () => {
+      isCurrent = false
     }
   }, [newEventRequest])
 
@@ -129,21 +204,32 @@ export function TimelinePanel({
 
   const resetFilters = () => {
     setSelectedEntityId(null)
-    setSelectedArc(null)
-    setSelectedImpacts(["high", "medium", "low"])
+    setSelectedArcId(null)
+    setSelectedImpacts(["HIGH", "MEDIUM", "LOW"])
   }
 
-  const saveEvent = (event: TimelineEvent) => {
-    setEvents((current) => {
-      const exists = current.some((currentEvent) => currentEvent.id === event.id)
-      return exists
-        ? current.map((currentEvent) =>
-            currentEvent.id === event.id ? event : currentEvent,
-          )
-        : [...current, event]
-    })
-    setIsDialogOpen(false)
-    setEditingEvent(null)
+  const saveEvent = async (input: TimelineEventInput) => {
+    setActionError(null)
+    if (editingEvent) {
+      await updateTimelineEvent(editingEvent.id, input)
+    } else {
+      await createTimelineEvent(projectId, input as CreateTimelineEventInput)
+    }
+    await mutateEvents()
+  }
+
+  const removeEvent = async (event: TimelineEvent) => {
+    try {
+      setActionError(null)
+      await deleteTimelineEvent(event.id)
+      await mutateEvents()
+    } catch (deleteError) {
+      setActionError(
+        deleteError instanceof Error
+          ? deleteError.message
+          : "No se pudo eliminar el evento",
+      )
+    }
   }
 
   const toggleGlobalView = () => {
@@ -160,6 +246,34 @@ export function TimelinePanel({
       else next.add(eventId)
       return next
     })
+  }
+
+  const loading = isLoadingEvents || isLoadingArcs
+  const error = eventsError ?? arcsError
+
+  if (loading) {
+    return (
+      <div className="flex h-full items-center justify-center gap-2 text-primary">
+        <Loader2 className="size-5 animate-spin" />
+        <span className="text-sm font-medium">Cargando línea temporal...</span>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex h-full items-center justify-center p-6 text-center">
+        <div>
+          <h2 className="font-semibold">No se pudo cargar la línea temporal</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {error instanceof Error ? error.message : "Intentá nuevamente."}
+          </p>
+          <Button className="mt-4" variant="outline" onClick={() => { void mutateEvents(); void mutateArcs() }}>
+            Reintentar
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -208,13 +322,14 @@ export function TimelinePanel({
             <select
               aria-label="Filtrar por arco narrativo"
               className="h-9 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-              value={selectedArc ?? ""}
-              onChange={(event) => setSelectedArc(event.target.value || null)}
+              value={selectedArcId ?? ""}
+              onChange={(event) => setSelectedArcId(event.target.value || null)}
             >
               <option value="">Todos los arcos</option>
-              {arcs.map((arc) => (
-                <option key={arc} value={arc}>
-                  {arc}
+              <option value={generalArcFilter}>Hechos generales (sin arco)</option>
+              {(arcs ?? []).map((arc) => (
+                <option key={arc.id} value={arc.id}>
+                  {arc.title}
                 </option>
               ))}
             </select>
@@ -247,6 +362,7 @@ export function TimelinePanel({
               {isCompact ? "Mostrar detalle" : "Vista global"}
             </Button>
           </div>
+          {actionError && <p className="mb-5 text-sm text-destructive">{actionError}</p>}
           {visibleEvents.length > 0 ? (
             <ol className="relative ml-3 space-y-10 border-l-2 border-primary/20 pl-9 sm:ml-8 sm:pl-16">
               {visibleEvents.map((event) => (
@@ -262,7 +378,7 @@ export function TimelinePanel({
                       setEditingEvent(event)
                       setIsDialogOpen(true)
                     }}
-                    onDelete={() => setEvents((current) => current.filter((currentEvent) => currentEvent.id !== event.id))}
+                    onDelete={() => void removeEvent(event)}
                   />
                 </li>
               ))}
@@ -278,6 +394,7 @@ export function TimelinePanel({
       </main>
 
       <TimelineEventDialog
+        arcs={arcs ?? []}
         entities={entities}
         createdEntity={createdEntity}
         event={editingEvent}
@@ -320,81 +437,112 @@ function TimelineEventCard({ compact, expanded, entities, event, onToggleDetail,
       </header>
       {showDetails && (
         <>
-          <p className="mt-4 text-base leading-relaxed text-foreground/90">{event.description}</p>
+          {event.description && <p className="mt-4 text-base leading-relaxed text-foreground/90">{event.description}</p>}
           <div className="mt-5 flex flex-wrap gap-2">
             {characters.map((entity) => <Badge key={entity.id} variant="secondary" className="h-7 gap-1.5 bg-primary/10 px-3 text-sm text-primary"><Users /> {entity.canonicalName}</Badge>)}
             {locations.map((entity) => <Badge key={entity.id} variant="secondary" className="h-7 gap-1.5 bg-emerald-100 px-3 text-sm text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">{entity.canonicalName}</Badge>)}
           </div>
-          {event.arc && <p className="mt-4 flex items-center gap-2 text-sm font-medium text-primary/75"><Zap className="size-4" /> Arco: {event.arc}</p>}
+          {event.arc ? <p className="mt-4 flex items-center gap-2 text-sm font-medium text-primary/75"><Zap className="size-4" /> Arco: {event.arc.title}</p> : <p className="mt-4 text-sm text-muted-foreground">Hecho general de la obra</p>}
         </>
       )}
     </article>
   )
 }
 
-function TimelineEventDialog({ entities, createdEntity, event, open, onRequestCreateEntity, onOpenChange, onSave }: { entities: Entity[]; createdEntity: TimelinePanelProps["createdEntity"]; event: TimelineEvent | null; open: boolean; onRequestCreateEntity: TimelinePanelProps["onRequestCreateEntity"]; onOpenChange: (open: boolean) => void; onSave: (event: TimelineEvent) => void }) {
-  const [draft, setDraft] = useState<TimelineEvent | null>(null)
-  const displayedDraft = draft ?? event
+function TimelineEventDialog({ arcs, entities, createdEntity, event, open, onRequestCreateEntity, onOpenChange, onSave }: { arcs: StoryboardArc[]; entities: Entity[]; createdEntity: TimelinePanelProps["createdEntity"]; event: TimelineEvent | null; open: boolean; onRequestCreateEntity: TimelinePanelProps["onRequestCreateEntity"]; onOpenChange: (open: boolean) => void; onSave: (input: TimelineEventInput) => Promise<void> }) {
+  const [draft, setDraft] = useState<TimelineDraft | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const displayedDraft = draft ?? (event ? toDraft(event) : null)
 
   useEffect(() => {
-    if (open) setDraft(event)
+    if (!open) return
+
+    let isCurrent = true
+    queueMicrotask(() => {
+      if (!isCurrent) return
+      setDraft(event ? toDraft(event) : createEmptyDraft())
+      setError(null)
+    })
+
+    return () => {
+      isCurrent = false
+    }
   }, [event, open])
 
   useEffect(() => {
     if (!open || !createdEntity) return
 
-    setDraft((current) => {
-      const base = current ?? event
-      if (!base || base.entityIds.includes(createdEntity.id)) return base
-      return { ...base, entityIds: [...base.entityIds, createdEntity.id] }
+    let isCurrent = true
+    queueMicrotask(() => {
+      if (!isCurrent) return
+      setDraft((current) => {
+        if (!current || current.entityIds.includes(createdEntity.id)) return current
+        return { ...current, entityIds: [...current.entityIds, createdEntity.id] }
+      })
     })
-  }, [createdEntity, event, open])
+
+    return () => {
+      isCurrent = false
+    }
+  }, [createdEntity, open])
 
   if (!displayedDraft) return null
 
-  const updateDraft = (changes: Partial<TimelineEvent>) => setDraft((current) => ({ ...(current ?? event ?? createEmptyEvent()), ...changes }))
-  const isEditing = event ? eventsTitle(event.id) === "Editar" : false
+  const updateDraft = (changes: Partial<TimelineDraft>) => setDraft((current) => ({ ...(current ?? createEmptyDraft()), ...changes }))
+  const isEditing = event !== null
+  const handleSave = async () => {
+    if (!displayedDraft.title.trim() || submitting) return
+
+    setSubmitting(true)
+    setError(null)
+    try {
+      await onSave(toInput(displayedDraft))
+      onOpenChange(false)
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : "No se pudo guardar el evento")
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   return (
-    <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-h-[88vh] gap-0 overflow-y-auto sm:max-w-4xl">
-          <DialogHeader className="border-b px-9 py-7"><DialogTitle className="text-2xl font-semibold">{isEditing ? "Editar Evento" : "Nuevo Evento"}</DialogTitle></DialogHeader>
-          <div className="space-y-6 px-9 py-9">
-            <FormField label="Nombre del evento *" htmlFor="timeline-title"><Input id="timeline-title" value={displayedDraft.title} onChange={(event) => updateDraft({ title: event.target.value })} placeholder="Ej: Desaparición de Tomás Reyes" /></FormField>
-            <div className="grid gap-6 sm:grid-cols-2">
-              <FormField label="Fecha" htmlFor="timeline-date"><Input id="timeline-date" value={displayedDraft.date} onChange={(event) => updateDraft({ date: event.target.value })} placeholder="Ej: 1847-03-15" /></FormField>
-              <FormField label="Período" htmlFor="timeline-period"><Input id="timeline-period" value={displayedDraft.temporalLabel} onChange={(event) => updateDraft({ temporalLabel: event.target.value })} placeholder="Ej: Primavera de 1847" /></FormField>
-            </div>
-            <FormField label="Descripción" htmlFor="timeline-description"><Textarea id="timeline-description" value={displayedDraft.description} onChange={(event) => updateDraft({ description: event.target.value })} placeholder="Describe qué ocurre en este evento..." rows={5} /></FormField>
-            <div className="space-y-3">
-              <Label>Impacto narrativo</Label>
-              <div className="grid grid-cols-3 gap-3">
-                {(Object.keys(impactLabels) as TimelineImpact[]).map((impact) => <Button key={impact} type="button" variant="outline" className={displayedDraft.impact === impact ? "border-primary bg-primary/10 text-primary hover:bg-primary/10 hover:text-primary" : ""} onClick={() => updateDraft({ impact })}>{impactLabels[impact]}</Button>)}
-              </div>
-            </div>
-            <div className="space-y-3">
-              <Label>Entidades involucradas</Label>
-              <EntitySelector
-                entities={entities}
-                label=""
-                selectedEntityIds={displayedDraft.entityIds}
-                onChange={(entityIds) => updateDraft({ entityIds })}
-                onCreateEntity={onRequestCreateEntity}
-              />
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[88vh] gap-0 overflow-y-auto sm:max-w-4xl">
+        <DialogHeader className="border-b px-9 py-7"><DialogTitle className="text-2xl font-semibold">{isEditing ? "Editar Evento" : "Nuevo Evento"}</DialogTitle></DialogHeader>
+        <div className="space-y-6 px-9 py-9">
+          <FormField label="Nombre del evento *" htmlFor="timeline-title"><Input id="timeline-title" value={displayedDraft.title} onChange={(inputEvent) => updateDraft({ title: inputEvent.target.value })} placeholder="Ej: Desaparición de Tomás Reyes" /></FormField>
+          <div className="grid gap-6 sm:grid-cols-2">
+            <FormField label="Fecha" htmlFor="timeline-date"><Input id="timeline-date" value={displayedDraft.date} onChange={(inputEvent) => updateDraft({ date: inputEvent.target.value })} placeholder="Ej: 1847-03-15" /></FormField>
+            <FormField label="Período" htmlFor="timeline-period"><Input id="timeline-period" value={displayedDraft.temporalLabel} onChange={(inputEvent) => updateDraft({ temporalLabel: inputEvent.target.value })} placeholder="Ej: Unos días después" /></FormField>
+          </div>
+          <FormField label="Descripción" htmlFor="timeline-description"><Textarea id="timeline-description" value={displayedDraft.description} onChange={(inputEvent) => updateDraft({ description: inputEvent.target.value })} placeholder="Describe qué ocurre en este evento..." rows={5} /></FormField>
+          <div className="space-y-2">
+            <Label htmlFor="timeline-arc">Arco narrativo</Label>
+            <select id="timeline-arc" className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50" value={displayedDraft.storyboardArcId ?? ""} onChange={(inputEvent) => updateDraft({ storyboardArcId: inputEvent.target.value || null })}>
+              <option value="">Sin arco — hecho general de la obra</option>
+              {arcs.map((arc) => <option key={arc.id} value={arc.id}>{arc.title}</option>)}
+            </select>
+            <p className="text-xs text-muted-foreground">Usá esta opción para hechos históricos o eventos que atraviesan toda la obra.</p>
+          </div>
+          <div className="space-y-3">
+            <Label>Impacto narrativo</Label>
+            <div className="grid grid-cols-3 gap-3">
+              {(Object.keys(impactLabels) as TimelineImpact[]).map((impact) => <Button key={impact} type="button" variant="outline" className={displayedDraft.impact === impact ? "border-primary bg-primary/10 text-primary hover:bg-primary/10 hover:text-primary" : ""} onClick={() => updateDraft({ impact })}>{impactLabels[impact]}</Button>)}
             </div>
           </div>
-          <DialogFooter className="px-9 py-5"><Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button><Button disabled={!displayedDraft.title.trim()} onClick={() => onSave(displayedDraft)}>{isEditing ? "Guardar cambios" : "Crear evento"}</Button></DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
+          <div className="space-y-3">
+            <Label>Entidades involucradas</Label>
+            <EntitySelector entities={entities} label="" selectedEntityIds={displayedDraft.entityIds} onChange={(entityIds) => updateDraft({ entityIds })} onCreateEntity={onRequestCreateEntity} />
+          </div>
+          {error && <p className="text-sm text-destructive">{error}</p>}
+        </div>
+        <DialogFooter className="px-9 py-5"><Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>Cancelar</Button><Button disabled={!displayedDraft.title.trim() || submitting} onClick={() => void handleSave()}>{submitting && <Loader2 className="animate-spin" />}{isEditing ? "Guardar cambios" : "Crear evento"}</Button></DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 
 function FormField({ label, htmlFor, children }: { label: string; htmlFor: string; children: ReactNode }) {
   return <div className="space-y-2"><Label htmlFor={htmlFor}>{label}</Label>{children}</div>
-}
-
-function eventsTitle(id: string) {
-  return ["tomas", "first", "codex", "alliance"].some((prefix) => id.startsWith(prefix)) ? "Editar" : "Nuevo"
 }

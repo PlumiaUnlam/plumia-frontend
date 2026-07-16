@@ -101,9 +101,7 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
     id: string;
     revision: number;
   } | null>(null);
-  const [mockEntities, setMockEntities] = useState<Entity[]>(
-    worldbuildingEntitiesMock,
-  );
+  const [mockEntities] = useState<Entity[]>(worldbuildingEntitiesMock);
   const [deleting, setDeleting] = useState(false);
   const aiStorageKeyRef = useRef<string | null>(null);
   const aiPromptRef = useRef<string | null>(null);
@@ -146,15 +144,7 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
     },
   );
 
-  const createdMockEntities = mockEntities.filter(
-    (entity) =>
-      !worldbuildingEntitiesMock.some(
-        (mockEntity) => mockEntity.id === entity.id,
-      ),
-  );
-  const worldbuildingEntities = entities?.length
-    ? [...entities, ...createdMockEntities]
-    : mockEntities;
+  const worldbuildingEntities = entities ?? mockEntities;
 
   const selectedEntity = useMemo(
     () =>
@@ -162,28 +152,6 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
       null,
     [selectedEntityId, worldbuildingEntities],
   );
-
-  const handleCreateMockEntity = (input: {
-    canonicalName: string;
-    type: Entity["type"];
-  }): Entity => {
-    const now = new Date().toISOString();
-    const entity: Entity = {
-      id: crypto.randomUUID(),
-      canonicalName: input.canonicalName,
-      type: input.type,
-      description: null,
-      aliases: [],
-      imageUrl: null,
-      projectId,
-      isActive: true,
-      attributes: {},
-      createdAt: now,
-      updatedAt: now,
-    };
-    setMockEntities((current) => [...current, entity]);
-    return entity;
-  };
 
   const handleGenerateImage = async (data: {
     canonicalName: string;
@@ -220,18 +188,8 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
     data: CreateEntityInput | UpdateEntityInput,
     file?: File | null,
   ) => {
-    if (timelineEntityInitialName !== null && !editingEntity) {
-      const entity = handleCreateMockEntity({
-        canonicalName: data.canonicalName ?? timelineEntityInitialName,
-        type: data.type ?? "CHARACTER",
-      });
-      setTimelineCreatedEntity((current) => ({
-        id: entity.id,
-        revision: (current?.revision ?? 0) + 1,
-      }));
-      setSelectedEntityId(entity.id);
-      return;
-    }
+    const isTimelineEntityCreation =
+      timelineEntityInitialName !== null && !editingEntity;
 
     let entityId: string;
     if (editingEntity) {
@@ -294,6 +252,12 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
     }
     await mutate();
     setSelectedEntityId(entityId);
+    if (isTimelineEntityCreation) {
+      setTimelineCreatedEntity((current) => ({
+        id: entityId,
+        revision: (current?.revision ?? 0) + 1,
+      }));
+    }
   };
 
   const handleSubmitRelation = async (
@@ -488,6 +452,8 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
             className="mt-4 min-h-0 flex-1 overflow-hidden border-t bg-card"
           >
             <TimelinePanel
+              projectId={projectId}
+              enabled={shouldFetch}
               entities={worldbuildingEntities}
               createdEntity={timelineCreatedEntity}
               newEventRequest={timelineNewEventRequest}
