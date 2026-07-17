@@ -175,6 +175,10 @@ export function TimelinePanel({
   const [pendingMove, setPendingMove] = useState<PendingMove | null>(null)
   const [isMoving, setIsMoving] = useState(false)
   const [activeDragEventId, setActiveDragEventId] = useState<string | null>(null)
+  const [deleteConfirmEvent, setDeleteConfirmEvent] =
+    useState<TimelineEvent | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
   const [moveError, setMoveError] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [expandedEventIds, setExpandedEventIds] = useState<Set<string>>(
@@ -224,7 +228,10 @@ export function TimelinePanel({
       ),
     [events, selectedArcId, selectedEntityId, selectedImpacts],
   )
-  const displayedEvents = isReordering ? (events ?? []) : visibleEvents
+  const displayedEvents = useMemo(
+    () => (isReordering ? (events ?? []) : visibleEvents),
+    [events, isReordering, visibleEvents],
+  )
   const activeDragEvent = useMemo(
     () => displayedEvents.find((event) => event.id === activeDragEventId) ?? null,
     [activeDragEventId, displayedEvents],
@@ -367,17 +374,25 @@ export function TimelinePanel({
     }
   }
 
-  const removeEvent = async (event: TimelineEvent) => {
+  const confirmDelete = async () => {
+    if (!deleteConfirmEvent || isDeleting) return
+
+    setIsDeleting(true)
+    setDeleteError(null)
     try {
       setActionError(null)
-      await deleteTimelineEvent(event.id)
+      await deleteTimelineEvent(deleteConfirmEvent.id)
       await mutateEvents()
+      setDeleteConfirmEvent(null)
     } catch (deleteError) {
-      setActionError(
+      const message =
         deleteError instanceof Error
           ? deleteError.message
-          : "No se pudo eliminar el evento",
-      )
+          : "No se pudo eliminar el evento"
+      setDeleteError(message)
+      setActionError(message)
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -566,7 +581,10 @@ export function TimelinePanel({
                       isReordering={isReordering}
                       canMoveUp={index > 0}
                       canMoveDown={index < displayedEvents.length - 1}
-                      onDelete={() => void removeEvent(event)}
+                      onDelete={() => {
+                        setDeleteError(null)
+                        setDeleteConfirmEvent(event)
+                      }}
                       onEdit={() => {
                         setEditingEvent(event)
                         setCreationPlacement(null)
@@ -631,6 +649,45 @@ export function TimelinePanel({
           }
         }}
       />
+
+      <Dialog
+        open={deleteConfirmEvent !== null}
+        onOpenChange={(open) => {
+          if (!open && !isDeleting) {
+            setDeleteConfirmEvent(null)
+            setDeleteError(null)
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmar eliminación</DialogTitle>
+            <DialogDescription>
+              ¿Estás seguro de que querés eliminar &ldquo;
+              {deleteConfirmEvent?.title}&rdquo;? Esta acción no se puede
+              deshacer.
+            </DialogDescription>
+          </DialogHeader>
+          {deleteError && <p className="text-sm text-destructive">{deleteError}</p>}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteConfirmEvent(null)}
+              disabled={isDeleting}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => void confirmDelete()}
+              disabled={isDeleting}
+            >
+              {isDeleting && <Loader2 className="animate-spin" />}
+              Eliminar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
