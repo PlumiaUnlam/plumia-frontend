@@ -2,11 +2,14 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react"
 import {
+  closestCenter,
   DndContext,
+  DragOverlay,
   PointerSensor,
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragStartEvent,
 } from "@dnd-kit/core"
 import {
   SortableContext,
@@ -16,6 +19,7 @@ import {
 import { CSS } from "@dnd-kit/utilities"
 import useSWR from "swr"
 import {
+  AlertTriangle,
   CalendarDays,
   ChevronDown,
   ChevronUp,
@@ -46,6 +50,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { getTimelineDateWarning } from "@/lib/timeline-date-warning"
 import {
   createTimelineEvent,
   deleteTimelineEvent,
@@ -89,6 +94,7 @@ type PendingMove = {
   event: TimelineEvent
   direction: "up" | "down" | "drag"
   placement: TimelinePlacement
+  dateWarning: string | null
 }
 
 const generalArcFilter = "__general_events__"
@@ -168,6 +174,7 @@ export function TimelinePanel({
   const [isInsertMode, setIsInsertMode] = useState(false)
   const [pendingMove, setPendingMove] = useState<PendingMove | null>(null)
   const [isMoving, setIsMoving] = useState(false)
+  const [activeDragEventId, setActiveDragEventId] = useState<string | null>(null)
   const [moveError, setMoveError] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [expandedEventIds, setExpandedEventIds] = useState<Set<string>>(
@@ -218,6 +225,10 @@ export function TimelinePanel({
     [events, selectedArcId, selectedEntityId, selectedImpacts],
   )
   const displayedEvents = isReordering ? (events ?? []) : visibleEvents
+  const activeDragEvent = useMemo(
+    () => displayedEvents.find((event) => event.id === activeDragEventId) ?? null,
+    [activeDragEventId, displayedEvents],
+  )
 
   useEffect(() => {
     if (newEventRequest === 0) return
@@ -285,7 +296,12 @@ export function TimelinePanel({
 
     if (!placement.beforeEventId && !placement.afterEventId) return
     setMoveError(null)
-    setPendingMove({ event, direction, placement })
+    setPendingMove({
+      event,
+      direction,
+      placement,
+      dateWarning: getTimelineDateWarning(displayedEvents, event.id, placement),
+    })
   }
 
   const requestDragMove = (dragEvent: DragEndEvent) => {
@@ -310,7 +326,25 @@ export function TimelinePanel({
           }
 
     setMoveError(null)
-    setPendingMove({ event, direction: "drag", placement })
+    setPendingMove({
+      event,
+      direction: "drag",
+      placement,
+      dateWarning: getTimelineDateWarning(displayedEvents, event.id, placement),
+    })
+  }
+
+  const handleDragStart = (dragEvent: DragStartEvent) => {
+    setActiveDragEventId(String(dragEvent.active.id))
+  }
+
+  const handleDragCancel = () => {
+    setActiveDragEventId(null)
+  }
+
+  const handleDragEnd = (dragEvent: DragEndEvent) => {
+    setActiveDragEventId(null)
+    requestDragMove(dragEvent)
   }
 
   const confirmMove = async () => {
@@ -509,7 +543,13 @@ export function TimelinePanel({
             </p>
           )}
           {displayedEvents.length > 0 ? (
-            <DndContext sensors={sensors} onDragEnd={requestDragMove}>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragStart={handleDragStart}
+              onDragCancel={handleDragCancel}
+              onDragEnd={handleDragEnd}
+            >
               <SortableContext
                 items={displayedEvents.map((event) => event.id)}
                 strategy={verticalListSortingStrategy}
@@ -546,6 +586,11 @@ export function TimelinePanel({
                   ))}
                 </ol>
               </SortableContext>
+              <DragOverlay dropAnimation={null}>
+                {activeDragEvent ? (
+                  <TimelineEventDragPreview event={activeDragEvent} />
+                ) : null}
+              </DragOverlay>
             </DndContext>
           ) : (
             <div className="flex min-h-72 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-card/70 text-center">
@@ -611,7 +656,7 @@ function TimelineEventListItem({ compact, entities, event, expanded, isInsertMod
         transform: isDragging ? undefined : CSS.Transform.toString(transform),
         transition,
       }}
-      className={`relative ${isDragging ? "opacity-50" : ""}`}
+      className={`relative ${isDragging ? "opacity-20" : ""}`}
     >
       <span className="absolute -left-[2.85rem] top-3 size-5 rounded-full border-4 border-muted bg-primary sm:-left-[4.6rem]" />
       <TimelineEventCard
@@ -656,6 +701,22 @@ function TimelineEventListItem({ compact, entities, event, expanded, isInsertMod
         </div>
       )}
     </li>
+  )
+}
+
+function TimelineEventDragPreview({ event }: { event: TimelineEvent }) {
+  return (
+    <article
+      aria-hidden="true"
+      className={`pointer-events-none w-[min(72rem,calc(100vw-8rem))] rounded-2xl border-2 p-6 shadow-2xl ring-2 ring-primary/25 ${impactStyles[event.impact]}`}
+    >
+      <p className="mb-2 text-sm font-medium text-primary/75">
+        {event.temporalLabel || event.date || "Sin fecha"}
+      </p>
+      <h2 className="text-xl font-bold tracking-tight sm:text-2xl">
+        {event.title}
+      </h2>
+    </article>
   )
 }
 
@@ -715,6 +776,15 @@ function TimelineMoveDialog({ pendingMove, isMoving, error, onConfirm, onOpenCha
               : ""}
           </DialogDescription>
         </DialogHeader>
+        {pendingMove?.dateWarning && (
+          <div className="flex gap-3 rounded-lg border border-amber-500/40 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:bg-amber-950/20 dark:text-amber-200">
+            <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+            <p>
+              Este orden contradice las fechas indicadas. {pendingMove.dateWarning}
+              {" "}Podés continuar si el orden narrativo es intencional.
+            </p>
+          </div>
+        )}
         {error && <p className="text-sm text-destructive">{error}</p>}
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isMoving}>Cancelar</Button>
