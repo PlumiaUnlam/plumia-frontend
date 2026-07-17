@@ -1,13 +1,31 @@
 "use client"
 
 import { useEffect, useMemo, useState, type ReactNode } from "react"
+import {
+  DndContext,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core"
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
 import useSWR from "swr"
 import {
   CalendarDays,
+  ChevronDown,
+  ChevronUp,
+  GripVertical,
+  ListOrdered,
   Loader2,
   Maximize2,
   Minimize2,
   Pencil,
+  Plus,
   Trash2,
   Users,
   Zap,
@@ -20,6 +38,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -31,6 +50,7 @@ import {
   createTimelineEvent,
   deleteTimelineEvent,
   getTimelineEvents,
+  moveTimelineEvent,
   updateTimelineEvent,
 } from "@/services/timeline.service"
 import { getStoryboardArcs } from "@/services/storyboard-matrix.service"
@@ -38,6 +58,7 @@ import type { Entity } from "@/types/entity"
 import type { StoryboardArc } from "@/types/storyboard-matrix"
 import type {
   CreateTimelineEventInput,
+  MoveTimelineEventInput,
   TimelineEvent,
   TimelineEventInput,
   TimelineImpact,
@@ -60,6 +81,14 @@ type TimelineDraft = {
   impact: TimelineImpact
   storyboardArcId: string | null
   entityIds: string[]
+}
+
+type TimelinePlacement = MoveTimelineEventInput
+
+type PendingMove = {
+  event: TimelineEvent
+  direction: "up" | "down" | "drag"
+  placement: TimelinePlacement
 }
 
 const generalArcFilter = "__general_events__"
@@ -131,11 +160,21 @@ export function TimelinePanel({
   const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null)
   const [selectedArcId, setSelectedArcId] = useState<string | null>(null)
   const [editingEvent, setEditingEvent] = useState<TimelineEvent | null>(null)
+  const [creationPlacement, setCreationPlacement] =
+    useState<TimelinePlacement | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isCompact, setIsCompact] = useState(false)
+  const [isReordering, setIsReordering] = useState(false)
+  const [isInsertMode, setIsInsertMode] = useState(false)
+  const [pendingMove, setPendingMove] = useState<PendingMove | null>(null)
+  const [isMoving, setIsMoving] = useState(false)
+  const [moveError, setMoveError] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [expandedEventIds, setExpandedEventIds] = useState<Set<string>>(
     new Set(),
+  )
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
   )
 
   const {
@@ -178,6 +217,7 @@ export function TimelinePanel({
       ),
     [events, selectedArcId, selectedEntityId, selectedImpacts],
   )
+  const displayedEvents = isReordering ? (events ?? []) : visibleEvents
 
   useEffect(() => {
     if (newEventRequest === 0) return
@@ -186,6 +226,7 @@ export function TimelinePanel({
     queueMicrotask(() => {
       if (!isCurrent) return
       setEditingEvent(null)
+      setCreationPlacement(null)
       setIsDialogOpen(true)
     })
 
@@ -213,9 +254,83 @@ export function TimelinePanel({
     if (editingEvent) {
       await updateTimelineEvent(editingEvent.id, input)
     } else {
-      await createTimelineEvent(projectId, input as CreateTimelineEventInput)
+      await createTimelineEvent(projectId, {
+        ...input,
+        ...creationPlacement,
+      } as CreateTimelineEventInput)
     }
     await mutateEvents()
+  }
+
+  const openNewEvent = (placement: TimelinePlacement | null = null) => {
+    setEditingEvent(null)
+    setCreationPlacement(placement)
+    setIsDialogOpen(true)
+  }
+
+  const requestMove = (eventIndex: number, direction: "up" | "down") => {
+    const event = displayedEvents[eventIndex]
+    if (!event) return
+
+    const placement =
+      direction === "up"
+        ? {
+            beforeEventId: displayedEvents[eventIndex - 1]?.id,
+            afterEventId: displayedEvents[eventIndex - 2]?.id,
+          }
+        : {
+            beforeEventId: displayedEvents[eventIndex + 2]?.id,
+            afterEventId: displayedEvents[eventIndex + 1]?.id,
+          }
+
+    if (!placement.beforeEventId && !placement.afterEventId) return
+    setMoveError(null)
+    setPendingMove({ event, direction, placement })
+  }
+
+  const requestDragMove = (dragEvent: DragEndEvent) => {
+    const activeId = String(dragEvent.active.id)
+    const overId = dragEvent.over ? String(dragEvent.over.id) : null
+    if (!overId || activeId === overId) return
+
+    const activeIndex = displayedEvents.findIndex((event) => event.id === activeId)
+    const overIndex = displayedEvents.findIndex((event) => event.id === overId)
+    const event = displayedEvents[activeIndex]
+    if (!event || activeIndex === -1 || overIndex === -1) return
+
+    const placement =
+      activeIndex < overIndex
+        ? {
+            afterEventId: overId,
+            beforeEventId: displayedEvents[overIndex + 1]?.id,
+          }
+        : {
+            beforeEventId: overId,
+            afterEventId: displayedEvents[overIndex - 1]?.id,
+          }
+
+    setMoveError(null)
+    setPendingMove({ event, direction: "drag", placement })
+  }
+
+  const confirmMove = async () => {
+    if (!pendingMove || isMoving) return
+
+    setIsMoving(true)
+    setMoveError(null)
+    try {
+      await moveTimelineEvent(pendingMove.event.id, pendingMove.placement)
+      await mutateEvents()
+      setPendingMove(null)
+    } catch (moveRequestError) {
+      setMoveError(
+        moveRequestError instanceof Error
+          ? moveRequestError.message
+          : "No se pudo reorganizar el evento",
+      )
+    } finally {
+      setIsMoving(false)
+    }
   }
 
   const removeEvent = async (event: TimelineEvent) => {
@@ -351,7 +466,31 @@ export function TimelinePanel({
 
       <main className="min-w-0 flex-1 overflow-y-scroll [scrollbar-gutter:stable] px-5 py-8 sm:px-10 lg:px-16">
         <div className="mx-auto max-w-6xl">
-          <div className="mb-5 flex justify-end">
+          <div className="mb-5 flex flex-wrap justify-end gap-3">
+            <Button
+              variant={isInsertMode ? "default" : "outline"}
+              size="sm"
+              className="h-9"
+              disabled={isReordering}
+              onClick={() => setIsInsertMode((current) => !current)}
+            >
+              <Plus />
+              {isInsertMode ? "Terminar de insertar" : "Insertar eventos"}
+            </Button>
+            <Button
+              variant={isReordering ? "default" : "outline"}
+              size="sm"
+              className="h-9"
+              onClick={() => {
+                setIsReordering((current) => !current)
+                setIsInsertMode(false)
+                setPendingMove(null)
+                setMoveError(null)
+              }}
+            >
+              <ListOrdered />
+              {isReordering ? "Terminar de reordenar" : "Reordenar cronología"}
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -363,26 +502,51 @@ export function TimelinePanel({
             </Button>
           </div>
           {actionError && <p className="mb-5 text-sm text-destructive">{actionError}</p>}
-          {visibleEvents.length > 0 ? (
-            <ol className="relative ml-3 space-y-10 border-l-2 border-primary/20 pl-9 sm:ml-8 sm:pl-16">
-              {visibleEvents.map((event) => (
-                <li key={event.id} className="relative">
-                  <span className="absolute -left-[2.85rem] top-3 size-5 rounded-full border-4 border-muted bg-primary sm:-left-[4.6rem]" />
-                  <TimelineEventCard
-                    compact={isCompact}
-                    expanded={expandedEventIds.has(event.id)}
-                    entities={event.entityIds.map((id) => entityById.get(id)).filter((entity): entity is Entity => !!entity)}
-                    event={event}
-                    onToggleDetail={() => toggleEventDetail(event.id)}
-                    onEdit={() => {
-                      setEditingEvent(event)
-                      setIsDialogOpen(true)
-                    }}
-                    onDelete={() => void removeEvent(event)}
-                  />
-                </li>
-              ))}
-            </ol>
+          {isReordering && (
+            <p className="mb-5 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-primary">
+              Estás reorganizando el orden narrativo global. Los filtros se
+              aplicarán nuevamente al terminar.
+            </p>
+          )}
+          {displayedEvents.length > 0 ? (
+            <DndContext sensors={sensors} onDragEnd={requestDragMove}>
+              <SortableContext
+                items={displayedEvents.map((event) => event.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <ol className="relative ml-3 space-y-5 border-l-2 border-primary/20 pl-9 sm:ml-8 sm:pl-16">
+                  {displayedEvents.map((event, index) => (
+                    <TimelineEventListItem
+                      key={event.id}
+                      compact={isCompact}
+                      entities={event.entityIds.map((id) => entityById.get(id)).filter((entity): entity is Entity => !!entity)}
+                      event={event}
+                      expanded={expandedEventIds.has(event.id)}
+                      isInsertMode={isInsertMode}
+                      isReordering={isReordering}
+                      canMoveUp={index > 0}
+                      canMoveDown={index < displayedEvents.length - 1}
+                      onDelete={() => void removeEvent(event)}
+                      onEdit={() => {
+                        setEditingEvent(event)
+                        setCreationPlacement(null)
+                        setIsDialogOpen(true)
+                      }}
+                      onInsertAfter={() =>
+                        openNewEvent({
+                          afterEventId: event.id,
+                          beforeEventId: displayedEvents[index + 1]?.id,
+                        })
+                      }
+                      onMoveDown={() => requestMove(index, "down")}
+                      onMoveUp={() => requestMove(index, "up")}
+                      onToggleDetail={() => toggleEventDetail(event.id)}
+                      showInsertControl={index < displayedEvents.length - 1}
+                    />
+                  ))}
+                </ol>
+              </SortableContext>
+            </DndContext>
           ) : (
             <div className="flex min-h-72 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-card/70 text-center">
               <CalendarDays className="size-10 text-primary/60" />
@@ -402,9 +566,25 @@ export function TimelinePanel({
         onRequestCreateEntity={onRequestCreateEntity}
         onOpenChange={(open) => {
           setIsDialogOpen(open)
-          if (!open) setEditingEvent(null)
+          if (!open) {
+            setEditingEvent(null)
+            setCreationPlacement(null)
+          }
         }}
         onSave={saveEvent}
+      />
+
+      <TimelineMoveDialog
+        pendingMove={pendingMove}
+        isMoving={isMoving}
+        error={moveError}
+        onConfirm={() => void confirmMove()}
+        onOpenChange={(open) => {
+          if (!open && !isMoving) {
+            setPendingMove(null)
+            setMoveError(null)
+          }
+        }}
       />
     </div>
   )
@@ -418,7 +598,68 @@ function FilterButton({ active, children, onClick }: { active: boolean; children
   )
 }
 
-function TimelineEventCard({ compact, expanded, entities, event, onToggleDetail, onEdit, onDelete }: { compact: boolean; expanded: boolean; entities: Entity[]; event: TimelineEvent; onToggleDetail: () => void; onEdit: () => void; onDelete: () => void }) {
+function TimelineEventListItem({ compact, entities, event, expanded, isInsertMode, isReordering, canMoveUp, canMoveDown, onDelete, onEdit, onInsertAfter, onMoveDown, onMoveUp, onToggleDetail, showInsertControl }: { compact: boolean; entities: Entity[]; event: TimelineEvent; expanded: boolean; isInsertMode: boolean; isReordering: boolean; canMoveUp: boolean; canMoveDown: boolean; onDelete: () => void; onEdit: () => void; onInsertAfter: () => void; onMoveDown: () => void; onMoveUp: () => void; onToggleDetail: () => void; showInsertControl: boolean }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: event.id,
+    disabled: !isReordering,
+  })
+
+  return (
+    <li
+      ref={setNodeRef}
+      style={{
+        transform: isDragging ? undefined : CSS.Transform.toString(transform),
+        transition,
+      }}
+      className={`relative ${isDragging ? "opacity-50" : ""}`}
+    >
+      <span className="absolute -left-[2.85rem] top-3 size-5 rounded-full border-4 border-muted bg-primary sm:-left-[4.6rem]" />
+      <TimelineEventCard
+        compact={compact}
+        expanded={expanded}
+        entities={entities}
+        event={event}
+        onToggleDetail={onToggleDetail}
+        onEdit={onEdit}
+        onDelete={onDelete}
+        isReordering={isReordering}
+        canMoveUp={canMoveUp}
+        canMoveDown={canMoveDown}
+        onMoveUp={onMoveUp}
+        onMoveDown={onMoveDown}
+        dragHandle={
+          isReordering ? (
+            <button
+              type="button"
+              className="mt-1 shrink-0 cursor-grab touch-none text-muted-foreground active:cursor-grabbing"
+              aria-label={`Arrastrar ${event.title}`}
+              {...attributes}
+              {...listeners}
+            >
+              <GripVertical className="size-5" />
+            </button>
+          ) : null
+        }
+      />
+      {!isReordering && isInsertMode && showInsertControl && (
+        <div className="flex justify-center py-1.5">
+          <Button
+            variant="outline"
+            size="icon-sm"
+            className="rounded-full bg-background"
+            aria-label={`Insertar un evento después de ${event.title}`}
+            title="Insertar evento aquí"
+            onClick={onInsertAfter}
+          >
+            <Plus />
+          </Button>
+        </div>
+      )}
+    </li>
+  )
+}
+
+function TimelineEventCard({ compact, expanded, entities, event, onToggleDetail, onEdit, onDelete, isReordering, canMoveUp, canMoveDown, onMoveUp, onMoveDown, dragHandle }: { compact: boolean; expanded: boolean; entities: Entity[]; event: TimelineEvent; onToggleDetail: () => void; onEdit: () => void; onDelete: () => void; isReordering: boolean; canMoveUp: boolean; canMoveDown: boolean; onMoveUp: () => void; onMoveDown: () => void; dragHandle: ReactNode }) {
   const characters = entities.filter((entity) => entity.type !== "LOCATION")
   const locations = entities.filter((entity) => entity.type === "LOCATION")
   const showDetails = !compact || expanded
@@ -426,11 +667,20 @@ function TimelineEventCard({ compact, expanded, entities, event, onToggleDetail,
   return (
     <article className={`w-full rounded-2xl border-2 shadow-sm ${impactStyles[event.impact]} ${showDetails ? "p-6" : "p-4"} ${compact ? "cursor-pointer" : ""}`} onClick={compact ? onToggleDetail : undefined} onKeyDown={(eventKey) => { if (compact && (eventKey.key === "Enter" || eventKey.key === " ")) { eventKey.preventDefault(); onToggleDetail() } }} role={compact ? "button" : undefined} tabIndex={compact ? 0 : undefined}>
       <header className="flex items-start justify-between gap-4">
-        <div>
-          <p className="mb-2 text-sm font-medium text-primary/75">{event.temporalLabel || event.date || "Sin fecha"}</p>
-          <h2 className={`${showDetails ? "text-xl sm:text-2xl" : "text-lg"} font-bold tracking-tight`}>{event.title}</h2>
+        <div className="flex min-w-0 gap-2">
+          {dragHandle}
+          <div>
+            <p className="mb-2 text-sm font-medium text-primary/75">{event.temporalLabel || event.date || "Sin fecha"}</p>
+            <h2 className={`${showDetails ? "text-xl sm:text-2xl" : "text-lg"} font-bold tracking-tight`}>{event.title}</h2>
+          </div>
         </div>
         <div className="flex shrink-0 gap-1">
+          {isReordering && (
+            <>
+              <Button variant="ghost" size="icon-sm" aria-label={`Subir ${event.title}`} disabled={!canMoveUp} onClick={(clickEvent) => { clickEvent.stopPropagation(); onMoveUp() }}><ChevronUp /></Button>
+              <Button variant="ghost" size="icon-sm" aria-label={`Bajar ${event.title}`} disabled={!canMoveDown} onClick={(clickEvent) => { clickEvent.stopPropagation(); onMoveDown() }}><ChevronDown /></Button>
+            </>
+          )}
           <Button variant="ghost" size="icon-sm" aria-label={`Editar ${event.title}`} onClick={(clickEvent) => { clickEvent.stopPropagation(); onEdit() }}><Pencil /></Button>
           <Button variant="ghost" size="icon-sm" aria-label={`Eliminar ${event.title}`} onClick={(clickEvent) => { clickEvent.stopPropagation(); onDelete() }}><Trash2 /></Button>
         </div>
@@ -446,6 +696,35 @@ function TimelineEventCard({ compact, expanded, entities, event, onToggleDetail,
         </>
       )}
     </article>
+  )
+}
+
+function TimelineMoveDialog({ pendingMove, isMoving, error, onConfirm, onOpenChange }: { pendingMove: PendingMove | null; isMoving: boolean; error: string | null; onConfirm: () => void; onOpenChange: (open: boolean) => void }) {
+  const directionLabel = pendingMove?.direction === "up" ? "arriba" : "abajo"
+
+  return (
+    <Dialog open={pendingMove !== null} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Confirmar reordenamiento</DialogTitle>
+          <DialogDescription>
+            {pendingMove
+              ? pendingMove.direction === "drag"
+                ? `¿Querés ubicar “${pendingMove.event.title}” en esta posición de la cronología?`
+                : `¿Querés mover “${pendingMove.event.title}” un lugar hacia ${directionLabel}?`
+              : ""}
+          </DialogDescription>
+        </DialogHeader>
+        {error && <p className="text-sm text-destructive">{error}</p>}
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isMoving}>Cancelar</Button>
+          <Button onClick={onConfirm} disabled={isMoving}>
+            {isMoving && <Loader2 className="animate-spin" />}
+            Confirmar movimiento
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 

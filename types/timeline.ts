@@ -38,3 +38,8 @@ export type CreateTimelineEventInput = TimelineEventInput & {
   beforeEventId?: string
   afterEventId?: string
 }
+
+export type MoveTimelineEventInput = {
+  beforeEventId?: string
+  afterEventId?: string
+}
