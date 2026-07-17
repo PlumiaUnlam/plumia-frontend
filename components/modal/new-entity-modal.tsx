@@ -49,6 +49,7 @@ type NewEntityModalProps = {
     file?: File | null,
   ) => Promise<void>;
   readonly entity?: Entity | null;
+  readonly initialValues?: CreateEntityInput | null;
   readonly onGenerateImage?: (data: {
     canonicalName: string;
     description: string;
@@ -63,6 +64,7 @@ export function NewEntityModal({
   onClose,
   onSubmit,
   entity,
+  initialValues,
   onGenerateImage,
   onClearAiPreview,
 }: NewEntityModalProps) {
@@ -90,6 +92,7 @@ export function NewEntityModal({
     if (!show) return;
 
     const initialEntity = entity;
+    const initialFormValues = initialValues;
 
     let isCurrent = true;
 
@@ -101,6 +104,11 @@ export function NewEntityModal({
         setCategory(TYPE_TO_CATEGORY[initialEntity.type]);
         setDescription(initialEntity.description ?? "");
         setTags(initialEntity.aliases);
+      } else if (initialFormValues) {
+        setName(initialFormValues.canonicalName);
+        setCategory(TYPE_TO_CATEGORY[initialFormValues.type]);
+        setDescription(initialFormValues.description ?? "");
+        setTags(initialFormValues.aliases ?? []);
       } else {
         setName("");
         setCategory("Personaje");

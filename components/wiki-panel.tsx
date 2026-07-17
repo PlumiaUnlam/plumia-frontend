@@ -1,7 +1,11 @@
 "use client";
 
 import { useMemo, useState, type ComponentType } from "react";
-import { Check, FileText, Search, Sparkles } from "lucide-react";
+import {
+  FileText,
+  Search,
+  Sparkles,
+} from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,7 +24,10 @@ type WikiPanelProps = {
   readonly entitiesError: Error | undefined;
   readonly proposalsError: Error | undefined;
   readonly acceptingProposalId: string | null;
-  readonly onAcceptProposal: (proposalId: string) => Promise<void>;
+  readonly rejectingProposalId: string | null;
+  readonly onAcceptProposal: (proposal: EntityProposal) => Promise<void>;
+  readonly onRejectProposal: (proposalId: string) => Promise<void>;
+  readonly onReviewProposal: (proposal: EntityProposal) => void;
   readonly actionError: string | null;
 };
 
@@ -32,7 +39,10 @@ export function WikiPanel({
   entitiesError,
   proposalsError,
   acceptingProposalId,
+  rejectingProposalId,
   onAcceptProposal,
+  onRejectProposal,
+  onReviewProposal,
   actionError,
 }: WikiPanelProps) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -163,7 +173,10 @@ export function WikiPanel({
                 key={proposal.id}
                 proposal={proposal}
                 accepting={acceptingProposalId === proposal.id}
-                onAccept={() => void onAcceptProposal(proposal.id)}
+                rejecting={rejectingProposalId === proposal.id}
+                onAccept={() => void onAcceptProposal(proposal)}
+                onReject={() => void onRejectProposal(proposal.id)}
+                onReview={() => onReviewProposal(proposal)}
               />
             ))
           )}
@@ -276,15 +289,22 @@ function EditorWikiEntityCard({ entity }: { readonly entity: Entity }) {
 function EditorWikiProposalCard({
   proposal,
   accepting,
+  rejecting,
   onAccept,
+  onReject,
+  onReview,
 }: {
   readonly proposal: EntityProposal;
   readonly accepting: boolean;
+  readonly rejecting: boolean;
   readonly onAccept: () => void;
+  readonly onReject: () => void;
+  readonly onReview: () => void;
 }) {
   const category = TYPE_TO_CATEGORY[proposal.proposedData.type];
   const categoryStyle = getEntityCategoryStyle(category);
   const aliases = proposal.proposedData.aliases.slice(0, 2);
+  const disabled = accepting || rejecting;
 
   return (
     <article className="flex min-w-0 gap-2.5 rounded-lg border border-amber-500/20 bg-amber-500/5 p-2.5 transition-colors hover:border-amber-500/30 hover:bg-amber-500/10">
@@ -339,17 +359,36 @@ function EditorWikiProposalCard({
           <span>{Math.round((proposal.confidenceScore ?? 0) * 100)}%</span>
         </div>
 
-        <div className="mt-2 flex justify-end">
+        <div className="mt-2 -ml-[46px] grid w-[calc(100%+46px)] grid-cols-3 gap-1.5">
           <Button
             type="button"
             size="xs"
-            className="h-7"
+            className="h-7 min-w-0 justify-center px-1.5 text-[10px]"
+            variant="outline"
+            onClick={onReview}
+            disabled={disabled}
+          >
+            <span className="truncate">Revisar</span>
+          </Button>
+          <Button
+            type="button"
+            size="xs"
+            className="h-7 min-w-0 justify-center px-1.5 text-[10px] text-destructive hover:text-destructive"
+            variant="outline"
+            onClick={onReject}
+            disabled={disabled}
+          >
+            <span className="truncate">{rejecting ? "..." : "Rechazar"}</span>
+          </Button>
+          <Button
+            type="button"
+            size="xs"
+            className="h-7 min-w-0 justify-center px-1.5 text-[10px]"
             variant="outline"
             onClick={onAccept}
-            disabled={accepting}
+            disabled={disabled}
           >
-            <Check className="size-3.5" />
-            {accepting ? "Aceptando..." : "Aceptar"}
+            <span className="truncate">{accepting ? "..." : "Aceptar"}</span>
           </Button>
         </div>
       </div>
