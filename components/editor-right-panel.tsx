@@ -71,21 +71,21 @@ export function EditorRightPanel({ projectId }: EditorRightPanelProps) {
   };
 
   return (
-    <aside className="flex w-72 shrink-0 flex-col overflow-hidden border-l border-border bg-card">
+    <aside className="flex w-80 min-w-0 shrink-0 flex-col overflow-hidden border-l border-border bg-card xl:w-96">
       <div className="flex h-12 shrink-0 border-b border-border">
         {tabs.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
             type="button"
             onClick={() => setActiveTab(id)}
-            className={`flex flex-1 items-center justify-center gap-1.5 border-b-2 text-[11px] font-medium transition-colors ${
+            className={`flex min-w-0 flex-1 items-center justify-center gap-1.5 border-b-2 px-2 text-[11px] font-medium transition-colors ${
               activeTab === id
                 ? "border-primary bg-primary/5 text-primary"
                 : "border-transparent text-muted-foreground hover:bg-muted/40 hover:text-foreground"
             }`}
           >
             <Icon size={12} />
-            {label}
+            <span className="truncate">{label}</span>
           </button>
         ))}
       </div>
