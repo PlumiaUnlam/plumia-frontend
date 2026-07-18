@@ -888,6 +888,12 @@ function TimelineEventCard({ compact, expanded, entities, event, onToggleDetail,
 
 function TimelineMoveDialog({ pendingMove, isMoving, error, onConfirm, onOpenChange }: Readonly<TimelineMoveDialogProps>) {
   const directionLabel = pendingMove?.direction === "up" ? "arriba" : "abajo"
+  let confirmationMessage = ""
+  if (pendingMove) {
+    confirmationMessage = pendingMove.direction === "drag"
+      ? `¿Querés ubicar “${pendingMove.event.title}” en esta posición de la cronología?`
+      : `¿Querés mover “${pendingMove.event.title}” un lugar hacia ${directionLabel}?`
+  }
 
   return (
     <Dialog open={pendingMove !== null} onOpenChange={onOpenChange}>
@@ -895,11 +901,7 @@ function TimelineMoveDialog({ pendingMove, isMoving, error, onConfirm, onOpenCha
         <DialogHeader>
           <DialogTitle>Confirmar reordenamiento</DialogTitle>
           <DialogDescription>
-            {pendingMove
-              ? pendingMove.direction === "drag"
-                ? `¿Querés ubicar “${pendingMove.event.title}” en esta posición de la cronología?`
-                : `¿Querés mover “${pendingMove.event.title}” un lugar hacia ${directionLabel}?`
-              : ""}
+            {confirmationMessage}
           </DialogDescription>
         </DialogHeader>
         {pendingMove?.dateWarning && (

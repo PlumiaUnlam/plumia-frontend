@@ -184,6 +184,51 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
     );
   }, [project]);
 
+  const attachPendingAiImage = async (entityId: string) => {
+    const storageKey = aiStorageKeyRef.current;
+    if (!storageKey) return;
+
+    await attachImage({
+      entityId,
+      storageKey,
+      prompt: aiPromptRef.current!,
+      imageType: aiImageTypeRef.current!,
+    });
+    handleClearAiPreview();
+  };
+
+  const uploadAndSaveEntityImage = async (
+    entityId: string,
+    file: File | null | undefined,
+    currentImageUrl?: string,
+  ) => {
+    if (!file) return;
+
+    const publicUrl = await uploadEntityImage(entityId, file, currentImageUrl);
+    await updateEntity(entityId, { imageUrl: publicUrl } as UpdateEntityInput);
+  };
+
+  const createEntityFromModal = async (
+    data: CreateEntityInput,
+    file: File | null | undefined,
+  ) => {
+    const entity = await createEntity(projectId, data);
+
+    if (aiStorageKeyRef.current) {
+      await attachPendingAiImage(entity.id);
+      await uploadAndSaveEntityImage(entity.id, file);
+      return entity.id;
+    }
+
+    try {
+      await uploadAndSaveEntityImage(entity.id, file);
+      return entity.id;
+    } catch (error) {
+      await deleteEntity(entity.id).catch(() => {});
+      throw error;
+    }
+  };
+
   const handleSubmitModal = async (
     data: CreateEntityInput | UpdateEntityInput,
     file?: File | null,
@@ -195,56 +240,11 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
     if (editingEntity) {
       entityId = editingEntity.id;
       await updateEntity(entityId, data as UpdateEntityInput);
-      if (aiStorageKeyRef.current) {
-        await attachImage({
-          entityId,
-          storageKey: aiStorageKeyRef.current,
-          prompt: aiPromptRef.current!,
-          imageType: aiImageTypeRef.current!,
-        });
-        handleClearAiPreview();
-      }
-      if (file) {
-        const publicUrl = await uploadEntityImage(
-          entityId,
-          file,
-          editingEntity.imageUrl ?? undefined,
-        );
-        await updateEntity(entityId, {
-          imageUrl: publicUrl,
-        } as UpdateEntityInput);
-      }
+      await attachPendingAiImage(entityId);
+      await uploadAndSaveEntityImage(entityId, file, editingEntity.imageUrl ?? undefined);
       setEditingEntity(null);
-    } else if (aiStorageKeyRef.current) {
-      const entity = await createEntity(projectId, data as CreateEntityInput);
-      entityId = entity.id;
-      await attachImage({
-        entityId,
-        storageKey: aiStorageKeyRef.current,
-        prompt: aiPromptRef.current!,
-        imageType: aiImageTypeRef.current!,
-      });
-      handleClearAiPreview();
-      if (file) {
-        const publicUrl = await uploadEntityImage(entityId, file);
-        await updateEntity(entity.id, {
-          imageUrl: publicUrl,
-        } as UpdateEntityInput);
-      }
     } else {
-      const entity = await createEntity(projectId, data as CreateEntityInput);
-      entityId = entity.id;
-      if (file) {
-        try {
-          const publicUrl = await uploadEntityImage(entityId, file);
-          await updateEntity(entity.id, {
-            imageUrl: publicUrl,
-          } as UpdateEntityInput);
-        } catch (err) {
-          await deleteEntity(entityId).catch(() => {});
-          throw err;
-        }
-      }
+      entityId = await createEntityFromModal(data as CreateEntityInput, file);
     }
     await mutate();
     setSelectedEntityId(entityId);
