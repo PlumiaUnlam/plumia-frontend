@@ -78,6 +78,7 @@ export function EditorLayout({ projectId }: EditorLayoutProps) {
                 sceneId={activeSceneId}
                 chapterTitle={chapterTitle}
                 sceneTitle={sceneTitle}
+                projectId={projectId}
               />
             )}
           </main>

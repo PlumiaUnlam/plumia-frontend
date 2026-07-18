@@ -133,3 +133,43 @@
     @apply font-sans;
   }
 }
+
+/* Links del editor hacia entidades de la wiki. Colores en sync con lib/entity-category-style.ts */
+.entity-link {
+  border-radius: 0.25rem;
+  padding: 0 0.15em;
+  text-decoration: none;
+  font-weight: 500;
+  cursor: pointer;
+  box-decoration-break: clone;
+}
+
+.entity-link--character {
+  color: #2563eb;
+  background-color: #2563eb1a;
+}
+
+.entity-link--location {
+  color: #059669;
+  background-color: #0596691a;
+}
+
+.entity-link--object {
+  color: #d97706;
+  background-color: #d977061a;
+}
+
+.entity-link--organization {
+  color: #7c3aed;
+  background-color: #7c3aed1a;
+}
+
+.entity-link--event {
+  color: #dc2626;
+  background-color: #dc26261a;
+}
+
+.entity-link--concept {
+  color: #0891b2;
+  background-color: #0891b21a;
+}

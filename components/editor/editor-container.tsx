@@ -26,12 +26,14 @@ function SceneEditor({
   chapterTitle,
   sceneTitle,
   selectedVersionId,
+  projectId,
 }: {
   sceneId: string
   document: SceneDocument | SceneVersionDocument
   chapterTitle: string
   sceneTitle?: string
   selectedVersionId: string | null
+  projectId: string
 }) {
   const setCurrentContent = useEditorStore((s) => s.setCurrentContent)
   // Contenido vivo del editor; arranca en lo cargado del backend (baseline).
@@ -50,6 +52,7 @@ function SceneEditor({
       title={chapterTitle}
       subtitle={sceneTitle}
       sceneId={sceneId}
+      projectId={projectId}
       content={content}
       versionLabel={
         selectedVersionId
@@ -67,10 +70,12 @@ export function EditorContainer({
   sceneId,
   chapterTitle,
   sceneTitle,
+  projectId,
 }: {
   sceneId: string
   chapterTitle: string
   sceneTitle?: string
+  projectId: string
 }) {
   const setActiveScene = useEditorStore((s) => s.setActiveScene)
   const selectedVersionId = useEditorStore((s) => s.selectedSceneVersionId)
@@ -128,6 +133,7 @@ export function EditorContainer({
       chapterTitle={chapterTitle}
       sceneTitle={sceneTitle}
       selectedVersionId={selectedVersionId}
+      projectId={projectId}
     />
   )
 }
