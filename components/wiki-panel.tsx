@@ -76,9 +76,9 @@ export function WikiPanel({
   }, [proposals, searchQuery]);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+    <div className="flex min-h-0 min-w-0 max-w-full flex-1 flex-col overflow-hidden">
       <div className="shrink-0 border-b border-border p-3">
-        <div className="flex items-center gap-2 rounded-lg bg-muted px-2.5 py-1.5">
+        <div className="flex min-w-0 items-center gap-2 rounded-lg bg-muted px-2.5 py-1.5">
           <Search size={11} className="shrink-0 text-muted-foreground" />
           <input
             value={searchQuery}
@@ -89,8 +89,8 @@ export function WikiPanel({
         </div>
       </div>
 
-      <ScrollArea className="min-h-0 flex-1">
-        <div className="space-y-2 p-3">
+      <ScrollArea className="min-h-0 min-w-0 flex-1 overflow-x-hidden">
+        <div className="min-w-0 max-w-full space-y-2 overflow-x-hidden p-3">
           {actionError && (
             <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-xs text-destructive">
               {actionError}
@@ -155,7 +155,7 @@ export function WikiPanel({
           ) : filteredProposals.length === 0 ? (
             <EmptyWikiState
               title="Sin propuestas"
-              description="Cuando el modelo detecte entidades nuevas, aparecerán aquí para revisión."
+              description="Cuando el modelo detecte entidades nuevas, apareceran aqui para revision."
             />
           ) : (
             filteredProposals.map((proposal) => (
@@ -184,11 +184,11 @@ function WikiSectionTitle({
 }) {
   return (
     <div className="mt-1 flex items-center justify-between px-1 py-1">
-      <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+      <div className="flex min-w-0 items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
         <Icon size={12} className="text-primary/80" />
-        <span>{label}</span>
+        <span className="truncate">{label}</span>
       </div>
-      <Badge variant="outline" className="h-auto px-1.5 py-0 text-[9px]">
+      <Badge variant="outline" className="h-auto shrink-0 px-1.5 py-0 text-[9px]">
         {count}
       </Badge>
     </div>
@@ -216,7 +216,7 @@ function EditorWikiEntityCard({ entity }: { readonly entity: Entity }) {
   const imageSrc = `/api/storage/image/${entity.id}?v=${Date.parse(entity.updatedAt)}`;
 
   return (
-    <article className="flex min-w-0 cursor-pointer gap-2.5 rounded-lg border border-border bg-card p-2.5 transition-colors hover:border-primary/25 hover:bg-muted/50">
+    <article className="flex w-full min-w-0 max-w-full items-start gap-3 overflow-hidden rounded-lg border border-border bg-card p-2.5 transition-colors hover:border-primary/25 hover:bg-muted/50">
       <div className="size-9 shrink-0 overflow-hidden rounded-sm">
         {entity.imageUrl ? (
           <img
@@ -235,9 +235,9 @@ function EditorWikiEntityCard({ entity }: { readonly entity: Entity }) {
         )}
       </div>
 
-      <div className="min-w-0 flex-1">
-        <div className="mb-1.5 flex min-w-0 items-center gap-1.5">
-          <p className="min-w-0 flex-1 truncate text-[11px] font-semibold leading-snug text-foreground">
+      <div className="min-w-0 flex-1 overflow-hidden">
+        <div className="mb-1.5 flex min-w-0 flex-wrap items-start gap-1.5">
+          <p className="min-w-0 flex-1 break-words text-[11px] font-semibold leading-snug text-foreground">
             {entity.canonicalName}
           </p>
           <Badge
@@ -257,7 +257,7 @@ function EditorWikiEntityCard({ entity }: { readonly entity: Entity }) {
               <Badge
                 key={alias}
                 variant="secondary"
-                className="h-auto px-1.5 py-0 text-[9px]"
+                className="h-auto max-w-full break-all px-1.5 py-0 text-[9px]"
               >
                 {alias}
               </Badge>
@@ -265,8 +265,8 @@ function EditorWikiEntityCard({ entity }: { readonly entity: Entity }) {
           </div>
         )}
 
-        <p className="line-clamp-2 text-[10px] leading-relaxed text-muted-foreground">
-          {entity.description || "Sin descripción"}
+        <p className="line-clamp-2 break-words text-[10px] leading-relaxed text-muted-foreground">
+          {entity.description || "Sin descripcion"}
         </p>
       </div>
     </article>
@@ -287,14 +287,14 @@ function EditorWikiProposalCard({
   const aliases = proposal.proposedData.aliases.slice(0, 2);
 
   return (
-    <article className="flex min-w-0 gap-2.5 rounded-lg border border-amber-500/20 bg-amber-500/5 p-2.5 transition-colors hover:border-amber-500/30 hover:bg-amber-500/10">
+    <article className="flex w-full min-w-0 max-w-full items-start gap-3 overflow-hidden rounded-lg border border-amber-500/20 bg-amber-500/5 p-2.5 transition-colors hover:border-amber-500/30 hover:bg-amber-500/10">
       <div className="flex size-9 shrink-0 items-center justify-center rounded-sm bg-amber-500/10 text-amber-600">
         <Sparkles className="size-4" />
       </div>
 
-      <div className="min-w-0 flex-1">
-        <div className="mb-1.5 flex min-w-0 items-center gap-1.5">
-          <p className="min-w-0 flex-1 truncate text-[11px] font-semibold leading-snug text-foreground">
+      <div className="min-w-0 flex-1 overflow-hidden">
+        <div className="mb-1.5 flex min-w-0 flex-wrap items-start gap-1.5">
+          <p className="min-w-0 flex-1 break-words text-[11px] font-semibold leading-snug text-foreground">
             {proposal.proposedData.canonicalName}
           </p>
           <Badge
@@ -319,31 +319,32 @@ function EditorWikiProposalCard({
             <Badge
               key={alias}
               variant="secondary"
-              className="h-auto px-1.5 py-0 text-[9px]"
+              className="h-auto max-w-full break-all px-1.5 py-0 text-[9px]"
             >
               {alias}
             </Badge>
           ))}
         </div>
 
-        <p className="line-clamp-2 text-[10px] leading-relaxed text-muted-foreground">
-          {proposal.proposedData.description || "Sin descripción"}
+        <p className="line-clamp-2 break-words text-[10px] leading-relaxed text-muted-foreground">
+          {proposal.proposedData.description || "Sin descripcion"}
         </p>
 
-        <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
-          <span>
-            Escena: {proposal.sceneTitle ?? "Sin título"}
+        <div className="mt-2 flex min-w-0 max-w-full flex-col gap-1 text-[10px] text-muted-foreground">
+          <span className="break-words">
+            Escena: {proposal.sceneTitle ?? "Sin titulo"}
             {proposal.chapterTitle ? ` · ${proposal.chapterTitle}` : ""}
           </span>
-          <span>·</span>
-          <span>{Math.round((proposal.confidenceScore ?? 0) * 100)}%</span>
+          <span className="shrink-0">
+            Confianza: {Math.round((proposal.confidenceScore ?? 0) * 100)}%
+          </span>
         </div>
 
-        <div className="mt-2 flex justify-end">
+        <div className="mt-2 flex w-full min-w-0">
           <Button
             type="button"
             size="xs"
-            className="h-7"
+            className="h-7 w-full min-w-0"
             variant="outline"
             onClick={onAccept}
             disabled={accepting}
