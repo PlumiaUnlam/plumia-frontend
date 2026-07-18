@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   Loader2,
   Plus,
@@ -73,6 +74,8 @@ type WorldbuildingProps = {
 export function Worldbuilding({ projectId }: WorldbuildingProps) {
   const { loading, firebaseUser } = useAuth();
   const shouldFetch = !!projectId && !loading && !!firebaseUser;
+  const searchParams = useSearchParams();
+  const entityIdParam = searchParams.get("entityId");
 
   const tabs = [
     { id: "wiki" as const, label: "Wiki del Universo", icon: Star },
@@ -89,7 +92,21 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
   const [deleteConfirmRelationship, setDeleteConfirmRelationship] =
     useState<Relationship | null>(null);
   const [editingEntity, setEditingEntity] = useState<Entity | null>(null);
-  const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
+  const [selectedEntityId, setSelectedEntityId] = useState<string | null>(
+    entityIdParam,
+  );
+
+  // Preselecciona la entidad indicada por ?entityId= (ej. al venir de un link
+  // del editor). Se ajusta durante el render, no en un efecto, para evitar
+  // cascading renders (ver patrón equivalente en editor-right-panel.tsx).
+  const [lastEntityIdParam, setLastEntityIdParam] = useState(entityIdParam);
+  if (entityIdParam !== lastEntityIdParam) {
+    setLastEntityIdParam(entityIdParam);
+    if (entityIdParam) {
+      setSelectedEntityId(entityIdParam);
+      setActiveTab("wiki");
+    }
+  }
   const [deleteConfirmEntity, setDeleteConfirmEntity] = useState<Entity | null>(
     null,
   );

@@ -1,3 +1,5 @@
+import { Suspense } from "react"
+
 import { Worldbuilding } from "@/components/worldbuilding/worldbuilding"
 
 type ProjectWorldbuildingPageProps = {
@@ -11,5 +13,9 @@ export default async function ProjectWorldbuildingPage({
 }: ProjectWorldbuildingPageProps) {
   const { projectId } = await params
 
-  return <Worldbuilding projectId={projectId} />
+  return (
+    <Suspense>
+      <Worldbuilding projectId={projectId} />
+    </Suspense>
+  )
 }

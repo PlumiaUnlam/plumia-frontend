@@ -1,16 +1,22 @@
 import { useEffect } from "react"
 import { EditorContent, useEditor } from "@tiptap/react"
 import StarterKit from "@tiptap/starter-kit"
+import Link from "@tiptap/extension-link"
 
 import type { ProseMirrorJSON } from "@/types/scene"
 import { EditorToolbar } from "./toolbar"
 import { EditorImage } from "./image/editor-image-extension"
 import { useEditorImage } from "./image/use-editor-image"
+import { EntityLink } from "./entity-link/entity-link-extension"
+import { useEntityLink } from "./entity-link/use-entity-link"
+import { EntityLinkHoverTooltip } from "./entity-link/entity-link-hover-tooltip"
+import { SelectionBubbleMenu } from "./selection-menu/selection-bubble-menu"
 
 type RichTextEditorProps = {
   title: string
   subtitle?: string
   sceneId: string
+  projectId: string
   content?: ProseMirrorJSON | null
   versionLabel: string
   onChange?: (json: ProseMirrorJSON) => void
@@ -20,6 +26,7 @@ export function RichTextEditor({
   title,
   subtitle,
   sceneId,
+  projectId,
   content,
   versionLabel,
   onChange,
@@ -34,6 +41,8 @@ export function RichTextEditor({
     bindEditor,
   } = useEditorImage({ sceneId })
 
+  const { goToEntity } = useEntityLink({ projectId })
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -46,6 +55,11 @@ export function RichTextEditor({
           class: "mx-auto my-6 max-w-full",
         },
       }),
+      Link.configure({
+        openOnClick: false,
+        autolink: false,
+      }),
+      EntityLink,
     ],
     content: content ?? "",
     editorProps: {
@@ -110,6 +124,9 @@ export function RichTextEditor({
               </h1>
               </>
             )}
+
+            <SelectionBubbleMenu editor={editor} projectId={projectId} />
+            <EntityLinkHoverTooltip editor={editor} onGoToEntity={goToEntity} />
 
             <EditorContent
               editor={editor}
