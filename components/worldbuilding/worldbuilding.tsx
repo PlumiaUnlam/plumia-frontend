@@ -15,7 +15,9 @@ import useSWRMutation from "swr/mutation";
 import { Header } from "../header";
 import { RelationshipsPanel } from "./relationships-panel";
 import { SummariesPanel } from "./summaries-panel";
+import { TimelinePanel } from "./timeline-panel";
 import { WikiTab } from "./wiki-panel";
+import { worldbuildingEntitiesMock } from "@/mocks/worldbuilding.mock";
 
 import { NewEntityModal } from "@/components/modal/new-entity-modal";
 import { NewRelationModal } from "@/components/modal/new-relation-modal";
@@ -91,6 +93,15 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
   const [deleteConfirmEntity, setDeleteConfirmEntity] = useState<Entity | null>(
     null,
   );
+  const [timelineNewEventRequest, setTimelineNewEventRequest] = useState(0);
+  const [timelineEntityInitialName, setTimelineEntityInitialName] = useState<
+    string | null
+  >(null);
+  const [timelineCreatedEntity, setTimelineCreatedEntity] = useState<{
+    id: string;
+    revision: number;
+  } | null>(null);
+  const [mockEntities] = useState<Entity[]>(worldbuildingEntitiesMock);
   const [deleting, setDeleting] = useState(false);
   const aiStorageKeyRef = useRef<string | null>(null);
   const aiPromptRef = useRef<string | null>(null);
@@ -133,9 +144,13 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
     },
   );
 
+  const worldbuildingEntities = entities ?? mockEntities;
+
   const selectedEntity = useMemo(
-    () => entities?.find((entity) => entity.id === selectedEntityId) ?? null,
-    [entities, selectedEntityId],
+    () =>
+      worldbuildingEntities.find((entity) => entity.id === selectedEntityId) ??
+      null,
+    [selectedEntityId, worldbuildingEntities],
   );
 
   const handleGenerateImage = async (data: {
@@ -169,71 +184,76 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
     );
   }, [project]);
 
+  const attachPendingAiImage = async (entityId: string) => {
+    const storageKey = aiStorageKeyRef.current;
+    if (!storageKey) return;
+
+    await attachImage({
+      entityId,
+      storageKey,
+      prompt: aiPromptRef.current!,
+      imageType: aiImageTypeRef.current!,
+    });
+    handleClearAiPreview();
+  };
+
+  const uploadAndSaveEntityImage = async (
+    entityId: string,
+    file: File | null | undefined,
+    currentImageUrl?: string,
+  ) => {
+    if (!file) return;
+
+    const publicUrl = await uploadEntityImage(entityId, file, currentImageUrl);
+    await updateEntity(entityId, { imageUrl: publicUrl } as UpdateEntityInput);
+  };
+
+  const createEntityFromModal = async (
+    data: CreateEntityInput,
+    file: File | null | undefined,
+  ) => {
+    const entity = await createEntity(projectId, data);
+
+    if (aiStorageKeyRef.current) {
+      await attachPendingAiImage(entity.id);
+      await uploadAndSaveEntityImage(entity.id, file);
+      return entity.id;
+    }
+
+    try {
+      await uploadAndSaveEntityImage(entity.id, file);
+      return entity.id;
+    } catch (error) {
+      await deleteEntity(entity.id).catch(() => {});
+      throw error;
+    }
+  };
+
   const handleSubmitModal = async (
     data: CreateEntityInput | UpdateEntityInput,
     file?: File | null,
   ) => {
+    const isTimelineEntityCreation =
+      timelineEntityInitialName !== null && !editingEntity;
+
     let entityId: string;
     if (editingEntity) {
       entityId = editingEntity.id;
       await updateEntity(entityId, data as UpdateEntityInput);
-      if (aiStorageKeyRef.current) {
-        await attachImage({
-          entityId,
-          storageKey: aiStorageKeyRef.current,
-          prompt: aiPromptRef.current!,
-          imageType: aiImageTypeRef.current!,
-        });
-        aiStorageKeyRef.current = null;
-        aiPromptRef.current = null;
-        aiImageTypeRef.current = null;
-      }
-      if (file) {
-        const publicUrl = await uploadEntityImage(
-          entityId,
-          file,
-          editingEntity.imageUrl ?? undefined,
-        );
-        await updateEntity(entityId, {
-          imageUrl: publicUrl,
-        } as UpdateEntityInput);
-      }
+      await attachPendingAiImage(entityId);
+      await uploadAndSaveEntityImage(entityId, file, editingEntity.imageUrl ?? undefined);
       setEditingEntity(null);
-    } else if (aiStorageKeyRef.current) {
-      const entity = await createEntity(projectId, data as CreateEntityInput);
-      entityId = entity.id;
-      await attachImage({
-        entityId,
-        storageKey: aiStorageKeyRef.current,
-        prompt: aiPromptRef.current!,
-        imageType: aiImageTypeRef.current!,
-      });
-      aiStorageKeyRef.current = null;
-      aiPromptRef.current = null;
-      aiImageTypeRef.current = null;
-      if (file) {
-        const publicUrl = await uploadEntityImage(entityId, file);
-        await updateEntity(entity.id, {
-          imageUrl: publicUrl,
-        } as UpdateEntityInput);
-      }
     } else {
-      const entity = await createEntity(projectId, data as CreateEntityInput);
-      entityId = entity.id;
-      if (file) {
-        try {
-          const publicUrl = await uploadEntityImage(entityId, file);
-          await updateEntity(entity.id, {
-            imageUrl: publicUrl,
-          } as UpdateEntityInput);
-        } catch (err) {
-          await deleteEntity(entityId).catch(() => {});
-          throw err;
-        }
-      }
+      entityId = await createEntityFromModal(data as CreateEntityInput, file);
     }
     await mutate();
     setSelectedEntityId(entityId);
+    if (isTimelineEntityCreation) {
+      setTimelineCreatedEntity((current) => ({
+        id: entityId,
+        revision: (current?.revision ?? 0) + 1,
+      }));
+    }
   };
 
   const handleSubmitRelation = async (
@@ -280,6 +300,7 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
   const handleModalClose = () => {
     setShowNewEntityModal(false);
     setEditingEntity(null);
+    setTimelineEntityInitialName(null);
     aiStorageKeyRef.current = null;
     aiPromptRef.current = null;
     aiImageTypeRef.current = null;
@@ -328,10 +349,20 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
                 setEditingRelationship(null);
                 setShowNewRelationModal(true);
               }}
-              disabled={(entities ?? []).length < 2}
+              disabled={worldbuildingEntities.length < 2}
             >
               <GitBranch size={16} />
               Nueva Relación
+            </Button>
+          )}
+          {activeTab === "timeline" && (
+            <Button
+              onClick={() =>
+                setTimelineNewEventRequest((current) => current + 1)
+              }
+            >
+              <Plus size={16} />
+              Nuevo Evento
             </Button>
           )}
         </div>
@@ -341,13 +372,14 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
           onClose={handleModalClose}
           onSubmit={handleSubmitModal}
           entity={currentEntity}
+          initialCanonicalName={timelineEntityInitialName ?? undefined}
           onGenerateImage={handleGenerateImage}
           onClearAiPreview={handleClearAiPreview}
         />
 
         <NewRelationModal
           show={showNewRelationModal}
-          entities={entities ?? []}
+          entities={worldbuildingEntities}
           onClose={handleRelationModalClose}
           onSubmit={handleSubmitRelation}
           relationship={editingRelationship}
@@ -382,7 +414,7 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
             className="mt-4 min-h-0 flex-1 overflow-hidden border-t bg-card"
           >
             <WikiTab
-              entities={entities ?? []}
+              entities={worldbuildingEntities}
               loading={isLoading}
               error={error}
               onEdit={handleEdit}
@@ -399,7 +431,7 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
             className="mt-4 min-h-0 flex-1 overflow-hidden border-t bg-card"
           >
             <RelationshipsPanel
-              entities={entities ?? []}
+              entities={worldbuildingEntities}
               relationships={relationships ?? []}
               loading={isLoading || isLoadingRelationships}
               error={error ?? relationshipsError}
@@ -411,7 +443,23 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
             />
           </TabsContent>
 
-          <TabsContent value="timeline"></TabsContent>
+          <TabsContent
+            value="timeline"
+            className="mt-4 min-h-0 flex-1 overflow-hidden border-t bg-card"
+          >
+            <TimelinePanel
+              projectId={projectId}
+              enabled={shouldFetch}
+              entities={worldbuildingEntities}
+              createdEntity={timelineCreatedEntity}
+              newEventRequest={timelineNewEventRequest}
+              onRequestCreateEntity={(canonicalName) => {
+                setEditingEntity(null);
+                setTimelineEntityInitialName(canonicalName);
+                setShowNewEntityModal(true);
+              }}
+            />
+          </TabsContent>
 
           <TabsContent
             value="summaries"

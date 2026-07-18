@@ -1,6 +1,7 @@
 "use client"
 
-import { useRef } from "react"
+import { useRef, useState } from "react"
+import { Plus } from "lucide-react"
 
 import {
   Combobox,
@@ -23,27 +24,36 @@ type EntitySelectorProps = {
   entities: Entity[]
   selectedEntityIds: string[]
   onChange: (entityIds: string[]) => void
+  onCreateEntity?: (canonicalName: string) => void
+  label?: string
 }
 
 export function EntitySelector({
   entities,
   selectedEntityIds,
   onChange,
+  onCreateEntity,
+  label = "Entidades relacionadas",
 }: EntitySelectorProps) {
   const portalContainerRef = useRef<HTMLDivElement | null>(null)
   const anchorRef = useComboboxAnchor()
+  const [searchValue, setSearchValue] = useState("")
   const selectedEntities = selectedEntityIds
     .map((entityId) => entities.find((entity) => entity.id === entityId))
     .filter((entity): entity is Entity => !!entity)
+  const normalizedSearchValue = searchValue.trim().toLocaleLowerCase()
+  const canCreateEntity = !!onCreateEntity
 
   return (
     <Field>
-      <FieldLabel>Entidades relacionadas</FieldLabel>
+      {label && <FieldLabel>{label}</FieldLabel>}
       <FieldContent>
         <div ref={portalContainerRef} />
         <Combobox<Entity, true>
           items={entities}
           multiple
+          inputValue={searchValue}
+          onInputValueChange={setSearchValue}
           value={selectedEntities}
           onValueChange={(nextEntities) => {
             onChange(nextEntities.map((entity) => entity.id))
@@ -108,6 +118,22 @@ export function EntitySelector({
                 </ComboboxItem>
               )}
             </ComboboxList>
+            {canCreateEntity && (
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 border-t border-border px-3 py-2.5 text-left text-sm font-medium text-primary hover:bg-primary/5"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => {
+                  onCreateEntity(searchValue.trim())
+                  setSearchValue("")
+                }}
+              >
+                <Plus className="size-4" />
+                {normalizedSearchValue.length > 0
+                  ? `Crear “${searchValue.trim()}”`
+                  : "Crear nueva entidad"}
+              </button>
+            )}
           </ComboboxContent>
         </Combobox>
       </FieldContent>
