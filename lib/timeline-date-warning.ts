@@ -57,11 +57,12 @@ export function getTimelineDateWarning(
     ? nextEvents.findIndex((event) => event.id === placement.afterEventId)
     : -1
 
-  const insertIndex = beforeIndex >= 0
-    ? beforeIndex
-    : afterIndex >= 0
-      ? afterIndex + 1
-      : -1
+  let insertIndex = -1
+  if (beforeIndex >= 0) {
+    insertIndex = beforeIndex
+  } else if (afterIndex >= 0) {
+    insertIndex = afterIndex + 1
+  }
   if (insertIndex === -1) return null
 
   nextEvents.splice(insertIndex, 0, movingEvent)

@@ -202,9 +202,7 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
           prompt: aiPromptRef.current!,
           imageType: aiImageTypeRef.current!,
         });
-        aiStorageKeyRef.current = null;
-        aiPromptRef.current = null;
-        aiImageTypeRef.current = null;
+        handleClearAiPreview();
       }
       if (file) {
         const publicUrl = await uploadEntityImage(
@@ -226,9 +224,7 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
         prompt: aiPromptRef.current!,
         imageType: aiImageTypeRef.current!,
       });
-      aiStorageKeyRef.current = null;
-      aiPromptRef.current = null;
-      aiImageTypeRef.current = null;
+      handleClearAiPreview();
       if (file) {
         const publicUrl = await uploadEntityImage(entityId, file);
         await updateEntity(entity.id, {

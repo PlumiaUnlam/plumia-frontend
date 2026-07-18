@@ -78,6 +78,71 @@ type TimelinePanelProps = {
   onRequestCreateEntity: (canonicalName: string) => void
 }
 
+type FilterButtonProps = {
+  active: boolean
+  children: ReactNode
+  onClick: () => void
+}
+
+type TimelineEventListItemProps = {
+  compact: boolean
+  entities: Entity[]
+  event: TimelineEvent
+  expanded: boolean
+  isInsertMode: boolean
+  isReordering: boolean
+  canMoveUp: boolean
+  canMoveDown: boolean
+  onDelete: () => void
+  onEdit: () => void
+  onInsertAfter: () => void
+  onMoveDown: () => void
+  onMoveUp: () => void
+  onToggleDetail: () => void
+  showInsertControl: boolean
+}
+
+type TimelineEventCardProps = {
+  compact: boolean
+  expanded: boolean
+  entities: Entity[]
+  event: TimelineEvent
+  onToggleDetail: () => void
+  onEdit: () => void
+  onDelete: () => void
+  isReordering: boolean
+  canMoveUp: boolean
+  canMoveDown: boolean
+  onMoveUp: () => void
+  onMoveDown: () => void
+  dragHandle: ReactNode
+}
+
+type TimelineMoveDialogProps = {
+  pendingMove: PendingMove | null
+  isMoving: boolean
+  error: string | null
+  onConfirm: () => void
+  onOpenChange: (open: boolean) => void
+}
+
+type TimelineEventDialogProps = {
+  arcs: StoryboardArc[]
+  entities: Entity[]
+  createdEntity: TimelinePanelProps["createdEntity"]
+  event: TimelineEvent | null
+  open: boolean
+  onRequestCreateEntity: TimelinePanelProps["onRequestCreateEntity"]
+  onOpenChange: (open: boolean) => void
+  onSave: (input: TimelineEventInput) => Promise<void>
+}
+
+type FormFieldProps = {
+  label: string
+  htmlFor: string
+  children: ReactNode
+}
+
 type TimelineDraft = {
   title: string
   description: string
@@ -154,7 +219,7 @@ export function TimelinePanel({
   newEventRequest,
   createdEntity,
   onRequestCreateEntity,
-}: TimelinePanelProps) {
+}: Readonly<TimelinePanelProps>) {
   const [isParticipantFilterOpen, setIsParticipantFilterOpen] =
     useState(false)
   const [isArcFilterOpen, setIsArcFilterOpen] = useState(false)
@@ -692,7 +757,7 @@ export function TimelinePanel({
   )
 }
 
-function FilterButton({ active, children, onClick }: { active: boolean; children: ReactNode; onClick: () => void }) {
+function FilterButton({ active, children, onClick }: Readonly<FilterButtonProps>) {
   return (
     <button type="button" className={`flex w-full items-center justify-between rounded-lg border px-4 py-3 text-left text-sm font-semibold transition-colors ${active ? "border-primary/35 bg-primary/10 text-primary" : "border-border bg-card text-foreground hover:border-primary/35 hover:bg-primary/5"}`} onClick={onClick}>
       {children}
@@ -700,7 +765,7 @@ function FilterButton({ active, children, onClick }: { active: boolean; children
   )
 }
 
-function TimelineEventListItem({ compact, entities, event, expanded, isInsertMode, isReordering, canMoveUp, canMoveDown, onDelete, onEdit, onInsertAfter, onMoveDown, onMoveUp, onToggleDetail, showInsertControl }: { compact: boolean; entities: Entity[]; event: TimelineEvent; expanded: boolean; isInsertMode: boolean; isReordering: boolean; canMoveUp: boolean; canMoveDown: boolean; onDelete: () => void; onEdit: () => void; onInsertAfter: () => void; onMoveDown: () => void; onMoveUp: () => void; onToggleDetail: () => void; showInsertControl: boolean }) {
+function TimelineEventListItem({ compact, entities, event, expanded, isInsertMode, isReordering, canMoveUp, canMoveDown, onDelete, onEdit, onInsertAfter, onMoveDown, onMoveUp, onToggleDetail, showInsertControl }: Readonly<TimelineEventListItemProps>) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: event.id,
     disabled: !isReordering,
@@ -761,7 +826,7 @@ function TimelineEventListItem({ compact, entities, event, expanded, isInsertMod
   )
 }
 
-function TimelineEventDragPreview({ event }: { event: TimelineEvent }) {
+function TimelineEventDragPreview({ event }: Readonly<{ event: TimelineEvent }>) {
   return (
     <article
       aria-hidden="true"
@@ -777,19 +842,23 @@ function TimelineEventDragPreview({ event }: { event: TimelineEvent }) {
   )
 }
 
-function TimelineEventCard({ compact, expanded, entities, event, onToggleDetail, onEdit, onDelete, isReordering, canMoveUp, canMoveDown, onMoveUp, onMoveDown, dragHandle }: { compact: boolean; expanded: boolean; entities: Entity[]; event: TimelineEvent; onToggleDetail: () => void; onEdit: () => void; onDelete: () => void; isReordering: boolean; canMoveUp: boolean; canMoveDown: boolean; onMoveUp: () => void; onMoveDown: () => void; dragHandle: ReactNode }) {
+function TimelineEventCard({ compact, expanded, entities, event, onToggleDetail, onEdit, onDelete, isReordering, canMoveUp, canMoveDown, onMoveUp, onMoveDown, dragHandle }: Readonly<TimelineEventCardProps>) {
   const characters = entities.filter((entity) => entity.type !== "LOCATION")
   const locations = entities.filter((entity) => entity.type === "LOCATION")
   const showDetails = !compact || expanded
 
   return (
-    <article className={`w-full rounded-2xl border-2 shadow-sm ${impactStyles[event.impact]} ${showDetails ? "p-6" : "p-4"} ${compact ? "cursor-pointer" : ""}`} onClick={compact ? onToggleDetail : undefined} onKeyDown={(eventKey) => { if (compact && (eventKey.key === "Enter" || eventKey.key === " ")) { eventKey.preventDefault(); onToggleDetail() } }} role={compact ? "button" : undefined} tabIndex={compact ? 0 : undefined}>
+    <article className={`w-full rounded-2xl border-2 shadow-sm ${impactStyles[event.impact]} ${showDetails ? "p-6" : "p-4"}`}>
       <header className="flex items-start justify-between gap-4">
         <div className="flex min-w-0 gap-2">
           {dragHandle}
           <div>
             <p className="mb-2 text-sm font-medium text-primary/75">{event.temporalLabel || event.date || "Sin fecha"}</p>
-            <h2 className={`${showDetails ? "text-xl sm:text-2xl" : "text-lg"} font-bold tracking-tight`}>{event.title}</h2>
+            {compact ? (
+              <button type="button" className={`${showDetails ? "text-xl sm:text-2xl" : "text-lg"} block text-left font-bold tracking-tight`} onClick={onToggleDetail} aria-expanded={expanded}>{event.title}</button>
+            ) : (
+              <h2 className="text-xl font-bold tracking-tight sm:text-2xl">{event.title}</h2>
+            )}
           </div>
         </div>
         <div className="flex shrink-0 gap-1">
@@ -817,7 +886,7 @@ function TimelineEventCard({ compact, expanded, entities, event, onToggleDetail,
   )
 }
 
-function TimelineMoveDialog({ pendingMove, isMoving, error, onConfirm, onOpenChange }: { pendingMove: PendingMove | null; isMoving: boolean; error: string | null; onConfirm: () => void; onOpenChange: (open: boolean) => void }) {
+function TimelineMoveDialog({ pendingMove, isMoving, error, onConfirm, onOpenChange }: Readonly<TimelineMoveDialogProps>) {
   const directionLabel = pendingMove?.direction === "up" ? "arriba" : "abajo"
 
   return (
@@ -855,7 +924,7 @@ function TimelineMoveDialog({ pendingMove, isMoving, error, onConfirm, onOpenCha
   )
 }
 
-function TimelineEventDialog({ arcs, entities, createdEntity, event, open, onRequestCreateEntity, onOpenChange, onSave }: { arcs: StoryboardArc[]; entities: Entity[]; createdEntity: TimelinePanelProps["createdEntity"]; event: TimelineEvent | null; open: boolean; onRequestCreateEntity: TimelinePanelProps["onRequestCreateEntity"]; onOpenChange: (open: boolean) => void; onSave: (input: TimelineEventInput) => Promise<void> }) {
+function TimelineEventDialog({ arcs, entities, createdEntity, event, open, onRequestCreateEntity, onOpenChange, onSave }: Readonly<TimelineEventDialogProps>) {
   const [draft, setDraft] = useState<TimelineDraft | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -949,6 +1018,6 @@ function TimelineEventDialog({ arcs, entities, createdEntity, event, open, onReq
   )
 }
 
-function FormField({ label, htmlFor, children }: { label: string; htmlFor: string; children: ReactNode }) {
+function FormField({ label, htmlFor, children }: Readonly<FormFieldProps>) {
   return <div className="space-y-2"><Label htmlFor={htmlFor}>{label}</Label>{children}</div>
 }
