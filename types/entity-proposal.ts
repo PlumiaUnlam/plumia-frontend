@@ -1,6 +1,6 @@
 import type { EntityType } from "@/types/entity"
-
 export type EntityProposalStatus = "PENDING" | "APPROVED" | "REJECTED" | "OBSOLETE"
+export type EntityProposalKind = "NEW_ENTITY" | "ENTITY_UPDATE"
 
 export interface EntityProposalPayload {
   canonicalName: string
@@ -9,6 +9,7 @@ export interface EntityProposalPayload {
   description: string | null
   attributes: Record<string, unknown>
   imageUrl: string | null
+  proposalKind?: EntityProposalKind
   confidenceScore?: number
   sourceSceneId?: string
   sourceSceneTitle?: string | null
@@ -37,4 +38,12 @@ export interface EntityProposal {
   reviewedAt: string | null
   createdAt: string
   proposedData: EntityProposalPayload
+  targetEntity: {
+    id: string
+    canonicalName: string
+    aliases: string[]
+    type: EntityType
+    description: string | null
+    attributes: Record<string, unknown>
+  } | null
 }

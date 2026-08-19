@@ -49,6 +49,15 @@ type NewEntityModalProps = {
     file?: File | null,
   ) => Promise<void>;
   readonly entity?: Entity | null;
+  readonly mode?: "create" | "edit" | "proposal";
+  readonly initialValues?: {
+    canonicalName: string;
+    type: Entity["type"];
+    description: string | null;
+    aliases: string[];
+    attributes?: Record<string, unknown>;
+    imageUrl?: string | null;
+  };
   readonly initialCanonicalName?: string;
   readonly onGenerateImage?: (data: {
     canonicalName: string;
@@ -64,6 +73,8 @@ export function NewEntityModal({
   onClose,
   onSubmit,
   entity,
+  mode = entity ? "edit" : "create",
+  initialValues,
   initialCanonicalName,
   onGenerateImage,
   onClearAiPreview,
@@ -71,6 +82,8 @@ export function NewEntityModal({
   const [name, setName] = useState("");
   const [category, setCategory] = useState<EntityCategory>("Personaje");
   const [description, setDescription] = useState("");
+  const [attributes, setAttributes] = useState<Record<string, unknown>>({});
+  const [proposalImageUrl, setProposalImageUrl] = useState<string | null>(null);
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -86,7 +99,8 @@ export function NewEntityModal({
   const elapsedRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const cancelRef = useRef(false);
 
-  const isEditing = !!entity;
+  const isProposal = mode === "proposal";
+  const isEditing = !!entity && !isProposal;
 
   useEffect(() => {
     if (!show) return;
@@ -98,16 +112,23 @@ export function NewEntityModal({
     queueMicrotask(() => {
       if (!isCurrent) return;
 
-      if (initialEntity) {
-        setName(initialEntity.canonicalName);
-        setCategory(TYPE_TO_CATEGORY[initialEntity.type]);
-        setDescription(initialEntity.description ?? "");
-        setTags(initialEntity.aliases);
+      const values = initialEntity ?? initialValues;
+      if (values) {
+        setName(values.canonicalName);
+        setCategory(TYPE_TO_CATEGORY[values.type]);
+        setDescription(values.description ?? "");
+        setTags(values.aliases);
+        setAttributes(
+          isRecord(values.attributes) ? values.attributes : {},
+        );
+        setProposalImageUrl(values.imageUrl ?? null);
       } else {
         setName(initialCanonicalName ?? "");
         setCategory("Personaje");
         setDescription("");
         setTags([]);
+        setAttributes({});
+        setProposalImageUrl(null);
       }
       setAiGenerating(false);
       setAiGeneratedUrl(null);
@@ -124,8 +145,7 @@ export function NewEntityModal({
     return () => {
       isCurrent = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [show]);
+  }, [show, entity, initialValues, initialCanonicalName]);
 
   useEffect(() => {
     return () => {
@@ -239,6 +259,7 @@ export function NewEntityModal({
           type,
           description: description.trim() || null,
           aliases: tags.length > 0 ? tags : [],
+          attributes,
         };
         if (imageRemoved && !selectedFile && !aiGeneratedUrl) {
           input.imageUrl = null;
@@ -250,6 +271,10 @@ export function NewEntityModal({
           type,
           description: description.trim() || undefined,
           aliases: tags.length > 0 ? tags : [],
+          attributes,
+          ...(isProposal && proposalImageUrl
+            ? { imageUrl: proposalImageUrl }
+            : {}),
         };
         await onSubmit(input, selectedFile);
       }
@@ -341,11 +366,15 @@ export function NewEntityModal({
 
   return (
     <Dialog open={show} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="min-w-[600px] gap-0 overflow-hidden">
+      <DialogContent className="z-[60] min-w-[600px] gap-0 overflow-hidden">
         <DialogHeader className="p-6 py-4 border-b">
           <div className="flex items-center justify-between">
             <DialogTitle>
-              {isEditing ? "Editar Entidad" : "Nueva Entidad"}
+              {isProposal
+                ? "Revisar propuesta de entidad"
+                : isEditing
+                  ? "Editar Entidad"
+                  : "Nueva Entidad"}
             </DialogTitle>
           </div>
         </DialogHeader>
@@ -507,12 +536,16 @@ export function NewEntityModal({
 
           <Button disabled={!name.trim() || submitting} onClick={handleSubmit}>
             {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {isEditing ? "Guardar cambios" : "Crear entidad"}
+            {isProposal ? "Aceptar propuesta" : isEditing ? "Guardar cambios" : "Crear entidad"}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function ImageUploadActions({
