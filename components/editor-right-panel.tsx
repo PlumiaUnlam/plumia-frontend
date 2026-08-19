@@ -12,8 +12,16 @@ import { getEntities } from "@/services/entities.service";
 import {
   acceptEntityProposal,
   getEntityProposals,
+  rejectEntityProposal,
 } from "@/services/entity-proposals.service";
+import {
+  acceptRelationshipProposal,
+  getRelationshipProposals,
+  rejectRelationshipProposal,
+} from "@/services/relationship-proposals.service";
 import { WikiPanel } from "@/components/wiki-panel";
+import type { CreateEntityInput, UpdateEntityInput } from "@/types/entity";
+import type { UpdateRelationshipInput } from "@/types/relationship";
 
 type RightTab = "wiki" | "chat" | "stats";
 
@@ -32,6 +40,13 @@ export function EditorRightPanel({ projectId }: EditorRightPanelProps) {
   const [acceptingProposalId, setAcceptingProposalId] = useState<string | null>(
     null,
   );
+  const [rejectingProposalId, setRejectingProposalId] = useState<string | null>(
+    null,
+  );
+  const [acceptingRelationshipProposalId, setAcceptingRelationshipProposalId] =
+    useState<string | null>(null);
+  const [rejectingRelationshipProposalId, setRejectingRelationshipProposalId] =
+    useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
   const {
@@ -44,6 +59,15 @@ export function EditorRightPanel({ projectId }: EditorRightPanelProps) {
     () => getEntities(projectId),
   );
   const {
+    data: relationshipProposals,
+    error: relationshipProposalsError,
+    isLoading: isLoadingRelationshipProposals,
+    mutate: mutateRelationshipProposals,
+  } = useSWR(
+    projectId ? `/v1/projects/${projectId}/relationship-proposals` : null,
+    () => getRelationshipProposals(projectId),
+  );
+  const {
     data: proposals,
     error: proposalsError,
     isLoading: isLoadingProposals,
@@ -53,12 +77,19 @@ export function EditorRightPanel({ projectId }: EditorRightPanelProps) {
     () => getEntityProposals(projectId),
   );
 
-  const handleAcceptProposal = async (proposalId: string) => {
+  const handleAcceptProposal = async (
+    proposalId: string,
+    override?: CreateEntityInput | UpdateEntityInput,
+  ) => {
     setAcceptingProposalId(proposalId);
     setActionError(null);
     try {
-      await acceptEntityProposal(proposalId);
-      await Promise.all([mutateEntities(), mutateProposals()]);
+      await acceptEntityProposal(proposalId, override);
+      await Promise.all([
+        mutateEntities(),
+        mutateProposals(),
+        mutateRelationshipProposals(),
+      ]);
     } catch (error) {
       setActionError(
         error instanceof Error
@@ -67,6 +98,52 @@ export function EditorRightPanel({ projectId }: EditorRightPanelProps) {
       );
     } finally {
       setAcceptingProposalId(null);
+    }
+  };
+
+  const handleAcceptRelationshipProposal = async (
+    proposalId: string,
+    override?: UpdateRelationshipInput,
+  ) => {
+    setAcceptingRelationshipProposalId(proposalId);
+    setActionError(null);
+    try {
+      await acceptRelationshipProposal(proposalId, override);
+      await mutateRelationshipProposals();
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "No se pudo aceptar la relacion.");
+    } finally {
+      setAcceptingRelationshipProposalId(null);
+    }
+  };
+
+  const handleRejectRelationshipProposal = async (proposalId: string) => {
+    setRejectingRelationshipProposalId(proposalId);
+    setActionError(null);
+    try {
+      await rejectRelationshipProposal(proposalId);
+      await mutateRelationshipProposals();
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "No se pudo rechazar la relacion.");
+    } finally {
+      setRejectingRelationshipProposalId(null);
+    }
+  };
+
+  const handleRejectProposal = async (proposalId: string) => {
+    setRejectingProposalId(proposalId);
+    setActionError(null);
+    try {
+      await rejectEntityProposal(proposalId);
+      await mutateProposals();
+    } catch (error) {
+      setActionError(
+        error instanceof Error
+          ? error.message
+          : "No se pudo rechazar la propuesta.",
+      );
+    } finally {
+      setRejectingProposalId(null);
     }
   };
 
@@ -94,12 +171,21 @@ export function EditorRightPanel({ projectId }: EditorRightPanelProps) {
         <WikiPanel
           entities={entities ?? []}
           proposals={proposals ?? []}
+          relationshipProposals={relationshipProposals ?? []}
           loading={isLoading}
           proposalsLoading={isLoadingProposals}
           entitiesError={error}
           proposalsError={proposalsError}
+          relationshipProposalsError={relationshipProposalsError}
+          relationshipProposalsLoading={isLoadingRelationshipProposals}
           acceptingProposalId={acceptingProposalId}
+          rejectingProposalId={rejectingProposalId}
           onAcceptProposal={handleAcceptProposal}
+          onRejectProposal={handleRejectProposal}
+          acceptingRelationshipProposalId={acceptingRelationshipProposalId}
+          rejectingRelationshipProposalId={rejectingRelationshipProposalId}
+          onAcceptRelationshipProposal={handleAcceptRelationshipProposal}
+          onRejectRelationshipProposal={handleRejectRelationshipProposal}
           actionError={actionError}
         />
       )}

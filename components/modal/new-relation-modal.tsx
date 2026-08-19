@@ -40,6 +40,16 @@ type NewRelationModalProps = {
     input: CreateRelationshipInput | UpdateRelationshipInput,
   ) => Promise<void>;
   readonly relationship?: Relationship | null;
+  readonly mode?: "create" | "edit" | "proposal";
+  readonly initialValues?: {
+    sourceEntityId: string | null;
+    targetEntityId: string | null;
+    sourceEntityName?: string;
+    targetEntityName?: string;
+    relationType: RelationType;
+    intensity: number;
+    description: string | null;
+  };
 };
 
 export function NewRelationModal({
@@ -48,6 +58,8 @@ export function NewRelationModal({
   onClose,
   onSubmit,
   relationship,
+  mode = relationship ? "edit" : "create",
+  initialValues,
 }: NewRelationModalProps) {
   const [sourceEntityId, setSourceEntityId] = useState("");
   const [targetEntityId, setTargetEntityId] = useState("");
@@ -56,7 +68,8 @@ export function NewRelationModal({
   const [description, setDescription] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const isEditing = !!relationship;
+  const isProposal = mode === "proposal";
+  const isEditing = !!relationship && !isProposal;
   const selectedSource = useMemo(
     () => entities.find((entity) => entity.id === sourceEntityId),
     [entities, sourceEntityId],
@@ -86,11 +99,12 @@ export function NewRelationModal({
     queueMicrotask(() => {
       if (!isCurrent) return;
 
-      setSourceEntityId(relationship?.sourceEntityId ?? "");
-      setTargetEntityId(relationship?.targetEntityId ?? "");
-      setRelationType(relationship?.relationType ?? "ALLY");
-      setIntensity(relationship?.intensity ?? 3);
-      setDescription(relationship?.description ?? "");
+      const values = relationship ?? initialValues;
+      setSourceEntityId(values?.sourceEntityId ?? "");
+      setTargetEntityId(values?.targetEntityId ?? "");
+      setRelationType(values?.relationType ?? "ALLY");
+      setIntensity(values?.intensity ?? 3);
+      setDescription(values?.description ?? "");
       setSubmitting(false);
       setError(null);
     });
@@ -98,7 +112,7 @@ export function NewRelationModal({
     return () => {
       isCurrent = false;
     };
-  }, [show, relationship]);
+  }, [show, relationship, initialValues]);
 
   const activeRelationType = availableRelationTypes.includes(relationType)
     ? relationType
@@ -140,7 +154,11 @@ export function NewRelationModal({
       <DialogContent className="min-w-[600px] gap-0 overflow-hidden">
         <DialogHeader className="border-b p-6 py-4">
           <DialogTitle>
-            {isEditing ? "Editar Relación" : "Nueva Relación"}
+            {isProposal
+              ? "Revisar propuesta de relación"
+              : isEditing
+                ? "Editar Relación"
+                : "Nueva Relación"}
           </DialogTitle>
         </DialogHeader>
 
@@ -158,6 +176,7 @@ export function NewRelationModal({
               value={sourceEntityId}
               entities={entities}
               excludeId={targetEntityId}
+              pendingLabel={isProposal ? initialValues?.sourceEntityName : undefined}
               onChange={setSourceEntityId}
             />
             <EntitySelect
@@ -166,6 +185,7 @@ export function NewRelationModal({
               value={targetEntityId}
               entities={entities}
               excludeId={sourceEntityId}
+              pendingLabel={isProposal ? initialValues?.targetEntityName : undefined}
               onChange={setTargetEntityId}
             />
           </FieldGroup>
@@ -245,7 +265,11 @@ export function NewRelationModal({
             Cancelar
           </Button>
           <Button disabled={!canSubmit || submitting} onClick={handleSubmit}>
-            {isEditing ? "Guardar cambios" : "Crear relación"}
+            {isProposal
+              ? "Aceptar propuesta"
+              : isEditing
+                ? "Guardar cambios"
+                : "Crear relación"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -259,6 +283,7 @@ type EntitySelectProps = {
   readonly value: string;
   readonly entities: readonly Entity[];
   readonly excludeId: string;
+  readonly pendingLabel?: string;
   readonly onChange: (value: string) => void;
 };
 
@@ -268,6 +293,7 @@ function EntitySelect({
   value,
   entities,
   excludeId,
+  pendingLabel,
   onChange,
 }: EntitySelectProps) {
   return (
@@ -280,7 +306,9 @@ function EntitySelect({
           onChange={(event) => onChange(event.target.value)}
           className="h-10 w-full min-w-0 rounded-lg border border-border bg-background px-3.5 py-2 text-sm text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
         >
-          <option value="">Seleccionar entidad...</option>
+          <option value="">
+            {pendingLabel ? `${pendingLabel} (pendiente)` : "Seleccionar entidad..."}
+          </option>
           {entities
             .filter((entity) => entity.id !== excludeId)
             .map((entity) => (
