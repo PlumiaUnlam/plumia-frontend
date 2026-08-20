@@ -1,14 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import {
-  BarChart2,
-  GitBranch,
-  MessageSquare,
-} from "lucide-react";
+import { useMemo, useState } from "react";
+import { BarChart2, GitBranch, MessageSquare } from "lucide-react";
 import useSWR from "swr";
 
 import { getEntities } from "@/services/entities.service";
+import { getPrimaryEntityImages } from "@/services/image-generation.service";
 import {
   acceptEntityProposal,
   getEntityProposals,
@@ -58,6 +55,17 @@ export function EditorRightPanel({ projectId }: EditorRightPanelProps) {
     projectId ? `/knowledge/entities?projectId=${projectId}` : null,
     () => getEntities(projectId),
   );
+  const entityIds = useMemo(
+    () => (entities ?? []).map((entity) => entity.id),
+    [entities],
+  );
+  const primaryImagesKey =
+    projectId && entityIds.length > 0
+      ? `/publishing/images/primary?entityIds=${encodeURIComponent(entityIds.join(","))}`
+      : null;
+  const { data: primaryImageUrls = {} } = useSWR(primaryImagesKey, () =>
+    getPrimaryEntityImages(entityIds),
+  );
   const {
     data: relationshipProposals,
     error: relationshipProposalsError,
@@ -72,9 +80,8 @@ export function EditorRightPanel({ projectId }: EditorRightPanelProps) {
     error: proposalsError,
     isLoading: isLoadingProposals,
     mutate: mutateProposals,
-  } = useSWR(
-    projectId ? `/v1/projects/${projectId}/proposals` : null,
-    () => getEntityProposals(projectId),
+  } = useSWR(projectId ? `/v1/projects/${projectId}/proposals` : null, () =>
+    getEntityProposals(projectId),
   );
 
   const handleAcceptProposal = async (
@@ -111,7 +118,11 @@ export function EditorRightPanel({ projectId }: EditorRightPanelProps) {
       await acceptRelationshipProposal(proposalId, override);
       await mutateRelationshipProposals();
     } catch (error) {
-      setActionError(error instanceof Error ? error.message : "No se pudo aceptar la relacion.");
+      setActionError(
+        error instanceof Error
+          ? error.message
+          : "No se pudo aceptar la relacion.",
+      );
     } finally {
       setAcceptingRelationshipProposalId(null);
     }
@@ -124,7 +135,11 @@ export function EditorRightPanel({ projectId }: EditorRightPanelProps) {
       await rejectRelationshipProposal(proposalId);
       await mutateRelationshipProposals();
     } catch (error) {
-      setActionError(error instanceof Error ? error.message : "No se pudo rechazar la relacion.");
+      setActionError(
+        error instanceof Error
+          ? error.message
+          : "No se pudo rechazar la relacion.",
+      );
     } finally {
       setRejectingRelationshipProposalId(null);
     }
@@ -178,6 +193,7 @@ export function EditorRightPanel({ projectId }: EditorRightPanelProps) {
           proposalsError={proposalsError}
           relationshipProposalsError={relationshipProposalsError}
           relationshipProposalsLoading={isLoadingRelationshipProposals}
+          primaryImageUrls={primaryImageUrls}
           acceptingProposalId={acceptingProposalId}
           rejectingProposalId={rejectingProposalId}
           onAcceptProposal={handleAcceptProposal}

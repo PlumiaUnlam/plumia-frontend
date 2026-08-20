@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -21,6 +21,7 @@ import type { Entity, EntityCategory } from "@/types/entity";
 import { TYPE_TO_CATEGORY } from "@/types/entity";
 import { ENTITY_CATEGORY_STYLES } from "@/lib/entity-category-style";
 import { EntityIconTile } from "@/components/worldbuilding/entity-icon-tile";
+import { EntityImage } from "@/components/worldbuilding/entity-image";
 import { ImageGallery } from "@/components/worldbuilding/image-gallery";
 import type {
   ImageGenerationJob,
@@ -36,56 +37,12 @@ interface WikiTabProps {
   readonly selectedEntity: Entity | null;
   readonly onSelectEntity: (entity: Entity | null) => void;
   readonly images: ImageResponse[];
+  readonly primaryImageUrls: Readonly<Record<string, string>>;
   readonly imagesLoading: boolean;
   readonly activeImageJob: ImageGenerationJob | null;
   readonly onGenerateImage: () => void;
   readonly onSetPrimaryImage: (imageId: string) => void;
   readonly onDeleteImage: (image: ImageResponse) => void;
-}
-
-function EntityImage({
-  src,
-  alt,
-  category,
-  className,
-  iconClassName,
-  width,
-  height,
-}: {
-  readonly src: string;
-  readonly alt: string;
-  readonly category: EntityCategory;
-  readonly className: string;
-  readonly iconClassName: string;
-  readonly width: number;
-  readonly height: number;
-}) {
-  const [hasError, setHasError] = useState(false);
-
-  useEffect(() => {
-    setHasError(false);
-  }, [src]);
-
-  if (hasError) {
-    return (
-      <EntityIconTile
-        category={category}
-        className={className}
-        iconClassName={iconClassName}
-      />
-    );
-  }
-
-  return (
-    <img
-      src={src}
-      alt={alt}
-      width={width}
-      height={height}
-      className={className}
-      onError={() => setHasError(true)}
-    />
-  );
 }
 
 export function WikiTab({
@@ -97,6 +54,7 @@ export function WikiTab({
   selectedEntity,
   onSelectEntity,
   images,
+  primaryImageUrls,
   imagesLoading,
   activeImageJob,
   onGenerateImage,
@@ -130,6 +88,7 @@ export function WikiTab({
   const selectedEntityPrimaryImage = images.find((image) => image.isPrimary);
   const selectedEntityImageSrc = selectedEntity
     ? (selectedEntityPrimaryImage?.imageUrl ??
+      primaryImageUrls[selectedEntity.id] ??
       `/api/storage/image/${selectedEntity.id}?v=${Date.parse(selectedEntity.updatedAt)}`)
     : "";
 
@@ -232,6 +191,7 @@ export function WikiTab({
                 ))
               : filteredEntities.map((entity) => {
                   const src = `/api/storage/image/${entity.id}?v=${Date.parse(entity.updatedAt)}`;
+                  const primaryImageUrl = primaryImageUrls[entity.id];
                   const isSelected = selectedEntity?.id === entity.id;
                   const entityCategory = TYPE_TO_CATEGORY[entity.type];
 
@@ -255,14 +215,15 @@ export function WikiTab({
                           : "bg-white hover:bg-muted/50"
                       }`}
                     >
-                      {entity.imageUrl ||
+                      {primaryImageUrl ||
+                      entity.imageUrl ||
                       (isSelected && selectedEntityPrimaryImage) ? (
                         <ItemMedia variant="image">
                           <EntityImage
                             src={
                               isSelected && selectedEntityPrimaryImage
                                 ? selectedEntityPrimaryImage.imageUrl
-                                : src
+                                : (primaryImageUrl ?? src)
                             }
                             alt={entity.canonicalName}
                             width={128}
@@ -310,7 +271,9 @@ export function WikiTab({
           <>
             <header className="mb-8 flex-shrink-0 flex flex-wrap items-start gap-4 justify-between">
               <div className="flex min-w-0 items-start gap-4">
-                {(selectedEntity.imageUrl || selectedEntityPrimaryImage) &&
+                {(selectedEntity.imageUrl ||
+                  selectedEntityPrimaryImage ||
+                  primaryImageUrls[selectedEntity.id]) &&
                 selectedEntityCategory ? (
                   <EntityImage
                     src={selectedEntityImageSrc}

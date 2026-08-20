@@ -83,6 +83,22 @@ export async function getEntityImages(
   return api.get(`/publishing/images/${entityId}`);
 }
 
+export async function getPrimaryEntityImages(
+  entityIds: readonly string[],
+): Promise<Record<string, string>> {
+  const ids = [...new Set(entityIds)];
+  if (ids.length === 0) {
+    return {};
+  }
+
+  const images = await api.get<ImageResponse[]>(
+    `/publishing/images/primary?entityIds=${encodeURIComponent(ids.join(","))}`,
+  );
+  return Object.fromEntries(
+    images.map((image) => [image.entityId, image.imageUrl]),
+  );
+}
+
 export async function setPrimaryImage(
   entityId: string,
   imageId: string,

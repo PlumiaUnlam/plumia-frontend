@@ -40,6 +40,7 @@ import type {
 import { CATEGORY_TO_TYPE, TYPE_TO_CATEGORY } from "@/types/entity";
 import { ENTITY_CATEGORY_STYLES } from "@/lib/entity-category-style";
 import { EntityIconTile } from "@/components/worldbuilding/entity-icon-tile";
+import { EntityImage } from "@/components/worldbuilding/entity-image";
 
 type NewEntityModalProps = {
   readonly show: boolean;
@@ -118,9 +119,7 @@ export function NewEntityModal({
         setCategory(TYPE_TO_CATEGORY[values.type]);
         setDescription(values.description ?? "");
         setTags(values.aliases);
-        setAttributes(
-          isRecord(values.attributes) ? values.attributes : {},
-        );
+        setAttributes(isRecord(values.attributes) ? values.attributes : {});
         setProposalImageUrl(values.imageUrl ?? null);
       } else {
         setName(initialCanonicalName ?? "");
@@ -330,11 +329,14 @@ export function NewEntityModal({
     if (isEditing && entity?.imageUrl && !imageRemoved) {
       return (
         <div className="relative rounded-lg overflow-hidden border border-border">
-          <img
+          <EntityImage
             src={`/api/storage/image/${entity.id}?v=${Date.parse(entity.updatedAt)}`}
             alt={entity.canonicalName}
             className="w-full h-48 object-contain bg-muted"
-            loading="lazy"
+            category={TYPE_TO_CATEGORY[entity.type]}
+            iconClassName="h-12 w-12"
+            width={384}
+            height={192}
           />
           <button
             type="button"
@@ -536,7 +538,11 @@ export function NewEntityModal({
 
           <Button disabled={!name.trim() || submitting} onClick={handleSubmit}>
             {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {isProposal ? "Aceptar propuesta" : isEditing ? "Guardar cambios" : "Crear entidad"}
+            {isProposal
+              ? "Aceptar propuesta"
+              : isEditing
+                ? "Guardar cambios"
+                : "Crear entidad"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -569,12 +575,14 @@ function ImageUploadActions({
   readonly onFileClick: () => void;
   readonly onGenerateAi: () => Promise<void>;
   readonly onCancelGeneration: () => void;
-  readonly onGenerateImage: ((data: {
-    canonicalName: string;
-    description: string;
-    type: string;
-    aliases: string[];
-  }) => Promise<string>) | undefined;
+  readonly onGenerateImage:
+    | ((data: {
+        canonicalName: string;
+        description: string;
+        type: string;
+        aliases: string[];
+      }) => Promise<string>)
+    | undefined;
 }) {
   return (
     <>

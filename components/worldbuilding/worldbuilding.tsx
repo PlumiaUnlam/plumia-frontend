@@ -55,6 +55,7 @@ import {
   attachImage,
   generateEntityImage,
   getEntityImages,
+  getPrimaryEntityImages,
   getImageGenerationJob,
   setPrimaryImage,
   deleteEntityImage,
@@ -198,6 +199,19 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
     () => getEntityImages(selectedEntity!.id),
   );
 
+  const entityIds = useMemo(
+    () => (entities ?? []).map((entity) => entity.id),
+    [entities],
+  );
+  const primaryImagesKey =
+    shouldFetch && entityIds.length > 0
+      ? `/publishing/images/primary?entityIds=${encodeURIComponent(entityIds.join(","))}`
+      : null;
+  const { data: primaryImageUrls = {}, mutate: mutatePrimaryImages } = useSWR(
+    primaryImagesKey,
+    () => getPrimaryEntityImages(entityIds),
+  );
+
   useEffect(() => {
     if (
       !imageGenerationJob ||
@@ -213,6 +227,7 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
           setImageGenerationJob(job);
           if (job.status === "COMPLETED") {
             void mutateImages();
+            void mutatePrimaryImages();
             void mutate();
             setImageGenerationJob(null);
           }
@@ -234,7 +249,7 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
     }, 1500);
 
     return () => clearInterval(interval);
-  }, [imageGenerationJob, mutate, mutateImages]);
+  }, [imageGenerationJob, mutate, mutateImages, mutatePrimaryImages]);
 
   const handleGenerateImage = async (data: {
     canonicalName: string;
@@ -403,6 +418,7 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
     if (!selectedEntity) return;
     await setPrimaryImage(selectedEntity.id, imageId);
     await mutateImages();
+    await mutatePrimaryImages();
     await mutate();
   };
 
@@ -412,6 +428,7 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
     try {
       await deleteEntityImage(selectedEntity.id, imageToDelete.id);
       await mutateImages();
+      await mutatePrimaryImages();
       await mutate();
       setImageToDelete(null);
     } finally {
@@ -558,6 +575,7 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
                 setSelectedEntityId(entity?.id ?? null)
               }
               images={entityImages}
+              primaryImageUrls={primaryImageUrls}
               imagesLoading={isLoadingImages}
               activeImageJob={imageGenerationJob}
               onGenerateImage={() => setShowImageGenerationModal(true)}
