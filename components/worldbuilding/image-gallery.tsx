@@ -27,7 +27,7 @@ import type {
 } from "@/services/image-generation.service";
 
 type ImageGalleryProps = {
-  readonly images: ImageResponse[];
+  readonly images: readonly ImageResponse[];
   readonly loading: boolean;
   readonly activeJob: ImageGenerationJob | null;
   readonly category: EntityCategory;
@@ -105,7 +105,7 @@ export function ImageGallery({
                 )}
                 {uploading
                   ? "Cargando..."
-                  : activeJob
+                  : isGenerating
                     ? "Generando..."
                     : "Nueva imagen"}
                 {!isBusy && <ChevronDown className="ml-2 h-4 w-4" />}

@@ -289,7 +289,7 @@ export function ImageGenerationModal({
         if (!open && !submitting) onClose();
       }}
     >
-      <DialogContent className="max-h-[90vh] w-[calc(100%-2rem)] max-w-3xl overflow-y-auto">
+      <DialogContent className="z-[70] max-h-[90vh] w-[calc(100%-2rem)] max-w-3xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Generar variante de {entityName}</DialogTitle>
           <DialogDescription>

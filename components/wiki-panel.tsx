@@ -652,7 +652,7 @@ function EditorWikiEntityCard({
   const category = TYPE_TO_CATEGORY[entity.type];
   const categoryStyle = getEntityCategoryStyle(category);
   const imageSrc = `/api/storage/image/${entity.id}?v=${Date.parse(entity.updatedAt)}`;
-  const resolvedImageSrc = primaryImageUrl ?? imageSrc;
+  const resolvedImageSrc = primaryImageUrl ?? entity.imageUrl ?? imageSrc;
 
   return (
     <article className="flex w-full min-w-0 max-w-full items-start gap-3 overflow-hidden rounded-lg border border-border bg-card p-2.5 transition-colors hover:border-primary/25 hover:bg-muted/50">

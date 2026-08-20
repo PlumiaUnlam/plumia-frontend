@@ -23,6 +23,7 @@ import { worldbuildingEntitiesMock } from "@/mocks/worldbuilding.mock";
 import { NewEntityModal } from "@/components/modal/new-entity-modal";
 import { NewRelationModal } from "@/components/modal/new-relation-modal";
 import { ImageGenerationModal } from "@/components/modal/image-generation-modal";
+import { ImageReviewModal } from "@/components/modal/image-review-modal";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -70,6 +71,7 @@ import type {
   CreateEntityInput,
   UpdateEntityInput,
 } from "@/types/entity";
+import { TYPE_TO_CATEGORY } from "@/types/entity";
 import type {
   CreateRelationshipInput,
   Relationship,
@@ -80,6 +82,13 @@ type WorldbuildingTab = "wiki" | "relationships" | "timeline" | "summaries";
 
 type WorldbuildingProps = {
   projectId: string;
+};
+
+type ImageReviewState = {
+  entityId: string;
+  entityName: string;
+  entityType: Entity["type"];
+  image: ImageResponse;
 };
 
 export function Worldbuilding({ projectId }: WorldbuildingProps) {
@@ -139,6 +148,9 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
     useState(false);
   const [imageGenerationJob, setImageGenerationJob] =
     useState<ImageGenerationJob | null>(null);
+  const [imageReview, setImageReview] = useState<ImageReviewState | null>(
+    null,
+  );
   const [imageToDelete, setImageToDelete] = useState<ImageResponse | null>(
     null,
   );
@@ -187,6 +199,10 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
       null,
     [selectedEntityId, worldbuildingEntities],
   );
+  const selectedEntityImageJob =
+    selectedEntity && imageGenerationJob?.entityId === selectedEntity.id
+      ? imageGenerationJob
+      : null;
 
   const {
     data: entityImages = [],
@@ -226,6 +242,17 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
         .then((job) => {
           setImageGenerationJob(job);
           if (job.status === "COMPLETED") {
+            const generatedEntity = worldbuildingEntities.find(
+              (entity) => entity.id === job.entityId,
+            );
+            if (job.generatedImage && generatedEntity) {
+              setImageReview({
+                entityId: job.entityId,
+                entityName: generatedEntity.canonicalName,
+                entityType: generatedEntity.type,
+                image: job.generatedImage,
+              });
+            }
             void mutateImages();
             void mutatePrimaryImages();
             void mutate();
@@ -249,7 +276,13 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
     }, 1500);
 
     return () => clearInterval(interval);
-  }, [imageGenerationJob, mutate, mutateImages, mutatePrimaryImages]);
+  }, [
+    imageGenerationJob,
+    mutate,
+    mutateImages,
+    mutatePrimaryImages,
+    worldbuildingEntities,
+  ]);
 
   const handleGenerateImage = async (data: {
     canonicalName: string;
@@ -416,12 +449,35 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
     setImageGenerationJob(job);
   };
 
+  const handleRegenerateReviewedImage = async (
+    image: ImageResponse,
+    feedback: string,
+  ) => {
+    const job = await generateEntityImage({
+      entityId: image.entityId,
+      referenceImageId: image.id,
+      additionalInstructions: feedback,
+    });
+    setImageGenerationJob(job);
+  };
+
+  const handleAcceptReviewedImage = async (image: ImageResponse) => {
+    await setPrimaryImage(image.entityId, image.id);
+    await Promise.all([mutateImages(), mutatePrimaryImages(), mutate()]);
+  };
+
   const handleSetPrimaryImage = async (imageId: string) => {
     if (!selectedEntity) return;
     await setPrimaryImage(selectedEntity.id, imageId);
     await mutateImages();
     await mutatePrimaryImages();
     await mutate();
+  };
+
+  const handleUploadImage = async (file: File) => {
+    if (!selectedEntity) return;
+    await uploadAndSaveEntityImage(selectedEntity.id, file);
+    await Promise.all([mutateImages(), mutatePrimaryImages(), mutate()]);
   };
 
   const handleDeleteImage = async () => {
@@ -515,6 +571,11 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
           entity={currentEntity}
           imageGallery={entityImages}
           imageGalleryLoading={isLoadingImages}
+          activeImageJob={selectedEntityImageJob}
+          onImageGenerate={() => setShowImageGenerationModal(true)}
+          onImageUpload={handleUploadImage}
+          onSetPrimaryImage={handleSetPrimaryImage}
+          onDeleteImage={setImageToDelete}
           initialCanonicalName={timelineEntityInitialName ?? undefined}
           onGenerateImage={handleGenerateImage}
           onClearAiPreview={handleClearAiPreview}
@@ -537,6 +598,18 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
             referenceImageId={entityImages.find((image) => image.isPrimary)?.id}
             onClose={() => setShowImageGenerationModal(false)}
             onSubmit={handleRequestImageGeneration}
+          />
+        )}
+
+        {imageReview && (
+          <ImageReviewModal
+            key={imageReview.image.id}
+            image={imageReview.image}
+            entityName={imageReview.entityName}
+            category={TYPE_TO_CATEGORY[imageReview.entityType]}
+            onClose={() => setImageReview(null)}
+            onAccept={handleAcceptReviewedImage}
+            onRegenerate={handleRegenerateReviewedImage}
           />
         )}
 
@@ -581,13 +654,9 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
               images={entityImages}
               primaryImageUrls={primaryImageUrls}
               imagesLoading={isLoadingImages}
-              activeImageJob={imageGenerationJob}
+              activeImageJob={selectedEntityImageJob}
               onGenerateImage={() => setShowImageGenerationModal(true)}
-              onUploadImage={async (file) => {
-                if (!selectedEntity) return;
-                await uploadAndSaveEntityImage(selectedEntity.id, file);
-                await Promise.all([mutateImages(), mutatePrimaryImages(), mutate()]);
-              }}
+              onUploadImage={handleUploadImage}
               onSetPrimaryImage={(imageId) => {
                 void handleSetPrimaryImage(imageId);
               }}

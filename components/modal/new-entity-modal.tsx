@@ -40,8 +40,11 @@ import type {
 import { CATEGORY_TO_TYPE, TYPE_TO_CATEGORY } from "@/types/entity";
 import { ENTITY_CATEGORY_STYLES } from "@/lib/entity-category-style";
 import { EntityIconTile } from "@/components/worldbuilding/entity-icon-tile";
-import { EntityImage } from "@/components/worldbuilding/entity-image";
-import type { ImageResponse } from "@/services/image-generation.service";
+import { ImageGallery } from "@/components/worldbuilding/image-gallery";
+import type {
+  ImageGenerationJob,
+  ImageResponse,
+} from "@/services/image-generation.service";
 
 type NewEntityModalProps = {
   readonly show: boolean;
@@ -63,6 +66,11 @@ type NewEntityModalProps = {
   readonly initialCanonicalName?: string;
   readonly imageGallery?: readonly ImageResponse[];
   readonly imageGalleryLoading?: boolean;
+  readonly activeImageJob?: ImageGenerationJob | null;
+  readonly onImageGenerate?: () => void;
+  readonly onImageUpload?: (file: File) => Promise<void>;
+  readonly onSetPrimaryImage?: (imageId: string) => void;
+  readonly onDeleteImage?: (image: ImageResponse) => void;
   readonly onGenerateImage?: (data: {
     canonicalName: string;
     description: string;
@@ -82,6 +90,11 @@ export function NewEntityModal({
   initialCanonicalName,
   imageGallery = [],
   imageGalleryLoading = false,
+  activeImageJob = null,
+  onImageGenerate,
+  onImageUpload,
+  onSetPrimaryImage,
+  onDeleteImage,
   onGenerateImage,
   onClearAiPreview,
 }: NewEntityModalProps) {
@@ -100,15 +113,12 @@ export function NewEntityModal({
   const [aiGeneratedUrl, setAiGeneratedUrl] = useState<string | null>(null);
   const [aiElapsed, setAiElapsed] = useState(0);
   const [aiError, setAiError] = useState<string | null>(null);
-  const [imageRemoved, setImageRemoved] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const elapsedRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const cancelRef = useRef(false);
 
   const isProposal = mode === "proposal";
   const isEditing = !!entity && !isProposal;
-  const primaryImage = imageGallery.find((image) => image.isPrimary);
-
   useEffect(() => {
     if (!show) return;
 
@@ -144,7 +154,6 @@ export function NewEntityModal({
       setSubmitting(false);
       setSelectedFile(null);
       setPreviewUrl(null);
-      setImageRemoved(false);
     });
 
     return () => {
@@ -179,7 +188,6 @@ export function NewEntityModal({
     setPreviewUrl(URL.createObjectURL(file));
     setAiGeneratedUrl(null);
     setAiError(null);
-    setImageRemoved(false);
     onClearAiPreview?.();
   };
 
@@ -219,7 +227,6 @@ export function NewEntityModal({
       setSelectedFile(null);
       if (previewUrl) URL.revokeObjectURL(previewUrl);
       setPreviewUrl(null);
-      setImageRemoved(false);
     } catch (err) {
       if (cancelRef.current) return;
       const message =
@@ -266,9 +273,6 @@ export function NewEntityModal({
           aliases: tags.length > 0 ? tags : [],
           attributes,
         };
-        if (imageRemoved && !selectedFile && !aiGeneratedUrl) {
-          input.imageUrl = null;
-        }
         await onSubmit(input, selectedFile);
       } else {
         const input: CreateEntityInput = {
@@ -328,68 +332,6 @@ export function NewEntityModal({
           >
             <Trash2 size={16} />
           </button>
-        </div>
-      );
-    }
-
-    if (isEditing && !imageRemoved) {
-      if (imageGalleryLoading && !primaryImage && !entity?.imageUrl) {
-        return (
-          <div className="flex h-48 w-full items-center justify-center rounded-lg border border-border bg-muted/30 text-sm text-muted-foreground">
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Cargando imagen principal...
-          </div>
-        );
-      }
-
-      const savedImageUrl =
-        primaryImage?.imageUrl ??
-        (entity?.imageUrl
-          ? `/api/storage/image/${entity.id}?v=${Date.parse(entity.updatedAt)}`
-          : null);
-
-      if (!savedImageUrl) {
-        return (
-          <EntityIconTile
-            category={category}
-            className="h-48 w-full rounded-lg"
-            iconClassName="h-12 w-12"
-          />
-        );
-      }
-
-      return (
-        <div className="relative rounded-lg overflow-hidden border border-border">
-          <EntityImage
-            src={savedImageUrl}
-            alt={entity.canonicalName}
-            className="w-full h-48 object-contain bg-muted"
-            category={TYPE_TO_CATEGORY[entity.type]}
-            iconClassName="h-12 w-12"
-            width={384}
-            height={192}
-          />
-          {primaryImage ? (
-            <p className="absolute bottom-2 left-2 rounded-md bg-background/85 px-2 py-1 text-xs text-muted-foreground">
-              Imagen principal del baúl de imágenes
-            </p>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setImageRemoved(true)}
-              className="absolute top-2 right-2 p-1.5 rounded-full bg-background/80 hover:bg-background text-muted-foreground hover:text-destructive transition-colors"
-            >
-              <Trash2 size={16} />
-            </button>
-          )}
-        </div>
-      );
-    }
-
-    if (imageRemoved && isEditing) {
-      return (
-        <div className="w-full border-2 border-dashed border-border rounded-lg p-4 text-center bg-muted/30">
-          <p className="text-sm text-muted-foreground">Imagen eliminada</p>
         </div>
       );
     }
@@ -492,11 +434,11 @@ export function NewEntityModal({
           <Field>
             <FieldLabel htmlFor="entity-image">
               Imagen{" "}
-              {selectedFile || aiGeneratedUrl
+              {isEditing
+                ? "Baúl de imágenes"
+                : selectedFile || aiGeneratedUrl
                 ? "(1 seleccionada)"
-                : primaryImage
-                  ? "(Principal del baúl)"
-                  : "(Opcional)"}
+                : "(Opcional)"}
             </FieldLabel>
 
             <FieldContent>
@@ -509,22 +451,37 @@ export function NewEntityModal({
                 className="hidden"
               />
 
-              {renderImagePreview()}
-
-              <div className="space-y-2">
-                <ImageUploadActions
-                  aiGeneratedUrl={aiGeneratedUrl}
-                  aiGenerating={aiGenerating}
-                  aiError={aiError}
-                  aiElapsed={aiElapsed}
-                  name={name}
-                  selectedFile={selectedFile}
-                  onFileClick={() => fileInputRef.current?.click()}
-                  onGenerateAi={handleGenerateAi}
-                  onCancelGeneration={handleCancelGeneration}
-                  onGenerateImage={onGenerateImage}
+              {isEditing ? (
+                <ImageGallery
+                  images={imageGallery}
+                  loading={imageGalleryLoading}
+                  activeJob={activeImageJob}
+                  category={category}
+                  onGenerate={onImageGenerate ?? (() => undefined)}
+                  onUpload={onImageUpload ?? (async () => undefined)}
+                  onSetPrimary={onSetPrimaryImage ?? (() => undefined)}
+                  onDelete={onDeleteImage ?? (() => undefined)}
                 />
-              </div>
+              ) : (
+                <>
+                  {renderImagePreview()}
+
+                  <div className="space-y-2">
+                    <ImageUploadActions
+                      aiGeneratedUrl={aiGeneratedUrl}
+                      aiGenerating={aiGenerating}
+                      aiError={aiError}
+                      aiElapsed={aiElapsed}
+                      name={name}
+                      selectedFile={selectedFile}
+                      onFileClick={() => fileInputRef.current?.click()}
+                      onGenerateAi={handleGenerateAi}
+                      onCancelGeneration={handleCancelGeneration}
+                      onGenerateImage={onGenerateImage}
+                    />
+                  </div>
+                </>
+              )}
             </FieldContent>
           </Field>
 

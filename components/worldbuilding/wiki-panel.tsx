@@ -91,6 +91,7 @@ export function WikiTab({
   const selectedEntityImageSrc = selectedEntity
     ? (selectedEntityPrimaryImage?.imageUrl ??
       primaryImageUrls[selectedEntity.id] ??
+      selectedEntity.imageUrl ??
       `/api/storage/image/${selectedEntity.id}?v=${Date.parse(selectedEntity.updatedAt)}`)
     : "";
 
@@ -225,7 +226,7 @@ export function WikiTab({
                             src={
                               isSelected && selectedEntityPrimaryImage
                                 ? selectedEntityPrimaryImage.imageUrl
-                                : (primaryImageUrl ?? src)
+                                : (primaryImageUrl ?? entity.imageUrl ?? src)
                             }
                             alt={entity.canonicalName}
                             width={128}
