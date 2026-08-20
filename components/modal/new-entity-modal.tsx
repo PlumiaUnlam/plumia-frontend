@@ -347,7 +347,7 @@ export function NewEntityModal({
 
   return (
     <Dialog open={show} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="z-[60] min-w-[600px] gap-0 overflow-hidden">
+      <DialogContent className="z-[60] max-h-[90vh] w-[calc(100%-2rem)] max-w-4xl gap-0 overflow-hidden">
         <DialogHeader className="p-6 py-4 border-b">
           <div className="flex items-center justify-between">
             <DialogTitle>
