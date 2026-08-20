@@ -4,7 +4,22 @@ export interface GenerateImageInput {
   entityId: string;
   width?: number;
   height?: number;
+  referenceImageId?: string;
+  prompt?: string;
+  expression?: string;
+  pose?: string;
+  background?: string;
+  framing?: string;
+  lighting?: string;
+  style?: string;
+  additionalInstructions?: string;
 }
+
+export type ImageGenerationJobStatus =
+  | "QUEUED"
+  | "PROCESSING"
+  | "COMPLETED"
+  | "FAILED";
 
 export interface ImageResponse {
   id: string;
@@ -38,10 +53,48 @@ export interface AttachImageInput {
   imageType: string;
 }
 
+export interface ImageGenerationJob {
+  id: string;
+  entityId: string;
+  status: ImageGenerationJobStatus;
+  progress: number;
+  errorMessage: string | null;
+  createdAt: string;
+  startedAt: string | null;
+  completedAt: string | null;
+  generatedImage: ImageResponse | null;
+}
+
 export async function generateEntityImage(
   input: GenerateImageInput,
-): Promise<ImageResponse> {
+): Promise<ImageGenerationJob> {
   return api.post("/publishing/images/generate", input);
+}
+
+export async function getImageGenerationJob(
+  jobId: string,
+): Promise<ImageGenerationJob> {
+  return api.get(`/publishing/images/jobs/${jobId}`);
+}
+
+export async function getEntityImages(
+  entityId: string,
+): Promise<ImageResponse[]> {
+  return api.get(`/publishing/images/${entityId}`);
+}
+
+export async function setPrimaryImage(
+  entityId: string,
+  imageId: string,
+): Promise<ImageResponse> {
+  return api.post(`/publishing/images/${entityId}/primary`, { imageId });
+}
+
+export async function deleteEntityImage(
+  entityId: string,
+  imageId: string,
+): Promise<void> {
+  return api.delete(`/publishing/images/${entityId}/${imageId}`);
 }
 
 export async function generatePreviewImage(

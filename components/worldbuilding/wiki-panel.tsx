@@ -21,6 +21,11 @@ import type { Entity, EntityCategory } from "@/types/entity";
 import { TYPE_TO_CATEGORY } from "@/types/entity";
 import { ENTITY_CATEGORY_STYLES } from "@/lib/entity-category-style";
 import { EntityIconTile } from "@/components/worldbuilding/entity-icon-tile";
+import { ImageGallery } from "@/components/worldbuilding/image-gallery";
+import type {
+  ImageGenerationJob,
+  ImageResponse,
+} from "@/services/image-generation.service";
 
 interface WikiTabProps {
   readonly entities: readonly Entity[];
@@ -30,6 +35,12 @@ interface WikiTabProps {
   readonly onDelete: (entity: Entity) => void;
   readonly selectedEntity: Entity | null;
   readonly onSelectEntity: (entity: Entity | null) => void;
+  readonly images: ImageResponse[];
+  readonly imagesLoading: boolean;
+  readonly activeImageJob: ImageGenerationJob | null;
+  readonly onGenerateImage: () => void;
+  readonly onSetPrimaryImage: (imageId: string) => void;
+  readonly onDeleteImage: (image: ImageResponse) => void;
 }
 
 export function WikiTab({
@@ -40,6 +51,12 @@ export function WikiTab({
   onDelete,
   selectedEntity,
   onSelectEntity,
+  images,
+  imagesLoading,
+  activeImageJob,
+  onGenerateImage,
+  onSetPrimaryImage,
+  onDeleteImage,
 }: WikiTabProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<EntityCategory[]>(
@@ -306,6 +323,15 @@ export function WikiTab({
                   </CardContent>
                 </Card>
               </section>
+
+              <ImageGallery
+                images={images}
+                loading={imagesLoading}
+                activeJob={activeImageJob}
+                onGenerate={onGenerateImage}
+                onSetPrimary={onSetPrimaryImage}
+                onDelete={onDeleteImage}
+              />
 
               {/* {selectedEntity.imageUrl && (
                 <div className="rounded-lg overflow-hidden border border-border">

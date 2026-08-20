@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useRef } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   Loader2,
@@ -22,6 +22,7 @@ import { worldbuildingEntitiesMock } from "@/mocks/worldbuilding.mock";
 
 import { NewEntityModal } from "@/components/modal/new-entity-modal";
 import { NewRelationModal } from "@/components/modal/new-relation-modal";
+import { ImageGenerationModal } from "@/components/modal/image-generation-modal";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -52,6 +53,15 @@ import { uploadEntityImage } from "@/services/upload.service";
 import {
   generatePreviewImage,
   attachImage,
+  generateEntityImage,
+  getEntityImages,
+  getImageGenerationJob,
+  setPrimaryImage,
+  deleteEntityImage,
+} from "@/services/image-generation.service";
+import type {
+  ImageGenerationJob,
+  ImageResponse,
 } from "@/services/image-generation.service";
 
 import type {
@@ -124,6 +134,14 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
   const aiPromptRef = useRef<string | null>(null);
   const aiImageTypeRef = useRef<string | null>(null);
   const [deletingRelationship, setDeletingRelationship] = useState(false);
+  const [showImageGenerationModal, setShowImageGenerationModal] =
+    useState(false);
+  const [imageGenerationJob, setImageGenerationJob] =
+    useState<ImageGenerationJob | null>(null);
+  const [imageToDelete, setImageToDelete] = useState<ImageResponse | null>(
+    null,
+  );
+  const [deletingImage, setDeletingImage] = useState(false);
 
   const {
     data: entities,
@@ -139,9 +157,8 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
     data: project,
     error: projectError,
     isLoading: isLoadingProject,
-  } = useSWR(
-    shouldFetch ? `/projects/${projectId}` : null,
-    () => getProject(projectId),
+  } = useSWR(shouldFetch ? `/projects/${projectId}` : null, () =>
+    getProject(projectId),
   );
 
   const {
@@ -169,6 +186,55 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
       null,
     [selectedEntityId, worldbuildingEntities],
   );
+
+  const {
+    data: entityImages = [],
+    isLoading: isLoadingImages,
+    mutate: mutateImages,
+  } = useSWR(
+    shouldFetch && selectedEntity
+      ? `/publishing/images/${selectedEntity.id}`
+      : null,
+    () => getEntityImages(selectedEntity!.id),
+  );
+
+  useEffect(() => {
+    if (
+      !imageGenerationJob ||
+      imageGenerationJob.status === "COMPLETED" ||
+      imageGenerationJob.status === "FAILED"
+    ) {
+      return;
+    }
+
+    const interval = setInterval(() => {
+      void getImageGenerationJob(imageGenerationJob.id)
+        .then((job) => {
+          setImageGenerationJob(job);
+          if (job.status === "COMPLETED") {
+            void mutateImages();
+            void mutate();
+            setImageGenerationJob(null);
+          }
+        })
+        .catch((pollError) => {
+          setImageGenerationJob((current) =>
+            current
+              ? {
+                  ...current,
+                  status: "FAILED",
+                  errorMessage:
+                    pollError instanceof Error
+                      ? pollError.message
+                      : "No se pudo consultar la generación",
+                }
+              : null,
+          );
+        });
+    }, 1500);
+
+    return () => clearInterval(interval);
+  }, [imageGenerationJob, mutate, mutateImages]);
 
   const handleGenerateImage = async (data: {
     canonicalName: string;
@@ -258,7 +324,11 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
       entityId = editingEntity.id;
       await updateEntity(entityId, data as UpdateEntityInput);
       await attachPendingAiImage(entityId);
-      await uploadAndSaveEntityImage(entityId, file, editingEntity.imageUrl ?? undefined);
+      await uploadAndSaveEntityImage(
+        entityId,
+        file,
+        editingEntity.imageUrl ?? undefined,
+      );
       setEditingEntity(null);
     } else {
       entityId = await createEntityFromModal(data as CreateEntityInput, file);
@@ -312,6 +382,41 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
     aiStorageKeyRef.current = null;
     aiPromptRef.current = null;
     aiImageTypeRef.current = null;
+  };
+
+  const handleRequestImageGeneration = async (input: {
+    entityId: string;
+    referenceImageId?: string;
+    expression?: string;
+    pose?: string;
+    background?: string;
+    framing?: string;
+    lighting?: string;
+    style?: string;
+    additionalInstructions?: string;
+  }) => {
+    const job = await generateEntityImage(input);
+    setImageGenerationJob(job);
+  };
+
+  const handleSetPrimaryImage = async (imageId: string) => {
+    if (!selectedEntity) return;
+    await setPrimaryImage(selectedEntity.id, imageId);
+    await mutateImages();
+    await mutate();
+  };
+
+  const handleDeleteImage = async () => {
+    if (!selectedEntity || !imageToDelete) return;
+    setDeletingImage(true);
+    try {
+      await deleteEntityImage(selectedEntity.id, imageToDelete.id);
+      await mutateImages();
+      await mutate();
+      setImageToDelete(null);
+    } finally {
+      setDeletingImage(false);
+    }
   };
 
   const handleModalClose = () => {
@@ -402,6 +507,17 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
           relationship={editingRelationship}
         />
 
+        {selectedEntity && (
+          <ImageGenerationModal
+            show={showImageGenerationModal}
+            entityId={selectedEntity.id}
+            entityName={selectedEntity.canonicalName}
+            referenceImageId={entityImages.find((image) => image.isPrimary)?.id}
+            onClose={() => setShowImageGenerationModal(false)}
+            onSubmit={handleRequestImageGeneration}
+          />
+        )}
+
         <Tabs
           value={activeTab}
           onValueChange={(value) => setActiveTab(value as WorldbuildingTab)}
@@ -440,6 +556,14 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
               onSelectEntity={(entity) =>
                 setSelectedEntityId(entity?.id ?? null)
               }
+              images={entityImages}
+              imagesLoading={isLoadingImages}
+              activeImageJob={imageGenerationJob}
+              onGenerateImage={() => setShowImageGenerationModal(true)}
+              onSetPrimaryImage={(imageId) => {
+                void handleSetPrimaryImage(imageId);
+              }}
+              onDeleteImage={setImageToDelete}
             />
           </TabsContent>
 
@@ -523,6 +647,42 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
               }}
             >
               {deleting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Eliminar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!imageToDelete}
+        onOpenChange={(open) => {
+          if (!open && !deletingImage) setImageToDelete(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Eliminar imagen</DialogTitle>
+            <DialogDescription>
+              ¿Querés eliminar esta variante del baúl de imágenes? Esta acción
+              no se puede deshacer.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setImageToDelete(null)}
+              disabled={deletingImage}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => void handleDeleteImage()}
+              disabled={deletingImage}
+            >
+              {deletingImage && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
               Eliminar
             </Button>
           </DialogFooter>
