@@ -1,6 +1,26 @@
-import { ImageIcon, Loader2, Star, StarOff, Trash2 } from "lucide-react";
+"use client";
+
+import { useRef, useState } from "react";
+import {
+  ChevronDown,
+  ImageIcon,
+  Loader2,
+  Sparkles,
+  Star,
+  StarOff,
+  Trash2,
+  Upload,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { EntityImage } from "@/components/worldbuilding/entity-image";
+import type { EntityCategory } from "@/types/entity";
 import type {
   ImageGenerationJob,
   ImageResponse,
@@ -10,7 +30,9 @@ type ImageGalleryProps = {
   readonly images: ImageResponse[];
   readonly loading: boolean;
   readonly activeJob: ImageGenerationJob | null;
+  readonly category: EntityCategory;
   readonly onGenerate: () => void;
+  readonly onUpload: (file: File) => Promise<void>;
   readonly onSetPrimary: (imageId: string) => void;
   readonly onDelete: (image: ImageResponse) => void;
 };
@@ -19,12 +41,40 @@ export function ImageGallery({
   images,
   loading,
   activeJob,
+  category,
   onGenerate,
+  onUpload,
   onSetPrimary,
   onDelete,
 }: ImageGalleryProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const isGenerating =
     activeJob?.status === "QUEUED" || activeJob?.status === "PROCESSING";
+  const isBusy = isGenerating || uploading;
+
+  const handleFileChange = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    setUploading(true);
+    setUploadError(null);
+    try {
+      await onUpload(file);
+    } catch (error) {
+      setUploadError(
+        error instanceof Error
+          ? error.message
+          : "No se pudo guardar la imagen.",
+      );
+    } finally {
+      setUploading(false);
+    }
+  };
 
   return (
     <section className="space-y-3">
@@ -37,15 +87,45 @@ export function ImageGallery({
             Todas las variantes quedan asociadas a esta ficha.
           </p>
         </div>
-        <Button onClick={onGenerate} disabled={isGenerating}>
-          {isGenerating ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <ImageIcon className="mr-2 h-4 w-4" />
-          )}
-          {activeJob ? "Generando..." : "Nueva imagen"}
-        </Button>
+        <>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/avif"
+            onChange={(event) => void handleFileChange(event)}
+            className="hidden"
+          />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button disabled={isBusy}>
+                {isBusy ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <ImageIcon className="mr-2 h-4 w-4" />
+                )}
+                {uploading
+                  ? "Cargando..."
+                  : activeJob
+                    ? "Generando..."
+                    : "Nueva imagen"}
+                {!isBusy && <ChevronDown className="ml-2 h-4 w-4" />}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={onGenerate}>
+                <Sparkles className="mr-2 h-4 w-4" />
+                Generar variante
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => fileInputRef.current?.click()}>
+                <Upload className="mr-2 h-4 w-4" />
+                Cargar imagen
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </>
       </div>
+
+      {uploadError && <p className="text-sm text-destructive">{uploadError}</p>}
 
       {activeJob && (
         <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm">
@@ -90,11 +170,14 @@ export function ImageGallery({
               className="overflow-hidden rounded-lg border bg-background"
             >
               <div className="relative aspect-square bg-muted">
-                <img
+                <EntityImage
                   src={image.imageUrl}
                   alt={image.prompt}
+                  width={512}
+                  height={512}
                   className="h-full w-full object-cover"
-                  loading="lazy"
+                  category={category}
+                  iconClassName="h-10 w-10"
                 />
                 {image.isPrimary && (
                   <span className="absolute left-2 top-2 rounded-full bg-primary px-2 py-1 text-xs font-medium text-primary-foreground">

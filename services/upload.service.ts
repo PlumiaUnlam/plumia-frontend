@@ -76,16 +76,13 @@ export async function resolveStorageKeyUrl(storageKey: string): Promise<string> 
 export async function uploadEntityImage(
   entityId: string,
   file: File,
-  existingImageUrl?: string,
-): Promise<string> {
-  const { publicUrl } = await requestPresignedUpload(
+): Promise<{ publicUrl: string; storageKey: string }> {
+  const { publicUrl, storageKey } = await requestPresignedUpload(
     entityId,
     file,
-    "entities",
-    existingImageUrl,
   )
 
-  return publicUrl
+  return { publicUrl, storageKey }
 }
 
 export async function uploadSceneImage(

@@ -298,12 +298,16 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
   const uploadAndSaveEntityImage = async (
     entityId: string,
     file: File | null | undefined,
-    currentImageUrl?: string,
   ) => {
     if (!file) return;
 
-    const publicUrl = await uploadEntityImage(entityId, file, currentImageUrl);
-    await updateEntity(entityId, { imageUrl: publicUrl } as UpdateEntityInput);
+    const { storageKey } = await uploadEntityImage(entityId, file);
+    await attachImage({
+      entityId,
+      storageKey,
+      prompt: "Imagen cargada manualmente",
+      imageType: file.type,
+    });
   };
 
   const createEntityFromModal = async (
@@ -339,16 +343,13 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
       entityId = editingEntity.id;
       await updateEntity(entityId, data as UpdateEntityInput);
       await attachPendingAiImage(entityId);
-      await uploadAndSaveEntityImage(
-        entityId,
-        file,
-        editingEntity.imageUrl ?? undefined,
-      );
+      await uploadAndSaveEntityImage(entityId, file);
       setEditingEntity(null);
     } else {
       entityId = await createEntityFromModal(data as CreateEntityInput, file);
     }
     await mutate();
+    await Promise.all([mutateImages(), mutatePrimaryImages()]);
     setSelectedEntityId(entityId);
     if (isTimelineEntityCreation) {
       setTimelineCreatedEntity((current) => ({
@@ -389,6 +390,7 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
   };
 
   const handleEdit = (entity: Entity) => {
+    setSelectedEntityId(entity.id);
     setEditingEntity(entity);
     setShowNewEntityModal(true);
   };
@@ -511,6 +513,8 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
           onClose={handleModalClose}
           onSubmit={handleSubmitModal}
           entity={currentEntity}
+          imageGallery={entityImages}
+          imageGalleryLoading={isLoadingImages}
           initialCanonicalName={timelineEntityInitialName ?? undefined}
           onGenerateImage={handleGenerateImage}
           onClearAiPreview={handleClearAiPreview}
@@ -579,6 +583,11 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
               imagesLoading={isLoadingImages}
               activeImageJob={imageGenerationJob}
               onGenerateImage={() => setShowImageGenerationModal(true)}
+              onUploadImage={async (file) => {
+                if (!selectedEntity) return;
+                await uploadAndSaveEntityImage(selectedEntity.id, file);
+                await Promise.all([mutateImages(), mutatePrimaryImages(), mutate()]);
+              }}
               onSetPrimaryImage={(imageId) => {
                 void handleSetPrimaryImage(imageId);
               }}

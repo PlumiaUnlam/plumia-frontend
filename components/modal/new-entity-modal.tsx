@@ -41,6 +41,7 @@ import { CATEGORY_TO_TYPE, TYPE_TO_CATEGORY } from "@/types/entity";
 import { ENTITY_CATEGORY_STYLES } from "@/lib/entity-category-style";
 import { EntityIconTile } from "@/components/worldbuilding/entity-icon-tile";
 import { EntityImage } from "@/components/worldbuilding/entity-image";
+import type { ImageResponse } from "@/services/image-generation.service";
 
 type NewEntityModalProps = {
   readonly show: boolean;
@@ -60,6 +61,8 @@ type NewEntityModalProps = {
     imageUrl?: string | null;
   };
   readonly initialCanonicalName?: string;
+  readonly imageGallery?: readonly ImageResponse[];
+  readonly imageGalleryLoading?: boolean;
   readonly onGenerateImage?: (data: {
     canonicalName: string;
     description: string;
@@ -77,6 +80,8 @@ export function NewEntityModal({
   mode = entity ? "edit" : "create",
   initialValues,
   initialCanonicalName,
+  imageGallery = [],
+  imageGalleryLoading = false,
   onGenerateImage,
   onClearAiPreview,
 }: NewEntityModalProps) {
@@ -102,6 +107,7 @@ export function NewEntityModal({
 
   const isProposal = mode === "proposal";
   const isEditing = !!entity && !isProposal;
+  const primaryImage = imageGallery.find((image) => image.isPrimary);
 
   useEffect(() => {
     if (!show) return;
@@ -326,11 +332,36 @@ export function NewEntityModal({
       );
     }
 
-    if (isEditing && entity?.imageUrl && !imageRemoved) {
+    if (isEditing && !imageRemoved) {
+      if (imageGalleryLoading && !primaryImage && !entity?.imageUrl) {
+        return (
+          <div className="flex h-48 w-full items-center justify-center rounded-lg border border-border bg-muted/30 text-sm text-muted-foreground">
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Cargando imagen principal...
+          </div>
+        );
+      }
+
+      const savedImageUrl =
+        primaryImage?.imageUrl ??
+        (entity?.imageUrl
+          ? `/api/storage/image/${entity.id}?v=${Date.parse(entity.updatedAt)}`
+          : null);
+
+      if (!savedImageUrl) {
+        return (
+          <EntityIconTile
+            category={category}
+            className="h-48 w-full rounded-lg"
+            iconClassName="h-12 w-12"
+          />
+        );
+      }
+
       return (
         <div className="relative rounded-lg overflow-hidden border border-border">
           <EntityImage
-            src={`/api/storage/image/${entity.id}?v=${Date.parse(entity.updatedAt)}`}
+            src={savedImageUrl}
             alt={entity.canonicalName}
             className="w-full h-48 object-contain bg-muted"
             category={TYPE_TO_CATEGORY[entity.type]}
@@ -338,13 +369,19 @@ export function NewEntityModal({
             width={384}
             height={192}
           />
-          <button
-            type="button"
-            onClick={() => setImageRemoved(true)}
-            className="absolute top-2 right-2 p-1.5 rounded-full bg-background/80 hover:bg-background text-muted-foreground hover:text-destructive transition-colors"
-          >
-            <Trash2 size={16} />
-          </button>
+          {primaryImage ? (
+            <p className="absolute bottom-2 left-2 rounded-md bg-background/85 px-2 py-1 text-xs text-muted-foreground">
+              Imagen principal del baúl de imágenes
+            </p>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setImageRemoved(true)}
+              className="absolute top-2 right-2 p-1.5 rounded-full bg-background/80 hover:bg-background text-muted-foreground hover:text-destructive transition-colors"
+            >
+              <Trash2 size={16} />
+            </button>
+          )}
         </div>
       );
     }
@@ -457,7 +494,9 @@ export function NewEntityModal({
               Imagen{" "}
               {selectedFile || aiGeneratedUrl
                 ? "(1 seleccionada)"
-                : "(Opcional)"}
+                : primaryImage
+                  ? "(Principal del baúl)"
+                  : "(Opcional)"}
             </FieldLabel>
 
             <FieldContent>

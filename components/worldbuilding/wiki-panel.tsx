@@ -41,6 +41,7 @@ interface WikiTabProps {
   readonly imagesLoading: boolean;
   readonly activeImageJob: ImageGenerationJob | null;
   readonly onGenerateImage: () => void;
+  readonly onUploadImage: (file: File) => Promise<void>;
   readonly onSetPrimaryImage: (imageId: string) => void;
   readonly onDeleteImage: (image: ImageResponse) => void;
 }
@@ -58,6 +59,7 @@ export function WikiTab({
   imagesLoading,
   activeImageJob,
   onGenerateImage,
+  onUploadImage,
   onSetPrimaryImage,
   onDeleteImage,
 }: WikiTabProps) {
@@ -348,7 +350,9 @@ export function WikiTab({
                 images={images}
                 loading={imagesLoading}
                 activeJob={activeImageJob}
+                category={selectedEntityCategory ?? "Personaje"}
                 onGenerate={onGenerateImage}
+                onUpload={onUploadImage}
                 onSetPrimary={onSetPrimaryImage}
                 onDelete={onDeleteImage}
               />
