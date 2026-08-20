@@ -512,6 +512,7 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
             show={showImageGenerationModal}
             entityId={selectedEntity.id}
             entityName={selectedEntity.canonicalName}
+            entityType={selectedEntity.type}
             referenceImageId={entityImages.find((image) => image.isPrimary)?.id}
             onClose={() => setShowImageGenerationModal(false)}
             onSubmit={handleRequestImageGeneration}
