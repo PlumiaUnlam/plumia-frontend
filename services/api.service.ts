@@ -36,8 +36,6 @@ async function request<T>(
     headers,
   })
 
-  console.log(`${path} status:`, response.status)
-
   if (!response.ok) {
     let errorText = await response.text()
     try {
@@ -56,10 +54,7 @@ async function request<T>(
     return undefined as T
   }
 
-  const data = JSON.parse(responseText) as T
-  console.log(`${path} response:`, data)
-
-  return data
+  return JSON.parse(responseText) as T
 }
 
 export const api = {
