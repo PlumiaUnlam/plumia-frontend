@@ -298,8 +298,10 @@ export function ImageGenerationModal({
 
         <div className="max-h-[65vh] space-y-5 overflow-y-auto px-6 py-6">
           <DialogDescription>
-            La imagen de referencia y la identidad de la ficha se conservan.
-            Solo definí qué querés cambiar en esta variante.
+            <span className="block">
+              La imagen de referencia y la identidad de la ficha se conservan.
+              Solo definí qué querés cambiar en esta variante.
+            </span>
             <span className="mt-1 block text-xs">
               Todos los campos son opcionales: podés dejarlos en blanco y
               generar la imagen con la configuración base.

@@ -128,6 +128,11 @@ export function NewEntityModal({
     typeof attributes.visualIdentity === "string"
       ? attributes.visualIdentity
       : "";
+  const imageSelectionLabel = getImageSelectionLabel(
+    Boolean(selectedFile || aiGeneratedUrl),
+    Boolean(primaryImage),
+  );
+  const submitLabel = getSubmitLabel(isProposal, isEditing);
 
   const updateVisualIdentity = (value: string) => {
     setAttributes((current) => {
@@ -549,12 +554,7 @@ export function NewEntityModal({
 
           <Field>
             <FieldLabel htmlFor="entity-image">
-              Imagen{" "}
-              {selectedFile || aiGeneratedUrl
-                ? "(1 seleccionada)"
-                : primaryImage
-                  ? "(Principal del baúl)"
-                  : "(Opcional)"}
+              Imagen {imageSelectionLabel}
             </FieldLabel>
 
             <FieldContent>
@@ -659,11 +659,7 @@ export function NewEntityModal({
 
           <Button disabled={!name.trim() || submitting} onClick={handleSubmit}>
             {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {isProposal
-              ? "Aceptar propuesta"
-              : isEditing
-                ? "Guardar cambios"
-                : "Crear entidad"}
+            {submitLabel}
           </Button>
         </DialogFooter>
         {children}
@@ -674,6 +670,21 @@ export function NewEntityModal({
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function getImageSelectionLabel(
+  hasSelectedImage: boolean,
+  hasPrimaryImage: boolean,
+): string {
+  if (hasSelectedImage) return "(1 seleccionada)";
+  if (hasPrimaryImage) return "(Principal del baúl)";
+  return "(Opcional)";
+}
+
+function getSubmitLabel(isProposal: boolean, isEditing: boolean): string {
+  if (isProposal) return "Aceptar propuesta";
+  if (isEditing) return "Guardar cambios";
+  return "Crear entidad";
 }
 
 function ImageUploadActions({
