@@ -3,6 +3,11 @@ import type { ProseMirrorJSON } from "@/types/scene"
 
 export type SaveStatus = "idle" | "dirty" | "saving" | "saved" | "error"
 
+export type EditorCitationFocus = {
+  sceneId: string
+  textQuote: string
+}
+
 type EditorState = {
   /** Capítulo actualmente cargado en el editor (carga perezosa). */
   activeSceneId: string | null
@@ -15,6 +20,7 @@ type EditorState = {
   lastSavedAt: string | null
   /** Mensaje de error del último guardado fallido. */
   error: string | null
+  citationFocus: EditorCitationFocus | null
 
   setActiveScene: (id: string) => void
   setSelectedSceneVersion: (id: string | null) => void
@@ -23,6 +29,8 @@ type EditorState = {
   setSaveStatus: (status: SaveStatus) => void
   markSaved: (updatedAt: string) => void
   setError: (message: string) => void
+  focusCitation: (focus: EditorCitationFocus) => void
+  clearCitationFocus: () => void
 }
 
 export const useEditorStore = create<EditorState>((set) => ({
@@ -33,6 +41,7 @@ export const useEditorStore = create<EditorState>((set) => ({
   saveStatus: "idle",
   lastSavedAt: null,
   error: null,
+  citationFocus: null,
 
   setActiveScene: (id) =>
     set({
@@ -59,4 +68,6 @@ export const useEditorStore = create<EditorState>((set) => ({
   markSaved: (updatedAt) =>
     set({ saveStatus: "saved", lastSavedAt: updatedAt, error: null }),
   setError: (message) => set({ saveStatus: "error", error: message }),
+  focusCitation: (citationFocus) => set({ citationFocus }),
+  clearCitationFocus: () => set({ citationFocus: null }),
 }))

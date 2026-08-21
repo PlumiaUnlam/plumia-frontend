@@ -1,0 +1,640 @@
+"use client"
+
+import Image from "next/image"
+import { useRouter } from "next/navigation"
+import { useEffect, useRef, useState, type FormEvent } from "react"
+import {
+  BookOpen,
+  Clock3,
+  ExternalLink,
+  Feather,
+  FileText,
+  Mic,
+  MicOff,
+  Plus,
+  RefreshCw,
+  Send,
+  ShieldCheck,
+  ShieldAlert,
+  ShieldOff,
+  Sparkles,
+  StickyNote,
+  Waypoints,
+} from "lucide-react"
+
+import { Button } from "@/components/ui/button"
+import {
+  createChatThread,
+  getChatMessages,
+  getChatThreads,
+  sendChatMessage,
+  updateChatThread,
+} from "@/services/chat.service"
+import { useEditorStore } from "@/stores/editor.store"
+import type { ChatMessage, ChatSource, ChatThread } from "@/types/chat"
+
+type ChatPanelProps = {
+  readonly projectId: string
+  readonly currentChapterId?: string
+  readonly primaryImageUrls?: Readonly<Record<string, string>>
+}
+
+const promptSuggestions = [
+  "¿Qué hechos importantes registra la línea de tiempo?",
+  "¿Cómo se relacionan los personajes mencionados en esta parte?",
+  "¿Qué detalles de la Wiki aparecen también en el manuscrito?",
+]
+
+export function ChatPanel({
+  projectId,
+  currentChapterId,
+  primaryImageUrls = {},
+}: ChatPanelProps) {
+  const [threadId, setThreadId] = useState<string | null>(null)
+  const [threads, setThreads] = useState<ChatThread[]>([])
+  const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [draft, setDraft] = useState("")
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSending, setIsSending] = useState(false)
+  const [isListening, setIsListening] = useState(false)
+  const [speechSupported, setSpeechSupported] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const endRef = useRef<HTMLDivElement | null>(null)
+  const recognitionRef = useRef<PlumSpeechRecognition | null>(null)
+  const speechBaseDraftRef = useRef("")
+
+  useEffect(() => {
+    let cancelled = false
+    setIsLoading(true)
+    setMessages([])
+    setThreads([])
+    setThreadId(null)
+    setError(null)
+
+    void getChatThreads(projectId)
+      .then(async (threads) => {
+        if (!cancelled) setThreads(threads)
+        const currentThread = threads[0]
+        if (!currentThread) return { thread: null, messages: [] }
+        return {
+          thread: currentThread,
+          messages: await getChatMessages(currentThread.id),
+        }
+      })
+      .then((result) => {
+        if (cancelled) return
+        setThreadId(result.thread?.id ?? null)
+        setMessages(result.messages)
+      })
+      .catch((loadError: unknown) => {
+        if (cancelled) return
+        setError(errorMessage(loadError, "No se pudo cargar la conversación."))
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [projectId])
+
+  useEffect(() => {
+    setSpeechSupported(
+      Boolean(window.SpeechRecognition || window.webkitSpeechRecognition),
+    )
+    return () => {
+      recognitionRef.current?.abort()
+      recognitionRef.current = null
+    }
+  }, [])
+
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" })
+  }, [messages, isSending])
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const content = draft.trim()
+    if (!content || isSending) return
+
+    const optimisticId = `pending-${Date.now()}`
+    const optimisticMessage: ChatMessage = {
+      id: optimisticId,
+      threadId: threadId ?? "pending",
+      role: "user",
+      content,
+      sources: [],
+      inputTokens: null,
+      outputTokens: null,
+      createdAt: new Date().toISOString(),
+    }
+    setDraft("")
+    setError(null)
+    setIsSending(true)
+    setMessages((current) => [...current, optimisticMessage])
+
+    try {
+      let activeThreadId = threadId
+      if (!activeThreadId) {
+        const thread = await createChatThread(projectId, currentChapterId)
+        activeThreadId = thread.id
+        setThreadId(thread.id)
+        setThreads((current) => [thread, ...current])
+      }
+      const exchange = await sendChatMessage(
+        activeThreadId,
+        content,
+        currentChapterId,
+      )
+      setMessages((current) => [
+        ...current.filter((message) => message.id !== optimisticId),
+        exchange.userMessage,
+        exchange.assistantMessage,
+      ])
+      setThreads((current) =>
+        current.map((thread) =>
+          thread.id === activeThreadId && thread.title === "Nueva conversacion"
+            ? { ...thread, title: content.slice(0, 197) }
+            : thread,
+        ),
+      )
+    } catch (sendError: unknown) {
+      setMessages((current) =>
+        current.filter((message) => message.id !== optimisticId),
+      )
+      setDraft(content)
+      setError(errorMessage(sendError, "No se pudo enviar la consulta."))
+    } finally {
+      setIsSending(false)
+    }
+  }
+
+  const selectThread = async (nextThreadId: string) => {
+    if (nextThreadId === "new") {
+      setThreadId(null)
+      setMessages([])
+      setError(null)
+      return
+    }
+    setIsLoading(true)
+    setError(null)
+    try {
+      const history = await getChatMessages(nextThreadId)
+      setThreadId(nextThreadId)
+      setMessages(history)
+    } catch (loadError: unknown) {
+      setError(errorMessage(loadError, "No se pudo abrir la conversación."))
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const toggleAntiSpoiler = async () => {
+    const currentThread = threads.find((thread) => thread.id === threadId)
+    if (!currentThread) return
+    try {
+      const updated = await updateChatThread(currentThread.id, {
+        antiSpoilerEnabled: !currentThread.antiSpoilerEnabled,
+      })
+      setThreads((current) =>
+        current.map((thread) => (thread.id === updated.id ? updated : thread)),
+      )
+    } catch (updateError: unknown) {
+      setError(
+        errorMessage(updateError, "No se pudo cambiar el filtro anti-spoiler."),
+      )
+    }
+  }
+
+  const currentThread = threads.find((thread) => thread.id === threadId)
+
+  const toggleVoiceInput = () => {
+    if (isListening) {
+      recognitionRef.current?.stop()
+      return
+    }
+
+    const Recognition =
+      window.SpeechRecognition || window.webkitSpeechRecognition
+    if (!Recognition) {
+      setError("El dictado por voz no está disponible en este navegador.")
+      return
+    }
+
+    const recognition = new Recognition()
+    recognition.lang = "es-AR"
+    recognition.continuous = false
+    recognition.interimResults = true
+    speechBaseDraftRef.current = draft.trim()
+    recognition.onresult = (event) => {
+      let transcript = ""
+      for (let index = 0; index < event.results.length; index += 1) {
+        transcript += event.results[index]?.[0]?.transcript ?? ""
+      }
+      const base = speechBaseDraftRef.current
+      setDraft(`${base}${base && transcript ? " " : ""}${transcript}`)
+    }
+    recognition.onerror = (event) => {
+      setError(speechErrorMessage(event.error))
+      setIsListening(false)
+    }
+    recognition.onend = () => {
+      setIsListening(false)
+      recognitionRef.current = null
+    }
+
+    setError(null)
+    setIsListening(true)
+    recognitionRef.current = recognition
+    try {
+      recognition.start()
+    } catch {
+      setIsListening(false)
+      recognitionRef.current = null
+      setError("No se pudo iniciar el dictado por voz.")
+    }
+  }
+
+  return (
+    <section className="flex min-h-0 flex-1 flex-col bg-card">
+      <div className="shrink-0 border-b border-border px-3 py-3">
+        <div className="flex items-center gap-1.5">
+          <div className="flex min-w-0 flex-1 items-center gap-2 text-[11px] font-medium text-primary">
+            <Sparkles className="size-3.5 shrink-0" />
+            <select
+              value={threadId ?? "new"}
+              onChange={(event) => void selectThread(event.target.value)}
+              aria-label="Conversación activa"
+              className="min-w-0 flex-1 truncate bg-transparent text-[11px] font-medium text-primary outline-none"
+            >
+              <option value="new">Nueva conversación</option>
+              {threads.map((thread) => (
+                <option key={thread.id} value={thread.id}>
+                  {thread.title}
+                </option>
+              ))}
+            </select>
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => void selectThread("new")}
+            aria-label="Nueva conversación"
+            title="Nueva conversación"
+            className="size-7 rounded-lg text-muted-foreground"
+          >
+            <Plus className="size-3.5" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            disabled={!currentThread}
+            onClick={() => void toggleAntiSpoiler()}
+            aria-label={
+              currentThread?.antiSpoilerEnabled
+                ? "Desactivar filtro anti-spoiler"
+                : "Activar filtro anti-spoiler"
+            }
+            aria-pressed={currentThread?.antiSpoilerEnabled ?? true}
+            title={
+              currentThread?.antiSpoilerEnabled
+                ? "Anti-spoiler activo"
+                : "Anti-spoiler desactivado"
+            }
+            className="size-7 rounded-lg text-muted-foreground"
+          >
+            {currentThread?.antiSpoilerEnabled === false ? (
+              <ShieldOff className="size-3.5" />
+            ) : (
+              <ShieldCheck className="size-3.5" />
+            )}
+          </Button>
+        </div>
+        <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
+          Las respuestas se basan en tu obra y muestran las fuentes utilizadas.
+        </p>
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4">
+        {isLoading ? (
+          <ChatLoadingState />
+        ) : messages.length === 0 ? (
+          <EmptyChatState onSuggestion={setDraft} />
+        ) : (
+          <div className="space-y-4">
+            {messages
+              .filter((message) => message.role !== "system")
+              .map((message) => (
+                <ChatBubble
+                  key={message.id}
+                  message={message}
+                  projectId={projectId}
+                  primaryImageUrls={primaryImageUrls}
+                />
+              ))}
+            {isSending && <ThinkingBubble />}
+          </div>
+        )}
+        <div ref={endRef} />
+      </div>
+
+      <form
+        onSubmit={handleSubmit}
+        className="shrink-0 border-t border-border bg-card p-3"
+      >
+        {error && (
+          <div
+            role="alert"
+            className="mb-2 flex items-start gap-2 rounded-lg border border-destructive/20 bg-destructive/5 px-2.5 py-2 text-[10px] leading-relaxed text-destructive"
+          >
+            <RefreshCw className="mt-0.5 size-3 shrink-0" />
+            {error}
+          </div>
+        )}
+        <div className="flex items-end gap-2 rounded-2xl border border-border bg-muted/70 p-1.5 focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/10">
+          <textarea
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault()
+                event.currentTarget.form?.requestSubmit()
+              }
+            }}
+            rows={1}
+            maxLength={4000}
+            disabled={isSending}
+            aria-label="Pregunta sobre tu obra"
+            placeholder="Pregunta sobre tu obra..."
+            className="max-h-28 min-h-8 min-w-0 flex-1 resize-none bg-transparent px-2 py-1.5 text-[11px] leading-relaxed text-foreground outline-none placeholder:text-muted-foreground disabled:opacity-60"
+          />
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            disabled={!speechSupported || isSending}
+            onClick={toggleVoiceInput}
+            aria-label={isListening ? "Detener dictado" : "Dictar pregunta"}
+            aria-pressed={isListening}
+            title={
+              speechSupported
+                ? isListening
+                  ? "Detener dictado"
+                  : "Dictar pregunta"
+                : "El navegador no admite dictado por voz"
+            }
+            className={
+              isListening
+                ? "animate-pulse rounded-xl bg-primary/15 text-primary"
+                : "rounded-xl text-muted-foreground"
+            }
+          >
+            {speechSupported ? (
+              <Mic className="size-3.5" />
+            ) : (
+              <MicOff className="size-3.5" />
+            )}
+          </Button>
+          <Button
+            type="submit"
+            size="icon-sm"
+            disabled={!draft.trim() || isSending}
+            aria-label="Enviar consulta"
+            className="rounded-xl"
+          >
+            <Send className="size-3.5" />
+          </Button>
+        </div>
+        <p className="mt-1.5 text-center text-[9px] text-muted-foreground">
+          {isListening
+            ? "Escuchando… hablá con naturalidad"
+            : "Enter para enviar · Shift + Enter para nueva línea"}
+        </p>
+      </form>
+    </section>
+  )
+}
+
+function EmptyChatState({
+  onSuggestion,
+}: {
+  readonly onSuggestion: (suggestion: string) => void
+}) {
+  return (
+    <div className="flex min-h-full flex-col items-center justify-center py-5 text-center">
+      <div className="mb-3 flex size-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+        <Feather className="size-5" />
+      </div>
+      <h3 className="text-xs font-semibold text-foreground">
+        Tu obra, lista para consultar
+      </h3>
+      <p className="mt-1 max-w-60 text-[10px] leading-relaxed text-muted-foreground">
+        Pregunta por escenas, personajes, relaciones, imágenes o hechos de la
+        línea de tiempo.
+      </p>
+      <div className="mt-4 w-full space-y-2">
+        {promptSuggestions.map((suggestion) => (
+          <button
+            key={suggestion}
+            type="button"
+            onClick={() => onSuggestion(suggestion)}
+            className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-left text-[10px] leading-relaxed text-foreground transition-colors hover:border-primary/30 hover:bg-primary/5"
+          >
+            {suggestion}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function ChatBubble({
+  message,
+  projectId,
+  primaryImageUrls,
+}: {
+  readonly message: ChatMessage
+  readonly projectId: string
+  readonly primaryImageUrls: Readonly<Record<string, string>>
+}) {
+  const isUser = message.role === "user"
+  return (
+    <article className={isUser ? "ml-8" : "mr-3"}>
+      <div className={`flex items-start gap-2 ${isUser ? "justify-end" : ""}`}>
+        {!isUser && (
+          <div className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <Feather className="size-3" />
+          </div>
+        )}
+        <div
+          className={`min-w-0 rounded-2xl px-3 py-2.5 text-[11px] leading-[1.55] whitespace-pre-wrap ${
+            isUser
+              ? "rounded-br-md bg-primary text-primary-foreground"
+              : "rounded-tl-md bg-muted text-foreground"
+          }`}
+        >
+          {message.content}
+        </div>
+      </div>
+      {!isUser && message.sources.length > 0 && (
+        <div className="ml-8 mt-2 space-y-1.5">
+          <p className="px-1 text-[9px] font-semibold tracking-wide text-muted-foreground uppercase">
+            Referencias utilizadas
+          </p>
+          {message.sources.map((source, index) => (
+            <SourceCard
+              key={source.id}
+              source={source}
+              citationNumber={index + 1}
+              projectId={projectId}
+              imageUrl={
+                (source.entityId && primaryImageUrls[source.entityId]) ||
+                source.imageUrl ||
+                undefined
+              }
+            />
+          ))}
+        </div>
+      )}
+    </article>
+  )
+}
+
+function SourceCard({
+  source,
+  citationNumber,
+  projectId,
+  imageUrl,
+}: {
+  readonly source: ChatSource
+  readonly citationNumber: number
+  readonly projectId: string
+  readonly imageUrl?: string
+}) {
+  const router = useRouter()
+  const setActiveScene = useEditorStore((state) => state.setActiveScene)
+  const focusCitation = useEditorStore((state) => state.focusCitation)
+  const canNavigate = Boolean(source.sceneId || source.entityId || source.route)
+  const Icon =
+    source.kind === "manuscript"
+      ? BookOpen
+      : source.kind === "timeline"
+        ? Clock3
+        : source.kind === "storyboard"
+          ? StickyNote
+          : source.kind === "summary"
+            ? FileText
+          : source.kind === "audit"
+            ? ShieldAlert
+          : source.kind === "application"
+            ? Waypoints
+            : FileText
+
+  const navigate = () => {
+    if (source.sceneId) {
+      setActiveScene(source.sceneId)
+      if (source.textQuote) {
+        focusCitation({
+          sceneId: source.sceneId,
+          textQuote: source.textQuote,
+        })
+      }
+      return
+    }
+    if (source.entityId) {
+      router.push(
+        `/projects/${projectId}/worldbuilding?entityId=${source.entityId}`,
+      )
+      return
+    }
+    if (source.route) {
+      router.push(source.route)
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      disabled={!canNavigate}
+      onClick={navigate}
+      className="group flex w-full items-start gap-2 rounded-xl border border-border bg-background p-2 text-left transition-colors enabled:hover:border-primary/30 enabled:hover:bg-primary/5 disabled:cursor-default"
+    >
+      {imageUrl ? (
+        <Image
+          src={imageUrl}
+          alt=""
+          width={32}
+          height={32}
+          unoptimized
+          className="size-8 shrink-0 rounded-lg object-cover"
+        />
+      ) : (
+        <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+          <Icon className="size-3.5" />
+        </div>
+      )}
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center gap-1 text-[9px] font-semibold text-foreground">
+          <span className="shrink-0 text-primary">[{citationNumber}]</span>
+          <span className="truncate">{source.label}</span>
+          {canNavigate && (
+            <ExternalLink className="size-2.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+          )}
+        </span>
+        <span className="mt-0.5 line-clamp-2 block text-[9px] leading-relaxed text-muted-foreground">
+          {source.excerpt}
+        </span>
+      </span>
+    </button>
+  )
+}
+
+function ThinkingBubble() {
+  return (
+    <div className="mr-3 flex items-start gap-2" aria-label="Analizando la obra">
+      <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+        <Feather className="size-3" />
+      </div>
+      <div className="flex h-9 items-center gap-1 rounded-2xl rounded-tl-md bg-muted px-3">
+        {[0, 1, 2].map((index) => (
+          <span
+            key={index}
+            className="size-1.5 animate-bounce rounded-full bg-primary/45"
+            style={{ animationDelay: `${index * 120}ms` }}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function ChatLoadingState() {
+  return (
+    <div className="space-y-4 py-3" aria-label="Cargando conversación">
+      <div className="ml-auto h-14 w-3/4 animate-pulse rounded-2xl bg-primary/15" />
+      <div className="h-20 w-4/5 animate-pulse rounded-2xl bg-muted" />
+    </div>
+  )
+}
+
+function errorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error && error.message.trim()
+    ? error.message
+    : fallback
+}
+
+function speechErrorMessage(error: string): string {
+  if (error === "not-allowed" || error === "service-not-allowed") {
+    return "Necesito permiso para usar el micrófono. Habilitalo en el navegador e intentá nuevamente."
+  }
+  if (error === "no-speech") {
+    return "No detecté voz. Acercate al micrófono e intentá nuevamente."
+  }
+  if (error === "audio-capture") {
+    return "No se encontró un micrófono disponible."
+  }
+  return "No se pudo transcribir la pregunta por voz."
+}

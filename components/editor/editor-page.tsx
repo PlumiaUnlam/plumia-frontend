@@ -83,7 +83,10 @@ export function EditorLayout({ projectId }: EditorLayoutProps) {
             )}
           </main>
 
-          <EditorRightPanel projectId={projectId} />
+          <EditorRightPanel
+            projectId={projectId}
+            currentChapterId={activeChapter?.id}
+          />
         </div>
       </SidebarProvider>
 

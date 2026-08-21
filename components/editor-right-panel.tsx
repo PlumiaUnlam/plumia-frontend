@@ -17,6 +17,7 @@ import {
   rejectRelationshipProposal,
 } from "@/services/relationship-proposals.service";
 import { WikiPanel } from "@/components/wiki-panel";
+import { ChatPanel } from "@/components/chat-panel";
 import type { CreateEntityInput, UpdateEntityInput } from "@/types/entity";
 import type { UpdateRelationshipInput } from "@/types/relationship";
 
@@ -24,6 +25,7 @@ type RightTab = "wiki" | "chat" | "stats";
 
 type EditorRightPanelProps = {
   readonly projectId: string;
+  readonly currentChapterId?: string;
 };
 
 const tabs = [
@@ -32,7 +34,10 @@ const tabs = [
   { id: "stats" as const, label: "Stats", icon: BarChart2 },
 ];
 
-export function EditorRightPanel({ projectId }: EditorRightPanelProps) {
+export function EditorRightPanel({
+  projectId,
+  currentChapterId,
+}: EditorRightPanelProps) {
   const [activeTab, setActiveTab] = useState<RightTab>("wiki");
   const [acceptingProposalId, setAcceptingProposalId] = useState<string | null>(
     null,
@@ -206,7 +211,13 @@ export function EditorRightPanel({ projectId }: EditorRightPanelProps) {
         />
       )}
 
-      {activeTab === "chat" && <div className="min-h-0 flex-1" />}
+      {activeTab === "chat" && (
+        <ChatPanel
+          projectId={projectId}
+          currentChapterId={currentChapterId}
+          primaryImageUrls={primaryImageUrls}
+        />
+      )}
 
       {activeTab === "stats" && <div className="min-h-0 flex-1" />}
     </aside>

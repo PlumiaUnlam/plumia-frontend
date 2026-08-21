@@ -4,6 +4,8 @@ import StarterKit from "@tiptap/starter-kit"
 import Link from "@tiptap/extension-link"
 
 import type { ProseMirrorJSON } from "@/types/scene"
+import { useEditorStore } from "@/stores/editor.store"
+import { findCitationRange } from "./editor-citation-focus"
 import { EditorToolbar } from "./toolbar"
 import { EditorImage } from "./image/editor-image-extension"
 import { useEditorImage } from "./image/use-editor-image"
@@ -42,6 +44,10 @@ export function RichTextEditor({
   } = useEditorImage({ sceneId })
 
   const { goToEntity } = useEntityLink({ projectId })
+  const citationFocus = useEditorStore((state) => state.citationFocus)
+  const clearCitationFocus = useEditorStore(
+    (state) => state.clearCitationFocus,
+  )
 
   const editor = useEditor({
     extensions: [
@@ -73,6 +79,15 @@ export function RichTextEditor({
   useEffect(() => {
     bindEditor(editor ?? null)
   }, [editor, bindEditor])
+
+  useEffect(() => {
+    if (!editor || citationFocus?.sceneId !== sceneId) return
+    const range = findCitationRange(editor.state.doc, citationFocus.textQuote)
+    if (range) {
+      editor.chain().focus().setTextSelection(range).scrollIntoView().run()
+    }
+    clearCitationFocus()
+  }, [citationFocus, clearCitationFocus, editor, sceneId])
 
   if (!editor) return null
 
