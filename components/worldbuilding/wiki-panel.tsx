@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -21,6 +21,12 @@ import type { Entity, EntityCategory } from "@/types/entity";
 import { TYPE_TO_CATEGORY } from "@/types/entity";
 import { ENTITY_CATEGORY_STYLES } from "@/lib/entity-category-style";
 import { EntityIconTile } from "@/components/worldbuilding/entity-icon-tile";
+import { EntityImage } from "@/components/worldbuilding/entity-image";
+import { ImageGallery } from "@/components/worldbuilding/image-gallery";
+import type {
+  ImageGenerationJob,
+  ImageResponse,
+} from "@/services/image-generation.service";
 
 interface WikiTabProps {
   readonly entities: readonly Entity[];
@@ -30,6 +36,15 @@ interface WikiTabProps {
   readonly onDelete: (entity: Entity) => void;
   readonly selectedEntity: Entity | null;
   readonly onSelectEntity: (entity: Entity | null) => void;
+  readonly images: ImageResponse[];
+  readonly primaryImageUrls: Readonly<Record<string, string>>;
+  readonly imagesLoading: boolean;
+  readonly activeImageJob: ImageGenerationJob | null;
+  readonly onGenerateImage: () => void;
+  readonly onUploadImage: (file: File) => Promise<void>;
+  readonly onSetPrimaryImage: (imageId: string) => void;
+  readonly onDeleteImage: (image: ImageResponse) => void;
+  readonly imageActionError?: string | null;
 }
 
 export function WikiTab({
@@ -40,6 +55,15 @@ export function WikiTab({
   onDelete,
   selectedEntity,
   onSelectEntity,
+  images,
+  primaryImageUrls,
+  imagesLoading,
+  activeImageJob,
+  onGenerateImage,
+  onUploadImage,
+  onSetPrimaryImage,
+  onDeleteImage,
+  imageActionError,
 }: WikiTabProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<EntityCategory[]>(
@@ -65,8 +89,12 @@ export function WikiTab({
   const selectedEntityCategory = selectedEntity
     ? TYPE_TO_CATEGORY[selectedEntity.type]
     : null;
+  const selectedEntityPrimaryImage = images.find((image) => image.isPrimary);
   const selectedEntityImageSrc = selectedEntity
-    ? `/api/storage/image/${selectedEntity.id}?v=${Date.parse(selectedEntity.updatedAt)}`
+    ? (selectedEntityPrimaryImage?.imageUrl ??
+      primaryImageUrls[selectedEntity.id] ??
+      selectedEntity.imageUrl ??
+      `/api/storage/image/${selectedEntity.id}?v=${Date.parse(selectedEntity.updatedAt)}`)
     : "";
 
   if (error) {
@@ -168,6 +196,7 @@ export function WikiTab({
                 ))
               : filteredEntities.map((entity) => {
                   const src = `/api/storage/image/${entity.id}?v=${Date.parse(entity.updatedAt)}`;
+                  const primaryImageUrl = primaryImageUrls[entity.id];
                   const isSelected = selectedEntity?.id === entity.id;
                   const entityCategory = TYPE_TO_CATEGORY[entity.type];
 
@@ -191,14 +220,22 @@ export function WikiTab({
                           : "bg-white hover:bg-muted/50"
                       }`}
                     >
-                      {entity.imageUrl ? (
+                      {primaryImageUrl ||
+                      entity.imageUrl ||
+                      (isSelected && selectedEntityPrimaryImage) ? (
                         <ItemMedia variant="image">
-                          <img
-                            src={src}
+                          <EntityImage
+                            src={
+                              isSelected && selectedEntityPrimaryImage
+                                ? selectedEntityPrimaryImage.imageUrl
+                                : (primaryImageUrl ?? entity.imageUrl ?? src)
+                            }
                             alt={entity.canonicalName}
                             width={128}
                             height={128}
                             className="aspect-square w-full rounded-sm object-cover"
+                            category={entityCategory}
+                            iconClassName="h-4 w-4"
                           />
                         </ItemMedia>
                       ) : (
@@ -239,13 +276,18 @@ export function WikiTab({
           <>
             <header className="mb-8 flex-shrink-0 flex flex-wrap items-start gap-4 justify-between">
               <div className="flex min-w-0 items-start gap-4">
-                {selectedEntity.imageUrl && selectedEntityCategory ? (
-                  <img
+                {(selectedEntity.imageUrl ||
+                  selectedEntityPrimaryImage ||
+                  primaryImageUrls[selectedEntity.id]) &&
+                selectedEntityCategory ? (
+                  <EntityImage
                     src={selectedEntityImageSrc}
                     alt={selectedEntity.canonicalName}
                     width={112}
                     height={112}
                     className="size-28 shrink-0 rounded-lg border border-border bg-background object-cover"
+                    category={selectedEntityCategory}
+                    iconClassName="h-10 w-10"
                   />
                 ) : selectedEntityCategory ? (
                   <EntityIconTile
@@ -306,6 +348,18 @@ export function WikiTab({
                   </CardContent>
                 </Card>
               </section>
+
+              <ImageGallery
+                images={images}
+                loading={imagesLoading}
+                activeJob={activeImageJob}
+                category={selectedEntityCategory ?? "Personaje"}
+                onGenerate={onGenerateImage}
+                onUpload={onUploadImage}
+                onSetPrimary={onSetPrimaryImage}
+                onDelete={onDeleteImage}
+                actionError={imageActionError}
+              />
 
               {/* {selectedEntity.imageUrl && (
                 <div className="rounded-lg overflow-hidden border border-border">

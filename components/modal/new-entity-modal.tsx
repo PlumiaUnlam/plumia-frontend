@@ -40,10 +40,17 @@ import type {
 import { CATEGORY_TO_TYPE, TYPE_TO_CATEGORY } from "@/types/entity";
 import { ENTITY_CATEGORY_STYLES } from "@/lib/entity-category-style";
 import { EntityIconTile } from "@/components/worldbuilding/entity-icon-tile";
+import { EntityImage } from "@/components/worldbuilding/entity-image";
+import { ImageGallery } from "@/components/worldbuilding/image-gallery";
+import type {
+  ImageGenerationJob,
+  ImageResponse,
+} from "@/services/image-generation.service";
 
 type NewEntityModalProps = {
   readonly show: boolean;
   readonly onClose: () => void;
+  readonly children?: React.ReactNode;
   readonly onSubmit: (
     data: CreateEntityInput | UpdateEntityInput,
     file?: File | null,
@@ -59,11 +66,20 @@ type NewEntityModalProps = {
     imageUrl?: string | null;
   };
   readonly initialCanonicalName?: string;
+  readonly imageGallery?: readonly ImageResponse[];
+  readonly imageGalleryLoading?: boolean;
+  readonly activeImageJob?: ImageGenerationJob | null;
+  readonly onImageGenerate?: () => void;
+  readonly onImageUpload?: (file: File) => Promise<void>;
+  readonly onSetPrimaryImage?: (imageId: string) => void;
+  readonly onDeleteImage?: (image: ImageResponse) => void;
+  readonly imageActionError?: string | null;
   readonly onGenerateImage?: (data: {
     canonicalName: string;
     description: string;
     type: string;
     aliases: string[];
+    attributes: Record<string, unknown>;
   }) => Promise<string>;
   readonly onClearAiPreview?: () => void;
 };
@@ -71,11 +87,20 @@ type NewEntityModalProps = {
 export function NewEntityModal({
   show,
   onClose,
+  children,
   onSubmit,
   entity,
   mode = entity ? "edit" : "create",
   initialValues,
   initialCanonicalName,
+  imageGallery = [],
+  imageGalleryLoading = false,
+  activeImageJob = null,
+  onImageGenerate,
+  onImageUpload,
+  onSetPrimaryImage,
+  onDeleteImage,
+  imageActionError,
   onGenerateImage,
   onClearAiPreview,
 }: NewEntityModalProps) {
@@ -101,6 +126,28 @@ export function NewEntityModal({
 
   const isProposal = mode === "proposal";
   const isEditing = !!entity && !isProposal;
+  const primaryImage = imageGallery.find((image) => image.isPrimary);
+  const visualIdentity =
+    typeof attributes.visualIdentity === "string"
+      ? attributes.visualIdentity
+      : "";
+  const imageSelectionLabel = getImageSelectionLabel(
+    Boolean(selectedFile || aiGeneratedUrl),
+    Boolean(primaryImage),
+  );
+  const submitLabel = getSubmitLabel(isProposal, isEditing);
+
+  const updateVisualIdentity = (value: string) => {
+    setAttributes((current) => {
+      const next = { ...current };
+      if (value.trim()) {
+        next.visualIdentity = value;
+      } else {
+        delete next.visualIdentity;
+      }
+      return next;
+    });
+  };
 
   useEffect(() => {
     if (!show) return;
@@ -118,9 +165,7 @@ export function NewEntityModal({
         setCategory(TYPE_TO_CATEGORY[values.type]);
         setDescription(values.description ?? "");
         setTags(values.aliases);
-        setAttributes(
-          isRecord(values.attributes) ? values.attributes : {},
-        );
+        setAttributes(isRecord(values.attributes) ? values.attributes : {});
         setProposalImageUrl(values.imageUrl ?? null);
       } else {
         setName(initialCanonicalName ?? "");
@@ -208,6 +253,7 @@ export function NewEntityModal({
         description: description.trim(),
         type: CATEGORY_TO_TYPE[category],
         aliases: tags,
+        attributes,
       });
       if (cancelRef.current) return;
       setAiGeneratedUrl(url);
@@ -327,29 +373,60 @@ export function NewEntityModal({
       );
     }
 
-    if (isEditing && entity?.imageUrl && !imageRemoved) {
-      return (
-        <div className="relative rounded-lg overflow-hidden border border-border">
-          <img
-            src={`/api/storage/image/${entity.id}?v=${Date.parse(entity.updatedAt)}`}
-            alt={entity.canonicalName}
-            className="w-full h-48 object-contain bg-muted"
-            loading="lazy"
+    if (isEditing && !imageRemoved) {
+      if (imageGalleryLoading && !primaryImage && !entity?.imageUrl) {
+        return (
+          <div className="flex h-48 w-full items-center justify-center rounded-lg border border-border bg-muted/30 text-sm text-muted-foreground">
+            <Loader2 className="mr-2 h-4 w-4" />
+            Cargando imagen principal...
+          </div>
+        );
+      }
+
+      const savedImageUrl =
+        primaryImage?.imageUrl ?? entity?.imageUrl ?? null;
+
+      if (!savedImageUrl) {
+        return (
+          <EntityIconTile
+            category={category}
+            className="h-48 w-full rounded-lg"
+            iconClassName="h-12 w-12"
           />
-          <button
-            type="button"
-            onClick={() => setImageRemoved(true)}
-            className="absolute top-2 right-2 p-1.5 rounded-full bg-background/80 hover:bg-background text-muted-foreground hover:text-destructive transition-colors"
-          >
-            <Trash2 size={16} />
-          </button>
+        );
+      }
+
+      return (
+        <div className="relative overflow-hidden rounded-lg border border-border">
+          <EntityImage
+            src={savedImageUrl}
+            alt={entity.canonicalName}
+            className="h-48 w-full bg-muted object-contain"
+            category={TYPE_TO_CATEGORY[entity.type]}
+            iconClassName="h-12 w-12"
+            width={384}
+            height={192}
+          />
+          {primaryImage ? (
+            <p className="absolute bottom-2 left-2 rounded-md bg-background/85 px-2 py-1 text-xs text-muted-foreground">
+              Imagen principal del baúl de imágenes
+            </p>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setImageRemoved(true)}
+              className="absolute right-2 top-2 rounded-full bg-background/80 p-1.5 text-muted-foreground transition-colors hover:bg-background hover:text-destructive"
+            >
+              <Trash2 size={16} />
+            </button>
+          )}
         </div>
       );
     }
 
     if (imageRemoved && isEditing) {
       return (
-        <div className="w-full border-2 border-dashed border-border rounded-lg p-4 text-center bg-muted/30">
+        <div className="w-full rounded-lg border-2 border-dashed border-border bg-muted/30 p-4 text-center">
           <p className="text-sm text-muted-foreground">Imagen eliminada</p>
         </div>
       );
@@ -450,15 +527,50 @@ export function NewEntityModal({
             </FieldContent>
           </Field>
 
+          {category === "Personaje" && (
+            <FieldSet className="space-y-2">
+              <FieldLegend>Perfil visual</FieldLegend>
+              <p className="text-xs text-muted-foreground">
+                Estos rasgos se conservan entre variantes. Describí la
+                apariencia física estable del personaje; la pose, expresión y
+                fondo se pueden cambiar al generar cada imagen.
+              </p>
+              <Field>
+                <FieldLabel htmlFor="entity-visual-identity">
+                  Rasgos de identidad visual
+                </FieldLabel>
+                <FieldContent>
+                  <Textarea
+                    id="entity-visual-identity"
+                    value={visualIdentity}
+                    onChange={(event) =>
+                      updateVisualIdentity(event.target.value)
+                    }
+                    placeholder="Ej.: rostro alargado, ojos verdes, cabello negro ondulado hasta los hombros, piel clara, cicatriz fina sobre la ceja izquierda, complexión delgada."
+                    rows={4}
+                    maxLength={2000}
+                  />
+                </FieldContent>
+              </Field>
+            </FieldSet>
+          )}
+
           <Field>
             <FieldLabel htmlFor="entity-image">
-              Imagen{" "}
-              {selectedFile || aiGeneratedUrl
-                ? "(1 seleccionada)"
-                : "(Opcional)"}
+              Imagen {imageSelectionLabel}
             </FieldLabel>
 
             <FieldContent>
+              {isEditing && (
+                <div className="mb-3">
+                  <p className="text-sm font-semibold">Baúl de imágenes</p>
+                  <p className="text-xs text-muted-foreground">
+                    Estas variantes pertenecen a esta entidad y se guardan en
+                    su ficha.
+                  </p>
+                </div>
+              )}
+
               <input
                 id="entity-image"
                 ref={fileInputRef}
@@ -470,20 +582,41 @@ export function NewEntityModal({
 
               {renderImagePreview()}
 
-              <div className="space-y-2">
-                <ImageUploadActions
-                  aiGeneratedUrl={aiGeneratedUrl}
-                  aiGenerating={aiGenerating}
-                  aiError={aiError}
-                  aiElapsed={aiElapsed}
-                  name={name}
-                  selectedFile={selectedFile}
-                  onFileClick={() => fileInputRef.current?.click()}
-                  onGenerateAi={handleGenerateAi}
-                  onCancelGeneration={handleCancelGeneration}
-                  onGenerateImage={onGenerateImage}
+              {isEditing ? (
+                <ImageGallery
+                  compact
+                  images={imageGallery}
+                  loading={imageGalleryLoading}
+                  activeJob={activeImageJob}
+                  category={category}
+                  onGenerate={onImageGenerate ?? (() => undefined)}
+                  onUpload={onImageUpload ?? (async () => undefined)}
+                  onSetPrimary={onSetPrimaryImage ?? (() => undefined)}
+                  onDelete={onDeleteImage ?? (() => undefined)}
+                  actionError={imageActionError}
+                  actionsDisabled={
+                    !onImageGenerate ||
+                    !onImageUpload ||
+                    !onSetPrimaryImage ||
+                    !onDeleteImage
+                  }
                 />
-              </div>
+              ) : (
+                <div className="space-y-2">
+                  <ImageUploadActions
+                    aiGeneratedUrl={aiGeneratedUrl}
+                    aiGenerating={aiGenerating}
+                    aiError={aiError}
+                    aiElapsed={aiElapsed}
+                    name={name}
+                    selectedFile={selectedFile}
+                    onFileClick={() => fileInputRef.current?.click()}
+                    onGenerateAi={handleGenerateAi}
+                    onCancelGeneration={handleCancelGeneration}
+                    onGenerateImage={onGenerateImage}
+                  />
+                </div>
+              )}
             </FieldContent>
           </Field>
 
@@ -536,9 +669,10 @@ export function NewEntityModal({
 
           <Button disabled={!name.trim() || submitting} onClick={handleSubmit}>
             {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {isProposal ? "Aceptar propuesta" : isEditing ? "Guardar cambios" : "Crear entidad"}
+            {submitLabel}
           </Button>
         </DialogFooter>
+        {children}
       </DialogContent>
     </Dialog>
   );
@@ -546,6 +680,21 @@ export function NewEntityModal({
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function getImageSelectionLabel(
+  hasSelectedImage: boolean,
+  hasPrimaryImage: boolean,
+): string {
+  if (hasSelectedImage) return "(1 seleccionada)";
+  if (hasPrimaryImage) return "(Principal del baúl)";
+  return "(Opcional)";
+}
+
+function getSubmitLabel(isProposal: boolean, isEditing: boolean): string {
+  if (isProposal) return "Aceptar propuesta";
+  if (isEditing) return "Guardar cambios";
+  return "Crear entidad";
 }
 
 function ImageUploadActions({
@@ -569,12 +718,15 @@ function ImageUploadActions({
   readonly onFileClick: () => void;
   readonly onGenerateAi: () => Promise<void>;
   readonly onCancelGeneration: () => void;
-  readonly onGenerateImage: ((data: {
-    canonicalName: string;
-    description: string;
-    type: string;
-    aliases: string[];
-  }) => Promise<string>) | undefined;
+  readonly onGenerateImage:
+    | ((data: {
+        canonicalName: string;
+        description: string;
+        type: string;
+        aliases: string[];
+        attributes: Record<string, unknown>;
+      }) => Promise<string>)
+    | undefined;
 }) {
   return (
     <>

@@ -51,7 +51,12 @@ async function request<T>(
     return undefined as T
   }
 
-  const data = (await response.json()) as T
+  const responseText = await response.text()
+  if (!responseText.trim()) {
+    return undefined as T
+  }
+
+  const data = JSON.parse(responseText) as T
   console.log(`${path} response:`, data)
 
   return data

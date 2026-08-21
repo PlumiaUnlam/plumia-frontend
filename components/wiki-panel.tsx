@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { EntityIconTile } from "@/components/worldbuilding/entity-icon-tile";
+import { EntityImage } from "@/components/worldbuilding/entity-image";
 import { NewEntityModal } from "@/components/modal/new-entity-modal";
 import { NewRelationModal } from "@/components/modal/new-relation-modal";
 import { getEntityCategoryStyle } from "@/lib/entity-category-style";
@@ -45,6 +46,7 @@ type WikiPanelProps = {
   readonly proposalsError: Error | undefined;
   readonly relationshipProposalsError: Error | undefined;
   readonly relationshipProposalsLoading: boolean;
+  readonly primaryImageUrls: Readonly<Record<string, string>>;
   readonly acceptingProposalId: string | null;
   readonly rejectingProposalId: string | null;
   readonly onAcceptProposal: (
@@ -74,6 +76,7 @@ export function WikiPanel({
   proposalsError,
   relationshipProposalsError,
   relationshipProposalsLoading,
+  primaryImageUrls,
   acceptingProposalId,
   rejectingProposalId,
   onAcceptProposal,
@@ -88,8 +91,9 @@ export function WikiPanel({
   const [reviewingProposalId, setReviewingProposalId] = useState<string | null>(
     null,
   );
-  const [editingEntityProposalId, setEditingEntityProposalId] =
-    useState<string | null>(null);
+  const [editingEntityProposalId, setEditingEntityProposalId] = useState<
+    string | null
+  >(null);
   const [editingRelationshipProposalId, setEditingRelationshipProposalId] =
     useState<string | null>(null);
   const [expandedSections, setExpandedSections] = useState<
@@ -135,7 +139,9 @@ export function WikiPanel({
       return (
         proposal.proposedData.canonicalName.toLowerCase().includes(query) ||
         category.toLowerCase().includes(query) ||
-        (proposal.proposedData.description ?? "").toLowerCase().includes(query) ||
+        (proposal.proposedData.description ?? "")
+          .toLowerCase()
+          .includes(query) ||
         proposal.proposedData.aliases.some((alias) =>
           alias.toLowerCase().includes(query),
         ) ||
@@ -161,7 +167,8 @@ export function WikiPanel({
   const reviewingProposal =
     proposals.find((proposal) => proposal.id === reviewingProposalId) ?? null;
   const editingEntityProposal =
-    proposals.find((proposal) => proposal.id === editingEntityProposalId) ?? null;
+    proposals.find((proposal) => proposal.id === editingEntityProposalId) ??
+    null;
   const editingRelationshipProposal =
     relationshipProposals.find(
       (proposal) => proposal.id === editingRelationshipProposalId,
@@ -193,7 +200,9 @@ export function WikiPanel({
     setEditingEntityProposalId(proposal.id);
   };
 
-  const handleEditRelationshipSubmit = async (data: UpdateRelationshipInput) => {
+  const handleEditRelationshipSubmit = async (
+    data: UpdateRelationshipInput,
+  ) => {
     if (!editingRelationshipProposal) return;
     await onAcceptRelationshipProposal(editingRelationshipProposal.id, data);
     setEditingRelationshipProposalId(null);
@@ -228,32 +237,37 @@ export function WikiPanel({
             expanded={expandedSections.relationships}
             onToggle={() => toggleSection("relationships")}
           />
-          {expandedSections.relationships && (relationshipProposalsLoading ? (
-            <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-3 text-xs text-muted-foreground">
-              Revisando relaciones...
-            </div>
-          ) : relationshipProposalsError ? (
-            <div className="rounded-lg border border-dashed border-border bg-background p-3 text-xs text-muted-foreground">
-              No se pudieron cargar las propuestas de relaciones.
-            </div>
-          ) : relationshipProposals.length === 0 ? (
-            <EmptyWikiState
-              title="Sin relaciones pendientes"
-              description="Las relaciones detectadas aparecerán aquí para revisión."
-            />
-          ) : (
-            relationshipProposals.map((proposal) => (
-              <RelationshipProposalCard
-                key={proposal.id}
-                proposal={proposal}
-                accepting={acceptingRelationshipProposalId === proposal.id}
-                rejecting={rejectingRelationshipProposalId === proposal.id}
-                onAccept={() => void onAcceptRelationshipProposal(proposal.id)}
-                onReject={() => void onRejectRelationshipProposal(proposal.id)}
-                onEdit={() => setEditingRelationshipProposalId(proposal.id)}
+          {expandedSections.relationships &&
+            (relationshipProposalsLoading ? (
+              <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-3 text-xs text-muted-foreground">
+                Revisando relaciones...
+              </div>
+            ) : relationshipProposalsError ? (
+              <div className="rounded-lg border border-dashed border-border bg-background p-3 text-xs text-muted-foreground">
+                No se pudieron cargar las propuestas de relaciones.
+              </div>
+            ) : relationshipProposals.length === 0 ? (
+              <EmptyWikiState
+                title="Sin relaciones pendientes"
+                description="Las relaciones detectadas aparecerán aquí para revisión."
               />
+            ) : (
+              relationshipProposals.map((proposal) => (
+                <RelationshipProposalCard
+                  key={proposal.id}
+                  proposal={proposal}
+                  accepting={acceptingRelationshipProposalId === proposal.id}
+                  rejecting={rejectingRelationshipProposalId === proposal.id}
+                  onAccept={() =>
+                    void onAcceptRelationshipProposal(proposal.id)
+                  }
+                  onReject={() =>
+                    void onRejectRelationshipProposal(proposal.id)
+                  }
+                  onEdit={() => setEditingRelationshipProposalId(proposal.id)}
+                />
               ))
-          ))}
+            ))}
 
           <WikiSectionTitle
             icon={FileText}
@@ -262,43 +276,47 @@ export function WikiPanel({
             expanded={expandedSections.entities}
             onToggle={() => toggleSection("entities")}
           />
-          {expandedSections.entities && (loading ? (
-            Array.from({ length: 3 }).map((_, index) => (
-              <div
-                key={index}
-                className="rounded-xl border border-border bg-card p-3"
-              >
-                <div className="mb-2 flex items-center gap-2">
-                  <div className="size-7 animate-pulse rounded-lg bg-muted" />
-                  <div className="h-3 flex-1 animate-pulse rounded bg-muted" />
+          {expandedSections.entities &&
+            (loading ? (
+              Array.from({ length: 3 }).map((_, index) => (
+                <div
+                  key={index}
+                  className="rounded-xl border border-border bg-card p-3"
+                >
+                  <div className="mb-2 flex items-center gap-2">
+                    <div className="size-7 animate-pulse rounded-lg bg-muted" />
+                    <div className="h-3 flex-1 animate-pulse rounded bg-muted" />
+                  </div>
+                  <div className="h-3 animate-pulse rounded bg-muted" />
                 </div>
-                <div className="h-3 animate-pulse rounded bg-muted" />
-              </div>
-            ))
-          ) : entitiesError ? (
-            <div className="rounded-lg border border-dashed border-border bg-background p-4 text-sm text-muted-foreground">
-              No se pudieron cargar las entidades.
-            </div>
-          ) : filteredEntities.length === 0 ? (
-            <EmptyWikiState
-              title="Sin entidades"
-              description="Crea entidades en la wiki para consultarlas desde el editor."
-            />
-          ) : (
-            filteredEntities.map((entity) => (
-              <EditorWikiEntityCard
-                key={entity.id}
-                entity={entity}
-                updateProposal={updateProposalsByEntityId.get(entity.id) ?? null}
-                onReviewProposal={(proposalId) => {
-                  const proposal = proposals.find(
-                    (candidate) => candidate.id === proposalId,
-                  );
-                  if (proposal) handleEntityProposalEdit(proposal);
-                }}
-              />
               ))
-          ))}
+            ) : entitiesError ? (
+              <div className="rounded-lg border border-dashed border-border bg-background p-4 text-sm text-muted-foreground">
+                No se pudieron cargar las entidades.
+              </div>
+            ) : filteredEntities.length === 0 ? (
+              <EmptyWikiState
+                title="Sin entidades"
+                description="Crea entidades en la wiki para consultarlas desde el editor."
+              />
+            ) : (
+              filteredEntities.map((entity) => (
+                <EditorWikiEntityCard
+                  key={entity.id}
+                  entity={entity}
+                  primaryImageUrl={primaryImageUrls[entity.id]}
+                  updateProposal={
+                    updateProposalsByEntityId.get(entity.id) ?? null
+                  }
+                  onReviewProposal={(proposalId) => {
+                    const proposal = proposals.find(
+                      (candidate) => candidate.id === proposalId,
+                    );
+                    if (proposal) handleEntityProposalEdit(proposal);
+                  }}
+                />
+              ))
+            ))}
 
           <WikiSectionTitle
             icon={Sparkles}
@@ -307,41 +325,42 @@ export function WikiPanel({
             expanded={expandedSections.proposals}
             onToggle={() => toggleSection("proposals")}
           />
-          {expandedSections.proposals && (proposalsLoading ? (
-            Array.from({ length: 2 }).map((_, index) => (
-              <div
-                key={index}
-                className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3"
-              >
-                <div className="mb-2 flex items-center gap-2">
-                  <div className="size-7 animate-pulse rounded-lg bg-amber-500/10" />
-                  <div className="h-3 flex-1 animate-pulse rounded bg-amber-500/10" />
+          {expandedSections.proposals &&
+            (proposalsLoading ? (
+              Array.from({ length: 2 }).map((_, index) => (
+                <div
+                  key={index}
+                  className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3"
+                >
+                  <div className="mb-2 flex items-center gap-2">
+                    <div className="size-7 animate-pulse rounded-lg bg-amber-500/10" />
+                    <div className="h-3 flex-1 animate-pulse rounded bg-amber-500/10" />
+                  </div>
+                  <div className="h-3 animate-pulse rounded bg-amber-500/10" />
                 </div>
-                <div className="h-3 animate-pulse rounded bg-amber-500/10" />
-              </div>
-            ))
-          ) : proposalsError ? (
-            <div className="rounded-lg border border-dashed border-border bg-background p-4 text-sm text-muted-foreground">
-              No se pudieron cargar las propuestas.
-            </div>
-          ) : filteredProposals.length === 0 ? (
-            <EmptyWikiState
-              title="Sin propuestas"
-              description="Cuando el modelo detecte entidades nuevas o detalles adicionales, aparecerán aquí para revisión."
-            />
-          ) : (
-            filteredProposals.map((proposal) => (
-              <EditorWikiProposalCard
-                key={proposal.id}
-                proposal={proposal}
-                accepting={acceptingProposalId === proposal.id}
-                rejecting={rejectingProposalId === proposal.id}
-                onAccept={() => void onAcceptProposal(proposal.id)}
-                onReject={() => void onRejectProposal(proposal.id)}
-                onEdit={() => handleEntityProposalEdit(proposal)}
-              />
               ))
-          ))}
+            ) : proposalsError ? (
+              <div className="rounded-lg border border-dashed border-border bg-background p-4 text-sm text-muted-foreground">
+                No se pudieron cargar las propuestas.
+              </div>
+            ) : filteredProposals.length === 0 ? (
+              <EmptyWikiState
+                title="Sin propuestas"
+                description="Cuando el modelo detecte entidades nuevas o detalles adicionales, aparecerán aquí para revisión."
+              />
+            ) : (
+              filteredProposals.map((proposal) => (
+                <EditorWikiProposalCard
+                  key={proposal.id}
+                  proposal={proposal}
+                  accepting={acceptingProposalId === proposal.id}
+                  rejecting={rejectingProposalId === proposal.id}
+                  onAccept={() => void onAcceptProposal(proposal.id)}
+                  onReject={() => void onRejectProposal(proposal.id)}
+                  onEdit={() => handleEntityProposalEdit(proposal)}
+                />
+              ))
+            ))}
         </div>
       </ScrollArea>
 
@@ -393,10 +412,9 @@ export function WikiPanel({
                   ...(editingEntityProposal.targetEntity?.attributes ?? {}),
                   ...editingEntityProposal.proposedData.attributes,
                 },
-                imageUrl:
-                  editingEntityProposal.targetEntity?.id
-                    ? null
-                    : editingEntityProposal.proposedData.imageUrl,
+                imageUrl: editingEntityProposal.targetEntity?.id
+                  ? null
+                  : editingEntityProposal.proposedData.imageUrl,
               }
             : undefined
         }
@@ -455,12 +473,18 @@ function RelationshipProposalCard({
   return (
     <div className="min-w-0 rounded-xl border border-blue-500/20 bg-blue-500/5 p-3">
       <div className="flex min-w-0 items-start gap-2">
-        <RelationIcon className="mt-0.5 size-4 shrink-0" style={{ color: style.color }} />
+        <RelationIcon
+          className="mt-0.5 size-4 shrink-0"
+          style={{ color: style.color }}
+        />
         <div className="min-w-0 flex-1">
           <p className="break-words text-xs font-semibold text-foreground">
             {proposal.source.canonicalName} → {proposal.target.canonicalName}
           </p>
-          <p className="mt-1 text-[11px] font-medium" style={{ color: style.color }}>
+          <p
+            className="mt-1 text-[11px] font-medium"
+            style={{ color: style.color }}
+          >
             {style.label} · {Math.round(proposal.intensity * 5)} / 5
           </p>
           {proposal.description && (
@@ -470,15 +494,20 @@ function RelationshipProposalCard({
           )}
           {proposal.current && (
             <div className="mt-2 grid min-w-0 gap-1 rounded-md border border-blue-500/15 bg-background/50 p-2 text-[10px]">
-              <p className="font-semibold text-muted-foreground">Actual vs. nuevo</p>
-              <p className="break-words text-muted-foreground">
-                Tipo: {relationStyles[proposal.current.relationType].label} -&gt; {style.label}
+              <p className="font-semibold text-muted-foreground">
+                Actual vs. nuevo
               </p>
               <p className="break-words text-muted-foreground">
-                Intensidad: {Math.round(proposal.current.intensity * 5)} / 5 -&gt; {Math.round(proposal.intensity * 5)} / 5
+                Tipo: {relationStyles[proposal.current.relationType].label}{" "}
+                -&gt; {style.label}
+              </p>
+              <p className="break-words text-muted-foreground">
+                Intensidad: {Math.round(proposal.current.intensity * 5)} / 5
+                -&gt; {Math.round(proposal.intensity * 5)} / 5
               </p>
               <p className="whitespace-pre-wrap break-words text-muted-foreground">
-                Descripcion actual: {proposal.current.description || "Sin descripcion"}
+                Descripcion actual:{" "}
+                {proposal.current.description || "Sin descripcion"}
               </p>
             </div>
           )}
@@ -489,7 +518,8 @@ function RelationshipProposalCard({
           )}
           {!proposal.canAccept && (
             <p className="mt-2 text-[10px] text-amber-700">
-              Aceptá primero las entidades vinculadas para aprobar esta relación.
+              Aceptá primero las entidades vinculadas para aprobar esta
+              relación.
             </p>
           )}
           <div className="mt-3 flex w-full min-w-0 gap-1.5">
@@ -561,7 +591,10 @@ function WikiSectionTitle({
         <Icon size={12} className="shrink-0 text-primary/80" />
         <span className="truncate">{label}</span>
       </button>
-      <Badge variant="outline" className="h-auto shrink-0 px-1.5 py-0 text-[9px]">
+      <Badge
+        variant="outline"
+        className="h-auto shrink-0 px-1.5 py-0 text-[9px]"
+      >
         {count}
       </Badge>
     </div>
@@ -607,27 +640,32 @@ function combineEntityDescriptions(
 
 function EditorWikiEntityCard({
   entity,
+  primaryImageUrl,
   updateProposal,
   onReviewProposal,
 }: {
   readonly entity: Entity;
+  readonly primaryImageUrl: string | undefined;
   readonly updateProposal: EntityProposal | null;
   readonly onReviewProposal: (proposalId: string) => void;
 }) {
   const category = TYPE_TO_CATEGORY[entity.type];
   const categoryStyle = getEntityCategoryStyle(category);
   const imageSrc = `/api/storage/image/${entity.id}?v=${Date.parse(entity.updatedAt)}`;
+  const resolvedImageSrc = primaryImageUrl ?? entity.imageUrl ?? imageSrc;
 
   return (
     <article className="flex w-full min-w-0 max-w-full items-start gap-3 overflow-hidden rounded-lg border border-border bg-card p-2.5 transition-colors hover:border-primary/25 hover:bg-muted/50">
       <div className="size-9 shrink-0 overflow-hidden rounded-sm">
-        {entity.imageUrl ? (
-          <img
-            src={imageSrc}
+        {primaryImageUrl || entity.imageUrl ? (
+          <EntityImage
+            src={resolvedImageSrc}
             alt={entity.canonicalName}
             width={72}
             height={72}
             className="size-full object-cover"
+            category={category}
+            iconClassName="size-4"
           />
         ) : (
           <EntityIconTile
@@ -765,16 +803,20 @@ function EditorWikiProposalCard({
               Informacion actual y nueva
             </p>
             <p className="break-words text-muted-foreground">
-              Descripcion actual: {proposal.targetEntity.description || "Sin descripcion"}
+              Descripcion actual:{" "}
+              {proposal.targetEntity.description || "Sin descripcion"}
             </p>
             <p className="whitespace-pre-wrap break-words text-muted-foreground">
-              Informacion nueva: {proposal.proposedData.description || "Sin descripcion nueva"}
+              Informacion nueva:{" "}
+              {proposal.proposedData.description || "Sin descripcion nueva"}
             </p>
             <p className="break-words text-muted-foreground">
-              Alias actuales: {proposal.targetEntity.aliases.join(", ") || "Sin alias"}
+              Alias actuales:{" "}
+              {proposal.targetEntity.aliases.join(", ") || "Sin alias"}
             </p>
             <p className="break-words text-muted-foreground">
-              Alias nuevos: {proposal.proposedData.aliases.join(", ") || "Sin alias nuevos"}
+              Alias nuevos:{" "}
+              {proposal.proposedData.aliases.join(", ") || "Sin alias nuevos"}
             </p>
           </div>
         )}
@@ -790,14 +832,35 @@ function EditorWikiProposalCard({
         </div>
 
         <div className="mt-2 flex w-full min-w-0 gap-1.5">
-          <Button type="button" size="xs" variant="outline" className="h-7 flex-1" onClick={onReject} disabled={rejecting || accepting}>
+          <Button
+            type="button"
+            size="xs"
+            variant="outline"
+            className="h-7 flex-1"
+            onClick={onReject}
+            disabled={rejecting || accepting}
+          >
             <X className="size-3.5" />
             {rejecting ? "Rechazando..." : "Rechazar"}
           </Button>
-          <Button type="button" size="xs" variant="outline" className="h-7 flex-1" onClick={onEdit} disabled={rejecting || accepting}>
+          <Button
+            type="button"
+            size="xs"
+            variant="outline"
+            className="h-7 flex-1"
+            onClick={onEdit}
+            disabled={rejecting || accepting}
+          >
             Editar
           </Button>
-          <Button type="button" size="xs" variant="outline" className="h-7 flex-1" onClick={onAccept} disabled={accepting || rejecting}>
+          <Button
+            type="button"
+            size="xs"
+            variant="outline"
+            className="h-7 flex-1"
+            onClick={onAccept}
+            disabled={accepting || rejecting}
+          >
             <Check className="size-3.5" />
             {accepting ? "Aceptando..." : isUpdate ? "Aceptar" : "Aceptar"}
           </Button>
@@ -826,7 +889,9 @@ function EntityUpdateReviewDialog({
 }) {
   const currentEntity = proposal?.targetEntity ?? null;
   const suggestedAliases = proposal?.proposedData.aliases ?? [];
-  const suggestedAttributes = Object.entries(proposal?.proposedData.attributes ?? {});
+  const suggestedAttributes = Object.entries(
+    proposal?.proposedData.attributes ?? {},
+  );
 
   return (
     <Dialog open={!!proposal} onOpenChange={(open) => !open && onClose()}>
@@ -866,7 +931,11 @@ function EntityUpdateReviewDialog({
                   <div className="mt-1 flex flex-wrap gap-1">
                     {currentEntity.aliases.length > 0 ? (
                       currentEntity.aliases.map((alias) => (
-                        <Badge key={alias} variant="secondary" className="text-[10px]">
+                        <Badge
+                          key={alias}
+                          variant="secondary"
+                          className="text-[10px]"
+                        >
                           {alias}
                         </Badge>
                       ))
@@ -890,7 +959,8 @@ function EntityUpdateReviewDialog({
                     Nueva descripción
                   </p>
                   <p className="whitespace-pre-wrap text-muted-foreground">
-                    {proposal.proposedData.description || "Sin descripción nueva"}
+                    {proposal.proposedData.description ||
+                      "Sin descripción nueva"}
                   </p>
                 </div>
                 <div>
@@ -900,7 +970,11 @@ function EntityUpdateReviewDialog({
                   <div className="mt-1 flex flex-wrap gap-1">
                     {suggestedAliases.length > 0 ? (
                       suggestedAliases.map((alias) => (
-                        <Badge key={alias} variant="secondary" className="text-[10px]">
+                        <Badge
+                          key={alias}
+                          variant="secondary"
+                          className="text-[10px]"
+                        >
                           {alias}
                         </Badge>
                       ))
@@ -922,7 +996,9 @@ function EntityUpdateReviewDialog({
                           key={key}
                           className="rounded-md border border-border/60 bg-background/60 px-2 py-1 text-xs"
                         >
-                          <span className="font-medium text-foreground">{key}:</span>{" "}
+                          <span className="font-medium text-foreground">
+                            {key}:
+                          </span>{" "}
                           <span className="text-muted-foreground">
                             {typeof value === "string"
                               ? value
@@ -947,7 +1023,11 @@ function EntityUpdateReviewDialog({
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={accepting || rejecting}>
+          <Button
+            variant="outline"
+            onClick={onClose}
+            disabled={accepting || rejecting}
+          >
             Cerrar
           </Button>
           <Button
@@ -965,7 +1045,10 @@ function EntityUpdateReviewDialog({
             <X className="size-4" />
             {rejecting ? "Rechazando..." : "Rechazar"}
           </Button>
-          <Button onClick={onAccept} disabled={!proposal || accepting || rejecting}>
+          <Button
+            onClick={onAccept}
+            disabled={!proposal || accepting || rejecting}
+          >
             <Check className="size-4" />
             {accepting ? "Aplicando..." : "Aplicar cambios"}
           </Button>

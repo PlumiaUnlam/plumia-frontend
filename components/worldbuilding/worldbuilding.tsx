@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useRef } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   Loader2,
@@ -22,6 +22,8 @@ import { worldbuildingEntitiesMock } from "@/mocks/worldbuilding.mock";
 
 import { NewEntityModal } from "@/components/modal/new-entity-modal";
 import { NewRelationModal } from "@/components/modal/new-relation-modal";
+import { ImageGenerationModal } from "@/components/modal/image-generation-modal";
+import { ImageReviewModal } from "@/components/modal/image-review-modal";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -52,6 +54,16 @@ import { uploadEntityImage } from "@/services/upload.service";
 import {
   generatePreviewImage,
   attachImage,
+  generateEntityImage,
+  getEntityImages,
+  getPrimaryEntityImages,
+  getImageGenerationJob,
+  setPrimaryImage,
+  deleteEntityImage,
+} from "@/services/image-generation.service";
+import type {
+  ImageGenerationJob,
+  ImageResponse,
 } from "@/services/image-generation.service";
 
 import type {
@@ -59,6 +71,7 @@ import type {
   CreateEntityInput,
   UpdateEntityInput,
 } from "@/types/entity";
+import { TYPE_TO_CATEGORY } from "@/types/entity";
 import type {
   CreateRelationshipInput,
   Relationship,
@@ -70,6 +83,17 @@ type WorldbuildingTab = "wiki" | "relationships" | "timeline" | "summaries";
 type WorldbuildingProps = {
   projectId: string;
 };
+
+type ImageReviewState = {
+  entityId: string;
+  entityName: string;
+  entityType: Entity["type"];
+  image: ImageResponse;
+};
+
+const IMAGE_POLL_INTERVAL_MS = 1500;
+const MAX_IMAGE_POLL_FAILURES = 3;
+const MAX_IMAGE_POLL_ATTEMPTS = 80;
 
 export function Worldbuilding({ projectId }: WorldbuildingProps) {
   const { loading, firebaseUser } = useAuth();
@@ -124,6 +148,24 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
   const aiPromptRef = useRef<string | null>(null);
   const aiImageTypeRef = useRef<string | null>(null);
   const [deletingRelationship, setDeletingRelationship] = useState(false);
+  const [showImageGenerationModal, setShowImageGenerationModal] =
+    useState(false);
+  const [imageGenerationJob, setImageGenerationJob] =
+    useState<ImageGenerationJob | null>(null);
+  const [imageReview, setImageReview] = useState<ImageReviewState | null>(
+    null,
+  );
+  const [imageToDelete, setImageToDelete] = useState<ImageResponse | null>(
+    null,
+  );
+  const [deletingImage, setDeletingImage] = useState(false);
+  const [imageActionError, setImageActionError] = useState<string | null>(
+    null,
+  );
+  const imagePollJobIdRef = useRef<string | null>(null);
+  const imagePollFailuresRef = useRef(0);
+  const imagePollAttemptsRef = useRef(0);
+  const imagePollInFlightRef = useRef(false);
 
   const {
     data: entities,
@@ -139,9 +181,8 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
     data: project,
     error: projectError,
     isLoading: isLoadingProject,
-  } = useSWR(
-    shouldFetch ? `/projects/${projectId}` : null,
-    () => getProject(projectId),
+  } = useSWR(shouldFetch ? `/projects/${projectId}` : null, () =>
+    getProject(projectId),
   );
 
   const {
@@ -169,17 +210,145 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
       null,
     [selectedEntityId, worldbuildingEntities],
   );
+  const selectedEntityImageJob =
+    selectedEntity && imageGenerationJob?.entityId === selectedEntity.id
+      ? imageGenerationJob
+      : null;
+
+  const {
+    data: entityImages = [],
+    isLoading: isLoadingImages,
+    mutate: mutateImages,
+  } = useSWR(
+    shouldFetch && selectedEntity
+      ? `/publishing/images/${selectedEntity.id}`
+      : null,
+    () => getEntityImages(selectedEntity!.id),
+  );
+
+  const entityIds = useMemo(
+    () => (entities ?? []).map((entity) => entity.id),
+    [entities],
+  );
+  const primaryImagesKey =
+    shouldFetch && entityIds.length > 0
+      ? `/publishing/images/primary?entityIds=${encodeURIComponent(entityIds.join(","))}`
+      : null;
+  const { data: primaryImageUrls = {}, mutate: mutatePrimaryImages } = useSWR(
+    primaryImagesKey,
+    () => getPrimaryEntityImages(entityIds),
+  );
+
+  const activeImageJobId = imageGenerationJob?.id ?? null;
+  const activeImageJobStatus = imageGenerationJob?.status ?? null;
+
+  useEffect(() => {
+    if (
+      !activeImageJobId ||
+      activeImageJobStatus === "COMPLETED" ||
+      activeImageJobStatus === "FAILED"
+    ) {
+      return;
+    }
+
+    if (imagePollJobIdRef.current !== activeImageJobId) {
+      imagePollJobIdRef.current = activeImageJobId;
+      imagePollFailuresRef.current = 0;
+      imagePollAttemptsRef.current = 0;
+    }
+
+    const poll = () => {
+      if (imagePollInFlightRef.current) return;
+
+      if (imagePollAttemptsRef.current >= MAX_IMAGE_POLL_ATTEMPTS) {
+        setImageGenerationJob((current) =>
+          current?.id === activeImageJobId
+            ? {
+                ...current,
+                status: "FAILED",
+                errorMessage:
+                  "La generación tardó demasiado. Podés intentarlo nuevamente.",
+              }
+            : current,
+        );
+        return;
+      }
+
+      imagePollAttemptsRef.current += 1;
+      imagePollInFlightRef.current = true;
+
+      void getImageGenerationJob(activeImageJobId)
+        .then((job) => {
+          if (job.id !== activeImageJobId) return;
+          imagePollFailuresRef.current = 0;
+          setImageGenerationJob(job);
+          if (job.status === "COMPLETED") {
+            const generatedEntity = worldbuildingEntities.find(
+              (entity) => entity.id === job.entityId,
+            );
+            if (job.generatedImage && generatedEntity) {
+              setImageReview({
+                entityId: job.entityId,
+                entityName: generatedEntity.canonicalName,
+                entityType: generatedEntity.type,
+                image: job.generatedImage,
+              });
+            }
+            void mutateImages();
+            void mutatePrimaryImages();
+            void mutate();
+            setImageGenerationJob(null);
+            imagePollJobIdRef.current = null;
+            imagePollAttemptsRef.current = 0;
+          }
+        })
+        .catch((pollError) => {
+          imagePollFailuresRef.current += 1;
+          if (imagePollFailuresRef.current < MAX_IMAGE_POLL_FAILURES) return;
+
+          setImageGenerationJob((current) =>
+            current?.id === activeImageJobId
+              ? {
+                  ...current,
+                  status: "FAILED",
+                  errorMessage:
+                    pollError instanceof Error
+                      ? pollError.message
+                      : "No se pudo consultar la generación",
+                }
+              : current,
+          );
+        })
+        .finally(() => {
+          imagePollInFlightRef.current = false;
+        });
+    };
+
+    poll();
+    const interval = setInterval(poll, IMAGE_POLL_INTERVAL_MS);
+
+    return () => clearInterval(interval);
+  }, [
+    activeImageJobId,
+    activeImageJobStatus,
+    mutate,
+    mutateImages,
+    mutatePrimaryImages,
+    worldbuildingEntities,
+  ]);
 
   const handleGenerateImage = async (data: {
     canonicalName: string;
     description: string;
     type: string;
     aliases: string[];
+    attributes: Record<string, unknown>;
   }): Promise<string> => {
     const result = await generatePreviewImage({
       name: data.canonicalName,
       type: data.type,
       description: data.description || undefined,
+      attributes: data.attributes,
     });
 
     aiStorageKeyRef.current = result.storageKey;
@@ -217,12 +386,16 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
   const uploadAndSaveEntityImage = async (
     entityId: string,
     file: File | null | undefined,
-    currentImageUrl?: string,
   ) => {
     if (!file) return;
 
-    const publicUrl = await uploadEntityImage(entityId, file, currentImageUrl);
-    await updateEntity(entityId, { imageUrl: publicUrl } as UpdateEntityInput);
+    const { storageKey } = await uploadEntityImage(entityId, file);
+    await attachImage({
+      entityId,
+      storageKey,
+      prompt: "Imagen cargada manualmente",
+      imageType: file.type,
+    });
   };
 
   const createEntityFromModal = async (
@@ -258,12 +431,13 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
       entityId = editingEntity.id;
       await updateEntity(entityId, data as UpdateEntityInput);
       await attachPendingAiImage(entityId);
-      await uploadAndSaveEntityImage(entityId, file, editingEntity.imageUrl ?? undefined);
+      await uploadAndSaveEntityImage(entityId, file);
       setEditingEntity(null);
     } else {
       entityId = await createEntityFromModal(data as CreateEntityInput, file);
     }
     await mutate();
+    await Promise.all([mutateImages(), mutatePrimaryImages()]);
     setSelectedEntityId(entityId);
     if (isTimelineEntityCreation) {
       setTimelineCreatedEntity((current) => ({
@@ -304,6 +478,7 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
   };
 
   const handleEdit = (entity: Entity) => {
+    setSelectedEntityId(entity.id);
     setEditingEntity(entity);
     setShowNewEntityModal(true);
   };
@@ -312,6 +487,93 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
     aiStorageKeyRef.current = null;
     aiPromptRef.current = null;
     aiImageTypeRef.current = null;
+  };
+
+  const handleRequestImageGeneration = async (input: {
+    entityId: string;
+    referenceImageId?: string;
+    expression?: string;
+    pose?: string;
+    background?: string;
+    framing?: string;
+    lighting?: string;
+    style?: string;
+    additionalInstructions?: string;
+  }) => {
+    const job = await generateEntityImage(input);
+    imagePollJobIdRef.current = job.id;
+    imagePollFailuresRef.current = 0;
+    imagePollAttemptsRef.current = 0;
+    setImageGenerationJob(job);
+  };
+
+  const handleRegenerateReviewedImage = async (
+    image: ImageResponse,
+    feedback: string,
+  ) => {
+    const job = await generateEntityImage({
+      entityId: image.entityId,
+      referenceImageId: image.id,
+      additionalInstructions: feedback,
+    });
+    imagePollJobIdRef.current = job.id;
+    imagePollFailuresRef.current = 0;
+    imagePollAttemptsRef.current = 0;
+    setImageGenerationJob(job);
+  };
+
+  const handleAcceptReviewedImage = async (image: ImageResponse) => {
+    await setPrimaryImage(image.entityId, image.id);
+    await Promise.all([mutateImages(), mutatePrimaryImages(), mutate()]);
+  };
+
+  const handleSetPrimaryImage = async (imageId: string) => {
+    if (!selectedEntity) return;
+    setImageActionError(null);
+    try {
+      await setPrimaryImage(selectedEntity.id, imageId);
+      await mutateImages();
+      await mutatePrimaryImages();
+      await mutate();
+    } catch (error) {
+      setImageActionError(
+        error instanceof Error
+          ? error.message
+          : "No se pudo establecer la imagen principal.",
+      );
+    }
+  };
+
+  const handleUploadImage = async (file: File) => {
+    if (!selectedEntity) return;
+    await uploadAndSaveEntityImage(selectedEntity.id, file);
+    await Promise.all([mutateImages(), mutatePrimaryImages(), mutate()]);
+  };
+
+  const handleDeleteImage = async () => {
+    if (!selectedEntity || !imageToDelete) return;
+    setDeletingImage(true);
+    setImageActionError(null);
+    try {
+      await deleteEntityImage(selectedEntity.id, imageToDelete.id);
+      await mutateImages();
+      await mutatePrimaryImages();
+      await mutate();
+      setImageToDelete(null);
+    } catch (error) {
+      setImageActionError(
+        error instanceof Error
+          ? error.message
+          : "No se pudo eliminar la imagen.",
+      );
+    } finally {
+      setDeletingImage(false);
+    }
+  };
+
+  const requestImageDelete = (image: ImageResponse) => {
+    setImageActionError(null);
+    setImageToDelete(image);
   };
 
   const handleModalClose = () => {
@@ -389,10 +651,30 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
           onClose={handleModalClose}
           onSubmit={handleSubmitModal}
           entity={currentEntity}
+          imageGallery={entityImages}
+          imageGalleryLoading={isLoadingImages}
+          activeImageJob={selectedEntityImageJob}
+          onImageGenerate={() => setShowImageGenerationModal(true)}
+          onImageUpload={handleUploadImage}
+          onSetPrimaryImage={handleSetPrimaryImage}
+          onDeleteImage={requestImageDelete}
+          imageActionError={imageActionError}
           initialCanonicalName={timelineEntityInitialName ?? undefined}
           onGenerateImage={handleGenerateImage}
           onClearAiPreview={handleClearAiPreview}
-        />
+        >
+          {showNewEntityModal && editingEntity && (
+            <ImageGenerationModal
+              show={showImageGenerationModal}
+              entityId={editingEntity.id}
+              entityName={editingEntity.canonicalName}
+              entityType={editingEntity.type}
+              referenceImageId={entityImages.find((image) => image.isPrimary)?.id}
+              onClose={() => setShowImageGenerationModal(false)}
+              onSubmit={handleRequestImageGeneration}
+            />
+          )}
+        </NewEntityModal>
 
         <NewRelationModal
           show={showNewRelationModal}
@@ -401,6 +683,30 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
           onSubmit={handleSubmitRelation}
           relationship={editingRelationship}
         />
+
+        {selectedEntity && !editingEntity && (
+          <ImageGenerationModal
+            show={showImageGenerationModal}
+            entityId={selectedEntity.id}
+            entityName={selectedEntity.canonicalName}
+            entityType={selectedEntity.type}
+            referenceImageId={entityImages.find((image) => image.isPrimary)?.id}
+            onClose={() => setShowImageGenerationModal(false)}
+            onSubmit={handleRequestImageGeneration}
+          />
+        )}
+
+        {imageReview && (
+          <ImageReviewModal
+            key={imageReview.image.id}
+            image={imageReview.image}
+            entityName={imageReview.entityName}
+            category={TYPE_TO_CATEGORY[imageReview.entityType]}
+            onClose={() => setImageReview(null)}
+            onAccept={handleAcceptReviewedImage}
+            onRegenerate={handleRegenerateReviewedImage}
+          />
+        )}
 
         <Tabs
           value={activeTab}
@@ -440,6 +746,17 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
               onSelectEntity={(entity) =>
                 setSelectedEntityId(entity?.id ?? null)
               }
+              images={entityImages}
+              primaryImageUrls={primaryImageUrls}
+              imagesLoading={isLoadingImages}
+              activeImageJob={selectedEntityImageJob}
+              onGenerateImage={() => setShowImageGenerationModal(true)}
+              onUploadImage={handleUploadImage}
+              onSetPrimaryImage={(imageId) => {
+                void handleSetPrimaryImage(imageId);
+              }}
+              onDeleteImage={requestImageDelete}
+              imageActionError={imageActionError}
             />
           </TabsContent>
 
@@ -523,6 +840,53 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
               }}
             >
               {deleting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Eliminar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!imageToDelete}
+        onOpenChange={(open) => {
+          if (!open && !deletingImage) {
+            setImageToDelete(null);
+            setImageActionError(null);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Eliminar imagen</DialogTitle>
+            <DialogDescription>
+              ¿Querés eliminar esta variante del baúl de imágenes? Esta acción
+              no se puede deshacer.
+            </DialogDescription>
+            {imageActionError && (
+              <p className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+                {imageActionError}
+              </p>
+            )}
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setImageToDelete(null);
+                setImageActionError(null);
+              }}
+              disabled={deletingImage}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => void handleDeleteImage()}
+              disabled={deletingImage}
+            >
+              {deletingImage && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
               Eliminar
             </Button>
           </DialogFooter>
