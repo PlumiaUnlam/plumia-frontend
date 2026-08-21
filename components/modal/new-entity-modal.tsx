@@ -40,6 +40,7 @@ import type {
 import { CATEGORY_TO_TYPE, TYPE_TO_CATEGORY } from "@/types/entity";
 import { ENTITY_CATEGORY_STYLES } from "@/lib/entity-category-style";
 import { EntityIconTile } from "@/components/worldbuilding/entity-icon-tile";
+import { EntityImage } from "@/components/worldbuilding/entity-image";
 import { ImageGallery } from "@/components/worldbuilding/image-gallery";
 import type {
   ImageGenerationJob,
@@ -113,12 +114,14 @@ export function NewEntityModal({
   const [aiGeneratedUrl, setAiGeneratedUrl] = useState<string | null>(null);
   const [aiElapsed, setAiElapsed] = useState(0);
   const [aiError, setAiError] = useState<string | null>(null);
+  const [imageRemoved, setImageRemoved] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const elapsedRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const cancelRef = useRef(false);
 
   const isProposal = mode === "proposal";
   const isEditing = !!entity && !isProposal;
+  const primaryImage = imageGallery.find((image) => image.isPrimary);
   useEffect(() => {
     if (!show) return;
 
@@ -154,6 +157,7 @@ export function NewEntityModal({
       setSubmitting(false);
       setSelectedFile(null);
       setPreviewUrl(null);
+      setImageRemoved(false);
     });
 
     return () => {
@@ -188,6 +192,7 @@ export function NewEntityModal({
     setPreviewUrl(URL.createObjectURL(file));
     setAiGeneratedUrl(null);
     setAiError(null);
+    setImageRemoved(false);
     onClearAiPreview?.();
   };
 
@@ -227,6 +232,7 @@ export function NewEntityModal({
       setSelectedFile(null);
       if (previewUrl) URL.revokeObjectURL(previewUrl);
       setPreviewUrl(null);
+      setImageRemoved(false);
     } catch (err) {
       if (cancelRef.current) return;
       const message =
@@ -273,6 +279,9 @@ export function NewEntityModal({
           aliases: tags.length > 0 ? tags : [],
           attributes,
         };
+        if (imageRemoved && !selectedFile && !aiGeneratedUrl) {
+          input.imageUrl = null;
+        }
         await onSubmit(input, selectedFile);
       } else {
         const input: CreateEntityInput = {
@@ -336,6 +345,65 @@ export function NewEntityModal({
       );
     }
 
+    if (isEditing && !imageRemoved) {
+      if (imageGalleryLoading && !primaryImage && !entity?.imageUrl) {
+        return (
+          <div className="flex h-48 w-full items-center justify-center rounded-lg border border-border bg-muted/30 text-sm text-muted-foreground">
+            <Loader2 className="mr-2 h-4 w-4" />
+            Cargando imagen principal...
+          </div>
+        );
+      }
+
+      const savedImageUrl =
+        primaryImage?.imageUrl ?? entity?.imageUrl ?? null;
+
+      if (!savedImageUrl) {
+        return (
+          <EntityIconTile
+            category={category}
+            className="h-48 w-full rounded-lg"
+            iconClassName="h-12 w-12"
+          />
+        );
+      }
+
+      return (
+        <div className="relative overflow-hidden rounded-lg border border-border">
+          <EntityImage
+            src={savedImageUrl}
+            alt={entity.canonicalName}
+            className="h-48 w-full bg-muted object-contain"
+            category={TYPE_TO_CATEGORY[entity.type]}
+            iconClassName="h-12 w-12"
+            width={384}
+            height={192}
+          />
+          {primaryImage ? (
+            <p className="absolute bottom-2 left-2 rounded-md bg-background/85 px-2 py-1 text-xs text-muted-foreground">
+              Imagen principal del baúl de imágenes
+            </p>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setImageRemoved(true)}
+              className="absolute right-2 top-2 rounded-full bg-background/80 p-1.5 text-muted-foreground transition-colors hover:bg-background hover:text-destructive"
+            >
+              <Trash2 size={16} />
+            </button>
+          )}
+        </div>
+      );
+    }
+
+    if (imageRemoved && isEditing) {
+      return (
+        <div className="w-full rounded-lg border-2 border-dashed border-border bg-muted/30 p-4 text-center">
+          <p className="text-sm text-muted-foreground">Imagen eliminada</p>
+        </div>
+      );
+    }
+
     return (
       <EntityIconTile
         category={category}
@@ -347,7 +415,7 @@ export function NewEntityModal({
 
   return (
     <Dialog open={show} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="z-[60] max-h-[90vh] w-[calc(100%-2rem)] max-w-4xl gap-0 overflow-hidden">
+      <DialogContent className="z-[60] min-w-[600px] gap-0 overflow-hidden">
         <DialogHeader className="p-6 py-4 border-b">
           <div className="flex items-center justify-between">
             <DialogTitle>
@@ -434,11 +502,11 @@ export function NewEntityModal({
           <Field>
             <FieldLabel htmlFor="entity-image">
               Imagen{" "}
-              {isEditing
-                ? "Baúl de imágenes"
-                : selectedFile || aiGeneratedUrl
+              {selectedFile || aiGeneratedUrl
                 ? "(1 seleccionada)"
-                : "(Opcional)"}
+                : primaryImage
+                  ? "(Principal del baúl)"
+                  : "(Opcional)"}
             </FieldLabel>
 
             <FieldContent>
@@ -451,8 +519,11 @@ export function NewEntityModal({
                 className="hidden"
               />
 
+              {renderImagePreview()}
+
               {isEditing ? (
                 <ImageGallery
+                  compact
                   images={imageGallery}
                   loading={imageGalleryLoading}
                   activeJob={activeImageJob}
@@ -463,24 +534,20 @@ export function NewEntityModal({
                   onDelete={onDeleteImage ?? (() => undefined)}
                 />
               ) : (
-                <>
-                  {renderImagePreview()}
-
-                  <div className="space-y-2">
-                    <ImageUploadActions
-                      aiGeneratedUrl={aiGeneratedUrl}
-                      aiGenerating={aiGenerating}
-                      aiError={aiError}
-                      aiElapsed={aiElapsed}
-                      name={name}
-                      selectedFile={selectedFile}
-                      onFileClick={() => fileInputRef.current?.click()}
-                      onGenerateAi={handleGenerateAi}
-                      onCancelGeneration={handleCancelGeneration}
-                      onGenerateImage={onGenerateImage}
-                    />
-                  </div>
-                </>
+                <div className="space-y-2">
+                  <ImageUploadActions
+                    aiGeneratedUrl={aiGeneratedUrl}
+                    aiGenerating={aiGenerating}
+                    aiError={aiError}
+                    aiElapsed={aiElapsed}
+                    name={name}
+                    selectedFile={selectedFile}
+                    onFileClick={() => fileInputRef.current?.click()}
+                    onGenerateAi={handleGenerateAi}
+                    onCancelGeneration={handleCancelGeneration}
+                    onGenerateImage={onGenerateImage}
+                  />
+                </div>
               )}
             </FieldContent>
           </Field>

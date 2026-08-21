@@ -31,6 +31,7 @@ type ImageGalleryProps = {
   readonly loading: boolean;
   readonly activeJob: ImageGenerationJob | null;
   readonly category: EntityCategory;
+  readonly compact?: boolean;
   readonly onGenerate: () => void;
   readonly onUpload: (file: File) => Promise<void>;
   readonly onSetPrimary: (imageId: string) => void;
@@ -42,6 +43,7 @@ export function ImageGallery({
   loading,
   activeJob,
   category,
+  compact = false,
   onGenerate,
   onUpload,
   onSetPrimary,
@@ -75,6 +77,127 @@ export function ImageGallery({
       setUploading(false);
     }
   };
+
+  if (compact) {
+    return (
+      <div className="mt-3 space-y-3">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/avif"
+          onChange={(event) => void handleFileChange(event)}
+          className="hidden"
+        />
+
+        {loading ? (
+          <div className="flex items-center text-sm text-muted-foreground">
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Cargando variantes guardadas...
+          </div>
+        ) : images.length > 0 ? (
+          <div className="flex flex-wrap gap-2">
+            {images.map((image) => (
+              <div
+                key={image.id}
+                className="relative overflow-hidden rounded-md border border-border bg-muted p-0.5"
+              >
+                <EntityImage
+                  src={image.imageUrl}
+                  alt={image.prompt}
+                  width={72}
+                  height={72}
+                  className="h-[72px] w-[72px] rounded object-cover"
+                  category={category}
+                  iconClassName="h-5 w-5"
+                />
+                {image.isPrimary && (
+                  <span className="absolute bottom-1 left-1 rounded bg-primary px-1.5 py-0.5 text-[10px] font-medium text-primary-foreground">
+                    Principal
+                  </span>
+                )}
+                <div className="absolute right-1 top-1 flex gap-1">
+                  <button
+                    type="button"
+                    className="rounded-full bg-background/90 p-1 text-primary shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
+                    onClick={() => onSetPrimary(image.id)}
+                    disabled={image.isPrimary || isBusy}
+                    title="Usar como imagen principal"
+                  >
+                    {image.isPrimary ? (
+                      <Star className="h-3 w-3 fill-current" />
+                    ) : (
+                      <StarOff className="h-3 w-3" />
+                    )}
+                    <span className="sr-only">Usar como principal</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-full bg-background/90 p-1 text-muted-foreground shadow-sm hover:text-destructive disabled:cursor-not-allowed disabled:opacity-50"
+                    onClick={() => onDelete(image)}
+                    disabled={isBusy}
+                    title="Eliminar imagen"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                    <span className="sr-only">Eliminar imagen</span>
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : null}
+
+        {activeJob && (
+          <div className="rounded-md border border-primary/30 bg-primary/5 p-2 text-xs">
+            <div className="flex items-center justify-between gap-2">
+              <span>
+                {activeJob.status === "QUEUED"
+                  ? "En cola..."
+                  : "Generando una variante..."}
+              </span>
+              <span>{activeJob.progress}%</span>
+            </div>
+            <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-primary/10">
+              <div
+                className="h-full rounded-full bg-primary transition-all"
+                style={{ width: `${activeJob.progress}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        {activeJob?.status === "FAILED" && (
+          <p className="rounded-md bg-destructive/10 p-2 text-xs text-destructive">
+            {activeJob.errorMessage ?? "No se pudo generar la imagen."}
+          </p>
+        )}
+
+        {uploadError && <p className="text-xs text-destructive">{uploadError}</p>}
+
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={onGenerate}
+            disabled={isBusy}
+          >
+            <Sparkles className="mr-2 h-4 w-4" />
+            Generar con IA
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isBusy}
+          >
+            <Upload className="mr-2 h-4 w-4" />
+            Cargar imagen
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <section className="space-y-3">
