@@ -572,7 +572,6 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
           imageGallery={entityImages}
           imageGalleryLoading={isLoadingImages}
           activeImageJob={selectedEntityImageJob}
-          imageGenerationOpen={showImageGenerationModal}
           onImageGenerate={() => setShowImageGenerationModal(true)}
           onImageUpload={handleUploadImage}
           onSetPrimaryImage={handleSetPrimaryImage}
@@ -580,7 +579,19 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
           initialCanonicalName={timelineEntityInitialName ?? undefined}
           onGenerateImage={handleGenerateImage}
           onClearAiPreview={handleClearAiPreview}
-        />
+        >
+          {showNewEntityModal && editingEntity && (
+            <ImageGenerationModal
+              show={showImageGenerationModal}
+              entityId={editingEntity.id}
+              entityName={editingEntity.canonicalName}
+              entityType={editingEntity.type}
+              referenceImageId={entityImages.find((image) => image.isPrimary)?.id}
+              onClose={() => setShowImageGenerationModal(false)}
+              onSubmit={handleRequestImageGeneration}
+            />
+          )}
+        </NewEntityModal>
 
         <NewRelationModal
           show={showNewRelationModal}
@@ -590,7 +601,7 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
           relationship={editingRelationship}
         />
 
-        {selectedEntity && (
+        {selectedEntity && !editingEntity && (
           <ImageGenerationModal
             show={showImageGenerationModal}
             entityId={selectedEntity.id}

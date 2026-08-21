@@ -50,6 +50,7 @@ import type {
 type NewEntityModalProps = {
   readonly show: boolean;
   readonly onClose: () => void;
+  readonly children?: React.ReactNode;
   readonly onSubmit: (
     data: CreateEntityInput | UpdateEntityInput,
     file?: File | null,
@@ -68,7 +69,6 @@ type NewEntityModalProps = {
   readonly imageGallery?: readonly ImageResponse[];
   readonly imageGalleryLoading?: boolean;
   readonly activeImageJob?: ImageGenerationJob | null;
-  readonly imageGenerationOpen?: boolean;
   readonly onImageGenerate?: () => void;
   readonly onImageUpload?: (file: File) => Promise<void>;
   readonly onSetPrimaryImage?: (imageId: string) => void;
@@ -85,6 +85,7 @@ type NewEntityModalProps = {
 export function NewEntityModal({
   show,
   onClose,
+  children,
   onSubmit,
   entity,
   mode = entity ? "edit" : "create",
@@ -93,7 +94,6 @@ export function NewEntityModal({
   imageGallery = [],
   imageGalleryLoading = false,
   activeImageJob = null,
-  imageGenerationOpen = false,
   onImageGenerate,
   onImageUpload,
   onSetPrimaryImage,
@@ -417,15 +417,7 @@ export function NewEntityModal({
 
   return (
     <Dialog open={show} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent
-        className="z-[60] min-w-[600px] gap-0 overflow-hidden"
-        onPointerDownOutside={(event) => {
-          if (imageGenerationOpen) event.preventDefault();
-        }}
-        onInteractOutside={(event) => {
-          if (imageGenerationOpen) event.preventDefault();
-        }}
-      >
+      <DialogContent className="z-[60] min-w-[600px] gap-0 overflow-hidden">
         <DialogHeader className="p-6 py-4 border-b">
           <div className="flex items-center justify-between">
             <DialogTitle>
@@ -628,6 +620,7 @@ export function NewEntityModal({
                 : "Crear entidad"}
           </Button>
         </DialogFooter>
+        {children}
       </DialogContent>
     </Dialog>
   );
