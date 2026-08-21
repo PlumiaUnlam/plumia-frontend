@@ -50,7 +50,7 @@ type WikiPanelProps = {
   readonly acceptingProposalId: string | null;
   readonly rejectingProposalId: string | null;
   readonly onAcceptProposal: (
-    proposalId: string,
+    proposal: EntityProposal,
     override?: CreateEntityInput | UpdateEntityInput,
   ) => Promise<void>;
   readonly onRejectProposal: (proposalId: string) => Promise<void>;
@@ -62,6 +62,10 @@ type WikiPanelProps = {
   ) => Promise<void>;
   readonly onRejectRelationshipProposal: (proposalId: string) => Promise<void>;
   readonly actionError: string | null;
+  readonly entityActionFeedback: {
+    kind: "success" | "error";
+    message: string;
+  } | null;
 };
 
 type WikiSectionKey = "relationships" | "entities" | "proposals";
@@ -86,6 +90,7 @@ export function WikiPanel({
   onAcceptRelationshipProposal,
   onRejectRelationshipProposal,
   actionError,
+  entityActionFeedback,
 }: WikiPanelProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [reviewingProposalId, setReviewingProposalId] = useState<string | null>(
@@ -185,8 +190,9 @@ export function WikiPanel({
     data: CreateEntityInput | UpdateEntityInput,
   ) => {
     if (!editingEntityProposal) return;
-    await onAcceptProposal(editingEntityProposal.id, data);
+    await onAcceptProposal(editingEntityProposal, data);
     setEditingEntityProposalId(null);
+    setReviewingProposalId(null);
   };
 
   const handleEntityProposalEdit = (proposal: EntityProposal) => {
@@ -325,6 +331,19 @@ export function WikiPanel({
             expanded={expandedSections.proposals}
             onToggle={() => toggleSection("proposals")}
           />
+          {expandedSections.proposals && entityActionFeedback && (
+            <div
+              role={entityActionFeedback.kind === "error" ? "alert" : "status"}
+              aria-live="polite"
+              className={`rounded-lg border px-3 py-2 text-xs ${
+                entityActionFeedback.kind === "error"
+                  ? "border-destructive/20 bg-destructive/5 text-destructive"
+                  : "border-emerald-500/20 bg-emerald-500/5 text-emerald-700 dark:text-emerald-300"
+              }`}
+            >
+              {entityActionFeedback.message}
+            </div>
+          )}
           {expandedSections.proposals &&
             (proposalsLoading ? (
               Array.from({ length: 2 }).map((_, index) => (
@@ -355,7 +374,9 @@ export function WikiPanel({
                   proposal={proposal}
                   accepting={acceptingProposalId === proposal.id}
                   rejecting={rejectingProposalId === proposal.id}
-                  onAccept={() => void onAcceptProposal(proposal.id)}
+                  onAccept={() => {
+                    void onAcceptProposal(proposal).catch(() => undefined);
+                  }}
                   onReject={() => void onRejectProposal(proposal.id)}
                   onEdit={() => handleEntityProposalEdit(proposal)}
                 />
@@ -371,7 +392,9 @@ export function WikiPanel({
         onClose={handleCloseReview}
         onAccept={
           reviewingProposal
-            ? () => void onAcceptProposal(reviewingProposal.id)
+            ? () => {
+                void onAcceptProposal(reviewingProposal).catch(() => undefined);
+              }
             : undefined
         }
         onReject={

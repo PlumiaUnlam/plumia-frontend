@@ -20,6 +20,8 @@ type RichTextEditorProps = {
   content?: ProseMirrorJSON | null
   versionLabel: string
   onChange?: (json: ProseMirrorJSON) => void
+  onAnalyzeChanges?: () => void
+  isAnalysisSaving?: boolean
 }
 
 export function RichTextEditor({
@@ -30,6 +32,8 @@ export function RichTextEditor({
   content,
   versionLabel,
   onChange,
+  onAnalyzeChanges,
+  isAnalysisSaving = false,
 }: RichTextEditorProps) {
   const {
     error,
@@ -91,6 +95,8 @@ export function RichTextEditor({
         versionLabel={versionLabel}
         onInsertImage={openImagePicker}
         isUploadingImage={isUploading}
+        onAnalyzeChanges={onAnalyzeChanges}
+        isAnalysisSaving={isAnalysisSaving}
       />
 
       {error && (

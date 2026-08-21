@@ -8,6 +8,7 @@ import { getEntities } from "@/services/entities.service";
 import { getPrimaryEntityImages } from "@/services/image-generation.service";
 import {
   acceptEntityProposal,
+  buildEntityProposalAcceptanceInput,
   getEntityProposals,
   rejectEntityProposal,
 } from "@/services/entity-proposals.service";
@@ -17,13 +18,19 @@ import {
   rejectRelationshipProposal,
 } from "@/services/relationship-proposals.service";
 import { WikiPanel } from "@/components/wiki-panel";
-import type { CreateEntityInput, UpdateEntityInput } from "@/types/entity";
+import type { CreateEntityInput, Entity, UpdateEntityInput } from "@/types/entity";
+import type { EntityProposal } from "@/types/entity-proposal";
 import type { UpdateRelationshipInput } from "@/types/relationship";
 
 type RightTab = "wiki" | "chat" | "stats";
 
 type EditorRightPanelProps = {
   readonly projectId: string;
+};
+
+type EntityActionFeedback = {
+  kind: "success" | "error";
+  message: string;
 };
 
 const tabs = [
@@ -45,6 +52,8 @@ export function EditorRightPanel({ projectId }: EditorRightPanelProps) {
   const [rejectingRelationshipProposalId, setRejectingRelationshipProposalId] =
     useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [entityActionFeedback, setEntityActionFeedback] =
+    useState<EntityActionFeedback | null>(null);
 
   const {
     data: entities,
@@ -85,24 +94,46 @@ export function EditorRightPanel({ projectId }: EditorRightPanelProps) {
   );
 
   const handleAcceptProposal = async (
-    proposalId: string,
+    proposal: EntityProposal,
     override?: CreateEntityInput | UpdateEntityInput,
-  ) => {
-    setAcceptingProposalId(proposalId);
+  ): Promise<void> => {
+    setAcceptingProposalId(proposal.id);
     setActionError(null);
+    setEntityActionFeedback(null);
     try {
-      await acceptEntityProposal(proposalId, override);
+      const acceptedEntity = await acceptEntityProposal(
+        proposal.id,
+        override ?? buildEntityProposalAcceptanceInput(proposal),
+      );
       await Promise.all([
+        mutateEntities(
+          (current) => upsertEntity(current, acceptedEntity),
+          { revalidate: false },
+        ),
+        mutateProposals(
+          (current) => (current ?? []).filter(({ id }) => id !== proposal.id),
+          { revalidate: false },
+        ),
+      ]);
+      setEntityActionFeedback({
+        kind: "success",
+        message:
+          proposal.proposedData.proposalKind === "ENTITY_UPDATE"
+            ? "La actualización de la entidad fue aceptada."
+            : "La entidad fue aceptada y agregada a la Wiki.",
+      });
+      void Promise.all([
         mutateEntities(),
         mutateProposals(),
         mutateRelationshipProposals(),
-      ]);
+      ]).catch(() => undefined);
     } catch (error) {
-      setActionError(
+      const message =
         error instanceof Error
           ? error.message
-          : "No se pudo aceptar la propuesta.",
-      );
+          : "No se pudo aceptar la propuesta.";
+      setEntityActionFeedback({ kind: "error", message });
+      throw error;
     } finally {
       setAcceptingProposalId(null);
     }
@@ -148,15 +179,22 @@ export function EditorRightPanel({ projectId }: EditorRightPanelProps) {
   const handleRejectProposal = async (proposalId: string) => {
     setRejectingProposalId(proposalId);
     setActionError(null);
+    setEntityActionFeedback(null);
     try {
       await rejectEntityProposal(proposalId);
       await mutateProposals();
+      setEntityActionFeedback({
+        kind: "success",
+        message: "La propuesta fue rechazada.",
+      });
     } catch (error) {
-      setActionError(
-        error instanceof Error
-          ? error.message
-          : "No se pudo rechazar la propuesta.",
-      );
+      setEntityActionFeedback({
+        kind: "error",
+        message:
+          error instanceof Error
+            ? error.message
+            : "No se pudo rechazar la propuesta.",
+      });
     } finally {
       setRejectingProposalId(null);
     }
@@ -203,6 +241,7 @@ export function EditorRightPanel({ projectId }: EditorRightPanelProps) {
           onAcceptRelationshipProposal={handleAcceptRelationshipProposal}
           onRejectRelationshipProposal={handleRejectRelationshipProposal}
           actionError={actionError}
+          entityActionFeedback={entityActionFeedback}
         />
       )}
 
@@ -210,5 +249,17 @@ export function EditorRightPanel({ projectId }: EditorRightPanelProps) {
 
       {activeTab === "stats" && <div className="min-h-0 flex-1" />}
     </aside>
+  );
+}
+
+function upsertEntity(
+  currentEntities: readonly Entity[] | undefined,
+  acceptedEntity: Entity,
+): Entity[] {
+  return [
+    ...(currentEntities ?? []).filter(({ id }) => id !== acceptedEntity.id),
+    acceptedEntity,
+  ].sort((left, right) =>
+    left.canonicalName.localeCompare(right.canonicalName),
   );
 }
