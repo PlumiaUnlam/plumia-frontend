@@ -66,6 +66,8 @@ export interface ImageGenerationJob {
   generatedImage: ImageResponse | null;
 }
 
+const PRIMARY_IMAGE_BATCH_SIZE = 50;
+
 export async function generateEntityImage(
   input: GenerateImageInput,
 ): Promise<ImageGenerationJob> {
@@ -92,9 +94,22 @@ export async function getPrimaryEntityImages(
     return {};
   }
 
-  const images = await api.get<ImageResponse[]>(
-    `/publishing/images/primary?entityIds=${encodeURIComponent(ids.join(","))}`,
+  const batches = Array.from(
+    { length: Math.ceil(ids.length / PRIMARY_IMAGE_BATCH_SIZE) },
+    (_, index) =>
+      ids.slice(
+        index * PRIMARY_IMAGE_BATCH_SIZE,
+        (index + 1) * PRIMARY_IMAGE_BATCH_SIZE,
+      ),
   );
+  const imageBatches = await Promise.all(
+    batches.map((batch) =>
+      api.get<ImageResponse[]>(
+        `/publishing/images/primary?entityIds=${encodeURIComponent(batch.join(","))}`,
+      ),
+    ),
+  );
+  const images = imageBatches.flat();
   return Object.fromEntries(
     images.map((image) => [image.entityId, image.imageUrl]),
   );

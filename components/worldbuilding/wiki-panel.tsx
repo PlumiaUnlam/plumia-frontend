@@ -44,6 +44,7 @@ interface WikiTabProps {
   readonly onUploadImage: (file: File) => Promise<void>;
   readonly onSetPrimaryImage: (imageId: string) => void;
   readonly onDeleteImage: (image: ImageResponse) => void;
+  readonly imageActionError?: string | null;
 }
 
 export function WikiTab({
@@ -62,6 +63,7 @@ export function WikiTab({
   onUploadImage,
   onSetPrimaryImage,
   onDeleteImage,
+  imageActionError,
 }: WikiTabProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<EntityCategory[]>(
@@ -356,6 +358,7 @@ export function WikiTab({
                 onUpload={onUploadImage}
                 onSetPrimary={onSetPrimaryImage}
                 onDelete={onDeleteImage}
+                actionError={imageActionError}
               />
 
               {/* {selectedEntity.imageUrl && (

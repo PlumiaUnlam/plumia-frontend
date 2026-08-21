@@ -73,11 +73,13 @@ type NewEntityModalProps = {
   readonly onImageUpload?: (file: File) => Promise<void>;
   readonly onSetPrimaryImage?: (imageId: string) => void;
   readonly onDeleteImage?: (image: ImageResponse) => void;
+  readonly imageActionError?: string | null;
   readonly onGenerateImage?: (data: {
     canonicalName: string;
     description: string;
     type: string;
     aliases: string[];
+    attributes: Record<string, unknown>;
   }) => Promise<string>;
   readonly onClearAiPreview?: () => void;
 };
@@ -98,6 +100,7 @@ export function NewEntityModal({
   onImageUpload,
   onSetPrimaryImage,
   onDeleteImage,
+  imageActionError,
   onGenerateImage,
   onClearAiPreview,
 }: NewEntityModalProps) {
@@ -590,6 +593,13 @@ export function NewEntityModal({
                   onUpload={onImageUpload ?? (async () => undefined)}
                   onSetPrimary={onSetPrimaryImage ?? (() => undefined)}
                   onDelete={onDeleteImage ?? (() => undefined)}
+                  actionError={imageActionError}
+                  actionsDisabled={
+                    !onImageGenerate ||
+                    !onImageUpload ||
+                    !onSetPrimaryImage ||
+                    !onDeleteImage
+                  }
                 />
               ) : (
                 <div className="space-y-2">

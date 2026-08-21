@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Loader2, Sparkles } from "lucide-react";
 
 import {
@@ -246,15 +246,19 @@ export function ImageGenerationModal({
   const [form, setForm] = useState<GenerationForm>(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const dialogIdentity = `${entityId}:${entityType}:${show ? "open" : "closed"}`;
+  const [lastDialogIdentity, setLastDialogIdentity] =
+    useState(dialogIdentity);
   const formConfig = GENERATION_FORM_CONFIGS[entityType];
 
-  useEffect(() => {
+  if (dialogIdentity !== lastDialogIdentity) {
+    setLastDialogIdentity(dialogIdentity);
     if (show) {
       setForm(EMPTY_FORM);
       setError(null);
       setSubmitting(false);
     }
-  }, [show, entityId, entityType]);
+  }
 
   const update = (field: keyof GenerationForm, value: string) => {
     setForm((current) => ({ ...current, [field]: value || undefined }));
@@ -301,10 +305,10 @@ export function ImageGenerationModal({
             <span className="block">
               La imagen de referencia y la identidad de la ficha se conservan.
               Solo definí qué querés cambiar en esta variante.
-            </span>
-            <span className="mt-1 block text-xs">
-              Todos los campos son opcionales: podés dejarlos en blanco y
-              generar la imagen con la configuración base.
+              <span className="mt-1 block text-xs">
+                Todos los campos son opcionales: podés dejarlos en blanco y
+                generar la imagen con la configuración base.
+              </span>
             </span>
           </DialogDescription>
 

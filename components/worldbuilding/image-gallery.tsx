@@ -36,6 +36,8 @@ type ImageGalleryProps = {
   readonly onUpload: (file: File) => Promise<void>;
   readonly onSetPrimary: (imageId: string) => void;
   readonly onDelete: (image: ImageResponse) => void;
+  readonly actionError?: string | null;
+  readonly actionsDisabled?: boolean;
 };
 
 type GalleryViewProps = Omit<ImageGalleryProps, "compact"> & {
@@ -45,6 +47,7 @@ type GalleryViewProps = Omit<ImageGalleryProps, "compact"> & {
   ) => Promise<void>;
   readonly uploading: boolean;
   readonly uploadError: string | null;
+  readonly actionError: string | null;
   readonly isGenerating: boolean;
   readonly isBusy: boolean;
 };
@@ -59,13 +62,15 @@ export function ImageGallery({
   onUpload,
   onSetPrimary,
   onDelete,
+  actionError = null,
+  actionsDisabled = false,
 }: ImageGalleryProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const isGenerating =
     activeJob?.status === "QUEUED" || activeJob?.status === "PROCESSING";
-  const isBusy = isGenerating || uploading;
+  const isBusy = actionsDisabled || isGenerating || uploading;
 
   const handleFileChange = async (
     event: React.ChangeEvent<HTMLInputElement>,
@@ -102,6 +107,7 @@ export function ImageGallery({
     onFileChange: handleFileChange,
     uploading,
     uploadError,
+    actionError,
     isGenerating,
     isBusy,
   };
@@ -124,6 +130,7 @@ function CompactImageGallery({
   fileInputRef,
   onFileChange,
   uploadError,
+  actionError,
   isBusy,
 }: GalleryViewProps) {
   return (
@@ -171,6 +178,8 @@ function CompactImageGallery({
       )}
 
       {uploadError && <p className="text-xs text-destructive">{uploadError}</p>}
+
+      {actionError && <p className="text-xs text-destructive">{actionError}</p>}
 
       <div className="flex flex-wrap gap-2">
         <Button
@@ -285,6 +294,7 @@ function FullImageGallery({
   onFileChange,
   uploading,
   uploadError,
+  actionError,
   isGenerating,
   isBusy,
 }: GalleryViewProps) {
@@ -335,6 +345,8 @@ function FullImageGallery({
 
       {uploadError && <p className="text-sm text-destructive">{uploadError}</p>}
 
+      {actionError && <p className="text-sm text-destructive">{actionError}</p>}
+
       {activeJob && (
         <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm">
           <div className="flex items-center justify-between gap-3">
@@ -364,6 +376,7 @@ function FullImageGallery({
         images={images}
         loading={loading}
         category={category}
+        isBusy={isBusy}
         onSetPrimary={onSetPrimary}
         onDelete={onDelete}
       />
@@ -375,11 +388,17 @@ function FullSavedImages({
   images,
   loading,
   category,
+  isBusy,
   onSetPrimary,
   onDelete,
 }: Pick<
   GalleryViewProps,
-  "images" | "loading" | "category" | "onSetPrimary" | "onDelete"
+  | "images"
+  | "loading"
+  | "category"
+  | "isBusy"
+  | "onSetPrimary"
+  | "onDelete"
 >) {
   if (loading) {
     return (
@@ -426,7 +445,7 @@ function FullSavedImages({
             <Button
               variant="ghost"
               size="sm"
-              disabled={image.isPrimary}
+              disabled={image.isPrimary || isBusy}
               onClick={() => onSetPrimary(image.id)}
               title="Usar como imagen principal"
             >
@@ -442,6 +461,7 @@ function FullSavedImages({
               size="icon-sm"
               className="text-muted-foreground hover:text-destructive"
               onClick={() => onDelete(image)}
+              disabled={isBusy}
               title="Eliminar imagen"
             >
               <Trash2 className="h-4 w-4" />

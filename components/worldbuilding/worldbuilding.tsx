@@ -91,6 +91,10 @@ type ImageReviewState = {
   image: ImageResponse;
 };
 
+const IMAGE_POLL_INTERVAL_MS = 1500;
+const MAX_IMAGE_POLL_FAILURES = 3;
+const MAX_IMAGE_POLL_ATTEMPTS = 80;
+
 export function Worldbuilding({ projectId }: WorldbuildingProps) {
   const { loading, firebaseUser } = useAuth();
   const shouldFetch = !!projectId && !loading && !!firebaseUser;
@@ -155,6 +159,13 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
     null,
   );
   const [deletingImage, setDeletingImage] = useState(false);
+  const [imageActionError, setImageActionError] = useState<string | null>(
+    null,
+  );
+  const imagePollJobIdRef = useRef<string | null>(null);
+  const imagePollFailuresRef = useRef(0);
+  const imagePollAttemptsRef = useRef(0);
+  const imagePollInFlightRef = useRef(false);
 
   const {
     data: entities,
@@ -228,18 +239,48 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
     () => getPrimaryEntityImages(entityIds),
   );
 
+  const activeImageJobId = imageGenerationJob?.id ?? null;
+  const activeImageJobStatus = imageGenerationJob?.status ?? null;
+
   useEffect(() => {
     if (
-      !imageGenerationJob ||
-      imageGenerationJob.status === "COMPLETED" ||
-      imageGenerationJob.status === "FAILED"
+      !activeImageJobId ||
+      activeImageJobStatus === "COMPLETED" ||
+      activeImageJobStatus === "FAILED"
     ) {
       return;
     }
 
-    const interval = setInterval(() => {
-      void getImageGenerationJob(imageGenerationJob.id)
+    if (imagePollJobIdRef.current !== activeImageJobId) {
+      imagePollJobIdRef.current = activeImageJobId;
+      imagePollFailuresRef.current = 0;
+      imagePollAttemptsRef.current = 0;
+    }
+
+    const poll = () => {
+      if (imagePollInFlightRef.current) return;
+
+      if (imagePollAttemptsRef.current >= MAX_IMAGE_POLL_ATTEMPTS) {
+        setImageGenerationJob((current) =>
+          current?.id === activeImageJobId
+            ? {
+                ...current,
+                status: "FAILED",
+                errorMessage:
+                  "La generación tardó demasiado. Podés intentarlo nuevamente.",
+              }
+            : current,
+        );
+        return;
+      }
+
+      imagePollAttemptsRef.current += 1;
+      imagePollInFlightRef.current = true;
+
+      void getImageGenerationJob(activeImageJobId)
         .then((job) => {
+          if (job.id !== activeImageJobId) return;
+          imagePollFailuresRef.current = 0;
           setImageGenerationJob(job);
           if (job.status === "COMPLETED") {
             const generatedEntity = worldbuildingEntities.find(
@@ -257,11 +298,16 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
             void mutatePrimaryImages();
             void mutate();
             setImageGenerationJob(null);
+            imagePollJobIdRef.current = null;
+            imagePollAttemptsRef.current = 0;
           }
         })
         .catch((pollError) => {
+          imagePollFailuresRef.current += 1;
+          if (imagePollFailuresRef.current < MAX_IMAGE_POLL_FAILURES) return;
+
           setImageGenerationJob((current) =>
-            current
+            current?.id === activeImageJobId
               ? {
                   ...current,
                   status: "FAILED",
@@ -270,14 +316,21 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
                       ? pollError.message
                       : "No se pudo consultar la generación",
                 }
-              : null,
+              : current,
           );
+        })
+        .finally(() => {
+          imagePollInFlightRef.current = false;
         });
-    }, 1500);
+    };
+
+    poll();
+    const interval = setInterval(poll, IMAGE_POLL_INTERVAL_MS);
 
     return () => clearInterval(interval);
   }, [
-    imageGenerationJob,
+    activeImageJobId,
+    activeImageJobStatus,
     mutate,
     mutateImages,
     mutatePrimaryImages,
@@ -448,6 +501,9 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
     additionalInstructions?: string;
   }) => {
     const job = await generateEntityImage(input);
+    imagePollJobIdRef.current = job.id;
+    imagePollFailuresRef.current = 0;
+    imagePollAttemptsRef.current = 0;
     setImageGenerationJob(job);
   };
 
@@ -460,6 +516,9 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
       referenceImageId: image.id,
       additionalInstructions: feedback,
     });
+    imagePollJobIdRef.current = job.id;
+    imagePollFailuresRef.current = 0;
+    imagePollAttemptsRef.current = 0;
     setImageGenerationJob(job);
   };
 
@@ -470,10 +529,19 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
 
   const handleSetPrimaryImage = async (imageId: string) => {
     if (!selectedEntity) return;
-    await setPrimaryImage(selectedEntity.id, imageId);
-    await mutateImages();
-    await mutatePrimaryImages();
-    await mutate();
+    setImageActionError(null);
+    try {
+      await setPrimaryImage(selectedEntity.id, imageId);
+      await mutateImages();
+      await mutatePrimaryImages();
+      await mutate();
+    } catch (error) {
+      setImageActionError(
+        error instanceof Error
+          ? error.message
+          : "No se pudo establecer la imagen principal.",
+      );
+    }
   };
 
   const handleUploadImage = async (file: File) => {
@@ -485,15 +553,27 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
   const handleDeleteImage = async () => {
     if (!selectedEntity || !imageToDelete) return;
     setDeletingImage(true);
+    setImageActionError(null);
     try {
       await deleteEntityImage(selectedEntity.id, imageToDelete.id);
       await mutateImages();
       await mutatePrimaryImages();
       await mutate();
       setImageToDelete(null);
+    } catch (error) {
+      setImageActionError(
+        error instanceof Error
+          ? error.message
+          : "No se pudo eliminar la imagen.",
+      );
     } finally {
       setDeletingImage(false);
     }
+  };
+
+  const requestImageDelete = (image: ImageResponse) => {
+    setImageActionError(null);
+    setImageToDelete(image);
   };
 
   const handleModalClose = () => {
@@ -577,7 +657,8 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
           onImageGenerate={() => setShowImageGenerationModal(true)}
           onImageUpload={handleUploadImage}
           onSetPrimaryImage={handleSetPrimaryImage}
-          onDeleteImage={setImageToDelete}
+          onDeleteImage={requestImageDelete}
+          imageActionError={imageActionError}
           initialCanonicalName={timelineEntityInitialName ?? undefined}
           onGenerateImage={handleGenerateImage}
           onClearAiPreview={handleClearAiPreview}
@@ -674,7 +755,8 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
               onSetPrimaryImage={(imageId) => {
                 void handleSetPrimaryImage(imageId);
               }}
-              onDeleteImage={setImageToDelete}
+              onDeleteImage={requestImageDelete}
+              imageActionError={imageActionError}
             />
           </TabsContent>
 
@@ -767,7 +849,10 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
       <Dialog
         open={!!imageToDelete}
         onOpenChange={(open) => {
-          if (!open && !deletingImage) setImageToDelete(null);
+          if (!open && !deletingImage) {
+            setImageToDelete(null);
+            setImageActionError(null);
+          }
         }}
       >
         <DialogContent>
@@ -777,11 +862,19 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
               ¿Querés eliminar esta variante del baúl de imágenes? Esta acción
               no se puede deshacer.
             </DialogDescription>
+            {imageActionError && (
+              <p className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+                {imageActionError}
+              </p>
+            )}
           </DialogHeader>
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => setImageToDelete(null)}
+              onClick={() => {
+                setImageToDelete(null);
+                setImageActionError(null);
+              }}
               disabled={deletingImage}
             >
               Cancelar
