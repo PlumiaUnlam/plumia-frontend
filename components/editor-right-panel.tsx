@@ -213,6 +213,7 @@ export function EditorRightPanel({
 
       {activeTab === "chat" && (
         <ChatPanel
+          key={projectId}
           projectId={projectId}
           currentChapterId={currentChapterId}
           primaryImageUrls={primaryImageUrls}

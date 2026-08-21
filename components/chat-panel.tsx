@@ -57,19 +57,16 @@ export function ChatPanel({
   const [isLoading, setIsLoading] = useState(true)
   const [isSending, setIsSending] = useState(false)
   const [isListening, setIsListening] = useState(false)
-  const [speechSupported, setSpeechSupported] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const endRef = useRef<HTMLDivElement | null>(null)
   const recognitionRef = useRef<PlumSpeechRecognition | null>(null)
   const speechBaseDraftRef = useRef("")
+  const speechSupported =
+    typeof window !== "undefined" &&
+    Boolean(window.SpeechRecognition || window.webkitSpeechRecognition)
 
   useEffect(() => {
     let cancelled = false
-    setIsLoading(true)
-    setMessages([])
-    setThreads([])
-    setThreadId(null)
-    setError(null)
 
     void getChatThreads(projectId)
       .then(async (threads) => {
@@ -100,9 +97,6 @@ export function ChatPanel({
   }, [projectId])
 
   useEffect(() => {
-    setSpeechSupported(
-      Boolean(window.SpeechRecognition || window.webkitSpeechRecognition),
-    )
     return () => {
       recognitionRef.current?.abort()
       recognitionRef.current = null
@@ -354,7 +348,7 @@ export function ChatPanel({
             {error}
           </div>
         )}
-        <div className="flex items-end gap-2 rounded-2xl border border-border bg-muted/70 p-1.5 focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/10">
+        <div className="rounded-2xl border border-border bg-muted/70 p-2 transition-colors focus-within:border-primary/40 focus-within:bg-background focus-within:ring-2 focus-within:ring-primary/10">
           <textarea
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
@@ -369,44 +363,53 @@ export function ChatPanel({
             disabled={isSending}
             aria-label="Pregunta sobre tu obra"
             placeholder="Pregunta sobre tu obra..."
-            className="max-h-28 min-h-8 min-w-0 flex-1 resize-none bg-transparent px-2 py-1.5 text-[11px] leading-relaxed text-foreground outline-none placeholder:text-muted-foreground disabled:opacity-60"
+            className="max-h-28 min-h-9 w-full resize-none overflow-y-auto bg-transparent px-1 py-1 text-[11px] leading-relaxed text-foreground outline-none placeholder:text-muted-foreground [scrollbar-width:none] [&::-webkit-scrollbar]:hidden disabled:opacity-60"
           />
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            disabled={!speechSupported || isSending}
-            onClick={toggleVoiceInput}
-            aria-label={isListening ? "Detener dictado" : "Dictar pregunta"}
-            aria-pressed={isListening}
-            title={
-              speechSupported
-                ? isListening
-                  ? "Detener dictado"
-                  : "Dictar pregunta"
-                : "El navegador no admite dictado por voz"
-            }
-            className={
-              isListening
-                ? "animate-pulse rounded-xl bg-primary/15 text-primary"
-                : "rounded-xl text-muted-foreground"
-            }
-          >
-            {speechSupported ? (
-              <Mic className="size-3.5" />
-            ) : (
-              <MicOff className="size-3.5" />
-            )}
-          </Button>
-          <Button
-            type="submit"
-            size="icon-sm"
-            disabled={!draft.trim() || isSending}
-            aria-label="Enviar consulta"
-            className="rounded-xl"
-          >
-            <Send className="size-3.5" />
-          </Button>
+          <div className="mt-1 flex items-center justify-between gap-2">
+            <span className="px-1 text-[9px] text-muted-foreground">
+              PlumIA · fuentes de tu proyecto
+            </span>
+            <div className="flex items-center gap-1">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                disabled={!speechSupported || isSending}
+                onClick={toggleVoiceInput}
+                aria-label={
+                  isListening ? "Detener dictado" : "Dictar pregunta"
+                }
+                aria-pressed={isListening}
+                title={
+                  speechSupported
+                    ? isListening
+                      ? "Detener dictado"
+                      : "Dictar pregunta"
+                    : "El navegador no admite dictado por voz"
+                }
+                className={
+                  isListening
+                    ? "animate-pulse rounded-xl bg-primary/15 text-primary"
+                    : "rounded-xl text-muted-foreground"
+                }
+              >
+                {speechSupported ? (
+                  <Mic className="size-3.5" />
+                ) : (
+                  <MicOff className="size-3.5" />
+                )}
+              </Button>
+              <Button
+                type="submit"
+                size="icon-sm"
+                disabled={!draft.trim() || isSending}
+                aria-label="Enviar consulta"
+                className="rounded-xl"
+              >
+                <Send className="size-3.5" />
+              </Button>
+            </div>
+          </div>
         </div>
         <p className="mt-1.5 text-center text-[9px] text-muted-foreground">
           {isListening
@@ -518,6 +521,8 @@ function SourceCard({
   const setActiveScene = useEditorStore((state) => state.setActiveScene)
   const focusCitation = useEditorStore((state) => state.focusCitation)
   const canNavigate = Boolean(source.sceneId || source.entityId || source.route)
+  const wikiDetails =
+    source.kind === "wiki" ? getWikiSourceDetails(source) : null
   const Icon =
     source.kind === "manuscript"
       ? BookOpen
@@ -565,31 +570,94 @@ function SourceCard({
       {imageUrl ? (
         <Image
           src={imageUrl}
-          alt=""
-          width={32}
-          height={32}
+          alt={wikiDetails?.name ?? ""}
+          width={wikiDetails ? 44 : 32}
+          height={wikiDetails ? 44 : 32}
           unoptimized
-          className="size-8 shrink-0 rounded-lg object-cover"
+          className={`${wikiDetails ? "size-11 rounded-xl" : "size-8 rounded-lg"} shrink-0 object-cover ring-1 ring-black/5`}
         />
       ) : (
-        <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+        <div
+          className={`${wikiDetails ? "size-11 rounded-xl" : "size-7 rounded-lg"} flex shrink-0 items-center justify-center bg-primary/10 text-primary`}
+        >
           <Icon className="size-3.5" />
         </div>
       )}
       <span className="min-w-0 flex-1">
-        <span className="flex items-center gap-1 text-[9px] font-semibold text-foreground">
+        <span className="flex items-center gap-1.5 text-[9px] font-semibold text-foreground">
           <span className="shrink-0 text-primary">[{citationNumber}]</span>
-          <span className="truncate">{source.label}</span>
+          {wikiDetails ? (
+            <span className="truncate text-[10px] font-semibold">
+              {wikiDetails.name}
+            </span>
+          ) : (
+            <span className="truncate">{source.label}</span>
+          )}
           {canNavigate && (
             <ExternalLink className="size-2.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
           )}
         </span>
-        <span className="mt-0.5 line-clamp-2 block text-[9px] leading-relaxed text-muted-foreground">
-          {source.excerpt}
-        </span>
+        {wikiDetails ? (
+          <>
+            <span className="mt-0.5 inline-flex rounded-full bg-primary/10 px-1.5 py-0.5 text-[8px] font-medium text-primary">
+              {wikiDetails.entityType}
+            </span>
+            <span className="mt-1 line-clamp-2 block text-[9px] leading-relaxed text-muted-foreground">
+              {wikiDetails.description}
+            </span>
+            {wikiDetails.aliases.length > 0 && (
+              <span className="mt-1 block truncate text-[8px] text-muted-foreground/80">
+                También: {wikiDetails.aliases.slice(0, 3).join(" · ")}
+              </span>
+            )}
+          </>
+        ) : (
+          <span className="mt-0.5 line-clamp-2 block text-[9px] leading-relaxed text-muted-foreground">
+            {source.excerpt}
+          </span>
+        )}
       </span>
     </button>
   )
+}
+
+type WikiSourceDetails = {
+  readonly entityType: string
+  readonly name: string
+  readonly description: string
+  readonly aliases: string[]
+}
+
+function getWikiSourceDetails(source: ChatSource): WikiSourceDetails {
+  const [entityType = "Entidad", ...nameParts] = source.label.split(" · ")
+  const lines = source.excerpt
+    .replace(/\s+/g, " ")
+    .trim()
+    .split(
+      /\s+(?=(?:alias|ficha|hechos|estados|relaciones):|la entidad tiene una imagen asociada\.?$)/i,
+    )
+    .filter(Boolean)
+  const aliasLine = lines.find((line) => /^alias:/i.test(line))
+  const aliases = aliasLine
+    ? aliasLine
+        .replace(/^alias:\s*/i, "")
+        .split(",")
+        .map((alias) => alias.trim())
+        .filter(Boolean)
+    : []
+  const description =
+    lines.find(
+      (line) =>
+        !/^(alias|ficha|hechos|estados|relaciones):/i.test(line) &&
+        !/^la entidad tiene una imagen asociada\.?$/i.test(line),
+    ) ?? "Información registrada en la Wiki del proyecto."
+
+  return {
+    entityType,
+    name: nameParts.join(" · ") || "Entidad sin nombre",
+    description,
+    aliases,
+  }
 }
 
 function ThinkingBubble() {
