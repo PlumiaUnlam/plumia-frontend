@@ -2,15 +2,26 @@
 
 import Image from "next/image"
 import { useRouter } from "next/navigation"
-import { useEffect, useRef, useState, type FormEvent } from "react"
+import {
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type FormEvent,
+} from "react"
 import {
   BookOpen,
   Clock3,
+  ChevronDown,
+  ChevronUp,
   ExternalLink,
   Feather,
   FileText,
+  History,
+  Maximize2,
   Mic,
   MicOff,
+  Minimize2,
   Plus,
   RefreshCw,
   Send,
@@ -19,6 +30,7 @@ import {
   ShieldOff,
   Sparkles,
   StickyNote,
+  Square,
   Waypoints,
 } from "lucide-react"
 
@@ -45,6 +57,12 @@ const promptSuggestions = [
   "¿Qué detalles de la Wiki aparecen también en el manuscrito?",
 ]
 
+const subscribeToSpeechSupport = () => () => undefined
+const getSpeechSupportSnapshot = () =>
+  typeof window !== "undefined" &&
+  Boolean(window.SpeechRecognition || window.webkitSpeechRecognition)
+const getServerSpeechSupportSnapshot = () => false
+
 export function ChatPanel({
   projectId,
   currentChapterId,
@@ -57,13 +75,17 @@ export function ChatPanel({
   const [isLoading, setIsLoading] = useState(true)
   const [isSending, setIsSending] = useState(false)
   const [isListening, setIsListening] = useState(false)
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false)
+  const [isFullscreen, setIsFullscreen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const endRef = useRef<HTMLDivElement | null>(null)
   const recognitionRef = useRef<PlumSpeechRecognition | null>(null)
   const speechBaseDraftRef = useRef("")
-  const speechSupported =
-    typeof window !== "undefined" &&
-    Boolean(window.SpeechRecognition || window.webkitSpeechRecognition)
+  const speechSupported = useSyncExternalStore(
+    subscribeToSpeechSupport,
+    getSpeechSupportSnapshot,
+    getServerSpeechSupportSnapshot,
+  )
 
   useEffect(() => {
     let cancelled = false
@@ -102,6 +124,20 @@ export function ChatPanel({
       recognitionRef.current = null
     }
   }, [])
+
+  useEffect(() => {
+    if (!isFullscreen) return
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setIsFullscreen(false)
+    }
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = "hidden"
+    window.addEventListener("keydown", handleKeyDown)
+    return () => {
+      document.body.style.overflow = previousOverflow
+      window.removeEventListener("keydown", handleKeyDown)
+    }
+  }, [isFullscreen])
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" })
@@ -165,6 +201,7 @@ export function ChatPanel({
   }
 
   const selectThread = async (nextThreadId: string) => {
+    setIsHistoryOpen(false)
     if (nextThreadId === "new") {
       setThreadId(null)
       setMessages([])
@@ -205,7 +242,12 @@ export function ChatPanel({
 
   const toggleVoiceInput = () => {
     if (isListening) {
-      recognitionRef.current?.stop()
+      try {
+        recognitionRef.current?.stop()
+      } catch {
+        recognitionRef.current?.abort()
+      }
+      setIsListening(false)
       return
     }
 
@@ -218,7 +260,7 @@ export function ChatPanel({
 
     const recognition = new Recognition()
     recognition.lang = "es-AR"
-    recognition.continuous = false
+    recognition.continuous = true
     recognition.interimResults = true
     speechBaseDraftRef.current = draft.trim()
     recognition.onresult = (event) => {
@@ -232,6 +274,7 @@ export function ChatPanel({
     recognition.onerror = (event) => {
       setError(speechErrorMessage(event.error))
       setIsListening(false)
+      recognitionRef.current = null
     }
     recognition.onend = () => {
       setIsListening(false)
@@ -251,25 +294,35 @@ export function ChatPanel({
   }
 
   return (
-    <section className="flex min-h-0 flex-1 flex-col bg-card">
-      <div className="shrink-0 border-b border-border px-3 py-3">
+    <section
+      className={`flex min-h-0 flex-1 flex-col bg-card ${
+        isFullscreen ? "fixed inset-0 z-50 w-full" : ""
+      }`}
+    >
+      <div className="relative shrink-0 border-b border-border px-3 py-3">
         <div className="flex items-center gap-1.5">
           <div className="flex min-w-0 flex-1 items-center gap-2 text-[11px] font-medium text-primary">
             <Sparkles className="size-3.5 shrink-0" />
-            <select
-              value={threadId ?? "new"}
-              onChange={(event) => void selectThread(event.target.value)}
-              aria-label="Conversación activa"
-              className="min-w-0 flex-1 truncate bg-transparent text-[11px] font-medium text-primary outline-none"
-            >
-              <option value="new">Nueva conversación</option>
-              {threads.map((thread) => (
-                <option key={thread.id} value={thread.id}>
-                  {thread.title}
-                </option>
-              ))}
-            </select>
+            <span className="min-w-0 truncate">
+              {currentThread?.title || "Nueva conversación"}
+            </span>
           </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => setIsHistoryOpen((open) => !open)}
+            aria-label="Abrir historial de conversaciones"
+            aria-expanded={isHistoryOpen}
+            title="Historial de conversaciones"
+            className={`size-7 rounded-lg ${
+              isHistoryOpen
+                ? "bg-primary/10 text-primary"
+                : "text-muted-foreground"
+            }`}
+          >
+            <History className="size-3.5" />
+          </Button>
           <Button
             type="button"
             variant="ghost"
@@ -306,10 +359,37 @@ export function ChatPanel({
               <ShieldCheck className="size-3.5" />
             )}
           </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => setIsFullscreen((fullscreen) => !fullscreen)}
+            aria-label={
+              isFullscreen ? "Salir de pantalla completa" : "Pantalla completa"
+            }
+            title={
+              isFullscreen ? "Salir de pantalla completa" : "Pantalla completa"
+            }
+            className="size-7 rounded-lg text-muted-foreground"
+          >
+            {isFullscreen ? (
+              <Minimize2 className="size-3.5" />
+            ) : (
+              <Maximize2 className="size-3.5" />
+            )}
+          </Button>
         </div>
         <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
           Las respuestas se basan en tu obra y muestran las fuentes utilizadas.
         </p>
+        {isHistoryOpen && (
+          <ChatHistoryMenu
+            threads={threads}
+            currentThreadId={threadId}
+            onSelectThread={(nextThreadId) => void selectThread(nextThreadId)}
+            onNewThread={() => void selectThread("new")}
+          />
+        )}
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4">
@@ -393,7 +473,9 @@ export function ChatPanel({
                     : "rounded-xl text-muted-foreground"
                 }
               >
-                {speechSupported ? (
+                {isListening ? (
+                  <Square className="size-3.5 fill-current" />
+                ) : speechSupported ? (
                   <Mic className="size-3.5" />
                 ) : (
                   <MicOff className="size-3.5" />
@@ -464,6 +546,7 @@ function ChatBubble({
   readonly primaryImageUrls: Readonly<Record<string, string>>
 }) {
   const isUser = message.role === "user"
+  const [sourcesExpanded, setSourcesExpanded] = useState(true)
   return (
     <article className={isUser ? "ml-8" : "mr-3"}>
       <div className={`flex items-start gap-2 ${isUser ? "justify-end" : ""}`}>
@@ -484,26 +567,135 @@ function ChatBubble({
       </div>
       {!isUser && message.sources.length > 0 && (
         <div className="ml-8 mt-2 space-y-1.5">
-          <p className="px-1 text-[9px] font-semibold tracking-wide text-muted-foreground uppercase">
-            Referencias utilizadas
-          </p>
-          {message.sources.map((source, index) => (
-            <SourceCard
-              key={source.id}
-              source={source}
-              citationNumber={index + 1}
-              projectId={projectId}
-              imageUrl={
-                (source.entityId && primaryImageUrls[source.entityId]) ||
-                source.imageUrl ||
-                undefined
+          <div className="flex items-center justify-between gap-2 px-1">
+            <span className="text-[9px] font-semibold tracking-wide text-muted-foreground uppercase">
+              Referencias utilizadas
+              <span className="ml-1 font-normal text-muted-foreground/70">
+                · {message.sources.length}
+              </span>
+            </span>
+            <button
+              type="button"
+              onClick={() => setSourcesExpanded((expanded) => !expanded)}
+              aria-expanded={sourcesExpanded}
+              aria-label={
+                sourcesExpanded
+                  ? "Ocultar referencias utilizadas"
+                  : "Mostrar referencias utilizadas"
               }
-            />
-          ))}
+              className="flex size-5 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
+            >
+              {sourcesExpanded ? (
+                <ChevronUp className="size-3.5" />
+              ) : (
+                <ChevronDown className="size-3.5" />
+              )}
+            </button>
+          </div>
+          {sourcesExpanded && (
+            <div className="space-y-1.5">
+              {message.sources.map((source, index) => (
+                <SourceCard
+                  key={source.id}
+                  source={source}
+                  citationNumber={index + 1}
+                  projectId={projectId}
+                  imageUrl={
+                    (source.entityId && primaryImageUrls[source.entityId]) ||
+                    source.imageUrl ||
+                    undefined
+                  }
+                />
+              ))}
+            </div>
+          )}
         </div>
       )}
     </article>
   )
+}
+
+function ChatHistoryMenu({
+  threads,
+  currentThreadId,
+  onSelectThread,
+  onNewThread,
+}: {
+  readonly threads: ChatThread[]
+  readonly currentThreadId: string | null
+  readonly onSelectThread: (threadId: string) => void
+  readonly onNewThread: () => void
+}) {
+  return (
+    <div
+      role="dialog"
+      aria-label="Historial de conversaciones"
+      className="absolute right-2 top-[4.5rem] z-30 w-[min(19rem,calc(100%-1rem))] overflow-hidden rounded-2xl border border-border bg-popover p-2 text-popover-foreground shadow-xl shadow-primary/10"
+    >
+      <div className="flex items-center gap-2 px-2.5 py-2">
+        <History className="size-3.5 text-primary" />
+        <span className="text-[10px] font-semibold">Historial</span>
+        <span className="ml-auto text-[9px] text-muted-foreground">
+          {threads.length} {threads.length === 1 ? "conversación" : "conversaciones"}
+        </span>
+      </div>
+      <div className="max-h-64 space-y-0.5 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {threads.length === 0 ? (
+          <p className="px-2.5 py-4 text-center text-[10px] text-muted-foreground">
+            Todavía no hay conversaciones guardadas.
+          </p>
+        ) : (
+          threads.map((thread) => {
+            const isCurrent = thread.id === currentThreadId
+            return (
+              <button
+                key={thread.id}
+                type="button"
+                onClick={() => onSelectThread(thread.id)}
+                className={`flex w-full items-start gap-2 rounded-xl px-2.5 py-2 text-left transition-colors ${
+                  isCurrent
+                    ? "bg-primary/10 text-primary"
+                    : "text-foreground hover:bg-muted"
+                }`}
+              >
+                <History className="mt-0.5 size-3.5 shrink-0 opacity-70" />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[10px] font-medium">
+                    {thread.title || "Nueva conversación"}
+                  </span>
+                  <span className="mt-0.5 block text-[9px] text-muted-foreground">
+                    {formatThreadDate(thread.updatedAt)}
+                  </span>
+                </span>
+                {isCurrent && (
+                  <span className="mt-1 size-1.5 shrink-0 rounded-full bg-primary" />
+                )}
+              </button>
+            )
+          })
+        )}
+      </div>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        onClick={onNewThread}
+        className="mt-1 w-full justify-start gap-2 rounded-xl px-2.5 text-[10px] text-primary hover:bg-primary/10"
+      >
+        <Plus className="size-3.5" />
+        Nueva conversación
+      </Button>
+    </div>
+  )
+}
+
+function formatThreadDate(value: string): string {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ""
+  return new Intl.DateTimeFormat("es-AR", {
+    day: "numeric",
+    month: "short",
+  }).format(date)
 }
 
 function SourceCard({

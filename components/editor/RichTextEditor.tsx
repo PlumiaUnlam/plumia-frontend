@@ -5,7 +5,11 @@ import Link from "@tiptap/extension-link"
 
 import type { ProseMirrorJSON } from "@/types/scene"
 import { useEditorStore } from "@/stores/editor.store"
-import { findCitationRange } from "./editor-citation-focus"
+import {
+  CitationFocus,
+  citationFocusPluginKey,
+  findCitationRange,
+} from "./editor-citation-focus"
 import { EditorToolbar } from "./toolbar"
 import { EditorImage } from "./image/editor-image-extension"
 import { useEditorImage } from "./image/use-editor-image"
@@ -66,6 +70,7 @@ export function RichTextEditor({
         autolink: false,
       }),
       EntityLink,
+      CitationFocus,
     ],
     content: content ?? "",
     editorProps: {
@@ -83,10 +88,30 @@ export function RichTextEditor({
   useEffect(() => {
     if (!editor || citationFocus?.sceneId !== sceneId) return
     const range = findCitationRange(editor.state.doc, citationFocus.textQuote)
-    if (range) {
-      editor.chain().focus().setTextSelection(range).scrollIntoView().run()
+    if (!range) {
+      clearCitationFocus()
+      return
     }
-    clearCitationFocus()
+
+    editor.view.dispatch(
+      editor.state.tr.setMeta(citationFocusPluginKey, {
+        from: range.from,
+        to: range.to,
+      }),
+    )
+    const domNode = editor.view.domAtPos(range.from).node
+    const scrollTarget =
+      domNode instanceof HTMLElement ? domNode : domNode.parentElement
+    scrollTarget?.scrollIntoView({ behavior: "smooth", block: "center" })
+    const timeoutId = window.setTimeout(() => {
+      if (editor.isDestroyed) return
+      editor.view.dispatch(
+        editor.state.tr.setMeta(citationFocusPluginKey, { clear: true }),
+      )
+      clearCitationFocus()
+    }, 2600)
+
+    return () => window.clearTimeout(timeoutId)
   }, [citationFocus, clearCitationFocus, editor, sceneId])
 
   if (!editor) return null
