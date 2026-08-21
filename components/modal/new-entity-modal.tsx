@@ -68,6 +68,7 @@ type NewEntityModalProps = {
   readonly imageGallery?: readonly ImageResponse[];
   readonly imageGalleryLoading?: boolean;
   readonly activeImageJob?: ImageGenerationJob | null;
+  readonly imageGenerationOpen?: boolean;
   readonly onImageGenerate?: () => void;
   readonly onImageUpload?: (file: File) => Promise<void>;
   readonly onSetPrimaryImage?: (imageId: string) => void;
@@ -92,6 +93,7 @@ export function NewEntityModal({
   imageGallery = [],
   imageGalleryLoading = false,
   activeImageJob = null,
+  imageGenerationOpen = false,
   onImageGenerate,
   onImageUpload,
   onSetPrimaryImage,
@@ -415,7 +417,15 @@ export function NewEntityModal({
 
   return (
     <Dialog open={show} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="z-[60] min-w-[600px] gap-0 overflow-hidden">
+      <DialogContent
+        className="z-[60] min-w-[600px] gap-0 overflow-hidden"
+        onPointerDownOutside={(event) => {
+          if (imageGenerationOpen) event.preventDefault();
+        }}
+        onInteractOutside={(event) => {
+          if (imageGenerationOpen) event.preventDefault();
+        }}
+      >
         <DialogHeader className="p-6 py-4 border-b">
           <div className="flex items-center justify-between">
             <DialogTitle>
@@ -510,6 +520,16 @@ export function NewEntityModal({
             </FieldLabel>
 
             <FieldContent>
+              {isEditing && (
+                <div className="mb-3">
+                  <p className="text-sm font-semibold">Baúl de imágenes</p>
+                  <p className="text-xs text-muted-foreground">
+                    Estas variantes pertenecen a esta entidad y se guardan en
+                    su ficha.
+                  </p>
+                </div>
+              )}
+
               <input
                 id="entity-image"
                 ref={fileInputRef}

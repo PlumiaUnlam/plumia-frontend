@@ -572,6 +572,7 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
           imageGallery={entityImages}
           imageGalleryLoading={isLoadingImages}
           activeImageJob={selectedEntityImageJob}
+          imageGenerationOpen={showImageGenerationModal}
           onImageGenerate={() => setShowImageGenerationModal(true)}
           onImageUpload={handleUploadImage}
           onSetPrimaryImage={handleSetPrimaryImage}
