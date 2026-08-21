@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 
 import {
   getScene,
@@ -15,6 +15,7 @@ import type {
 } from "@/types/scene"
 import { useAutosave } from "@/hooks/use-autosave"
 import { RichTextEditor } from "./RichTextEditor"
+import { AnalysisToast } from "./analysis/analysis-toast"
 
 /**
  * Orquesta la carga perezosa del capítulo activo y el autoguardado.
@@ -36,33 +37,79 @@ function SceneEditor({
   projectId: string
 }) {
   const setCurrentContent = useEditorStore((s) => s.setCurrentContent)
+  const saveStatus = useEditorStore((s) => s.saveStatus)
   // Contenido vivo del editor; arranca en lo cargado del backend (baseline).
   const [content, setContent] = useState<ProseMirrorJSON | null>(
     document.content,
   )
+  const [analysisFeedback, setAnalysisFeedback] = useState<{
+    message: string
+    tone: "default" | "success"
+  } | null>(null)
 
-  useAutosave({ sceneId, versionId: selectedVersionId, content })
+  const { saveNow } = useAutosave({
+    sceneId,
+    versionId: selectedVersionId,
+    content,
+  })
+
+  const handleAnalyzeChanges = useCallback(() => {
+    void saveNow().then((outcome) => {
+      if (outcome.status === "failed") return
+
+      if (outcome.status === "saved" && outcome.result.contentChanged) {
+        setAnalysisFeedback({
+          message: "Cambios guardados; el analisis se ejecutara en segundo plano",
+          tone: "success",
+        })
+        return
+      }
+
+      setAnalysisFeedback({
+        message: "No hay cambios nuevos para analizar",
+        tone: "default",
+      })
+    })
+  }, [saveNow])
+
+  const handleContentChange = useCallback((nextContent: ProseMirrorJSON) => {
+    setContent(nextContent)
+  }, [])
+
+  const dismissAnalysisFeedback = useCallback(() => {
+    setAnalysisFeedback(null)
+  }, [])
 
   useEffect(() => {
     setCurrentContent(content)
   }, [content, setCurrentContent])
 
   return (
-    <RichTextEditor
-      title={chapterTitle}
-      subtitle={sceneTitle}
-      sceneId={sceneId}
-      projectId={projectId}
-      content={content}
-      versionLabel={
-        selectedVersionId
-          ? "label" in document && document.label
-            ? document.label
-            : "Version sin titulo"
-          : "Borrador principal"
-      }
-      onChange={setContent}
-    />
+    <>
+      <AnalysisToast
+        feedback={analysisFeedback}
+        onDismiss={dismissAnalysisFeedback}
+      />
+      <RichTextEditor
+        title={chapterTitle}
+        subtitle={sceneTitle}
+        sceneId={sceneId}
+        projectId={projectId}
+        content={content}
+        versionLabel={
+          selectedVersionId
+            ? "label" in document && document.label
+              ? document.label
+              : "Version sin titulo"
+            : "Borrador principal"
+        }
+        onChange={handleContentChange}
+        onAnalyzeChanges={
+          selectedVersionId === null ? handleAnalyzeChanges : undefined
+        }
+        isAnalysisSaving={saveStatus === "saving"}
+      />
+    </>
   )
 }
 

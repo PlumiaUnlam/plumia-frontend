@@ -2,12 +2,15 @@ import type { Editor } from "@tiptap/react"
 import { Bold, ImagePlus, Italic, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { SaveStatusIndicator } from "./save-status-indicator"
+import { AnalysisButton } from "./analysis/analysis-button"
 
 interface EditorToolbarProps {
   editor: Editor
   versionLabel: string
   onInsertImage?: () => void
   isUploadingImage?: boolean
+  onAnalyzeChanges?: () => void
+  isAnalysisSaving?: boolean
 }
 
 export function EditorToolbar({
@@ -15,6 +18,8 @@ export function EditorToolbar({
   versionLabel,
   onInsertImage,
   isUploadingImage = false,
+  onAnalyzeChanges,
+  isAnalysisSaving = false,
 }: EditorToolbarProps) {
   return (
     <div className="flex h-12 w-full items-center gap-2 bg-white px-4">
@@ -68,6 +73,12 @@ export function EditorToolbar({
               <ImagePlus className="h-4 w-4" />
             )}
           </Button>
+        )}
+        {onAnalyzeChanges && (
+          <AnalysisButton
+            isSaving={isAnalysisSaving}
+            onClick={onAnalyzeChanges}
+          />
         )}
         <SaveStatusIndicator className="pr-1" />
       </div>
