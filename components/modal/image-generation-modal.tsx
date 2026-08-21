@@ -72,7 +72,7 @@ const GENERATION_FORM_CONFIGS: Record<EntityType, GenerationFormConfig> = {
       {
         field: "background",
         label: "Fondo",
-        placeholder: "Bosque al atardecer, fondo neutro...",
+        placeholder: "Bosque al atardecer, neutro...",
       },
       {
         field: "framing",
