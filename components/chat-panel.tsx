@@ -321,7 +321,7 @@ export function ChatPanel({
                 : "text-muted-foreground"
             }`}
           >
-            <History className="size-3.5" />
+            <Clock3 className="size-3.5" />
           </Button>
           <Button
             type="button"
