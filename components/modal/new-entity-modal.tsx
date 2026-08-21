@@ -124,6 +124,23 @@ export function NewEntityModal({
   const isProposal = mode === "proposal";
   const isEditing = !!entity && !isProposal;
   const primaryImage = imageGallery.find((image) => image.isPrimary);
+  const visualIdentity =
+    typeof attributes.visualIdentity === "string"
+      ? attributes.visualIdentity
+      : "";
+
+  const updateVisualIdentity = (value: string) => {
+    setAttributes((current) => {
+      const next = { ...current };
+      if (value.trim()) {
+        next.visualIdentity = value;
+      } else {
+        delete next.visualIdentity;
+      }
+      return next;
+    });
+  };
+
   useEffect(() => {
     if (!show) return;
 
@@ -228,6 +245,7 @@ export function NewEntityModal({
         description: description.trim(),
         type: CATEGORY_TO_TYPE[category],
         aliases: tags,
+        attributes,
       });
       if (cancelRef.current) return;
       setAiGeneratedUrl(url);
@@ -501,6 +519,34 @@ export function NewEntityModal({
             </FieldContent>
           </Field>
 
+          {category === "Personaje" && (
+            <FieldSet className="space-y-2">
+              <FieldLegend>Perfil visual</FieldLegend>
+              <p className="text-xs text-muted-foreground">
+                Estos rasgos se conservan entre variantes. Describí la
+                apariencia física estable del personaje; la pose, expresión y
+                fondo se pueden cambiar al generar cada imagen.
+              </p>
+              <Field>
+                <FieldLabel htmlFor="entity-visual-identity">
+                  Rasgos de identidad visual
+                </FieldLabel>
+                <FieldContent>
+                  <Textarea
+                    id="entity-visual-identity"
+                    value={visualIdentity}
+                    onChange={(event) =>
+                      updateVisualIdentity(event.target.value)
+                    }
+                    placeholder="Ej.: rostro alargado, ojos verdes, cabello negro ondulado hasta los hombros, piel clara, cicatriz fina sobre la ceja izquierda, complexión delgada."
+                    rows={4}
+                    maxLength={2000}
+                  />
+                </FieldContent>
+              </Field>
+            </FieldSet>
+          )}
+
           <Field>
             <FieldLabel htmlFor="entity-image">
               Imagen{" "}
@@ -657,6 +703,7 @@ function ImageUploadActions({
         description: string;
         type: string;
         aliases: string[];
+        attributes: Record<string, unknown>;
       }) => Promise<string>)
     | undefined;
 }) {

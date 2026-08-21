@@ -289,11 +289,13 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
     description: string;
     type: string;
     aliases: string[];
+    attributes: Record<string, unknown>;
   }): Promise<string> => {
     const result = await generatePreviewImage({
       name: data.canonicalName,
       type: data.type,
       description: data.description || undefined,
+      attributes: data.attributes,
     });
 
     aiStorageKeyRef.current = result.storageKey;

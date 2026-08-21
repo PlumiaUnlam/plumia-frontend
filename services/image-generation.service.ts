@@ -35,6 +35,7 @@ export interface GeneratePreviewImageInput {
   name: string;
   type: string;
   description?: string;
+  attributes?: Record<string, unknown>;
   width?: number;
   height?: number;
 }
