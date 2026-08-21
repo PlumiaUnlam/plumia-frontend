@@ -13,8 +13,8 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Field, FieldContent, FieldLabel } from "@/components/ui/field";
 import type { GenerateImageInput } from "@/services/image-generation.service";
 import type { EntityType } from "@/types/entity";
 
@@ -289,9 +289,14 @@ export function ImageGenerationModal({
         if (!open && !submitting) onClose();
       }}
     >
-      <DialogContent className="z-[70] max-h-[90vh] w-[calc(100%-2rem)] max-w-3xl overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Generar variante de {entityName}</DialogTitle>
+      <DialogContent className="z-[70] min-w-[600px] gap-0 overflow-hidden">
+        <DialogHeader className="border-b p-6 py-4">
+          <div className="flex items-center justify-between">
+            <DialogTitle>Generar variante de {entityName}</DialogTitle>
+          </div>
+        </DialogHeader>
+
+        <div className="max-h-[65vh] space-y-5 overflow-y-auto px-6 py-6">
           <DialogDescription>
             La imagen de referencia y la identidad de la ficha se conservan.
             Solo definí qué querés cambiar en esta variante.
@@ -300,63 +305,73 @@ export function ImageGenerationModal({
               generar la imagen con la configuración base.
             </span>
           </DialogDescription>
-        </DialogHeader>
 
-        <form onSubmit={submit} className="space-y-4">
-          {error && (
-            <p className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-              {error}
-            </p>
-          )}
+          <form
+            id="image-generation-form"
+            onSubmit={submit}
+            className="space-y-5"
+          >
+            {error && (
+              <p className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+                {error}
+              </p>
+            )}
 
-          <div className="grid gap-4 md:grid-cols-2">
-            {formConfig.fields.map((field) => (
-              <GenerationField
-                key={field.field}
-                id={`image-${field.field}`}
-                label={field.label}
-                placeholder={field.placeholder}
-                value={form[field.field]}
-                onChange={(value) => update(field.field, value)}
-              />
-            ))}
-          </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              {formConfig.fields.map((field) => (
+                <GenerationField
+                  key={field.field}
+                  id={`image-${field.field}`}
+                  label={field.label}
+                  placeholder={field.placeholder}
+                  value={form[field.field]}
+                  onChange={(value) => update(field.field, value)}
+                />
+              ))}
+            </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="image-additional-instructions">
-              {formConfig.additionalLabel}
-            </Label>
-            <Textarea
-              id="image-additional-instructions"
-              value={form.additionalInstructions ?? ""}
-              onChange={(event) =>
-                update("additionalInstructions", event.target.value)
-              }
-              placeholder={formConfig.additionalPlaceholder}
-              rows={4}
-              maxLength={1000}
-            />
-          </div>
+            <Field>
+              <FieldLabel htmlFor="image-additional-instructions">
+                {formConfig.additionalLabel}
+              </FieldLabel>
+              <FieldContent>
+                <Textarea
+                  id="image-additional-instructions"
+                  value={form.additionalInstructions ?? ""}
+                  onChange={(event) =>
+                    update("additionalInstructions", event.target.value)
+                  }
+                  placeholder={formConfig.additionalPlaceholder}
+                  rows={4}
+                  maxLength={1000}
+                />
+              </FieldContent>
+            </Field>
+          </form>
+        </div>
 
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onClose}
-              disabled={submitting}
-            >
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={submitting}>
-              {submitting ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Sparkles className="mr-2 h-4 w-4" />
-              )}
-              Generar variante
-            </Button>
-          </DialogFooter>
-        </form>
+        <DialogFooter className="border-t px-6 py-4">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onClose}
+            disabled={submitting}
+          >
+            Cancelar
+          </Button>
+          <Button
+            type="submit"
+            form="image-generation-form"
+            disabled={submitting}
+          >
+            {submitting ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Sparkles className="mr-2 h-4 w-4" />
+            )}
+            Generar variante
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
@@ -376,15 +391,17 @@ function GenerationField({
   readonly onChange: (value: string) => void;
 }) {
   return (
-    <div className="space-y-2">
-      <Label htmlFor={id}>{label}</Label>
-      <Input
-        id={id}
-        value={value ?? ""}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder={placeholder}
-        maxLength={300}
-      />
-    </div>
+    <Field>
+      <FieldLabel htmlFor={id}>{label}</FieldLabel>
+      <FieldContent>
+        <Input
+          id={id}
+          value={value ?? ""}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder={placeholder}
+          maxLength={300}
+        />
+      </FieldContent>
+    </Field>
   );
 }
