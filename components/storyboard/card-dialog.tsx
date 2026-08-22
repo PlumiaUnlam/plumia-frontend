@@ -90,6 +90,7 @@ function CardDialogForm({
     supported: voiceSupported,
     isRecording,
     isTranscribing,
+    audioLevel,
     error: voiceError,
     start: startVoiceRecording,
     stop: stopVoiceRecording,
@@ -184,6 +185,29 @@ function CardDialogForm({
                     : "Micrófono no disponible"}
             </Button>
           </div>
+          {isRecording ? (
+            <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+              <div
+                className="relative flex size-9 items-center justify-center rounded-full border border-primary/30 bg-primary/5"
+                aria-label={`Nivel de audio: ${Math.round(audioLevel * 100)}%`}
+                role="img"
+              >
+                <span
+                  className="absolute inset-0 rounded-full bg-primary/20 transition-transform duration-75"
+                  style={{
+                    opacity: 0.35 + audioLevel * 0.65,
+                    transform: `scale(${0.75 + audioLevel * 0.25})`,
+                  }}
+                />
+                <Mic className="relative size-4 text-primary" />
+              </div>
+              <span>
+                {audioLevel > 0.05
+                  ? "Señal de audio detectada"
+                  : "No se detecta señal; hablá cerca del micrófono"}
+              </span>
+            </div>
+          ) : null}
           {voiceError ? (
             <p className="mt-2 text-xs text-destructive" role="alert">
               {voiceError}

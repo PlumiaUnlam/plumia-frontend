@@ -18,6 +18,7 @@ type UseVoiceTranscriberResult = {
   supported: boolean
   isRecording: boolean
   isTranscribing: boolean
+  audioLevel: number
   error: string | null
   start: () => Promise<void>
   stop: () => void
@@ -48,15 +49,77 @@ export function useVoiceTranscriber({
   )
   const [isRecording, setIsRecording] = useState(false)
   const [isTranscribing, setIsTranscribing] = useState(false)
+  const [audioLevel, setAudioLevel] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const recorderRef = useRef<MediaRecorder | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const chunksRef = useRef<Blob[]>([])
+  const audioContextRef = useRef<AudioContext | null>(null)
+  const analyserRef = useRef<AnalyserNode | null>(null)
+  const animationFrameRef = useRef<number | null>(null)
+  const hasAudioSignalRef = useRef(false)
   const onTranscriptRef = useRef(onTranscript)
 
   useEffect(() => {
     onTranscriptRef.current = onTranscript
   }, [onTranscript])
+
+  const stopAudioMonitor = useCallback(() => {
+    if (animationFrameRef.current !== null) {
+      window.cancelAnimationFrame(animationFrameRef.current)
+      animationFrameRef.current = null
+    }
+    analyserRef.current = null
+    const audioContext = audioContextRef.current
+    audioContextRef.current = null
+    if (audioContext && audioContext.state !== "closed") {
+      void audioContext.close()
+    }
+    setAudioLevel(0)
+  }, [])
+
+  const startAudioMonitor = useCallback(async (stream: MediaStream) => {
+    const AudioContextConstructor = getAudioContextConstructor()
+    if (!AudioContextConstructor) return
+
+    try {
+      const audioContext = new AudioContextConstructor()
+      const analyser = audioContext.createAnalyser()
+      analyser.fftSize = 512
+      analyser.smoothingTimeConstant = 0.75
+      const source = audioContext.createMediaStreamSource(stream)
+      source.connect(analyser)
+      audioContextRef.current = audioContext
+      analyserRef.current = analyser
+
+      if (audioContext.state === "suspended") {
+        await audioContext.resume()
+      }
+
+      if (audioContextRef.current !== audioContext) return
+
+      const samples = new Uint8Array(analyser.fftSize)
+      const updateLevel = () => {
+        if (audioContext.state === "closed") return
+
+        analyser.getByteTimeDomainData(samples)
+        let sum = 0
+        for (const sample of samples) {
+          const normalizedSample = (sample - 128) / 128
+          sum += normalizedSample * normalizedSample
+        }
+        const rms = Math.sqrt(sum / samples.length)
+        const level = Math.min(1, Math.max(0, (rms - 0.01) * 6))
+        if (level > 0.03) hasAudioSignalRef.current = true
+        setAudioLevel(level)
+        animationFrameRef.current = window.requestAnimationFrame(updateLevel)
+      }
+
+      updateLevel()
+    } catch {
+      stopAudioMonitor()
+    }
+  }, [stopAudioMonitor])
 
   useEffect(() => {
     return () => {
@@ -67,11 +130,12 @@ export function useVoiceTranscriber({
         recorder.onstop = null
         recorder.stop()
       }
+      stopAudioMonitor()
       stopStream(streamRef.current)
       recorderRef.current = null
       streamRef.current = null
     }
-  }, [])
+  }, [stopAudioMonitor])
 
   const stop = useCallback(() => {
     const recorder = recorderRef.current
@@ -90,9 +154,17 @@ export function useVoiceTranscriber({
     }
 
     setError(null)
+    setAudioLevel(0)
+    hasAudioSignalRef.current = false
     let stream: MediaStream
     try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          autoGainControl: true,
+          echoCancellation: true,
+          noiseSuppression: true,
+        },
+      })
     } catch (captureError: unknown) {
       setError(captureErrorMessage(captureError))
       return
@@ -119,6 +191,7 @@ export function useVoiceTranscriber({
       if (event.data.size > 0) chunksRef.current.push(event.data)
     }
     recorder.onerror = () => {
+      stopAudioMonitor()
       stopStream(stream)
       recorderRef.current = null
       streamRef.current = null
@@ -128,13 +201,16 @@ export function useVoiceTranscriber({
     recorder.onstop = () => {
       const audioType = recorder.mimeType || mimeType || "audio/webm"
       const audio = new Blob(chunksRef.current, { type: audioType })
+      const hadAudioSignal = hasAudioSignalRef.current
       chunksRef.current = []
       recorderRef.current = null
       streamRef.current = null
+      stopAudioMonitor()
       stopStream(stream)
       setIsRecording(false)
 
       if (audio.size === 0) {
+        hasAudioSignalRef.current = false
         setError("No se pudo obtener audio del micrófono.")
         return
       }
@@ -144,27 +220,37 @@ export function useVoiceTranscriber({
         .then((result) => {
           const text = result.text.trim()
           if (!text) {
-            setError("No se detectó voz en la grabación.")
+            setError(noVoiceMessage(hadAudioSignal))
             return
           }
           onTranscriptRef.current(text)
         })
         .catch((transcriptionError: unknown) => {
-          setError(errorMessage(transcriptionError))
+          setError(errorMessage(transcriptionError, hadAudioSignal))
         })
-        .finally(() => setIsTranscribing(false))
+        .finally(() => {
+          hasAudioSignalRef.current = false
+          setIsTranscribing(false)
+        })
     }
 
     try {
       recorder.start()
+      void startAudioMonitor(stream)
       setIsRecording(true)
     } catch {
+      stopAudioMonitor()
       recorderRef.current = null
       streamRef.current = null
       stopStream(stream)
       setError("No se pudo iniciar la grabación de audio.")
     }
-  }, [isRecording, isTranscribing])
+  }, [
+    isRecording,
+    isTranscribing,
+    startAudioMonitor,
+    stopAudioMonitor,
+  ])
 
   const clearError = useCallback(() => setError(null), [])
 
@@ -172,11 +258,21 @@ export function useVoiceTranscriber({
     supported,
     isRecording,
     isTranscribing,
+    audioLevel,
     error,
     start,
     stop,
     clearError,
   }
+}
+
+function getAudioContextConstructor(): typeof AudioContext | undefined {
+  if (typeof window === "undefined") return undefined
+  return (
+    window.AudioContext ??
+    (window as Window & { webkitAudioContext?: typeof AudioContext })
+      .webkitAudioContext
+  )
 }
 
 function stopStream(stream: MediaStream | null): void {
@@ -204,7 +300,17 @@ function captureErrorMessage(error: unknown): string {
   return "No se pudo acceder al micrófono."
 }
 
-function errorMessage(error: unknown): string {
-  if (error instanceof Error && error.message.trim()) return error.message
+function errorMessage(error: unknown, hadAudioSignal: boolean): string {
+  const message = error instanceof Error ? error.message.trim() : ""
+  if (message.includes("No se detectó voz")) {
+    return noVoiceMessage(hadAudioSignal)
+  }
+  if (message) return message
   return "No se pudo transcribir la grabación."
+}
+
+function noVoiceMessage(hadAudioSignal: boolean): string {
+  return hadAudioSignal
+    ? "El micrófono recibió audio, pero Whisper no detectó palabras. Probá hablar más cerca y durante unos segundos."
+    : "No se detectó señal del micrófono. Revisá el micrófono seleccionado y sus permisos."
 }
