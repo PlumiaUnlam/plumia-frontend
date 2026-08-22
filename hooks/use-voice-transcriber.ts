@@ -19,10 +19,19 @@ type UseVoiceTranscriberResult = {
   isRecording: boolean
   isTranscribing: boolean
   audioLevel: number
+  audioInputDevices: AudioInputDevice[]
+  selectedAudioInputId: string
   error: string | null
   start: () => Promise<void>
   stop: () => void
+  selectAudioInput: (deviceId: string) => void
+  refreshAudioInputDevices: () => Promise<void>
   clearError: () => void
+}
+
+export type AudioInputDevice = {
+  deviceId: string
+  label: string
 }
 
 const AUDIO_MIME_TYPES = [
@@ -50,6 +59,10 @@ export function useVoiceTranscriber({
   const [isRecording, setIsRecording] = useState(false)
   const [isTranscribing, setIsTranscribing] = useState(false)
   const [audioLevel, setAudioLevel] = useState(0)
+  const [audioInputDevices, setAudioInputDevices] = useState<
+    AudioInputDevice[]
+  >([])
+  const [selectedAudioInputId, setSelectedAudioInputId] = useState("")
   const [error, setError] = useState<string | null>(null)
   const recorderRef = useRef<MediaRecorder | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
@@ -60,9 +73,52 @@ export function useVoiceTranscriber({
   const hasAudioSignalRef = useRef(false)
   const onTranscriptRef = useRef(onTranscript)
 
+  const refreshAudioInputDevices = useCallback(async () => {
+    if (!navigator.mediaDevices?.enumerateDevices) return
+
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices()
+      const inputs = devices
+        .filter((device) => device.kind === "audioinput")
+        .map((device, index) => ({
+          deviceId: device.deviceId,
+          label: device.label || `Micrófono ${index + 1}`,
+        }))
+        .filter((device) => device.deviceId)
+
+      setAudioInputDevices(inputs)
+      setSelectedAudioInputId((current) =>
+        inputs.some((device) => device.deviceId === current)
+          ? current
+          : inputs[0]?.deviceId ?? "",
+      )
+    } catch {
+      // El selector es opcional; la grabación puede seguir usando el micrófono predeterminado.
+    }
+  }, [])
+
   useEffect(() => {
     onTranscriptRef.current = onTranscript
   }, [onTranscript])
+
+  useEffect(() => {
+    if (!supported || !navigator.mediaDevices?.enumerateDevices) return
+
+    const initialRefreshId = window.setTimeout(
+      () => void refreshAudioInputDevices(),
+      0,
+    )
+    const handleDeviceChange = () => void refreshAudioInputDevices()
+    navigator.mediaDevices.addEventListener("devicechange", handleDeviceChange)
+
+    return () => {
+      window.clearTimeout(initialRefreshId)
+      navigator.mediaDevices.removeEventListener(
+        "devicechange",
+        handleDeviceChange,
+      )
+    }
+  }, [refreshAudioInputDevices, supported])
 
   const stopAudioMonitor = useCallback(() => {
     if (animationFrameRef.current !== null) {
@@ -88,7 +144,12 @@ export function useVoiceTranscriber({
       analyser.fftSize = 512
       analyser.smoothingTimeConstant = 0.75
       const source = audioContext.createMediaStreamSource(stream)
+      const silentOutput = audioContext.createGain()
+      silentOutput.gain.value = 0
       source.connect(analyser)
+      // Mantiene activo el grafo de audio sin reproducir la voz por los parlantes.
+      analyser.connect(silentOutput)
+      silentOutput.connect(audioContext.destination)
       audioContextRef.current = audioContext
       analyserRef.current = analyser
 
@@ -152,23 +213,37 @@ export function useVoiceTranscriber({
       setError("Este navegador no permite grabar audio.")
       return
     }
+    if (!window.isSecureContext) {
+      setError(
+        "El micrófono requiere HTTPS o localhost. Abrí la aplicación desde http://localhost:3001.",
+      )
+      return
+    }
 
     setError(null)
     setAudioLevel(0)
     hasAudioSignalRef.current = false
     let stream: MediaStream
     try {
+      const audioConstraints: MediaTrackConstraints = {
+        autoGainControl: true,
+        echoCancellation: true,
+        noiseSuppression: true,
+      }
+      if (selectedAudioInputId) {
+        audioConstraints.deviceId = { exact: selectedAudioInputId }
+      }
       stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          autoGainControl: true,
-          echoCancellation: true,
-          noiseSuppression: true,
-        },
+        audio: audioConstraints,
       })
     } catch (captureError: unknown) {
       setError(captureErrorMessage(captureError))
       return
     }
+
+    const activeDeviceId = stream.getAudioTracks()[0]?.getSettings().deviceId
+    if (activeDeviceId) setSelectedAudioInputId(activeDeviceId)
+    void refreshAudioInputDevices()
 
     const mimeType = AUDIO_MIME_TYPES.find((value) =>
       MediaRecorder.isTypeSupported(value),
@@ -248,6 +323,8 @@ export function useVoiceTranscriber({
   }, [
     isRecording,
     isTranscribing,
+    refreshAudioInputDevices,
+    selectedAudioInputId,
     startAudioMonitor,
     stopAudioMonitor,
   ])
@@ -259,9 +336,13 @@ export function useVoiceTranscriber({
     isRecording,
     isTranscribing,
     audioLevel,
+    audioInputDevices,
+    selectedAudioInputId,
     error,
     start,
     stop,
+    selectAudioInput: setSelectedAudioInputId,
+    refreshAudioInputDevices,
     clearError,
   }
 }
@@ -295,6 +376,9 @@ function captureErrorMessage(error: unknown): string {
     }
     if (error.name === "NotReadableError") {
       return "El micrófono está siendo usado por otra aplicación."
+    }
+    if (error.name === "OverconstrainedError") {
+      return "El micrófono seleccionado ya no está disponible. Elegí otro e intentá nuevamente."
     }
   }
   return "No se pudo acceder al micrófono."

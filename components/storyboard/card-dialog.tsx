@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useState } from "react"
-import { Loader2, Mic, MicOff, Square, Tag } from "lucide-react"
+import { Loader2, Mic, MicOff, RefreshCw, Square, Tag } from "lucide-react"
 
 import { ChipEditor } from "@/components/storyboard/chip-editor"
 import { EntitySelector } from "@/components/storyboard/entity-selector"
@@ -91,9 +91,13 @@ function CardDialogForm({
     isRecording,
     isTranscribing,
     audioLevel,
+    audioInputDevices,
+    selectedAudioInputId,
     error: voiceError,
     start: startVoiceRecording,
     stop: stopVoiceRecording,
+    selectAudioInput,
+    refreshAudioInputDevices,
   } = useVoiceTranscriber({ onTranscript: handleTranscript })
 
   const addValue = (
@@ -206,6 +210,41 @@ function CardDialogForm({
                   ? "Señal de audio detectada"
                   : "No se detecta señal; hablá cerca del micrófono"}
               </span>
+            </div>
+          ) : null}
+          {voiceSupported && audioInputDevices.length > 0 ? (
+            <div className="mt-3 flex items-center gap-2">
+              <label
+                className="text-xs text-muted-foreground"
+                htmlFor="storyboard-audio-input"
+              >
+                Micrófono
+              </label>
+              <select
+                id="storyboard-audio-input"
+                className="h-8 min-w-0 flex-1 rounded-md border border-input bg-background px-2 text-xs outline-none focus:ring-2 focus:ring-ring"
+                disabled={isRecording || isTranscribing || submitting}
+                value={selectedAudioInputId}
+                onChange={(event) => selectAudioInput(event.target.value)}
+              >
+                {audioInputDevices.map((device, index) => (
+                  <option key={device.deviceId} value={device.deviceId}>
+                    {device.label || `Micrófono ${index + 1}`}
+                  </option>
+                ))}
+              </select>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-8 shrink-0"
+                disabled={isRecording || isTranscribing || submitting}
+                onClick={() => void refreshAudioInputDevices()}
+                title="Actualizar micrófonos"
+                aria-label="Actualizar micrófonos"
+              >
+                <RefreshCw className="size-3.5" />
+              </Button>
             </div>
           ) : null}
           {voiceError ? (
