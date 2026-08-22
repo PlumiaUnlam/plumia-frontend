@@ -337,13 +337,19 @@ export function TimelinePanel({
       return next
     })
 
+    let settleFrameId: number | null = null
     const frameId = window.requestAnimationFrame(() => {
-      document
-        .getElementById(`timeline-event-${focusEventId}`)
-        ?.scrollIntoView({ behavior: "smooth", block: "center" })
+      settleFrameId = window.requestAnimationFrame(() => {
+        document
+          .getElementById(`timeline-event-${focusEventId}`)
+          ?.scrollIntoView({ behavior: "smooth", block: "center" })
+      })
     })
 
-    return () => window.cancelAnimationFrame(frameId)
+    return () => {
+      window.cancelAnimationFrame(frameId)
+      if (settleFrameId !== null) window.cancelAnimationFrame(settleFrameId)
+    }
   }, [displayedEvents, focusEventId])
   const activeDragEvent = useMemo(
     () => displayedEvents.find((event) => event.id === activeDragEventId) ?? null,
@@ -828,7 +834,7 @@ function TimelineEventListItem({ compact, entities, event, expanded, isFocused, 
         transform: isDragging ? undefined : CSS.Transform.toString(transform),
         transition,
       }}
-      className={`relative rounded-2xl transition-shadow ${isDragging ? "opacity-20" : ""} ${isFocused ? "ring-2 ring-primary/60 ring-offset-4 ring-offset-background" : ""}`}
+      className={`relative rounded-2xl transition-shadow [scroll-margin-block:35vh] ${isDragging ? "opacity-20" : ""} ${isFocused ? "bg-primary/5 shadow-lg shadow-primary/20 ring-2 ring-primary ring-offset-4 ring-offset-background" : ""}`}
     >
       <span className="absolute -left-[2.85rem] top-3 size-5 rounded-full border-4 border-muted bg-primary sm:-left-[4.6rem]" />
       <TimelineEventCard

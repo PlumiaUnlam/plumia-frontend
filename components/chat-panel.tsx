@@ -80,6 +80,9 @@ export function ChatPanel({
       return `${base}${base ? " " : ""}${text}`
     })
   }, [])
+  const handleBeforeSourceNavigation = useCallback(() => {
+    setIsFullscreen(false)
+  }, [])
   const {
     supported: speechSupported,
     isRecording,
@@ -379,6 +382,7 @@ export function ChatPanel({
                       message={message}
                       projectId={projectId}
                       primaryImageUrls={primaryImageUrls}
+                      onBeforeSourceNavigation={handleBeforeSourceNavigation}
                     />
                   ))}
                 {isSending && <ThinkingBubble />}
@@ -548,10 +552,12 @@ function ChatBubble({
   message,
   projectId,
   primaryImageUrls,
+  onBeforeSourceNavigation,
 }: {
   readonly message: ChatMessage
   readonly projectId: string
   readonly primaryImageUrls: Readonly<Record<string, string>>
+  readonly onBeforeSourceNavigation: () => void
 }) {
   const isUser = message.role === "user"
   const [sourcesExpanded, setSourcesExpanded] = useState(true)
@@ -608,6 +614,7 @@ function ChatBubble({
                   source={source}
                   citationNumber={index + 1}
                   projectId={projectId}
+                  onBeforeNavigation={onBeforeSourceNavigation}
                   imageUrl={
                     (source.entityId && primaryImageUrls[source.entityId]) ||
                     source.imageUrl ||
@@ -711,11 +718,13 @@ function SourceCard({
   citationNumber,
   projectId,
   imageUrl,
+  onBeforeNavigation,
 }: {
   readonly source: ChatSource
   readonly citationNumber: number
   readonly projectId: string
   readonly imageUrl?: string
+  readonly onBeforeNavigation: () => void
 }) {
   const router = useRouter()
   const setActiveScene = useEditorStore((state) => state.setActiveScene)
@@ -746,6 +755,7 @@ function SourceCard({
   const navigateToScene = () => {
     if (!source.sceneId) return
 
+    onBeforeNavigation()
     setActiveScene(source.sceneId)
     if (source.textQuote) {
       focusCitation({
@@ -758,7 +768,10 @@ function SourceCard({
   }
 
   const navigateToTimeline = () => {
-    if (timelineRoute) router.push(timelineRoute)
+    if (!timelineRoute) return
+
+    onBeforeNavigation()
+    router.push(timelineRoute)
   }
 
   const navigate = () => {
@@ -771,12 +784,14 @@ function SourceCard({
       return
     }
     if (source.entityId) {
+      onBeforeNavigation()
       router.push(
         `/projects/${projectId}/worldbuilding?entityId=${source.entityId}`,
       )
       return
     }
     if (source.route) {
+      onBeforeNavigation()
       router.push(source.route)
     }
   }
@@ -838,28 +853,34 @@ function SourceCard({
 
   if (isTimelineSource) {
     return (
-      <div className="w-full rounded-xl border border-border bg-background p-2 text-left">
-        <div className="flex items-start gap-2">{cardContent}</div>
-        <div className="ml-9 mt-2 flex flex-wrap gap-1.5">
+      <div className="group relative w-full rounded-xl border border-border bg-background">
+        <button
+          type="button"
+          onClick={navigateToTimeline}
+          aria-label={`Ver hecho en la línea de tiempo: ${source.label}`}
+          className="flex w-full items-start gap-2 rounded-xl p-2 pr-8 text-left transition-colors hover:border-primary/30 hover:bg-primary/5"
+        >
+          {cardContent}
+        </button>
+        {source.sceneId && (
           <button
             type="button"
-            onClick={navigateToTimeline}
-            className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-[9px] font-medium text-primary transition-colors hover:bg-primary/20"
+            onClick={navigateToScene}
+            aria-label={
+              source.textQuote
+                ? "Ver el fragmento de la obra y resaltarlo"
+                : "Ver la escena origen en la obra"
+            }
+            title={
+              source.textQuote
+                ? "Ver en la obra y resaltar"
+                : "Ver escena origen en la obra"
+            }
+            className="absolute right-2 top-2 flex size-5 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity hover:bg-primary/10 hover:text-primary group-hover:opacity-100 focus-visible:opacity-100"
           >
-            <Clock3 className="size-3" />
-            Ver hecho
+            <ExternalLink className="size-3" />
           </button>
-          {source.sceneId && (
-            <button
-              type="button"
-              onClick={navigateToScene}
-              className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-[9px] font-medium text-foreground transition-colors hover:bg-primary/10 hover:text-primary"
-            >
-              <BookOpen className="size-3" />
-              Ver en la obra{source.textQuote ? " y resaltar" : ""}
-            </button>
-          )}
-        </div>
+        )}
       </div>
     )
   }
