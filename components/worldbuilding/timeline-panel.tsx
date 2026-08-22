@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState, type ReactNode } from "react"
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import {
   closestCenter,
   DndContext,
@@ -73,6 +73,7 @@ type TimelinePanelProps = {
   projectId: string
   enabled: boolean
   entities: Entity[]
+  focusEventId?: string | null
   newEventRequest: number
   createdEntity: { id: string; revision: number } | null
   onRequestCreateEntity: (canonicalName: string) => void
@@ -89,6 +90,7 @@ type TimelineEventListItemProps = {
   entities: Entity[]
   event: TimelineEvent
   expanded: boolean
+  isFocused: boolean
   isInsertMode: boolean
   isReordering: boolean
   canMoveUp: boolean
@@ -216,6 +218,7 @@ export function TimelinePanel({
   projectId,
   enabled,
   entities,
+  focusEventId = null,
   newEventRequest,
   createdEntity,
   onRequestCreateEntity,
@@ -249,6 +252,7 @@ export function TimelinePanel({
   const [expandedEventIds, setExpandedEventIds] = useState<Set<string>>(
     new Set(),
   )
+  const focusedEventIdRef = useRef<string | null>(null)
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
   )
@@ -294,9 +298,53 @@ export function TimelinePanel({
     [events, selectedArcId, selectedEntityId, selectedImpacts],
   )
   const displayedEvents = useMemo(
-    () => (isReordering ? (events ?? []) : visibleEvents),
-    [events, isReordering, visibleEvents],
+    () => {
+      const filteredEvents = isReordering ? (events ?? []) : visibleEvents
+      if (
+        !focusEventId ||
+        filteredEvents.some((event) => event.id === focusEventId)
+      ) {
+        return filteredEvents
+      }
+
+      const focusedEvent = events?.find((event) => event.id === focusEventId)
+      return focusedEvent ? [...filteredEvents, focusedEvent] : filteredEvents
+    },
+    [events, focusEventId, isReordering, visibleEvents],
   )
+
+  useEffect(() => {
+    if (!focusEventId) {
+      focusedEventIdRef.current = null
+      return
+    }
+
+    const focusedEvent = displayedEvents.find(
+      (event) => event.id === focusEventId,
+    )
+    if (
+      !focusedEvent ||
+      focusedEventIdRef.current === focusEventId
+    ) {
+      return
+    }
+
+    focusedEventIdRef.current = focusEventId
+    setExpandedEventIds((current) => {
+      if (current.has(focusEventId)) return current
+      const next = new Set(current)
+      next.add(focusEventId)
+      return next
+    })
+
+    const frameId = window.requestAnimationFrame(() => {
+      document
+        .getElementById(`timeline-event-${focusEventId}`)
+        ?.scrollIntoView({ behavior: "smooth", block: "center" })
+    })
+
+    return () => window.cancelAnimationFrame(frameId)
+  }, [displayedEvents, focusEventId])
   const activeDragEvent = useMemo(
     () => displayedEvents.find((event) => event.id === activeDragEventId) ?? null,
     [activeDragEventId, displayedEvents],
@@ -642,6 +690,7 @@ export function TimelinePanel({
                       entities={event.entityIds.map((id) => entityById.get(id)).filter((entity): entity is Entity => !!entity)}
                       event={event}
                       expanded={expandedEventIds.has(event.id)}
+                      isFocused={event.id === focusEventId}
                       isInsertMode={isInsertMode}
                       isReordering={isReordering}
                       canMoveUp={index > 0}
@@ -765,7 +814,7 @@ function FilterButton({ active, children, onClick }: Readonly<FilterButtonProps>
   )
 }
 
-function TimelineEventListItem({ compact, entities, event, expanded, isInsertMode, isReordering, canMoveUp, canMoveDown, onDelete, onEdit, onInsertAfter, onMoveDown, onMoveUp, onToggleDetail, showInsertControl }: Readonly<TimelineEventListItemProps>) {
+function TimelineEventListItem({ compact, entities, event, expanded, isFocused, isInsertMode, isReordering, canMoveUp, canMoveDown, onDelete, onEdit, onInsertAfter, onMoveDown, onMoveUp, onToggleDetail, showInsertControl }: Readonly<TimelineEventListItemProps>) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: event.id,
     disabled: !isReordering,
@@ -774,11 +823,12 @@ function TimelineEventListItem({ compact, entities, event, expanded, isInsertMod
   return (
     <li
       ref={setNodeRef}
+      id={`timeline-event-${event.id}`}
       style={{
         transform: isDragging ? undefined : CSS.Transform.toString(transform),
         transition,
       }}
-      className={`relative ${isDragging ? "opacity-20" : ""}`}
+      className={`relative rounded-2xl transition-shadow ${isDragging ? "opacity-20" : ""} ${isFocused ? "ring-2 ring-primary/60 ring-offset-4 ring-offset-background" : ""}`}
     >
       <span className="absolute -left-[2.85rem] top-3 size-5 rounded-full border-4 border-muted bg-primary sm:-left-[4.6rem]" />
       <TimelineEventCard

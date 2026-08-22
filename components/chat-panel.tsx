@@ -720,7 +720,12 @@ function SourceCard({
   const router = useRouter()
   const setActiveScene = useEditorStore((state) => state.setActiveScene)
   const focusCitation = useEditorStore((state) => state.focusCitation)
+  const clearCitationFocus = useEditorStore((state) => state.clearCitationFocus)
   const canNavigate = Boolean(source.sceneId || source.entityId || source.route)
+  const isTimelineSource = source.kind === "timeline"
+  const timelineRoute = isTimelineSource
+    ? getTimelineSourceRoute(source, projectId)
+    : null
   const wikiDetails =
     source.kind === "wiki" ? getWikiSourceDetails(source) : null
   const Icon =
@@ -738,15 +743,31 @@ function SourceCard({
             ? Waypoints
             : FileText
 
+  const navigateToScene = () => {
+    if (!source.sceneId) return
+
+    setActiveScene(source.sceneId)
+    if (source.textQuote) {
+      focusCitation({
+        sceneId: source.sceneId,
+        textQuote: source.textQuote,
+      })
+    } else {
+      clearCitationFocus()
+    }
+  }
+
+  const navigateToTimeline = () => {
+    if (timelineRoute) router.push(timelineRoute)
+  }
+
   const navigate = () => {
+    if (isTimelineSource) {
+      navigateToTimeline()
+      return
+    }
     if (source.sceneId) {
-      setActiveScene(source.sceneId)
-      if (source.textQuote) {
-        focusCitation({
-          sceneId: source.sceneId,
-          textQuote: source.textQuote,
-        })
-      }
+      navigateToScene()
       return
     }
     if (source.entityId) {
@@ -760,13 +781,8 @@ function SourceCard({
     }
   }
 
-  return (
-    <button
-      type="button"
-      disabled={!canNavigate}
-      onClick={navigate}
-      className="group flex w-full items-start gap-2 rounded-xl border border-border bg-background p-2 text-left transition-colors enabled:hover:border-primary/30 enabled:hover:bg-primary/5 disabled:cursor-default"
-    >
+  const cardContent = (
+    <>
       {imageUrl ? (
         <Image
           src={imageUrl}
@@ -784,8 +800,8 @@ function SourceCard({
         </div>
       )}
       <span className="min-w-0 flex-1">
-        <span className="flex items-center gap-1.5 text-[9px] font-semibold text-foreground">
-          <span className="shrink-0 text-primary">[{citationNumber}]</span>
+          <span className="flex items-center gap-1.5 text-[9px] font-semibold text-foreground">
+            <span className="shrink-0 text-primary">[{citationNumber}]</span>
           {wikiDetails ? (
             <span className="truncate text-[10px] font-semibold">
               {wikiDetails.name}
@@ -793,7 +809,7 @@ function SourceCard({
           ) : (
             <span className="truncate">{source.label}</span>
           )}
-          {canNavigate && (
+          {canNavigate && !isTimelineSource && (
             <ExternalLink className="size-2.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
           )}
         </span>
@@ -817,8 +833,60 @@ function SourceCard({
           </span>
         )}
       </span>
+    </>
+  )
+
+  if (isTimelineSource) {
+    return (
+      <div className="w-full rounded-xl border border-border bg-background p-2 text-left">
+        <div className="flex items-start gap-2">{cardContent}</div>
+        <div className="ml-9 mt-2 flex flex-wrap gap-1.5">
+          <button
+            type="button"
+            onClick={navigateToTimeline}
+            className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-[9px] font-medium text-primary transition-colors hover:bg-primary/20"
+          >
+            <Clock3 className="size-3" />
+            Ver hecho
+          </button>
+          {source.sceneId && (
+            <button
+              type="button"
+              onClick={navigateToScene}
+              className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-[9px] font-medium text-foreground transition-colors hover:bg-primary/10 hover:text-primary"
+            >
+              <BookOpen className="size-3" />
+              Ver en la obra{source.textQuote ? " y resaltar" : ""}
+            </button>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <button
+      type="button"
+      disabled={!canNavigate}
+      onClick={navigate}
+      className="group flex w-full items-start gap-2 rounded-xl border border-border bg-background p-2 text-left transition-colors enabled:hover:border-primary/30 enabled:hover:bg-primary/5 disabled:cursor-default"
+    >
+      {cardContent}
     </button>
   )
+}
+
+function getTimelineSourceRoute(source: ChatSource, projectId: string): string {
+  const route =
+    source.route ??
+    `/projects/${encodeURIComponent(projectId)}/worldbuilding?tab=timeline`
+  const eventId = source.id.startsWith("timeline:")
+    ? source.id.slice("timeline:".length)
+    : null
+
+  if (!eventId || route.includes("eventId=")) return route
+
+  return `${route}${route.includes("?") ? "&" : "?"}eventId=${encodeURIComponent(eventId)}`
 }
 
 type WikiSourceDetails = {

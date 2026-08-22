@@ -1,7 +1,6 @@
 import { useEffect } from "react"
 import { EditorContent, useEditor } from "@tiptap/react"
 import StarterKit from "@tiptap/starter-kit"
-import Link from "@tiptap/extension-link"
 
 import type { ProseMirrorJSON } from "@/types/scene"
 import { useEditorStore } from "@/stores/editor.store"
@@ -58,9 +57,15 @@ export function RichTextEditor({
   )
 
   const editor = useEditor({
+    // El editor se monta después de cargar la escena en el cliente.
+    immediatelyRender: true,
     extensions: [
       StarterKit.configure({
         heading: { levels: [1, 2, 3] },
+        link: {
+          openOnClick: false,
+          autolink: false,
+        },
       }),
       EditorImage.configure({
         inline: false,
@@ -68,10 +73,6 @@ export function RichTextEditor({
         HTMLAttributes: {
           class: "mx-auto my-6 max-w-full",
         },
-      }),
-      Link.configure({
-        openOnClick: false,
-        autolink: false,
       }),
       EntityLink,
       CitationFocus,

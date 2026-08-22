@@ -142,6 +142,7 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
   const searchParams = useSearchParams();
   const entityIdParam = searchParams.get("entityId");
   const tabParam = searchParams.get("tab");
+  const timelineEventIdParam = searchParams.get("eventId");
 
   const tabs = [
     { id: "wiki" as const, label: "Wiki del Universo", icon: Star },
@@ -850,6 +851,7 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
               projectId={projectId}
               enabled={shouldFetch}
               entities={worldbuildingEntities}
+              focusEventId={timelineEventIdParam}
               createdEntity={timelineCreatedEntity}
               newEventRequest={timelineNewEventRequest}
               onRequestCreateEntity={(canonicalName) => {
