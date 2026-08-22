@@ -41,6 +41,7 @@ export function StoryboardCardBody({
           <StoryboardAudioPlayer
             cardId={card.id}
             durationSeconds={card.audioDurationSecs}
+            transcript={card.description}
           />
         ) : null}
 

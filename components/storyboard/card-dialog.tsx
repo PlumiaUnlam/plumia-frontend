@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useState } from "react"
+import { useCallback, useState, type ReactNode } from "react"
 import { Loader2, Mic, MicOff, RefreshCw, Square, Tag } from "lucide-react"
 
 import { ChipEditor } from "@/components/storyboard/chip-editor"
@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import {
   useVoiceTranscriber,
+  type AudioInputDevice,
   type VoiceRecording,
 } from "@/hooks/use-voice-transcriber"
 import type {
@@ -165,110 +166,20 @@ function CardDialogForm({
           </FieldContent>
         </Field>
 
-        <div className="rounded-lg border border-dashed border-border bg-muted/30 p-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <p className="text-sm font-medium">Registrar por voz</p>
-              <p className="text-xs text-muted-foreground">
-                La transcripción se agregará a la descripción de la tarjeta.
-              </p>
-            </div>
-            <Button
-              type="button"
-              variant={isRecording ? "destructive" : "outline"}
-              disabled={
-                !voiceSupported || isTranscribing || submitting
-              }
-              onClick={() => {
-                if (isRecording) {
-                  stopVoiceRecording()
-                } else {
-                  void startVoiceRecording()
-                }
-              }}
-            >
-              {isTranscribing ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : isRecording ? (
-                <Square className="size-3.5 fill-current" />
-              ) : voiceSupported ? (
-                <Mic className="size-4" />
-              ) : (
-                <MicOff className="size-4" />
-              )}
-              {isTranscribing
-                ? "Transcribiendo..."
-                : isRecording
-                  ? "Detener grabación"
-                  : voiceSupported
-                    ? "Grabar nota de voz"
-                    : "Micrófono no disponible"}
-            </Button>
-          </div>
-          {isRecording ? (
-            <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
-              <div
-                className="relative flex size-9 items-center justify-center rounded-full border border-primary/30 bg-primary/5"
-                aria-label={`Nivel de audio: ${Math.round(audioLevel * 100)}%`}
-                role="img"
-              >
-                <span
-                  className="absolute inset-0 rounded-full bg-primary/20 transition-transform duration-75"
-                  style={{
-                    opacity: 0.35 + audioLevel * 0.65,
-                    transform: `scale(${0.75 + audioLevel * 0.25})`,
-                  }}
-                />
-                <Mic className="relative size-4 text-primary" />
-              </div>
-              <span>
-                {audioLevel > 0.05
-                  ? "Señal de audio detectada"
-                  : "No se detecta señal; hablá cerca del micrófono"}
-              </span>
-            </div>
-          ) : null}
-          {voiceSupported && audioInputDevices.length > 0 ? (
-            <div className="mt-3 flex items-center gap-2">
-              <label
-                className="text-xs text-muted-foreground"
-                htmlFor="storyboard-audio-input"
-              >
-                Micrófono
-              </label>
-              <select
-                id="storyboard-audio-input"
-                className="h-8 min-w-0 flex-1 rounded-md border border-input bg-background px-2 text-xs outline-none focus:ring-2 focus:ring-ring"
-                disabled={isRecording || isTranscribing || submitting}
-                value={selectedAudioInputId}
-                onChange={(event) => selectAudioInput(event.target.value)}
-              >
-                {audioInputDevices.map((device, index) => (
-                  <option key={device.deviceId} value={device.deviceId}>
-                    {device.label || `Micrófono ${index + 1}`}
-                  </option>
-                ))}
-              </select>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="size-8 shrink-0"
-                disabled={isRecording || isTranscribing || submitting}
-                onClick={() => void refreshAudioInputDevices()}
-                title="Actualizar micrófonos"
-                aria-label="Actualizar micrófonos"
-              >
-                <RefreshCw className="size-3.5" />
-              </Button>
-            </div>
-          ) : null}
-          {voiceError ? (
-            <p className="mt-2 text-xs text-destructive" role="alert">
-              {voiceError}
-            </p>
-          ) : null}
-        </div>
+        <VoiceRecorderSection
+          supported={voiceSupported}
+          isRecording={isRecording}
+          isTranscribing={isTranscribing}
+          submitting={submitting}
+          audioLevel={audioLevel}
+          audioInputDevices={audioInputDevices}
+          selectedAudioInputId={selectedAudioInputId}
+          error={voiceError}
+          start={startVoiceRecording}
+          stop={stopVoiceRecording}
+          selectAudioInput={selectAudioInput}
+          refreshAudioInputDevices={refreshAudioInputDevices}
+        />
 
         <ChipEditor
           label="Etiquetas narrativas"
@@ -321,4 +232,160 @@ function voiceTitle(text: string): string {
   const firstSentence = text.split(/[.!?]/u)[0]?.trim() ?? ""
   const title = firstSentence || text.trim()
   return title.slice(0, 200) || "Idea registrada por voz"
+}
+
+type VoiceRecorderSectionProps = {
+  supported: boolean
+  isRecording: boolean
+  isTranscribing: boolean
+  submitting: boolean
+  audioLevel: number
+  audioInputDevices: AudioInputDevice[]
+  selectedAudioInputId: string
+  error: string | null
+  start: () => Promise<void>
+  stop: () => void
+  selectAudioInput: (deviceId: string) => void
+  refreshAudioInputDevices: () => Promise<void>
+}
+
+function VoiceRecorderSection({
+  supported,
+  isRecording,
+  isTranscribing,
+  submitting,
+  audioLevel,
+  audioInputDevices,
+  selectedAudioInputId,
+  error,
+  start,
+  stop,
+  selectAudioInput,
+  refreshAudioInputDevices,
+}: VoiceRecorderSectionProps) {
+  const handleRecordButtonClick = () => {
+    if (isRecording) {
+      stop()
+      return
+    }
+    void start()
+  }
+
+  const controlsDisabled = isRecording || isTranscribing || submitting
+
+  return (
+    <div className="rounded-lg border border-dashed border-border bg-muted/30 p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <p className="text-sm font-medium">Registrar por voz</p>
+          <p className="text-xs text-muted-foreground">
+            La transcripción se agregará a la descripción de la tarjeta.
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant={isRecording ? "destructive" : "outline"}
+          disabled={!supported || isTranscribing || submitting}
+          onClick={handleRecordButtonClick}
+        >
+          {getVoiceButtonIcon({ isTranscribing, isRecording, supported })}
+          {getVoiceButtonLabel({ isTranscribing, isRecording, supported })}
+        </Button>
+      </div>
+      {isRecording && (
+        <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+          <div
+            className="relative flex size-9 items-center justify-center rounded-full border border-primary/30 bg-primary/5"
+            aria-label={`Nivel de audio: ${Math.round(audioLevel * 100)}%`}
+            role="img"
+          >
+            <span
+              className="absolute inset-0 rounded-full bg-primary/20 transition-transform duration-75"
+              style={{
+                opacity: 0.35 + audioLevel * 0.65,
+                transform: `scale(${0.75 + audioLevel * 0.25})`,
+              }}
+            />
+            <Mic className="relative size-4 text-primary" />
+          </div>
+          <span>{getAudioSignalMessage(audioLevel)}</span>
+        </div>
+      )}
+      {supported && audioInputDevices.length > 0 && (
+        <div className="mt-3 flex items-center gap-2">
+          <label
+            className="text-xs text-muted-foreground"
+            htmlFor="storyboard-audio-input"
+          >
+            Micrófono
+          </label>
+          <select
+            id="storyboard-audio-input"
+            className="h-8 min-w-0 flex-1 rounded-md border border-input bg-background px-2 text-xs outline-none focus:ring-2 focus:ring-ring"
+            disabled={controlsDisabled}
+            value={selectedAudioInputId}
+            onChange={(event) => selectAudioInput(event.target.value)}
+          >
+            {audioInputDevices.map((device, index) => (
+              <option key={device.deviceId} value={device.deviceId}>
+                {device.label || `Micrófono ${index + 1}`}
+              </option>
+            ))}
+          </select>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="size-8 shrink-0"
+            disabled={controlsDisabled}
+            onClick={() => void refreshAudioInputDevices()}
+            title="Actualizar micrófonos"
+            aria-label="Actualizar micrófonos"
+          >
+            <RefreshCw className="size-3.5" />
+          </Button>
+        </div>
+      )}
+      {error && (
+        <p className="mt-2 text-xs text-destructive" role="alert">
+          {error}
+        </p>
+      )}
+    </div>
+  )
+}
+
+function getVoiceButtonIcon({
+  isTranscribing,
+  isRecording,
+  supported,
+}: {
+  isTranscribing: boolean
+  isRecording: boolean
+  supported: boolean
+}): ReactNode {
+  if (isTranscribing) return <Loader2 className="size-4 animate-spin" />
+  if (isRecording) return <Square className="size-3.5 fill-current" />
+  if (supported) return <Mic className="size-4" />
+  return <MicOff className="size-4" />
+}
+
+function getVoiceButtonLabel({
+  isTranscribing,
+  isRecording,
+  supported,
+}: {
+  isTranscribing: boolean
+  isRecording: boolean
+  supported: boolean
+}): string {
+  if (isTranscribing) return "Transcribiendo..."
+  if (isRecording) return "Detener grabación"
+  if (supported) return "Grabar nota de voz"
+  return "Micrófono no disponible"
+}
+
+function getAudioSignalMessage(audioLevel: number): string {
+  if (audioLevel > 0.05) return "Señal de audio detectada"
+  return "No se detecta señal; hablá cerca del micrófono"
 }
