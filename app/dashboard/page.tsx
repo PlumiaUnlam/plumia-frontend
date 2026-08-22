@@ -30,12 +30,6 @@ function formatWordCount(value: number) {
     return new Intl.NumberFormat("es-ES").format(value);
 }
 
-function formatLabel(value: string) {
-    return value
-        .replace(/_/g, " ")
-        .replace(/\b\w/g, (character) => character.toUpperCase());
-}
-
 export default function DashboardPage() {
     const router = useRouter();
     const [projects, setProjects] = useState<ProjectResponse[]>([]);
