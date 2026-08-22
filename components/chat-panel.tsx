@@ -824,7 +824,7 @@ function SourceCard({
           ) : (
             <span className="truncate">{source.label}</span>
           )}
-          {canNavigate && !isTimelineSource && (
+          {canNavigate && (
             <ExternalLink className="size-2.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
           )}
         </span>
@@ -850,40 +850,6 @@ function SourceCard({
       </span>
     </>
   )
-
-  if (isTimelineSource) {
-    return (
-      <div className="group relative w-full rounded-xl border border-border bg-background">
-        <button
-          type="button"
-          onClick={navigateToTimeline}
-          aria-label={`Ver hecho en la línea de tiempo: ${source.label}`}
-          className="flex w-full items-start gap-2 rounded-xl p-2 pr-8 text-left transition-colors hover:border-primary/30 hover:bg-primary/5"
-        >
-          {cardContent}
-        </button>
-        {source.sceneId && (
-          <button
-            type="button"
-            onClick={navigateToScene}
-            aria-label={
-              source.textQuote
-                ? "Ver el fragmento de la obra y resaltarlo"
-                : "Ver la escena origen en la obra"
-            }
-            title={
-              source.textQuote
-                ? "Ver en la obra y resaltar"
-                : "Ver escena origen en la obra"
-            }
-            className="absolute right-2 top-2 flex size-5 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity hover:bg-primary/10 hover:text-primary group-hover:opacity-100 focus-visible:opacity-100"
-          >
-            <ExternalLink className="size-3" />
-          </button>
-        )}
-      </div>
-    )
-  }
 
   return (
     <button

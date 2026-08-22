@@ -830,11 +830,12 @@ function TimelineEventListItem({ compact, entities, event, expanded, isFocused, 
     <li
       ref={setNodeRef}
       id={`timeline-event-${event.id}`}
+      aria-current={isFocused ? "location" : undefined}
       style={{
         transform: isDragging ? undefined : CSS.Transform.toString(transform),
         transition,
       }}
-      className={`relative rounded-2xl transition-shadow [scroll-margin-block:35vh] ${isDragging ? "opacity-20" : ""} ${isFocused ? "bg-primary/5 shadow-lg shadow-primary/20 ring-2 ring-primary ring-offset-4 ring-offset-background" : ""}`}
+      className={`relative rounded-2xl transition-shadow [scroll-margin-block:35vh] ${isDragging ? "opacity-20" : ""} ${isFocused ? "bg-primary/10 shadow-xl shadow-primary/25 ring-4 ring-primary/80 ring-offset-4 ring-offset-background" : ""}`}
     >
       <span className="absolute -left-[2.85rem] top-3 size-5 rounded-full border-4 border-muted bg-primary sm:-left-[4.6rem]" />
       <TimelineEventCard
