@@ -32,6 +32,7 @@ function SceneEditor({
   sceneTitle,
   selectedVersionId,
   projectId,
+  isZenMode,
 }: {
   sceneId: string
   document: SceneDocument | SceneVersionDocument
@@ -39,6 +40,7 @@ function SceneEditor({
   sceneTitle?: string
   selectedVersionId: string | null
   projectId: string
+  isZenMode: boolean
 }) {
   const setCurrentContent = useEditorStore((s) => s.setCurrentContent)
   const saveStatus = useEditorStore((s) => s.saveStatus)
@@ -122,6 +124,7 @@ function SceneEditor({
           selectedVersionId === null ? handleAnalyzeChanges : undefined
         }
         isAnalysisSaving={saveStatus === "saving"}
+        isZenMode={isZenMode}
       />
     </>
   )
@@ -132,11 +135,13 @@ export function EditorContainer({
   chapterTitle,
   sceneTitle,
   projectId,
+  isZenMode,
 }: {
   sceneId: string
   chapterTitle: string
   sceneTitle?: string
   projectId: string
+  isZenMode: boolean
 }) {
   const setActiveScene = useEditorStore((s) => s.setActiveScene)
   const selectedVersionId = useEditorStore((s) => s.selectedSceneVersionId)
@@ -195,6 +200,7 @@ export function EditorContainer({
       sceneTitle={sceneTitle}
       selectedVersionId={selectedVersionId}
       projectId={projectId}
+      isZenMode={isZenMode}
     />
   )
 }

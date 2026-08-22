@@ -25,11 +25,13 @@ import type { CreateEntityInput, Entity, UpdateEntityInput } from "@/types/entit
 import type { EntityProposal } from "@/types/entity-proposal";
 import type { UpdateRelationshipInput } from "@/types/relationship";
 import type { AuditAlertResolution } from "@/types/audit-alert";
+import type { WritingMode } from "@/types/writing-mode";
 
 type RightTab = "wiki" | "chat" | "stats";
 
 type EditorRightPanelProps = {
   readonly projectId: string;
+  readonly mode: Exclude<WritingMode, "zen">;
 };
 
 type EntityActionFeedback = {
@@ -43,7 +45,7 @@ const tabs = [
   { id: "stats" as const, label: "Stats", icon: BarChart2 },
 ];
 
-export function EditorRightPanel({ projectId }: EditorRightPanelProps) {
+export function EditorRightPanel({ projectId, mode }: EditorRightPanelProps) {
   const refreshTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [activeTab, setActiveTab] = useState<RightTab>("wiki");
   const [acceptingProposalId, setAcceptingProposalId] = useState<string | null>(
@@ -328,6 +330,7 @@ export function EditorRightPanel({ projectId }: EditorRightPanelProps) {
           onUpdateAuditAlert={handleUpdateAuditAlert}
           actionError={actionError}
           entityActionFeedback={entityActionFeedback}
+          showReviewSections={mode === "review"}
         />
       )}
 
