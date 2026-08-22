@@ -156,6 +156,7 @@ export function Storyboard({ projectId }: StoryboardProps) {
   const [activeCardId, setActiveCardId] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<StoryboardViewMode>("kanban")
   const [submitting, setSubmitting] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   const {
     data: cards,
@@ -260,6 +261,7 @@ export function Storyboard({ projectId }: StoryboardProps) {
     if (!dialogState || submitting) return
 
     setSubmitting(true)
+    setSaveError(null)
     try {
       let savedCard: StoryboardCard
       if (dialogState.card) {
@@ -271,12 +273,16 @@ export function Storyboard({ projectId }: StoryboardProps) {
         })
       }
       if (recording) {
-        await uploadStoryboardAudio(
-          savedCard.id,
-          recording.audio,
-          recording.filename,
-          recording.durationSeconds,
-        )
+        try {
+          await uploadStoryboardAudio(
+            savedCard.id,
+            recording.audio,
+            recording.filename,
+            recording.durationSeconds,
+          )
+        } catch (error: unknown) {
+          setSaveError(audioUploadErrorMessage(error))
+        }
       }
       await mutate()
       setDialogState(null)
@@ -339,6 +345,15 @@ export function Storyboard({ projectId }: StoryboardProps) {
             </div>
           </div>
         </div>
+
+        {saveError ? (
+          <div
+            className="mx-4 mt-4 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
+            role="alert"
+          >
+            {saveError}
+          </div>
+        ) : null}
 
         {viewMode === "kanban" ? (
           <DndContext
@@ -441,4 +456,11 @@ export function Storyboard({ projectId }: StoryboardProps) {
       </Dialog>
     </div>
   )
+}
+
+function audioUploadErrorMessage(error: unknown): string {
+  const detail = error instanceof Error ? error.message.trim() : ""
+  return detail
+    ? `La tarjeta se guardó, pero no se pudo guardar la nota de voz: ${detail}`
+    : "La tarjeta se guardó, pero no se pudo guardar la nota de voz."
 }

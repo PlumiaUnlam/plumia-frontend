@@ -6,6 +6,8 @@ import { Loader2, Pause, Volume2 } from "lucide-react"
 
 import { getStoryboardAudioUrl } from "@/services/storyboard.service"
 
+const AUDIO_URL_TTL_MS = 10 * 60 * 1000
+
 type StoryboardAudioPlayerProps = Readonly<{
   cardId: string
   durationSeconds: number | null
@@ -18,6 +20,7 @@ export function StoryboardAudioPlayer({
   transcript,
 }: StoryboardAudioPlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null)
+  const audioUrlFetchedAtRef = useRef<number | null>(null)
   const [audioUrl, setAudioUrl] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)
@@ -29,14 +32,21 @@ export function StoryboardAudioPlayer({
     if (loading) return
 
     setError(null)
-    if (audioUrl && audio) {
-      if (audio.paused) {
-        await audio.play().catch(() => {
-          setError("No se pudo reproducir el audio.")
-        })
-      } else {
-        audio.pause()
-      }
+    if (audioUrl && audio && !audio.paused) {
+      audio.pause()
+      return
+    }
+
+    const audioUrlFetchedAt = audioUrlFetchedAtRef.current
+    const hasFreshAudioUrl =
+      Boolean(audioUrl) &&
+      audioUrlFetchedAt !== null &&
+      Date.now() - audioUrlFetchedAt < AUDIO_URL_TTL_MS
+
+    if (hasFreshAudioUrl && audio) {
+      await audio.play().catch(() => {
+        setError("No se pudo reproducir el audio.")
+      })
       return
     }
 
@@ -45,6 +55,7 @@ export function StoryboardAudioPlayer({
       const response = await getStoryboardAudioUrl(cardId)
       if (!audio) throw new Error("Audio element is not ready")
       audio.src = response.url
+      audioUrlFetchedAtRef.current = Date.now()
       setAudioUrl(response.url)
       await audio.play()
     } catch {
@@ -86,6 +97,7 @@ export function StoryboardAudioPlayer({
         onEnded={() => setIsPlaying(false)}
         onError={() => {
           setAudioUrl(null)
+          audioUrlFetchedAtRef.current = null
           setIsPlaying(false)
           setError("No se pudo reproducir el audio.")
         }}
@@ -108,8 +120,9 @@ export function StoryboardAudioPlayer({
 }
 
 function formatDuration(seconds: number): string {
-  const minutes = Math.floor(seconds / 60)
-  const remainder = seconds % 60
+  const roundedSeconds = Math.max(0, Math.round(seconds))
+  const minutes = Math.floor(roundedSeconds / 60)
+  const remainder = roundedSeconds % 60
   return `${minutes}:${String(remainder).padStart(2, "0")}`
 }
 

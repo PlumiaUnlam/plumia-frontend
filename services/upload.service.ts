@@ -13,6 +13,8 @@ type PresignedDownloadByKeyResponse = {
 
 type StorageFolder = "entities" | "scenes" | "storyboard-audio"
 
+const MAX_AUDIO_UPLOAD_BYTES = 10 * 1024 * 1024
+
 async function getAuthToken(): Promise<string | undefined> {
   return auth.currentUser?.getIdToken()
 }
@@ -103,6 +105,10 @@ export async function uploadStoryboardAudio(
   filename: string,
   durationSeconds: number,
 ): Promise<void> {
+  if (audio.size > MAX_AUDIO_UPLOAD_BYTES) {
+    throw new Error("El audio no puede superar los 10 MB.")
+  }
+
   const file = new File([audio], filename, {
     type: audio.type || "audio/webm",
   })

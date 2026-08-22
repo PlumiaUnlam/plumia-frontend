@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useState, type ReactNode } from "react"
+import { useCallback, useEffect, useState, type ReactNode } from "react"
 import { Loader2, Mic, MicOff, RefreshCw, Square, Tag } from "lucide-react"
 
 import { ChipEditor } from "@/components/storyboard/chip-editor"
@@ -28,7 +28,7 @@ import type {
 } from "@/types/storyboard"
 import type { Entity } from "@/types/entity"
 
-type CardDialogProps = {
+type CardDialogProps = Readonly<{
   state: CardDialogState
   entities: Entity[]
   submitting: boolean
@@ -37,7 +37,7 @@ type CardDialogProps = {
     input: CreateStoryboardCardInput,
     recording?: VoiceRecording,
   ) => Promise<void>
-}
+}>
 
 export function CardDialog({
   state,
@@ -47,18 +47,38 @@ export function CardDialog({
   onSave,
 }: CardDialogProps) {
   const card = state?.card ?? null
+  const [voiceBusy, setVoiceBusy] = useState(false)
+  const handleClose = useCallback(() => {
+    if (voiceBusy) return
+    setVoiceBusy(false)
+    onClose()
+  }, [onClose, voiceBusy])
 
   return (
-    <Dialog open={!!state} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-h-[86vh] overflow-y-auto sm:max-w-2xl">
+    <Dialog
+      open={!!state}
+      onOpenChange={(open) => {
+        if (!open) handleClose()
+      }}
+    >
+      <DialogContent
+        className="max-h-[86vh] overflow-y-auto sm:max-w-2xl"
+        onEscapeKeyDown={(event) => {
+          if (voiceBusy) event.preventDefault()
+        }}
+        onPointerDownOutside={(event) => {
+          if (voiceBusy) event.preventDefault()
+        }}
+      >
         {state ? (
           <CardDialogForm
             key={card?.id ?? state.status}
             card={card}
             entities={entities}
             submitting={submitting}
-            onClose={onClose}
+            onClose={handleClose}
             onSave={onSave}
+            onVoiceBusyChange={setVoiceBusy}
           />
         ) : null}
       </DialogContent>
@@ -66,7 +86,7 @@ export function CardDialog({
   )
 }
 
-type CardDialogFormProps = {
+type CardDialogFormProps = Readonly<{
   card: StoryboardCard | null
   entities: Entity[]
   submitting: boolean
@@ -75,7 +95,8 @@ type CardDialogFormProps = {
     input: CreateStoryboardCardInput,
     recording?: VoiceRecording,
   ) => Promise<void>
-}
+  onVoiceBusyChange: (busy: boolean) => void
+}>
 
 function CardDialogForm({
   card,
@@ -83,6 +104,7 @@ function CardDialogForm({
   submitting,
   onClose,
   onSave,
+  onVoiceBusyChange,
 }: CardDialogFormProps) {
   const [title, setTitle] = useState(card?.title ?? "")
   const [description, setDescription] = useState(card?.description ?? "")
@@ -116,6 +138,10 @@ function CardDialogForm({
     selectAudioInput,
     refreshAudioInputDevices,
   } = useVoiceTranscriber({ onTranscript: handleTranscript })
+
+  useEffect(() => {
+    onVoiceBusyChange(isRecording || isTranscribing)
+  }, [isRecording, isTranscribing, onVoiceBusyChange])
 
   const addValue = (
     value: string,
@@ -175,6 +201,7 @@ function CardDialogForm({
           audioInputDevices={audioInputDevices}
           selectedAudioInputId={selectedAudioInputId}
           error={voiceError}
+          hasPendingRecording={voiceRecording !== null}
           start={startVoiceRecording}
           stop={stopVoiceRecording}
           selectAudioInput={selectAudioInput}
@@ -203,7 +230,9 @@ function CardDialogForm({
         <Button
           variant="outline"
           disabled={submitting || isRecording || isTranscribing}
-          onClick={onClose}
+          onClick={() => {
+            if (!isRecording && !isTranscribing) onClose()
+          }}
         >
           Cancelar
         </Button>
@@ -234,11 +263,12 @@ function voiceTitle(text: string): string {
   return title.slice(0, 200) || "Idea registrada por voz"
 }
 
-type VoiceRecorderSectionProps = {
+type VoiceRecorderSectionProps = Readonly<{
   supported: boolean
   isRecording: boolean
   isTranscribing: boolean
   submitting: boolean
+  hasPendingRecording: boolean
   audioLevel: number
   audioInputDevices: AudioInputDevice[]
   selectedAudioInputId: string
@@ -247,13 +277,14 @@ type VoiceRecorderSectionProps = {
   stop: () => void
   selectAudioInput: (deviceId: string) => void
   refreshAudioInputDevices: () => Promise<void>
-}
+}>
 
 function VoiceRecorderSection({
   supported,
   isRecording,
   isTranscribing,
   submitting,
+  hasPendingRecording,
   audioLevel,
   audioInputDevices,
   selectedAudioInputId,
@@ -285,7 +316,12 @@ function VoiceRecorderSection({
         <Button
           type="button"
           variant={isRecording ? "destructive" : "outline"}
-          disabled={!supported || isTranscribing || submitting}
+          disabled={
+            !supported ||
+            isTranscribing ||
+            submitting ||
+            hasPendingRecording
+          }
           onClick={handleRecordButtonClick}
         >
           {getVoiceButtonIcon({ isTranscribing, isRecording, supported })}
@@ -310,6 +346,12 @@ function VoiceRecorderSection({
           </div>
           <span>{getAudioSignalMessage(audioLevel)}</span>
         </div>
+      )}
+      {hasPendingRecording && !isRecording && !isTranscribing && (
+        <p className="mt-2 text-xs text-muted-foreground" role="status">
+          Ya hay una nota de voz pendiente. Solo se guardará esa grabación al
+          guardar la tarjeta.
+        </p>
       )}
       {supported && audioInputDevices.length > 0 && (
         <div className="mt-3 flex items-center gap-2">

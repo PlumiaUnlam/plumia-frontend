@@ -46,6 +46,7 @@ const AUDIO_MIME_TYPES = [
   "audio/ogg;codecs=opus",
   "audio/mp4",
 ]
+const AUDIO_LEVEL_UPDATE_THRESHOLD = 0.02
 
 const subscribeToVoiceSupport = () => () => undefined
 const getVoiceSupportSnapshot = () =>
@@ -77,6 +78,7 @@ export function useVoiceTranscriber({
   const analyserRef = useRef<AnalyserNode | null>(null)
   const animationFrameRef = useRef<number | null>(null)
   const hasAudioSignalRef = useRef(false)
+  const lastPublishedAudioLevelRef = useRef(0)
   const recordingStartedAtRef = useRef<number | null>(null)
   const onTranscriptRef = useRef(onTranscript)
 
@@ -138,6 +140,7 @@ export function useVoiceTranscriber({
     if (audioContext && audioContext.state !== "closed") {
       void audioContext.close()
     }
+    lastPublishedAudioLevelRef.current = 0
     setAudioLevel(0)
   }, [])
 
@@ -179,7 +182,13 @@ export function useVoiceTranscriber({
         const rms = Math.sqrt(sum / samples.length)
         const level = Math.min(1, Math.max(0, (rms - 0.01) * 6))
         if (level > 0.03) hasAudioSignalRef.current = true
-        setAudioLevel(level)
+        if (
+          Math.abs(level - lastPublishedAudioLevelRef.current) >=
+          AUDIO_LEVEL_UPDATE_THRESHOLD
+        ) {
+          lastPublishedAudioLevelRef.current = level
+          setAudioLevel(level)
+        }
         animationFrameRef.current = window.requestAnimationFrame(updateLevel)
       }
 
@@ -221,9 +230,7 @@ export function useVoiceTranscriber({
       return
     }
     if (!window.isSecureContext) {
-      setError(
-        "El micrófono requiere HTTPS o localhost. Abrí la aplicación desde http://localhost:3001.",
-      )
+      setError("El micrófono requiere HTTPS o un contexto seguro.")
       return
     }
 
@@ -404,6 +411,9 @@ function captureErrorMessage(error: unknown): string {
 }
 
 function errorMessage(error: unknown, hadAudioSignal: boolean): string {
+  if (error instanceof DOMException && error.name === "AbortError") {
+    return "La transcripción tardó demasiado. Intentá nuevamente."
+  }
   const message = error instanceof Error ? error.message.trim() : ""
   if (message.includes("No se detectó voz")) {
     return noVoiceMessage(hadAudioSignal)
