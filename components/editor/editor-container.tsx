@@ -13,7 +13,11 @@ import type {
   SceneVersionDocument,
   ProseMirrorJSON,
 } from "@/types/scene"
-import { useAutosave } from "@/hooks/use-autosave"
+import {
+  useAutosave,
+  type SavedSceneResult,
+} from "@/hooks/use-autosave"
+import { requestKnowledgeRefresh } from "@/hooks/use-knowledge-refresh"
 import { RichTextEditor } from "./RichTextEditor"
 import { AnalysisToast } from "./analysis/analysis-toast"
 
@@ -47,10 +51,20 @@ function SceneEditor({
     tone: "default" | "success"
   } | null>(null)
 
+  const handleSaveComplete = useCallback(
+    (result: SavedSceneResult) => {
+      if (selectedVersionId === null && result.contentChanged) {
+        requestKnowledgeRefresh(projectId)
+      }
+    },
+    [projectId, selectedVersionId],
+  )
+
   const { saveNow } = useAutosave({
     sceneId,
     versionId: selectedVersionId,
     content,
+    onSaveComplete: handleSaveComplete,
   })
 
   const handleAnalyzeChanges = useCallback(() => {

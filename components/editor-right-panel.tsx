@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BarChart2, GitBranch, MessageSquare } from "lucide-react";
 import useSWR from "swr";
 
@@ -20,6 +20,7 @@ import {
 import { updateAuditAlert } from "@/services/audit-alerts.service";
 import { WikiPanel } from "@/components/wiki-panel";
 import { useAuditAlerts } from "@/hooks/use-audit-alerts";
+import { useKnowledgeRefresh } from "@/hooks/use-knowledge-refresh";
 import type { CreateEntityInput, Entity, UpdateEntityInput } from "@/types/entity";
 import type { EntityProposal } from "@/types/entity-proposal";
 import type { UpdateRelationshipInput } from "@/types/relationship";
@@ -43,6 +44,7 @@ const tabs = [
 ];
 
 export function EditorRightPanel({ projectId }: EditorRightPanelProps) {
+  const refreshTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [activeTab, setActiveTab] = useState<RightTab>("wiki");
   const [acceptingProposalId, setAcceptingProposalId] = useState<string | null>(
     null,
@@ -104,6 +106,49 @@ export function EditorRightPanel({ projectId }: EditorRightPanelProps) {
     isLoading: isLoadingAuditAlerts,
     mutate: mutateAuditAlerts,
   } = useAuditAlerts(projectId);
+
+  const refreshKnowledge = useCallback(() => {
+    void Promise.all([
+      mutateEntities(),
+      mutateProposals(),
+      mutateRelationshipProposals(),
+      mutateAuditAlerts(),
+    ]).catch(() => undefined);
+  }, [
+    mutateAuditAlerts,
+    mutateEntities,
+    mutateProposals,
+    mutateRelationshipProposals,
+  ]);
+
+  const scheduleKnowledgeRefresh = useCallback(() => {
+    refreshKnowledge();
+
+    if (refreshTimerRef.current) {
+      clearInterval(refreshTimerRef.current);
+    }
+
+    let remainingRefreshes = 12;
+    refreshTimerRef.current = setInterval(() => {
+      refreshKnowledge();
+      remainingRefreshes -= 1;
+
+      if (remainingRefreshes === 0 && refreshTimerRef.current) {
+        clearInterval(refreshTimerRef.current);
+        refreshTimerRef.current = null;
+      }
+    }, 5000);
+  }, [refreshKnowledge]);
+
+  useKnowledgeRefresh(projectId, scheduleKnowledgeRefresh);
+
+  useEffect(() => {
+    return () => {
+      if (refreshTimerRef.current) {
+        clearInterval(refreshTimerRef.current);
+      }
+    };
+  }, []);
 
   const handleAcceptProposal = async (
     proposal: EntityProposal,
