@@ -29,3 +29,7 @@ export async function updateStoryboardCard(
 export async function deleteStoryboardCard(id: string) {
   return api.delete<void>(`/storyboard-cards/${id}`)
 }
+
+export async function getStoryboardAudioUrl(cardId: string) {
+  return api.get<{ url: string }>(`/storyboard-cards/${cardId}/audio`)
+}

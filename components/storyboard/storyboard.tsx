@@ -30,12 +30,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { useAuth } from "@/contexts/AuthContext"
+import type { VoiceRecording } from "@/hooks/use-voice-transcriber"
 import {
   createStoryboardCard,
   deleteStoryboardCard,
   getStoryboardCards,
   updateStoryboardCard,
 } from "@/services/storyboard.service"
+import { uploadStoryboardAudio } from "@/services/upload.service"
 import { getEntities } from "@/services/entities.service"
 import { getProject } from "@/services/project.service"
 import { getRelationships } from "@/services/relationships.service"
@@ -251,18 +253,30 @@ export function Storyboard({ projectId }: StoryboardProps) {
     }
   }
 
-  const handleSave = async (input: CreateStoryboardCardInput) => {
+  const handleSave = async (
+    input: CreateStoryboardCardInput,
+    recording?: VoiceRecording,
+  ) => {
     if (!dialogState || submitting) return
 
     setSubmitting(true)
     try {
+      let savedCard: StoryboardCard
       if (dialogState.card) {
-        await updateStoryboardCard(dialogState.card.id, input)
+        savedCard = await updateStoryboardCard(dialogState.card.id, input)
       } else {
-        await createStoryboardCard(projectId, {
+        savedCard = await createStoryboardCard(projectId, {
           ...input,
           status: dialogState.status,
         })
+      }
+      if (recording) {
+        await uploadStoryboardAudio(
+          savedCard.id,
+          recording.audio,
+          recording.filename,
+          recording.durationSeconds,
+        )
       }
       await mutate()
       setDialogState(null)

@@ -17,7 +17,10 @@ import {
 import { Field, FieldContent, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { useVoiceTranscriber } from "@/hooks/use-voice-transcriber"
+import {
+  useVoiceTranscriber,
+  type VoiceRecording,
+} from "@/hooks/use-voice-transcriber"
 import type {
   CreateStoryboardCardInput,
   StoryboardCard,
@@ -29,7 +32,10 @@ type CardDialogProps = {
   entities: Entity[]
   submitting: boolean
   onClose: () => void
-  onSave: (input: CreateStoryboardCardInput) => Promise<void>
+  onSave: (
+    input: CreateStoryboardCardInput,
+    recording?: VoiceRecording,
+  ) => Promise<void>
 }
 
 export function CardDialog({
@@ -64,7 +70,10 @@ type CardDialogFormProps = {
   entities: Entity[]
   submitting: boolean
   onClose: () => void
-  onSave: (input: CreateStoryboardCardInput) => Promise<void>
+  onSave: (
+    input: CreateStoryboardCardInput,
+    recording?: VoiceRecording,
+  ) => Promise<void>
 }
 
 function CardDialogForm({
@@ -79,13 +88,20 @@ function CardDialogForm({
   const [tags, setTags] = useState<string[]>(card?.tags ?? [])
   const [entityIds, setEntityIds] = useState<string[]>(card?.entityIds ?? [])
   const [tagInput, setTagInput] = useState("")
+  const [voiceRecording, setVoiceRecording] = useState<VoiceRecording | null>(
+    null,
+  )
 
-  const handleTranscript = useCallback((text: string) => {
-    setDescription((current) =>
-      current.trim() ? `${current.trim()} ${text}` : text,
-    )
-    setTitle((current) => current.trim() || voiceTitle(text))
-  }, [])
+  const handleTranscript = useCallback(
+    (text: string, recording: VoiceRecording) => {
+      setDescription((current) =>
+        current.trim() ? `${current.trim()} ${text}` : text,
+      )
+      setTitle((current) => current.trim() || voiceTitle(text))
+      setVoiceRecording(recording)
+    },
+    [],
+  )
   const {
     supported: voiceSupported,
     isRecording,
@@ -291,7 +307,7 @@ function CardDialogForm({
               tags,
               entityIds,
               ...(card ? { status: card.status } : {}),
-            })
+            }, voiceRecording ?? undefined)
           }}
         >
           {card ? "Guardar cambios" : "Crear tarjeta"}

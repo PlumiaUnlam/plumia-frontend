@@ -11,7 +11,13 @@ import {
 import { transcribeAudio } from "@/services/speech-to-text.service"
 
 type UseVoiceTranscriberOptions = {
-  onTranscript: (text: string) => void
+  onTranscript: (text: string, recording: VoiceRecording) => void
+}
+
+export type VoiceRecording = {
+  audio: Blob
+  filename: string
+  durationSeconds: number
 }
 
 type UseVoiceTranscriberResult = {
@@ -71,6 +77,7 @@ export function useVoiceTranscriber({
   const analyserRef = useRef<AnalyserNode | null>(null)
   const animationFrameRef = useRef<number | null>(null)
   const hasAudioSignalRef = useRef(false)
+  const recordingStartedAtRef = useRef<number | null>(null)
   const onTranscriptRef = useRef(onTranscript)
 
   const refreshAudioInputDevices = useCallback(async () => {
@@ -277,7 +284,18 @@ export function useVoiceTranscriber({
       const audioType = recorder.mimeType || mimeType || "audio/webm"
       const audio = new Blob(chunksRef.current, { type: audioType })
       const hadAudioSignal = hasAudioSignalRef.current
+      const startedAt = recordingStartedAtRef.current
+      const durationSeconds = Math.max(
+        1,
+        Math.round(((performance.now() - (startedAt ?? performance.now())) / 1000)),
+      )
+      const recording: VoiceRecording = {
+        audio,
+        filename: audioFilename(audioType),
+        durationSeconds,
+      }
       chunksRef.current = []
+      recordingStartedAtRef.current = null
       recorderRef.current = null
       streamRef.current = null
       stopAudioMonitor()
@@ -291,14 +309,14 @@ export function useVoiceTranscriber({
       }
 
       setIsTranscribing(true)
-      void transcribeAudio(audio, audioFilename(audioType))
+      void transcribeAudio(audio, recording.filename)
         .then((result) => {
           const text = result.text.trim()
           if (!text) {
             setError(noVoiceMessage(hadAudioSignal))
             return
           }
-          onTranscriptRef.current(text)
+          onTranscriptRef.current(text, recording)
         })
         .catch((transcriptionError: unknown) => {
           setError(errorMessage(transcriptionError, hadAudioSignal))
@@ -311,6 +329,7 @@ export function useVoiceTranscriber({
 
     try {
       recorder.start()
+      recordingStartedAtRef.current = performance.now()
       void startAudioMonitor(stream)
       setIsRecording(true)
     } catch {
