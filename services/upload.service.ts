@@ -11,6 +11,10 @@ type PresignedDownloadByKeyResponse = {
   url: string
 }
 
+type StorageFolder = "entities" | "scenes" | "storyboard-audio"
+
+const MAX_AUDIO_UPLOAD_BYTES = 10 * 1024 * 1024
+
 async function getAuthToken(): Promise<string | undefined> {
   return auth.currentUser?.getIdToken()
 }
@@ -18,7 +22,7 @@ async function getAuthToken(): Promise<string | undefined> {
 async function requestPresignedUpload(
   entityId: string,
   file: File,
-  storageFolder: "entities" | "scenes" = "entities",
+  storageFolder: StorageFolder = "entities",
   existingImageUrl?: string,
 ): Promise<PresignedUploadResponse> {
   const token = await getAuthToken()
@@ -53,7 +57,7 @@ async function requestPresignedUpload(
   })
 
   if (!uploadRes.ok) {
-    throw new Error("Failed to upload image")
+    throw new Error("Failed to upload file")
   }
 
   return { presignedUrl, publicUrl, storageKey }
@@ -93,4 +97,29 @@ export async function uploadSceneImage(
   const url = await resolveStorageKeyUrl(upload.storageKey)
 
   return { storageKey: upload.storageKey, url }
+}
+
+export async function uploadStoryboardAudio(
+  cardId: string,
+  audio: Blob,
+  filename: string,
+  durationSeconds: number,
+): Promise<void> {
+  if (audio.size > MAX_AUDIO_UPLOAD_BYTES) {
+    throw new Error("El audio no puede superar los 10 MB.")
+  }
+
+  const file = new File([audio], filename, {
+    type: audio.type || "audio/webm",
+  })
+  const { storageKey } = await requestPresignedUpload(
+    cardId,
+    file,
+    "storyboard-audio",
+  )
+
+  await api.post(`/storyboard-cards/${cardId}/audio`, {
+    audioStorageKey: storageKey,
+    audioDurationSecs: durationSeconds,
+  })
 }

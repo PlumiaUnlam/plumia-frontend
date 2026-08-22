@@ -4,6 +4,7 @@ import type { ReactNode } from "react"
 import { Tag } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
+import { StoryboardAudioPlayer } from "@/components/storyboard/storyboard-audio-player"
 import { getEntityTypeStyle } from "@/lib/entity-category-style"
 import type { Entity } from "@/types/entity"
 import type { StoryboardCard } from "@/types/storyboard"
@@ -35,6 +36,14 @@ export function StoryboardCardBody({
         <p className="mb-3 line-clamp-3 text-xs leading-relaxed text-muted-foreground">
           {card.description || "Sin descripción"}
         </p>
+
+        {card.hasAudio ? (
+          <StoryboardAudioPlayer
+            cardId={card.id}
+            durationSeconds={card.audioDurationSecs}
+            transcript={card.description}
+          />
+        ) : null}
 
         {card.tags.length > 0 ? (
           <div className="mb-2 flex flex-wrap gap-1">

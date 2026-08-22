@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Image from "next/image";
 import {
   Loader2,
   Sparkles,
@@ -338,9 +339,12 @@ export function NewEntityModal({
     if (previewUrl) {
       return (
         <div className="relative rounded-lg overflow-hidden border border-border">
-          <img
+          <Image
             src={previewUrl}
             alt="Preview"
+            width={384}
+            height={192}
+            unoptimized
             className="w-full h-48 object-contain bg-muted"
           />
           <button
@@ -357,9 +361,12 @@ export function NewEntityModal({
     if (aiGeneratedUrl) {
       return (
         <div className="relative rounded-lg overflow-hidden border border-border">
-          <img
+          <Image
             src={aiGeneratedUrl}
             alt="AI Generated"
+            width={384}
+            height={192}
+            unoptimized
             className="w-full h-48 object-contain bg-muted"
           />
           <button

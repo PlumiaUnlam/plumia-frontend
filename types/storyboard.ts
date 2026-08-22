@@ -14,6 +14,8 @@ export type StoryboardCard = {
   tags: string[]
   characters: string[]
   entityIds: string[]
+  hasAudio: boolean
+  audioDurationSecs: number | null
   sortKey: string
   createdAt: string
   updatedAt: string
