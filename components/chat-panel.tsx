@@ -294,212 +294,226 @@ export function ChatPanel({
   }
 
   return (
-    <section
-      className={`flex min-h-0 flex-1 flex-col bg-card ${
-        isFullscreen ? "fixed inset-0 z-50 w-full" : ""
-      }`}
+    <div
+      className={
+        isFullscreen
+          ? "fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-2 backdrop-blur-[2px] sm:p-6 lg:p-10"
+          : "contents"
+      }
     >
-      <div className="relative shrink-0 border-b border-border px-3 py-3">
-        <div className="flex items-center gap-1.5">
-          <div className="flex min-w-0 flex-1 items-center gap-2 text-[11px] font-medium text-primary">
-            <Sparkles className="size-3.5 shrink-0" />
-            <span className="min-w-0 truncate">
-              {currentThread?.title || "Nueva conversación"}
-            </span>
+      <section
+        className={`flex min-h-0 flex-col bg-card ${
+          isFullscreen
+            ? "h-full max-h-[calc(100vh-1rem)] w-full max-w-5xl flex-none overflow-hidden rounded-2xl border border-border shadow-2xl sm:max-h-[calc(100vh-3rem)] sm:rounded-3xl"
+            : "flex-1"
+        }`}
+      >
+        <div className="relative shrink-0 border-b border-border px-3 py-3">
+          <div className="flex items-center gap-1.5">
+            <div className="flex min-w-0 flex-1 items-center gap-2 text-[11px] font-medium text-primary">
+              <Sparkles className="size-3.5 shrink-0" />
+              <span className="min-w-0 truncate">
+                {currentThread?.title || "Nueva conversación"}
+              </span>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => setIsHistoryOpen((open) => !open)}
+              aria-label="Abrir historial de conversaciones"
+              aria-expanded={isHistoryOpen}
+              title="Historial de conversaciones"
+              className={`size-7 rounded-lg ${
+                isHistoryOpen
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground"
+              }`}
+            >
+              <Clock3 className="size-3.5" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => void selectThread("new")}
+              aria-label="Nueva conversación"
+              title="Nueva conversación"
+              className="size-7 rounded-lg text-muted-foreground"
+            >
+              <Plus className="size-3.5" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              disabled={!currentThread}
+              onClick={() => void toggleAntiSpoiler()}
+              aria-label={
+                currentThread?.antiSpoilerEnabled
+                  ? "Desactivar filtro anti-spoiler"
+                  : "Activar filtro anti-spoiler"
+              }
+              aria-pressed={currentThread?.antiSpoilerEnabled ?? true}
+              title={
+                currentThread?.antiSpoilerEnabled
+                  ? "Anti-spoiler activo"
+                  : "Anti-spoiler desactivado"
+              }
+              className="size-7 rounded-lg text-muted-foreground"
+            >
+              {currentThread?.antiSpoilerEnabled === false ? (
+                <ShieldOff className="size-3.5" />
+              ) : (
+                <ShieldCheck className="size-3.5" />
+              )}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => setIsFullscreen((fullscreen) => !fullscreen)}
+              aria-label={
+                isFullscreen ? "Salir de pantalla completa" : "Pantalla completa"
+              }
+              title={
+                isFullscreen ? "Salir de pantalla completa" : "Pantalla completa"
+              }
+              className="size-7 rounded-lg text-muted-foreground"
+            >
+              {isFullscreen ? (
+                <Minimize2 className="size-3.5" />
+              ) : (
+                <Maximize2 className="size-3.5" />
+              )}
+            </Button>
           </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            onClick={() => setIsHistoryOpen((open) => !open)}
-            aria-label="Abrir historial de conversaciones"
-            aria-expanded={isHistoryOpen}
-            title="Historial de conversaciones"
-            className={`size-7 rounded-lg ${
-              isHistoryOpen
-                ? "bg-primary/10 text-primary"
-                : "text-muted-foreground"
-            }`}
-          >
-            <Clock3 className="size-3.5" />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            onClick={() => void selectThread("new")}
-            aria-label="Nueva conversación"
-            title="Nueva conversación"
-            className="size-7 rounded-lg text-muted-foreground"
-          >
-            <Plus className="size-3.5" />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            disabled={!currentThread}
-            onClick={() => void toggleAntiSpoiler()}
-            aria-label={
-              currentThread?.antiSpoilerEnabled
-                ? "Desactivar filtro anti-spoiler"
-                : "Activar filtro anti-spoiler"
-            }
-            aria-pressed={currentThread?.antiSpoilerEnabled ?? true}
-            title={
-              currentThread?.antiSpoilerEnabled
-                ? "Anti-spoiler activo"
-                : "Anti-spoiler desactivado"
-            }
-            className="size-7 rounded-lg text-muted-foreground"
-          >
-            {currentThread?.antiSpoilerEnabled === false ? (
-              <ShieldOff className="size-3.5" />
-            ) : (
-              <ShieldCheck className="size-3.5" />
-            )}
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            onClick={() => setIsFullscreen((fullscreen) => !fullscreen)}
-            aria-label={
-              isFullscreen ? "Salir de pantalla completa" : "Pantalla completa"
-            }
-            title={
-              isFullscreen ? "Salir de pantalla completa" : "Pantalla completa"
-            }
-            className="size-7 rounded-lg text-muted-foreground"
-          >
-            {isFullscreen ? (
-              <Minimize2 className="size-3.5" />
-            ) : (
-              <Maximize2 className="size-3.5" />
-            )}
-          </Button>
+          <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
+            Las respuestas se basan en tu obra y muestran las fuentes utilizadas.
+          </p>
+          {isHistoryOpen && (
+            <ChatHistoryMenu
+              threads={threads}
+              currentThreadId={threadId}
+              onSelectThread={(nextThreadId) => void selectThread(nextThreadId)}
+              onNewThread={() => void selectThread("new")}
+            />
+          )}
         </div>
-        <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
-          Las respuestas se basan en tu obra y muestran las fuentes utilizadas.
-        </p>
-        {isHistoryOpen && (
-          <ChatHistoryMenu
-            threads={threads}
-            currentThreadId={threadId}
-            onSelectThread={(nextThreadId) => void selectThread(nextThreadId)}
-            onNewThread={() => void selectThread("new")}
-          />
-        )}
-      </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4">
-        {isLoading ? (
-          <ChatLoadingState />
-        ) : messages.length === 0 ? (
-          <EmptyChatState onSuggestion={setDraft} />
-        ) : (
-          <div className="space-y-4">
-            {messages
-              .filter((message) => message.role !== "system")
-              .map((message) => (
-                <ChatBubble
-                  key={message.id}
-                  message={message}
-                  projectId={projectId}
-                  primaryImageUrls={primaryImageUrls}
-                />
-              ))}
-            {isSending && <ThinkingBubble />}
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4 sm:px-6 sm:py-6">
+          <div className="mx-auto w-full max-w-3xl">
+            {isLoading ? (
+              <ChatLoadingState />
+            ) : messages.length === 0 ? (
+              <EmptyChatState onSuggestion={setDraft} />
+            ) : (
+              <div className="space-y-4">
+                {messages
+                  .filter((message) => message.role !== "system")
+                  .map((message) => (
+                    <ChatBubble
+                      key={message.id}
+                      message={message}
+                      projectId={projectId}
+                      primaryImageUrls={primaryImageUrls}
+                    />
+                  ))}
+                {isSending && <ThinkingBubble />}
+              </div>
+            )}
+            <div ref={endRef} />
           </div>
-        )}
-        <div ref={endRef} />
-      </div>
+        </div>
 
       <form
         onSubmit={handleSubmit}
-        className="shrink-0 border-t border-border bg-card p-3"
+        className="shrink-0 border-t border-border bg-card px-3 py-3 sm:px-6 sm:py-4"
       >
-        {error && (
-          <div
-            role="alert"
-            className="mb-2 flex items-start gap-2 rounded-lg border border-destructive/20 bg-destructive/5 px-2.5 py-2 text-[10px] leading-relaxed text-destructive"
-          >
-            <RefreshCw className="mt-0.5 size-3 shrink-0" />
-            {error}
-          </div>
-        )}
-        <div className="rounded-2xl border border-border bg-muted/70 p-2 transition-colors focus-within:border-primary/40 focus-within:bg-background focus-within:ring-2 focus-within:ring-primary/10">
-          <textarea
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && !event.shiftKey) {
-                event.preventDefault()
-                event.currentTarget.form?.requestSubmit()
-              }
-            }}
-            rows={1}
-            maxLength={4000}
-            disabled={isSending}
-            aria-label="Pregunta sobre tu obra"
-            placeholder="Pregunta sobre tu obra..."
-            className="max-h-28 min-h-9 w-full resize-none overflow-y-auto bg-transparent px-1 py-1 text-[11px] leading-relaxed text-foreground outline-none placeholder:text-muted-foreground [scrollbar-width:none] [&::-webkit-scrollbar]:hidden disabled:opacity-60"
-          />
-          <div className="mt-1 flex items-center justify-between gap-2">
-            <span className="px-1 text-[9px] text-muted-foreground">
-              PlumIA · fuentes de tu proyecto
-            </span>
-            <div className="flex items-center gap-1">
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                disabled={!speechSupported || isSending}
-                onClick={toggleVoiceInput}
-                aria-label={
-                  isListening ? "Detener dictado" : "Dictar pregunta"
+        <div className="mx-auto w-full max-w-3xl">
+          {error && (
+            <div
+              role="alert"
+              className="mb-2 flex items-start gap-2 rounded-lg border border-destructive/20 bg-destructive/5 px-2.5 py-2 text-[10px] leading-relaxed text-destructive"
+            >
+              <RefreshCw className="mt-0.5 size-3 shrink-0" />
+              {error}
+            </div>
+          )}
+          <div className="rounded-2xl border border-border bg-muted/70 p-2 transition-colors focus-within:border-primary/40 focus-within:bg-background focus-within:ring-2 focus-within:ring-primary/10">
+            <textarea
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && !event.shiftKey) {
+                  event.preventDefault()
+                  event.currentTarget.form?.requestSubmit()
                 }
-                aria-pressed={isListening}
-                title={
-                  speechSupported
-                    ? isListening
-                      ? "Detener dictado"
-                      : "Dictar pregunta"
-                    : "El navegador no admite dictado por voz"
-                }
-                className={
-                  isListening
-                    ? "animate-pulse rounded-xl bg-primary/15 text-primary"
-                    : "rounded-xl text-muted-foreground"
-                }
-              >
-                {isListening ? (
-                  <Square className="size-3.5 fill-current" />
-                ) : speechSupported ? (
-                  <Mic className="size-3.5" />
-                ) : (
-                  <MicOff className="size-3.5" />
-                )}
-              </Button>
-              <Button
-                type="submit"
-                size="icon-sm"
-                disabled={!draft.trim() || isSending}
-                aria-label="Enviar consulta"
-                className="rounded-xl"
-              >
-                <Send className="size-3.5" />
-              </Button>
+              }}
+              rows={1}
+              maxLength={4000}
+              disabled={isSending}
+              aria-label="Pregunta sobre tu obra"
+              placeholder="Pregunta sobre tu obra..."
+              className="max-h-28 min-h-9 w-full resize-none overflow-y-auto bg-transparent px-1 py-1 text-[11px] leading-relaxed text-foreground outline-none placeholder:text-muted-foreground [scrollbar-width:none] [&::-webkit-scrollbar]:hidden disabled:opacity-60"
+            />
+            <div className="mt-1 flex items-center justify-between gap-2">
+              <span className="px-1 text-[9px] text-muted-foreground">
+                PlumIA · fuentes de tu proyecto
+              </span>
+              <div className="flex items-center gap-1">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  disabled={!speechSupported || isSending}
+                  onClick={toggleVoiceInput}
+                  aria-label={
+                    isListening ? "Detener dictado" : "Dictar pregunta"
+                  }
+                  aria-pressed={isListening}
+                  title={
+                    speechSupported
+                      ? isListening
+                        ? "Detener dictado"
+                        : "Dictar pregunta"
+                      : "El navegador no admite dictado por voz"
+                  }
+                  className={
+                    isListening
+                      ? "animate-pulse rounded-xl bg-primary/15 text-primary"
+                      : "rounded-xl text-muted-foreground"
+                  }
+                >
+                  {isListening ? (
+                    <Square className="size-3.5 fill-current" />
+                  ) : speechSupported ? (
+                    <Mic className="size-3.5" />
+                  ) : (
+                    <MicOff className="size-3.5" />
+                  )}
+                </Button>
+                <Button
+                  type="submit"
+                  size="icon-sm"
+                  disabled={!draft.trim() || isSending}
+                  aria-label="Enviar consulta"
+                  className="rounded-xl"
+                >
+                  <Send className="size-3.5" />
+                </Button>
+              </div>
             </div>
           </div>
+          <p className="mt-1.5 text-center text-[9px] text-muted-foreground">
+            {isListening
+              ? "Escuchando… hablá con naturalidad"
+              : "Enter para enviar · Shift + Enter para nueva línea"}
+          </p>
         </div>
-        <p className="mt-1.5 text-center text-[9px] text-muted-foreground">
-          {isListening
-            ? "Escuchando… hablá con naturalidad"
-            : "Enter para enviar · Shift + Enter para nueva línea"}
-        </p>
       </form>
-    </section>
+      </section>
+    </div>
   )
 }
 

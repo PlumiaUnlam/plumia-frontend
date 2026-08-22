@@ -80,6 +80,15 @@ import type {
 
 type WorldbuildingTab = "wiki" | "relationships" | "timeline" | "summaries";
 
+function isWorldbuildingTab(value: string | null): value is WorldbuildingTab {
+  return (
+    value === "wiki" ||
+    value === "relationships" ||
+    value === "timeline" ||
+    value === "summaries"
+  );
+}
+
 type WorldbuildingProps = {
   projectId: string;
 };
@@ -100,6 +109,7 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
   const shouldFetch = !!projectId && !loading && !!firebaseUser;
   const searchParams = useSearchParams();
   const entityIdParam = searchParams.get("entityId");
+  const tabParam = searchParams.get("tab");
 
   const tabs = [
     { id: "wiki" as const, label: "Wiki del Universo", icon: Star },
@@ -108,7 +118,9 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
     { id: "summaries" as const, label: "Resúmenes", icon: FileText },
   ];
 
-  const [activeTab, setActiveTab] = useState<WorldbuildingTab>("wiki");
+  const [activeTab, setActiveTab] = useState<WorldbuildingTab>(
+    isWorldbuildingTab(tabParam) ? tabParam : "wiki",
+  );
   const [showNewEntityModal, setShowNewEntityModal] = useState(false);
   const [showNewRelationModal, setShowNewRelationModal] = useState(false);
   const [editingRelationship, setEditingRelationship] =
@@ -129,6 +141,13 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
     if (entityIdParam) {
       setSelectedEntityId(entityIdParam);
       setActiveTab("wiki");
+    }
+  }
+  const [lastTabParam, setLastTabParam] = useState(tabParam);
+  if (tabParam !== lastTabParam) {
+    setLastTabParam(tabParam);
+    if (isWorldbuildingTab(tabParam)) {
+      setActiveTab(tabParam);
     }
   }
   const [deleteConfirmEntity, setDeleteConfirmEntity] = useState<Entity | null>(
