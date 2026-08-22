@@ -11,10 +11,10 @@ import type {
 const DEBOUNCE_MS = 30000
 const MAX_RETRIES = 3
 
-type SaveResult = SaveSceneResult | SaveSceneVersionResult
+export type SavedSceneResult = SaveSceneResult | SaveSceneVersionResult
 
 export type AutosaveResult =
-  | { status: "saved"; result: SaveResult }
+  | { status: "saved"; result: SavedSceneResult }
   | { status: "unchanged" }
   | { status: "failed" }
 
@@ -22,13 +22,19 @@ type UseAutosaveArgs = {
   sceneId: string
   versionId?: string | null
   content: ProseMirrorJSON | null
+  onSaveComplete?: (result: SavedSceneResult) => void
 }
 
 /**
  * Saves the full scene with debounce and exposes the same save path to the UI.
  * Only one request is active at a time; newer editor content is saved next.
  */
-export function useAutosave({ sceneId, versionId, content }: UseAutosaveArgs) {
+export function useAutosave({
+  sceneId,
+  versionId,
+  content,
+  onSaveComplete,
+}: UseAutosaveArgs) {
   const setSaveStatus = useEditorStore((state) => state.setSaveStatus)
   const markSaved = useEditorStore((state) => state.markSaved)
   const setError = useEditorStore((state) => state.setError)
@@ -78,6 +84,7 @@ export function useAutosave({ sceneId, versionId, content }: UseAutosaveArgs) {
         retriesRef.current = 0
         markSaved(result.updatedAt)
         savingRef.current = false
+        onSaveComplete?.(result)
 
         if (JSON.stringify(latestRef.current) !== serialized) {
           return runSaveRef.current()
@@ -109,7 +116,7 @@ export function useAutosave({ sceneId, versionId, content }: UseAutosaveArgs) {
         inFlightRef.current = null
       }
     }
-  }, [markSaved, sceneId, setError, setSaveStatus, versionId])
+  }, [markSaved, onSaveComplete, sceneId, setError, setSaveStatus, versionId])
 
   useEffect(() => {
     runSaveRef.current = runSave
