@@ -30,12 +30,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { useAuth } from "@/contexts/AuthContext"
+import type { VoiceRecording } from "@/hooks/use-voice-transcriber"
 import {
   createStoryboardCard,
   deleteStoryboardCard,
   getStoryboardCards,
   updateStoryboardCard,
 } from "@/services/storyboard.service"
+import { uploadStoryboardAudio } from "@/services/upload.service"
 import { getEntities } from "@/services/entities.service"
 import { getProject } from "@/services/project.service"
 import { getRelationships } from "@/services/relationships.service"
@@ -154,6 +156,7 @@ export function Storyboard({ projectId }: StoryboardProps) {
   const [activeCardId, setActiveCardId] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<StoryboardViewMode>("kanban")
   const [submitting, setSubmitting] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   const {
     data: cards,
@@ -251,18 +254,35 @@ export function Storyboard({ projectId }: StoryboardProps) {
     }
   }
 
-  const handleSave = async (input: CreateStoryboardCardInput) => {
+  const handleSave = async (
+    input: CreateStoryboardCardInput,
+    recording?: VoiceRecording,
+  ) => {
     if (!dialogState || submitting) return
 
     setSubmitting(true)
+    setSaveError(null)
     try {
+      let savedCard: StoryboardCard
       if (dialogState.card) {
-        await updateStoryboardCard(dialogState.card.id, input)
+        savedCard = await updateStoryboardCard(dialogState.card.id, input)
       } else {
-        await createStoryboardCard(projectId, {
+        savedCard = await createStoryboardCard(projectId, {
           ...input,
           status: dialogState.status,
         })
+      }
+      if (recording) {
+        try {
+          await uploadStoryboardAudio(
+            savedCard.id,
+            recording.audio,
+            recording.filename,
+            recording.durationSeconds,
+          )
+        } catch (error: unknown) {
+          setSaveError(audioUploadErrorMessage(error))
+        }
       }
       await mutate()
       setDialogState(null)
@@ -325,6 +345,15 @@ export function Storyboard({ projectId }: StoryboardProps) {
             </div>
           </div>
         </div>
+
+        {saveError ? (
+          <div
+            className="mx-4 mt-4 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
+            role="alert"
+          >
+            {saveError}
+          </div>
+        ) : null}
 
         {viewMode === "kanban" ? (
           <DndContext
@@ -427,4 +456,11 @@ export function Storyboard({ projectId }: StoryboardProps) {
       </Dialog>
     </div>
   )
+}
+
+function audioUploadErrorMessage(error: unknown): string {
+  const detail = error instanceof Error ? error.message.trim() : ""
+  return detail
+    ? `La tarjeta se guardó, pero no se pudo guardar la nota de voz: ${detail}`
+    : "La tarjeta se guardó, pero no se pudo guardar la nota de voz."
 }
