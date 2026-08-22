@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { Tag } from "lucide-react"
+import { useCallback, useState } from "react"
+import { Loader2, Mic, MicOff, Square, Tag } from "lucide-react"
 
 import { ChipEditor } from "@/components/storyboard/chip-editor"
 import { EntitySelector } from "@/components/storyboard/entity-selector"
@@ -17,6 +17,7 @@ import {
 import { Field, FieldContent, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
+import { useVoiceTranscriber } from "@/hooks/use-voice-transcriber"
 import type {
   CreateStoryboardCardInput,
   StoryboardCard,
@@ -79,6 +80,21 @@ function CardDialogForm({
   const [entityIds, setEntityIds] = useState<string[]>(card?.entityIds ?? [])
   const [tagInput, setTagInput] = useState("")
 
+  const handleTranscript = useCallback((text: string) => {
+    setDescription((current) =>
+      current.trim() ? `${current.trim()} ${text}` : text,
+    )
+    setTitle((current) => current.trim() || voiceTitle(text))
+  }, [])
+  const {
+    supported: voiceSupported,
+    isRecording,
+    isTranscribing,
+    error: voiceError,
+    start: startVoiceRecording,
+    stop: stopVoiceRecording,
+  } = useVoiceTranscriber({ onTranscript: handleTranscript })
+
   const addValue = (
     value: string,
     values: string[],
@@ -128,6 +144,53 @@ function CardDialogForm({
           </FieldContent>
         </Field>
 
+        <div className="rounded-lg border border-dashed border-border bg-muted/30 p-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-sm font-medium">Registrar por voz</p>
+              <p className="text-xs text-muted-foreground">
+                La transcripción se agregará a la descripción de la tarjeta.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant={isRecording ? "destructive" : "outline"}
+              disabled={
+                !voiceSupported || isTranscribing || submitting
+              }
+              onClick={() => {
+                if (isRecording) {
+                  stopVoiceRecording()
+                } else {
+                  void startVoiceRecording()
+                }
+              }}
+            >
+              {isTranscribing ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : isRecording ? (
+                <Square className="size-3.5 fill-current" />
+              ) : voiceSupported ? (
+                <Mic className="size-4" />
+              ) : (
+                <MicOff className="size-4" />
+              )}
+              {isTranscribing
+                ? "Transcribiendo..."
+                : isRecording
+                  ? "Detener grabación"
+                  : voiceSupported
+                    ? "Grabar nota de voz"
+                    : "Micrófono no disponible"}
+            </Button>
+          </div>
+          {voiceError ? (
+            <p className="mt-2 text-xs text-destructive" role="alert">
+              {voiceError}
+            </p>
+          ) : null}
+        </div>
+
         <ChipEditor
           label="Etiquetas narrativas"
           placeholder="Ej: Acción, Misterio..."
@@ -147,11 +210,17 @@ function CardDialogForm({
       </div>
 
       <DialogFooter>
-        <Button variant="outline" disabled={submitting} onClick={onClose}>
+        <Button
+          variant="outline"
+          disabled={submitting || isRecording || isTranscribing}
+          onClick={onClose}
+        >
           Cancelar
         </Button>
         <Button
-          disabled={!title.trim() || submitting}
+          disabled={
+            !title.trim() || submitting || isRecording || isTranscribing
+          }
           onClick={() => {
             void onSave({
               title: title.trim(),
@@ -167,4 +236,10 @@ function CardDialogForm({
       </DialogFooter>
     </>
   )
+}
+
+function voiceTitle(text: string): string {
+  const firstSentence = text.split(/[.!?]/u)[0]?.trim() ?? ""
+  const title = firstSentence || text.trim()
+  return title.slice(0, 200) || "Idea registrada por voz"
 }

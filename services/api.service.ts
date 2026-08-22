@@ -24,9 +24,11 @@ async function request<T>(
   options: RequestInit = {},
 ): Promise<T> {
   const token = await getToken()
+  const isFormDataBody =
+    typeof FormData !== "undefined" && options.body instanceof FormData
   const headers: Record<string, string> = {
     Accept: "application/json",
-    "Content-Type": "application/json",
+    ...(isFormDataBody ? {} : { "Content-Type": "application/json" }),
     ...(options.headers as Record<string, string> | undefined),
     Authorization: `Bearer ${token}`,
   }
@@ -66,6 +68,8 @@ export const api = {
   get: <T>(path: string) => request<T>(path), 
   post: <T>(path: string, body: unknown) =>
     request<T>(path, { method: "POST", body: JSON.stringify(body) }),
+  postFormData: <T>(path: string, body: FormData) =>
+    request<T>(path, { method: "POST", body }),
   patch: <T>(path: string, body: unknown) =>
     request<T>(path, { method: "PATCH", body: JSON.stringify(body) }),
   delete: <T>(path: string) => request<T>(path, { method: "DELETE" }),
