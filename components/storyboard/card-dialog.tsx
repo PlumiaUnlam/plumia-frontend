@@ -348,10 +348,13 @@ function VoiceRecorderSection({
         </div>
       )}
       {hasPendingRecording && !isRecording && !isTranscribing && (
-        <p className="mt-2 text-xs text-muted-foreground" role="status">
+        <output
+          className="mt-2 text-xs text-muted-foreground"
+          aria-live="polite"
+        >
           Ya hay una nota de voz pendiente. Solo se guardará esa grabación al
           guardar la tarjeta.
-        </p>
+        </output>
       )}
       {supported && audioInputDevices.length > 0 && (
         <div className="mt-3 flex items-center gap-2">
