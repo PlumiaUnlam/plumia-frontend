@@ -59,6 +59,8 @@ export function EditorRightPanel({
   const [actionError, setActionError] = useState<string | null>(null);
   const [entityActionFeedback, setEntityActionFeedback] =
     useState<EntityActionFeedback | null>(null);
+  const shouldLoadEntityData = activeTab === "wiki" || activeTab === "chat";
+  const shouldLoadWikiData = activeTab === "wiki";
 
   const {
     data: entities,
@@ -66,7 +68,9 @@ export function EditorRightPanel({
     isLoading,
     mutate: mutateEntities,
   } = useSWR(
-    projectId ? `/knowledge/entities?projectId=${projectId}` : null,
+    projectId && shouldLoadEntityData
+      ? `/knowledge/entities?projectId=${projectId}`
+      : null,
     () => getEntities(projectId),
   );
   const entityIds = useMemo(
@@ -74,7 +78,7 @@ export function EditorRightPanel({
     [entities],
   );
   const primaryImagesKey =
-    projectId && entityIds.length > 0
+    projectId && shouldLoadEntityData && entityIds.length > 0
       ? `/publishing/images/primary?entityIds=${encodeURIComponent(entityIds.join(","))}`
       : null;
   const { data: primaryImageUrls = {} } = useSWR(primaryImagesKey, () =>
@@ -86,7 +90,9 @@ export function EditorRightPanel({
     isLoading: isLoadingRelationshipProposals,
     mutate: mutateRelationshipProposals,
   } = useSWR(
-    projectId ? `/v1/projects/${projectId}/relationship-proposals` : null,
+    projectId && shouldLoadWikiData
+      ? `/v1/projects/${projectId}/relationship-proposals`
+      : null,
     () => getRelationshipProposals(projectId),
   );
   const {
@@ -94,8 +100,11 @@ export function EditorRightPanel({
     error: proposalsError,
     isLoading: isLoadingProposals,
     mutate: mutateProposals,
-  } = useSWR(projectId ? `/v1/projects/${projectId}/proposals` : null, () =>
-    getEntityProposals(projectId),
+  } = useSWR(
+    projectId && shouldLoadWikiData
+      ? `/v1/projects/${projectId}/proposals`
+      : null,
+    () => getEntityProposals(projectId),
   );
 
   const handleAcceptProposal = async (

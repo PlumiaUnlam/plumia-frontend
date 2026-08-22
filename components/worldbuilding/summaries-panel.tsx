@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Album,
   AlertCircle,
@@ -58,22 +58,46 @@ function toSummaryView(summary: SummaryResponse): SummaryView {
   };
 }
 
-function wait(ms: number) {
-  return new Promise((resolve) => window.setTimeout(resolve, ms));
+function createAbortError() {
+  const error = new Error("Operation aborted");
+  error.name = "AbortError";
+  return error;
 }
 
-async function waitForSummaryJob(jobId: string) {
+function isAbortError(error: unknown) {
+  return error instanceof Error && error.name === "AbortError";
+}
+
+function wait(ms: number, signal: AbortSignal) {
+  if (signal.aborted) return Promise.reject(createAbortError());
+
+  return new Promise<void>((resolve, reject) => {
+    const timeoutId = window.setTimeout(() => {
+      signal.removeEventListener("abort", abort);
+      resolve();
+    }, ms);
+    const abort = () => {
+      window.clearTimeout(timeoutId);
+      signal.removeEventListener("abort", abort);
+      reject(createAbortError());
+    };
+
+    signal.addEventListener("abort", abort, { once: true });
+  });
+}
+
+async function waitForSummaryJob(jobId: string, signal: AbortSignal) {
   const deadline = Date.now() + SUMMARY_JOB_TIMEOUT_MS;
 
   while (Date.now() < deadline) {
-    const job = await getSummaryJob(jobId);
+    const job = await getSummaryJob(jobId, { signal });
 
     if (job.status === "COMPLETED") return;
     if (job.status === "FAILED") {
       throw new Error(job.errorMessage ?? "No se pudo generar el resumen");
     }
 
-    await wait(SUMMARY_JOB_POLL_MS);
+    await wait(SUMMARY_JOB_POLL_MS, signal);
   }
 
   throw new Error("El resumen sigue en proceso. Intentalo nuevamente en unos minutos.");
@@ -88,6 +112,8 @@ export function SummariesPanel({
   const [generatingIds, setGeneratingIds] = useState<Set<string>>(new Set());
   const [summaries, setSummaries] = useState<Record<string, SummaryView>>({});
   const [summaryError, setSummaryError] = useState<string | null>(null);
+  const generationAbortRef = useRef<AbortController | null>(null);
+  const generationTimersRef = useRef<Set<number>>(new Set());
 
   const activeChapter =
     chapters.find((chapter) => chapter.id === activeChapterId) ?? null;
@@ -105,19 +131,39 @@ export function SummariesPanel({
   );
 
   useEffect(() => {
+    const controller = new AbortController();
+    const generationTimers = generationTimersRef.current;
+    generationAbortRef.current = controller;
+
+    return () => {
+      controller.abort();
+      generationTimers.forEach((timerId) => {
+        window.clearTimeout(timerId);
+      });
+      generationTimers.clear();
+      if (generationAbortRef.current === controller) {
+        generationAbortRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     if (loading || error || chapters.length === 0) return;
 
     let cancelled = false;
+    const controller = new AbortController();
 
     async function loadSummaries() {
       const results = await Promise.all(
         chapters.map(async (chapter) => ({
           chapterId: chapter.id,
-          summary: await getChapterSummary(chapter.id),
+          summary: await getChapterSummary(chapter.id, {
+            signal: controller.signal,
+          }),
         })),
       );
 
-      if (cancelled) return;
+      if (cancelled || controller.signal.aborted) return;
 
       setSummaries((current) => {
         const next = { ...current };
@@ -133,7 +179,7 @@ export function SummariesPanel({
     }
 
     void loadSummaries().catch((loadError: unknown) => {
-      if (!cancelled) {
+      if (!cancelled && !controller.signal.aborted) {
         setSummaryError(
           loadError instanceof Error
             ? loadError.message
@@ -144,34 +190,47 @@ export function SummariesPanel({
 
     return () => {
       cancelled = true;
+      controller.abort();
     };
   }, [chapters, error, loading]);
 
   const handleGenerate = async (chapter: SummaryChapter) => {
+    const generationController = generationAbortRef.current;
+    if (!generationController || generationController.signal.aborted) return;
+    const signal = generationController.signal;
+
     setSummaryError(null);
     setGeneratingIds((current) => new Set(current).add(chapter.id));
     setActiveChapterId(chapter.id);
 
     try {
-      const job = await generateChapterSummary(chapter.id);
+      const job = await generateChapterSummary(chapter.id, { signal });
       if (job.status !== "COMPLETED") {
-        await waitForSummaryJob(job.id);
+        await waitForSummaryJob(job.id, signal);
       }
-      const summary = await getChapterSummary(chapter.id);
+      if (signal?.aborted) return;
+
+      const summary = await getChapterSummary(chapter.id, { signal });
       if (!summary) {
         throw new Error("El backend no devolvió el resumen generado.");
       }
+      if (signal?.aborted) return;
+
       setSummaries((current) => ({
         ...current,
         [chapter.id]: toSummaryView(summary),
       }));
     } catch (generateError) {
+      if (signal?.aborted || isAbortError(generateError)) return;
+
       setSummaryError(
         generateError instanceof Error
           ? generateError.message
           : "No se pudo generar el resumen.",
       );
     } finally {
+      if (signal?.aborted) return;
+
       setGeneratingIds((current) => {
         const next = new Set(current);
         next.delete(chapter.id);
@@ -185,13 +244,21 @@ export function SummariesPanel({
   };
 
   const handleGenerateAll = () => {
+    const generationController = generationAbortRef.current;
+    if (!generationController || generationController.signal.aborted) return;
+    const signal = generationController.signal;
+
     chapters
       .filter(
         (chapter) =>
           !summaries[chapter.id] && !generatingIds.has(chapter.id),
       )
       .forEach((chapter, index) => {
-        window.setTimeout(() => void handleGenerate(chapter), index * 250);
+        const timerId = window.setTimeout(() => {
+          generationTimersRef.current.delete(timerId);
+          if (!signal?.aborted) void handleGenerate(chapter);
+        }, index * 250);
+        generationTimersRef.current.add(timerId);
       });
   };
 

@@ -137,24 +137,36 @@ export function EditorContainer({
 
   useEffect(() => {
     let cancelled = false
+    const controller = new AbortController()
     void (async () => {
       setDocument(null)
       const request = selectedVersionId
-        ? getSceneVersion(sceneId, selectedVersionId)
-        : getScene(sceneId)
+        ? getSceneVersion(sceneId, selectedVersionId, {
+            signal: controller.signal,
+          })
+        : getScene(sceneId, { signal: controller.signal })
 
-      const doc = await request
-      const resolvedContent = await resolveSceneContentImages(doc.content)
-
-      if (!cancelled) {
-        setDocument({
-          ...doc,
-          content: resolvedContent,
+      try {
+        const doc = await request
+        const resolvedContent = await resolveSceneContentImages(doc.content, {
+          signal: controller.signal,
         })
+
+        if (!cancelled && !controller.signal.aborted) {
+          setDocument({
+            ...doc,
+            content: resolvedContent,
+          })
+        }
+      } catch (error) {
+        if (!cancelled && !isAbortError(error)) {
+          console.error("Error loading scene:", error)
+        }
       }
     })()
     return () => {
       cancelled = true
+      controller.abort()
     }
   }, [sceneId, selectedVersionId, documentReloadToken])
 
@@ -183,4 +195,8 @@ export function EditorContainer({
       projectId={projectId}
     />
   )
+}
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof Error && error.name === "AbortError"
 }

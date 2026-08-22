@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useRef, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
+import dynamic from "next/dynamic";
 import {
   Loader2,
   Plus,
@@ -14,15 +15,9 @@ import useSWR from "swr";
 import useSWRMutation from "swr/mutation";
 
 import { Header } from "../header";
-import { RelationshipsPanel } from "./relationships-panel";
-import { SummariesPanel } from "./summaries-panel";
-import { TimelinePanel } from "./timeline-panel";
 import { WikiTab } from "./wiki-panel";
 import { worldbuildingEntitiesMock } from "@/mocks/worldbuilding.mock";
 
-import { NewEntityModal } from "@/components/modal/new-entity-modal";
-import { NewRelationModal } from "@/components/modal/new-relation-modal";
-import { ImageGenerationModal } from "@/components/modal/image-generation-modal";
 import { ImageReviewModal } from "@/components/modal/image-review-modal";
 
 import { Button } from "@/components/ui/button";
@@ -103,6 +98,43 @@ type ImageReviewState = {
 const IMAGE_POLL_INTERVAL_MS = 1500;
 const MAX_IMAGE_POLL_FAILURES = 3;
 const MAX_IMAGE_POLL_ATTEMPTS = 80;
+
+const NewEntityModal = dynamic(
+  () =>
+    import("@/components/modal/new-entity-modal").then(
+      (module) => module.NewEntityModal,
+    ),
+  { ssr: false },
+);
+const NewRelationModal = dynamic(
+  () =>
+    import("@/components/modal/new-relation-modal").then(
+      (module) => module.NewRelationModal,
+    ),
+  { ssr: false },
+);
+const ImageGenerationModal = dynamic(
+  () =>
+    import("@/components/modal/image-generation-modal").then(
+      (module) => module.ImageGenerationModal,
+    ),
+  { ssr: false },
+);
+const RelationshipsPanel = dynamic(
+  () =>
+    import("./relationships-panel").then(
+      (module) => module.RelationshipsPanel,
+    ),
+  { ssr: false },
+);
+const TimelinePanel = dynamic(
+  () => import("./timeline-panel").then((module) => module.TimelinePanel),
+  { ssr: false },
+);
+const SummariesPanel = dynamic(
+  () => import("./summaries-panel").then((module) => module.SummariesPanel),
+  { ssr: false },
+);
 
 export function Worldbuilding({ projectId }: WorldbuildingProps) {
   const { loading, firebaseUser } = useAuth();
@@ -200,8 +232,9 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
     data: project,
     error: projectError,
     isLoading: isLoadingProject,
-  } = useSWR(shouldFetch ? `/projects/${projectId}` : null, () =>
-    getProject(projectId),
+  } = useSWR(
+    shouldFetch && activeTab === "summaries" ? `/projects/${projectId}` : null,
+    () => getProject(projectId),
   );
 
   const {
@@ -210,7 +243,9 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
     isLoading: isLoadingRelationships,
     mutate: mutateRelationships,
   } = useSWR(
-    shouldFetch ? `/knowledge/relationships?projectId=${projectId}` : null,
+    shouldFetch && activeTab === "relationships"
+      ? `/knowledge/relationships?projectId=${projectId}`
+      : null,
     () => getRelationships(projectId),
   );
 
@@ -250,7 +285,7 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
     [entities],
   );
   const primaryImagesKey =
-    shouldFetch && entityIds.length > 0
+    shouldFetch && activeTab === "wiki" && entityIds.length > 0
       ? `/publishing/images/primary?entityIds=${encodeURIComponent(entityIds.join(","))}`
       : null;
   const { data: primaryImageUrls = {}, mutate: mutatePrimaryImages } = useSWR(
@@ -276,6 +311,7 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
       imagePollAttemptsRef.current = 0;
     }
 
+    const controller = new AbortController();
     const poll = () => {
       if (imagePollInFlightRef.current) return;
 
@@ -296,9 +332,11 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
       imagePollAttemptsRef.current += 1;
       imagePollInFlightRef.current = true;
 
-      void getImageGenerationJob(activeImageJobId)
+      void getImageGenerationJob(activeImageJobId, {
+        signal: controller.signal,
+      })
         .then((job) => {
-          if (job.id !== activeImageJobId) return;
+          if (controller.signal.aborted || job.id !== activeImageJobId) return;
           imagePollFailuresRef.current = 0;
           setImageGenerationJob(job);
           if (job.status === "COMPLETED") {
@@ -322,6 +360,7 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
           }
         })
         .catch((pollError) => {
+          if (controller.signal.aborted) return;
           imagePollFailuresRef.current += 1;
           if (imagePollFailuresRef.current < MAX_IMAGE_POLL_FAILURES) return;
 
@@ -346,7 +385,10 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
     poll();
     const interval = setInterval(poll, IMAGE_POLL_INTERVAL_MS);
 
-    return () => clearInterval(interval);
+    return () => {
+      controller.abort();
+      clearInterval(interval);
+    };
   }, [
     activeImageJobId,
     activeImageJobStatus,
@@ -665,47 +707,51 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
           )}
         </div>
 
-        <NewEntityModal
-          show={showNewEntityModal}
-          onClose={handleModalClose}
-          onSubmit={handleSubmitModal}
-          entity={currentEntity}
-          imageGallery={entityImages}
-          imageGalleryLoading={isLoadingImages}
-          activeImageJob={selectedEntityImageJob}
-          onImageGenerate={() => setShowImageGenerationModal(true)}
-          onImageUpload={handleUploadImage}
-          onSetPrimaryImage={handleSetPrimaryImage}
-          onDeleteImage={requestImageDelete}
-          imageActionError={imageActionError}
-          initialCanonicalName={timelineEntityInitialName ?? undefined}
-          onGenerateImage={handleGenerateImage}
-          onClearAiPreview={handleClearAiPreview}
-        >
-          {showNewEntityModal && editingEntity && (
-            <ImageGenerationModal
-              show={showImageGenerationModal}
-              entityId={editingEntity.id}
-              entityName={editingEntity.canonicalName}
-              entityType={editingEntity.type}
-              referenceImageId={entityImages.find((image) => image.isPrimary)?.id}
-              onClose={() => setShowImageGenerationModal(false)}
-              onSubmit={handleRequestImageGeneration}
-            />
-          )}
-        </NewEntityModal>
+        {showNewEntityModal && (
+          <NewEntityModal
+            show
+            onClose={handleModalClose}
+            onSubmit={handleSubmitModal}
+            entity={currentEntity}
+            imageGallery={entityImages}
+            imageGalleryLoading={isLoadingImages}
+            activeImageJob={selectedEntityImageJob}
+            onImageGenerate={() => setShowImageGenerationModal(true)}
+            onImageUpload={handleUploadImage}
+            onSetPrimaryImage={handleSetPrimaryImage}
+            onDeleteImage={requestImageDelete}
+            imageActionError={imageActionError}
+            initialCanonicalName={timelineEntityInitialName ?? undefined}
+            onGenerateImage={handleGenerateImage}
+            onClearAiPreview={handleClearAiPreview}
+          >
+            {editingEntity && showImageGenerationModal && (
+              <ImageGenerationModal
+                show
+                entityId={editingEntity.id}
+                entityName={editingEntity.canonicalName}
+                entityType={editingEntity.type}
+                referenceImageId={entityImages.find((image) => image.isPrimary)?.id}
+                onClose={() => setShowImageGenerationModal(false)}
+                onSubmit={handleRequestImageGeneration}
+              />
+            )}
+          </NewEntityModal>
+        )}
 
-        <NewRelationModal
-          show={showNewRelationModal}
-          entities={worldbuildingEntities}
-          onClose={handleRelationModalClose}
-          onSubmit={handleSubmitRelation}
-          relationship={editingRelationship}
-        />
+        {showNewRelationModal && (
+          <NewRelationModal
+            show
+            entities={worldbuildingEntities}
+            onClose={handleRelationModalClose}
+            onSubmit={handleSubmitRelation}
+            relationship={editingRelationship}
+          />
+        )}
 
-        {selectedEntity && !editingEntity && (
+        {selectedEntity && !editingEntity && showImageGenerationModal && (
           <ImageGenerationModal
-            show={showImageGenerationModal}
+            show
             entityId={selectedEntity.id}
             entityName={selectedEntity.canonicalName}
             entityType={selectedEntity.type}

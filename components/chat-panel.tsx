@@ -4,9 +4,9 @@ import Image from "next/image"
 import { useRouter } from "next/navigation"
 import {
   useEffect,
+  useCallback,
   useRef,
   useState,
-  useSyncExternalStore,
   type FormEvent,
 } from "react"
 import {
@@ -18,6 +18,7 @@ import {
   Feather,
   FileText,
   History,
+  Loader2,
   Maximize2,
   Mic,
   MicOff,
@@ -42,6 +43,7 @@ import {
   sendChatMessage,
   updateChatThread,
 } from "@/services/chat.service"
+import { useVoiceTranscriber } from "@/hooks/use-voice-transcriber"
 import { useEditorStore } from "@/stores/editor.store"
 import type { ChatMessage, ChatSource, ChatThread } from "@/types/chat"
 
@@ -57,12 +59,6 @@ const promptSuggestions = [
   "¿Qué detalles de la Wiki aparecen también en el manuscrito?",
 ]
 
-const subscribeToSpeechSupport = () => () => undefined
-const getSpeechSupportSnapshot = () =>
-  typeof window !== "undefined" &&
-  Boolean(window.SpeechRecognition || window.webkitSpeechRecognition)
-const getServerSpeechSupportSnapshot = () => false
-
 export function ChatPanel({
   projectId,
   currentChapterId,
@@ -74,30 +70,43 @@ export function ChatPanel({
   const [draft, setDraft] = useState("")
   const [isLoading, setIsLoading] = useState(true)
   const [isSending, setIsSending] = useState(false)
-  const [isListening, setIsListening] = useState(false)
   const [isHistoryOpen, setIsHistoryOpen] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const endRef = useRef<HTMLDivElement | null>(null)
-  const recognitionRef = useRef<PlumSpeechRecognition | null>(null)
-  const speechBaseDraftRef = useRef("")
-  const speechSupported = useSyncExternalStore(
-    subscribeToSpeechSupport,
-    getSpeechSupportSnapshot,
-    getServerSpeechSupportSnapshot,
-  )
+  const handleVoiceTranscript = useCallback((text: string) => {
+    setDraft((current) => {
+      const base = current.trim()
+      return `${base}${base ? " " : ""}${text}`
+    })
+  }, [])
+  const {
+    supported: speechSupported,
+    isRecording,
+    isTranscribing,
+    audioLevel,
+    error: voiceError,
+    start: startVoiceRecording,
+    stop: stopVoiceRecording,
+    clearError: clearVoiceError,
+  } = useVoiceTranscriber({ onTranscript: handleVoiceTranscript })
+  const isVoiceBusy = isRecording || isTranscribing
+  const displayError = voiceError ?? error
 
   useEffect(() => {
     let cancelled = false
+    const controller = new AbortController()
 
-    void getChatThreads(projectId)
+    void getChatThreads(projectId, { signal: controller.signal })
       .then(async (threads) => {
         if (!cancelled) setThreads(threads)
         const currentThread = threads[0]
         if (!currentThread) return { thread: null, messages: [] }
         return {
           thread: currentThread,
-          messages: await getChatMessages(currentThread.id),
+          messages: await getChatMessages(currentThread.id, {
+            signal: controller.signal,
+          }),
         }
       })
       .then((result) => {
@@ -106,24 +115,18 @@ export function ChatPanel({
         setMessages(result.messages)
       })
       .catch((loadError: unknown) => {
-        if (cancelled) return
+        if (cancelled || controller.signal.aborted) return
         setError(errorMessage(loadError, "No se pudo cargar la conversación."))
       })
       .finally(() => {
-        if (!cancelled) setIsLoading(false)
+        if (!cancelled && !controller.signal.aborted) setIsLoading(false)
       })
 
     return () => {
       cancelled = true
+      controller.abort()
     }
   }, [projectId])
-
-  useEffect(() => {
-    return () => {
-      recognitionRef.current?.abort()
-      recognitionRef.current = null
-    }
-  }, [])
 
   useEffect(() => {
     if (!isFullscreen) return
@@ -146,7 +149,7 @@ export function ChatPanel({
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const content = draft.trim()
-    if (!content || isSending) return
+    if (!content || isSending || isVoiceBusy) return
 
     const optimisticId = `pending-${Date.now()}`
     const optimisticMessage: ChatMessage = {
@@ -241,56 +244,15 @@ export function ChatPanel({
   const currentThread = threads.find((thread) => thread.id === threadId)
 
   const toggleVoiceInput = () => {
-    if (isListening) {
-      try {
-        recognitionRef.current?.stop()
-      } catch {
-        recognitionRef.current?.abort()
-      }
-      setIsListening(false)
+    if (isRecording) {
+      stopVoiceRecording()
       return
     }
-
-    const Recognition =
-      window.SpeechRecognition || window.webkitSpeechRecognition
-    if (!Recognition) {
-      setError("El dictado por voz no está disponible en este navegador.")
-      return
-    }
-
-    const recognition = new Recognition()
-    recognition.lang = "es-AR"
-    recognition.continuous = true
-    recognition.interimResults = true
-    speechBaseDraftRef.current = draft.trim()
-    recognition.onresult = (event) => {
-      let transcript = ""
-      for (let index = 0; index < event.results.length; index += 1) {
-        transcript += event.results[index]?.[0]?.transcript ?? ""
-      }
-      const base = speechBaseDraftRef.current
-      setDraft(`${base}${base && transcript ? " " : ""}${transcript}`)
-    }
-    recognition.onerror = (event) => {
-      setError(speechErrorMessage(event.error))
-      setIsListening(false)
-      recognitionRef.current = null
-    }
-    recognition.onend = () => {
-      setIsListening(false)
-      recognitionRef.current = null
-    }
+    if (isTranscribing) return
 
     setError(null)
-    setIsListening(true)
-    recognitionRef.current = recognition
-    try {
-      recognition.start()
-    } catch {
-      setIsListening(false)
-      recognitionRef.current = null
-      setError("No se pudo iniciar el dictado por voz.")
-    }
+    clearVoiceError()
+    void startVoiceRecording()
   }
 
   return (
@@ -431,13 +393,13 @@ export function ChatPanel({
         className="shrink-0 border-t border-border bg-card px-3 py-3 sm:px-6 sm:py-4"
       >
         <div className="mx-auto w-full max-w-3xl">
-          {error && (
+          {displayError && (
             <div
               role="alert"
               className="mb-2 flex items-start gap-2 rounded-lg border border-destructive/20 bg-destructive/5 px-2.5 py-2 text-[10px] leading-relaxed text-destructive"
             >
               <RefreshCw className="mt-0.5 size-3 shrink-0" />
-              {error}
+              {displayError}
             </div>
           )}
           <div className="rounded-2xl border border-border bg-muted/70 p-2 transition-colors focus-within:border-primary/40 focus-within:bg-background focus-within:ring-2 focus-within:ring-primary/10">
@@ -457,6 +419,34 @@ export function ChatPanel({
               placeholder="Pregunta sobre tu obra..."
               className="max-h-28 min-h-9 w-full resize-none overflow-y-auto bg-transparent px-1 py-1 text-[11px] leading-relaxed text-foreground outline-none placeholder:text-muted-foreground [scrollbar-width:none] [&::-webkit-scrollbar]:hidden disabled:opacity-60"
             />
+            {isRecording && (
+              <div className="mt-2 flex items-center gap-2 text-[10px] text-muted-foreground">
+                <div
+                  className="relative flex size-8 items-center justify-center rounded-full border border-primary/30 bg-primary/5"
+                  aria-label={`Nivel de audio: ${Math.round(audioLevel * 100)}%`}
+                  role="img"
+                >
+                  <span
+                    className="absolute inset-0 rounded-full bg-primary/20 transition-transform duration-75"
+                    style={{
+                      opacity: 0.35 + audioLevel * 0.65,
+                      transform: `scale(${0.75 + audioLevel * 0.25})`,
+                    }}
+                  />
+                  <Mic className="relative size-3.5 text-primary" />
+                </div>
+                <span>{getAudioSignalMessage(audioLevel)}</span>
+              </div>
+            )}
+            {isTranscribing && (
+              <output
+                className="mt-2 flex items-center gap-1.5 px-1 text-[10px] text-muted-foreground"
+                aria-live="polite"
+              >
+                <Loader2 className="size-3 animate-spin" />
+                Transcribiendo tu pregunta...
+              </output>
+            )}
             <div className="mt-1 flex items-center justify-between gap-2">
               <span className="px-1 text-[9px] text-muted-foreground">
                 PlumIA · fuentes de tu proyecto
@@ -466,26 +456,28 @@ export function ChatPanel({
                   type="button"
                   variant="ghost"
                   size="icon-sm"
-                  disabled={!speechSupported || isSending}
+                  disabled={!speechSupported || isSending || isTranscribing}
                   onClick={toggleVoiceInput}
                   aria-label={
-                    isListening ? "Detener dictado" : "Dictar pregunta"
+                    isRecording ? "Detener dictado" : "Dictar pregunta"
                   }
-                  aria-pressed={isListening}
+                  aria-pressed={isRecording}
                   title={
                     speechSupported
-                      ? isListening
+                      ? isRecording
                         ? "Detener dictado"
-                        : "Dictar pregunta"
-                      : "El navegador no admite dictado por voz"
+                        : "Dictar pregunta con Whisper"
+                      : "El navegador no permite grabar audio"
                   }
                   className={
-                    isListening
+                    isRecording
                       ? "animate-pulse rounded-xl bg-primary/15 text-primary"
                       : "rounded-xl text-muted-foreground"
                   }
                 >
-                  {isListening ? (
+                  {isTranscribing ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : isRecording ? (
                     <Square className="size-3.5 fill-current" />
                   ) : speechSupported ? (
                     <Mic className="size-3.5" />
@@ -496,7 +488,7 @@ export function ChatPanel({
                 <Button
                   type="submit"
                   size="icon-sm"
-                  disabled={!draft.trim() || isSending}
+                  disabled={!draft.trim() || isSending || isVoiceBusy}
                   aria-label="Enviar consulta"
                   className="rounded-xl"
                 >
@@ -506,9 +498,11 @@ export function ChatPanel({
             </div>
           </div>
           <p className="mt-1.5 text-center text-[9px] text-muted-foreground">
-            {isListening
+            {isRecording
               ? "Escuchando… hablá con naturalidad"
-              : "Enter para enviar · Shift + Enter para nueva línea"}
+              : isTranscribing
+                ? "Transcribiendo…"
+                : "Enter para enviar · Shift + Enter para nueva línea"}
           </p>
         </div>
       </form>
@@ -900,15 +894,7 @@ function errorMessage(error: unknown, fallback: string): string {
     : fallback
 }
 
-function speechErrorMessage(error: string): string {
-  if (error === "not-allowed" || error === "service-not-allowed") {
-    return "Necesito permiso para usar el micrófono. Habilitalo en el navegador e intentá nuevamente."
-  }
-  if (error === "no-speech") {
-    return "No detecté voz. Acercate al micrófono e intentá nuevamente."
-  }
-  if (error === "audio-capture") {
-    return "No se encontró un micrófono disponible."
-  }
-  return "No se pudo transcribir la pregunta por voz."
+function getAudioSignalMessage(audioLevel: number): string {
+  if (audioLevel > 0.05) return "Señal de audio detectada"
+  return "Escuchando..."
 }

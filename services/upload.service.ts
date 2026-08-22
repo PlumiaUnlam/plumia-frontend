@@ -65,15 +65,20 @@ async function requestPresignedUpload(
 
 async function requestPresignedDownloadByKey(
   storageKey: string,
+  options: Pick<RequestInit, "signal"> = {},
 ): Promise<PresignedDownloadByKeyResponse> {
   return api.post<PresignedDownloadByKeyResponse>(
     "/storage/presigned-download-by-key",
     { storageKey },
+    options,
   )
 }
 
-export async function resolveStorageKeyUrl(storageKey: string): Promise<string> {
-  const { url } = await requestPresignedDownloadByKey(storageKey)
+export async function resolveStorageKeyUrl(
+  storageKey: string,
+  options: Pick<RequestInit, "signal"> = {},
+): Promise<string> {
+  const { url } = await requestPresignedDownloadByKey(storageKey, options)
   return url
 }
 

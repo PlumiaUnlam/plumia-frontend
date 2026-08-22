@@ -76,8 +76,9 @@ export async function generateEntityImage(
 
 export async function getImageGenerationJob(
   jobId: string,
+  options: Pick<RequestInit, "signal"> = {},
 ): Promise<ImageGenerationJob> {
-  return api.get(`/publishing/images/jobs/${jobId}`);
+  return api.get(`/publishing/images/jobs/${jobId}`, options);
 }
 
 export async function getEntityImages(

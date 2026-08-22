@@ -2,7 +2,12 @@
 
 /* eslint-disable @next/next/no-img-element */
 
-import { useRef, useState, type PointerEvent as ReactPointerEvent } from "react"
+import {
+  useEffect,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from "react"
 import {
   NodeViewWrapper,
   type NodeViewProps,
@@ -24,6 +29,10 @@ export function EditorImageNodeView({
   updateAttributes,
 }: NodeViewProps) {
   const imageRef = useRef<HTMLImageElement | null>(null)
+  const resizeListenersRef = useRef<{
+    onPointerMove: (event: PointerEvent) => void
+    onPointerUp: () => void
+  } | null>(null)
   const currentWidthRef = useRef<number | null>(
     typeof node.attrs.width === "number" ? node.attrs.width : null,
   )
@@ -35,6 +44,17 @@ export function EditorImageNodeView({
   const width =
     draftWidth ??
     (typeof node.attrs.width === "number" ? clampWidth(node.attrs.width) : null)
+
+  useEffect(() => {
+    return () => {
+      const listeners = resizeListenersRef.current
+      if (!listeners) return
+
+      window.removeEventListener("pointermove", listeners.onPointerMove)
+      window.removeEventListener("pointerup", listeners.onPointerUp)
+      resizeListenersRef.current = null
+    }
+  }, [])
 
   const startResize = (event: ReactPointerEvent<HTMLButtonElement>) => {
     event.preventDefault()
@@ -56,6 +76,7 @@ export function EditorImageNodeView({
     }
 
     const stopResize = () => {
+      resizeListenersRef.current = null
       window.removeEventListener("pointermove", onPointerMove)
       window.removeEventListener("pointerup", stopResize)
       setIsResizing(false)
@@ -69,6 +90,10 @@ export function EditorImageNodeView({
       currentWidthRef.current = nextWidth
     }
 
+    resizeListenersRef.current = {
+      onPointerMove,
+      onPointerUp: stopResize,
+    }
     window.addEventListener("pointermove", onPointerMove)
     window.addEventListener("pointerup", stopResize, { once: true })
   }

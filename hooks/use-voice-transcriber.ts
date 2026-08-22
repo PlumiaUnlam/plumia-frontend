@@ -81,6 +81,8 @@ export function useVoiceTranscriber({
   const lastPublishedAudioLevelRef = useRef(0)
   const recordingStartedAtRef = useRef<number | null>(null)
   const onTranscriptRef = useRef(onTranscript)
+  const mountedRef = useRef(false)
+  const transcriptionAbortRef = useRef<AbortController | null>(null)
 
   const refreshAudioInputDevices = useCallback(async () => {
     if (!navigator.mediaDevices?.enumerateDevices) return
@@ -199,7 +201,13 @@ export function useVoiceTranscriber({
   }, [stopAudioMonitor])
 
   useEffect(() => {
+    mountedRef.current = true
+
     return () => {
+      mountedRef.current = false
+      transcriptionAbortRef.current?.abort()
+      transcriptionAbortRef.current = null
+
       const recorder = recorderRef.current
       if (recorder && recorder.state !== "inactive") {
         recorder.ondataavailable = null
@@ -251,7 +259,13 @@ export function useVoiceTranscriber({
         audio: audioConstraints,
       })
     } catch (captureError: unknown) {
+      if (!mountedRef.current) return
       setError(captureErrorMessage(captureError))
+      return
+    }
+
+    if (!mountedRef.current) {
+      stopStream(stream)
       return
     }
 
@@ -316,8 +330,17 @@ export function useVoiceTranscriber({
       }
 
       setIsTranscribing(true)
-      void transcribeAudio(audio, recording.filename)
+      const transcriptionController = new AbortController()
+      transcriptionAbortRef.current = transcriptionController
+      void transcribeAudio(
+        audio,
+        recording.filename,
+        transcriptionController.signal,
+      )
         .then((result) => {
+          if (!mountedRef.current || transcriptionController.signal.aborted) {
+            return
+          }
           const text = result.text.trim()
           if (!text) {
             setError(noVoiceMessage(hadAudioSignal))
@@ -326,11 +349,20 @@ export function useVoiceTranscriber({
           onTranscriptRef.current(text, recording)
         })
         .catch((transcriptionError: unknown) => {
+          if (
+            !mountedRef.current ||
+            transcriptionController.signal.aborted
+          ) {
+            return
+          }
           setError(errorMessage(transcriptionError, hadAudioSignal))
         })
         .finally(() => {
           hasAudioSignalRef.current = false
-          setIsTranscribing(false)
+          if (transcriptionAbortRef.current === transcriptionController) {
+            transcriptionAbortRef.current = null
+          }
+          if (mountedRef.current) setIsTranscribing(false)
         })
     }
 

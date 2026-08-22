@@ -1,8 +1,11 @@
 import { api } from "@/services/api.service"
 import type { ChatExchange, ChatMessage, ChatThread } from "@/types/chat"
 
-export function getChatThreads(projectId: string): Promise<ChatThread[]> {
-  return api.get<ChatThread[]>(`/projects/${projectId}/chat/threads`)
+export function getChatThreads(
+  projectId: string,
+  options: Pick<RequestInit, "signal"> = {},
+): Promise<ChatThread[]> {
+  return api.get<ChatThread[]>(`/projects/${projectId}/chat/threads`, options)
 }
 
 export function createChatThread(
@@ -14,8 +17,11 @@ export function createChatThread(
   })
 }
 
-export function getChatMessages(threadId: string): Promise<ChatMessage[]> {
-  return api.get<ChatMessage[]>(`/chat/threads/${threadId}/messages`)
+export function getChatMessages(
+  threadId: string,
+  options: Pick<RequestInit, "signal"> = {},
+): Promise<ChatMessage[]> {
+  return api.get<ChatMessage[]>(`/chat/threads/${threadId}/messages`, options)
 }
 
 export function updateChatThread(
