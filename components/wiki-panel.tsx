@@ -77,6 +77,7 @@ type WikiPanelProps = {
     kind: "success" | "error";
     message: string;
   } | null;
+  readonly showReviewSections: boolean;
 };
 
 type WikiSectionKey =
@@ -111,6 +112,7 @@ export function WikiPanel({
   onUpdateAuditAlert,
   actionError,
   entityActionFeedback,
+  showReviewSections,
 }: WikiPanelProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [reviewingProposalId, setReviewingProposalId] = useState<string | null>(
@@ -268,20 +270,22 @@ export function WikiPanel({
 
       <ScrollArea className="min-h-0 min-w-0 flex-1 overflow-x-hidden">
         <div className="min-w-0 max-w-full space-y-2 overflow-x-hidden p-3">
-          {actionError && (
+          {showReviewSections && actionError && (
             <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-xs text-destructive">
               {actionError}
             </div>
           )}
 
-          <WikiSectionTitle
-            icon={AlertTriangle}
-            label="Inconsistencias detectadas"
-            count={filteredAuditAlerts.length}
-            expanded={expandedSections.inconsistencies}
-            onToggle={() => toggleSection("inconsistencies")}
-          />
-          {expandedSections.inconsistencies &&
+          {showReviewSections && (
+            <>
+              <WikiSectionTitle
+                icon={AlertTriangle}
+                label="Inconsistencias detectadas"
+                count={filteredAuditAlerts.length}
+                expanded={expandedSections.inconsistencies}
+                onToggle={() => toggleSection("inconsistencies")}
+              />
+              {expandedSections.inconsistencies &&
             (auditAlertsLoading ? (
               <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 text-xs text-muted-foreground">
                 Revisando inconsistencias...
@@ -309,16 +313,20 @@ export function WikiPanel({
                   }
                 />
               ))
-            ))}
+              ))}
+            </>
+          )}
 
-          <WikiSectionTitle
-            icon={RefreshCw}
-            label="Relaciones detectadas"
-            count={relationshipProposals.length}
-            expanded={expandedSections.relationships}
-            onToggle={() => toggleSection("relationships")}
-          />
-          {expandedSections.relationships &&
+          {showReviewSections && (
+            <>
+              <WikiSectionTitle
+                icon={RefreshCw}
+                label="Relaciones detectadas"
+                count={relationshipProposals.length}
+                expanded={expandedSections.relationships}
+                onToggle={() => toggleSection("relationships")}
+              />
+              {expandedSections.relationships &&
             (relationshipProposalsLoading ? (
               <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-3 text-xs text-muted-foreground">
                 Revisando relaciones...
@@ -348,7 +356,9 @@ export function WikiPanel({
                   onEdit={() => setEditingRelationshipProposalId(proposal.id)}
                 />
               ))
-            ))}
+              ))}
+            </>
+          )}
 
           <WikiSectionTitle
             icon={FileText}
@@ -387,7 +397,9 @@ export function WikiPanel({
                   entity={entity}
                   primaryImageUrl={primaryImageUrls[entity.id]}
                   updateProposal={
-                    updateProposalsByEntityId.get(entity.id) ?? null
+                    showReviewSections
+                      ? updateProposalsByEntityId.get(entity.id) ?? null
+                      : null
                   }
                   onReviewProposal={(proposalId) => {
                     const proposal = proposals.find(
@@ -399,14 +411,16 @@ export function WikiPanel({
               ))
             ))}
 
-          <WikiSectionTitle
-            icon={Sparkles}
-            label="Propuestas detectadas"
-            count={filteredProposals.length}
-            expanded={expandedSections.proposals}
-            onToggle={() => toggleSection("proposals")}
-          />
-          {expandedSections.proposals && entityActionFeedback && (
+          {showReviewSections && (
+            <>
+              <WikiSectionTitle
+                icon={Sparkles}
+                label="Propuestas detectadas"
+                count={filteredProposals.length}
+                expanded={expandedSections.proposals}
+                onToggle={() => toggleSection("proposals")}
+              />
+              {expandedSections.proposals && entityActionFeedback && (
             <div
               role={entityActionFeedback.kind === "error" ? "alert" : "status"}
               aria-live="polite"
@@ -418,8 +432,8 @@ export function WikiPanel({
             >
               {entityActionFeedback.message}
             </div>
-          )}
-          {expandedSections.proposals &&
+              )}
+              {expandedSections.proposals &&
             (proposalsLoading ? (
               Array.from({ length: 2 }).map((_, index) => (
                 <div
@@ -456,7 +470,9 @@ export function WikiPanel({
                   onEdit={() => handleEntityProposalEdit(proposal)}
                 />
               ))
-            ))}
+              ))}
+            </>
+          )}
         </div>
       </ScrollArea>
 
