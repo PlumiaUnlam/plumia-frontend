@@ -47,7 +47,7 @@ export function Header({ mode, onModeChange }: HeaderProps) {
       </div>
 
       {mode && onModeChange && (
-        <div className="absolute left-1/2 flex -translate-x-1/2 items-center gap-px rounded-lg bg-white/10 p-0.5 text-[11px]">
+        <div className="absolute left-1/2 flex -translate-x-1/2 items-center gap-px rounded-lg bg-white/10 p-0.5 text-[13px]">
           {writingModes.map((writingMode) => (
             <button
               key={writingMode}

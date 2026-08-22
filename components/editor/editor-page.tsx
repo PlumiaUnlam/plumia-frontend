@@ -83,6 +83,7 @@ export function EditorLayout({ projectId }: EditorLayoutProps) {
                 chapterTitle={chapterTitle}
                 sceneTitle={sceneTitle}
                 projectId={projectId}
+                isZenMode={writingMode === "zen"}
               />
             )}
           </main>

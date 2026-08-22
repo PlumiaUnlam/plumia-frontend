@@ -22,6 +22,7 @@ type RichTextEditorProps = {
   onChange?: (json: ProseMirrorJSON) => void
   onAnalyzeChanges?: () => void
   isAnalysisSaving?: boolean
+  isZenMode?: boolean
 }
 
 export function RichTextEditor({
@@ -34,6 +35,7 @@ export function RichTextEditor({
   onChange,
   onAnalyzeChanges,
   isAnalysisSaving = false,
+  isZenMode = false,
 }: RichTextEditorProps) {
   const {
     error,
@@ -81,7 +83,7 @@ export function RichTextEditor({
   if (!editor) return null
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="relative flex h-full min-h-0 flex-col">
       <input
         ref={registerFileInput}
         className="hidden"
@@ -97,6 +99,7 @@ export function RichTextEditor({
         isUploadingImage={isUploading}
         onAnalyzeChanges={onAnalyzeChanges}
         isAnalysisSaving={isAnalysisSaving}
+        isZenMode={isZenMode}
       />
 
       {error && (
