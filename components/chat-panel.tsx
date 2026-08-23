@@ -262,6 +262,7 @@ export function ChatPanel({
       setDraft("")
       setError(null)
       setFailedContent(null)
+      setIsHistoryOpen(false)
       setWaitingMessageIndex(0)
       setIsSending(true)
       setMessages((current) => [...current, optimisticMessage])
@@ -326,6 +327,7 @@ export function ChatPanel({
   }
 
   const selectThread = async (nextThreadId: string) => {
+    if (isSending || isLoading) return
     setIsHistoryOpen(false)
     if (nextThreadId === "new") {
       setThreadId(null)
@@ -400,6 +402,7 @@ export function ChatPanel({
 
   const toggleVoiceInput = () => {
     if (isRecording) {
+      setIsVoiceSettingsOpen(false)
       stopVoiceRecording()
       return
     }
@@ -407,6 +410,7 @@ export function ChatPanel({
 
     setError(null)
     clearVoiceError()
+    setIsVoiceSettingsOpen(false)
     setHasUsedVoiceInput(true)
     void startVoiceRecording()
   }
@@ -438,6 +442,7 @@ export function ChatPanel({
               type="button"
               variant="ghost"
               size="icon-sm"
+              disabled={isSending}
               onClick={() => setIsHistoryOpen((open) => !open)}
               aria-label="Abrir historial de conversaciones"
               aria-expanded={isHistoryOpen}
@@ -454,6 +459,7 @@ export function ChatPanel({
               type="button"
               variant="ghost"
               size="icon-sm"
+              disabled={isSending}
               onClick={() => void selectThread("new")}
               aria-label="Nueva conversación"
               title="Nueva conversación"
