@@ -244,6 +244,7 @@ export function ChatPanel({
         role: "user",
         content,
         sources: [],
+        actions: [],
         inputTokens: null,
         outputTokens: null,
         createdAt: new Date().toISOString(),
@@ -501,7 +502,6 @@ export function ChatPanel({
                 {isSending && (
                   <ThinkingBubble
                     status={WAITING_MESSAGES[waitingMessageIndex]}
-                    onCancel={cancelSending}
                   />
                 )}
               </div>
@@ -635,15 +635,28 @@ export function ChatPanel({
                     <MicOff className="size-3.5" />
                   )}
                 </Button>
-                <Button
-                  type="submit"
-                  size="icon-sm"
-                  disabled={!draft.trim() || isSending || isVoiceBusy}
-                  aria-label="Enviar consulta"
-                  className="rounded-xl"
-                >
-                  <Send className="size-3.5" />
-                </Button>
+                {isSending ? (
+                  <Button
+                    type="button"
+                    size="icon-sm"
+                    onClick={cancelSending}
+                    aria-label="Detener respuesta"
+                    title="Detener respuesta"
+                    className="rounded-xl"
+                  >
+                    <Square className="size-3.5 fill-current" />
+                  </Button>
+                ) : (
+                  <Button
+                    type="submit"
+                    size="icon-sm"
+                    disabled={!draft.trim() || isVoiceBusy}
+                    aria-label="Enviar consulta"
+                    className="rounded-xl"
+                  >
+                    <Send className="size-3.5" />
+                  </Button>
+                )}
               </div>
             </div>
           </div>
@@ -715,10 +728,8 @@ function ChatBubble({
   readonly onBeforeSourceNavigation: () => void
 }) {
   const isUser = message.role === "user"
+  const actions = message.actions ?? []
   const [sourcesExpanded, setSourcesExpanded] = useState(true)
-  const hasApplicationActions = message.sources.some(
-    (source) => source.kind === "application",
-  )
   return (
     <article className={isUser ? "ml-8" : "mr-3"}>
       <div className={`flex items-start gap-2 ${isUser ? "justify-end" : ""}`}>
@@ -737,11 +748,25 @@ function ChatBubble({
           {message.content}
         </div>
       </div>
+      {!isUser && actions.length > 0 && (
+        <div className="ml-8 mt-2 space-y-1.5">
+          <span className="px-1 text-[9px] font-semibold tracking-wide text-muted-foreground uppercase">
+            Acceso directo
+          </span>
+          {actions.map((action) => (
+            <NavigationActionCard
+              key={action.id}
+              action={action}
+              onBeforeNavigation={onBeforeSourceNavigation}
+            />
+          ))}
+        </div>
+      )}
       {!isUser && message.sources.length > 0 && (
         <div className="ml-8 mt-2 space-y-1.5">
           <div className="flex items-center justify-between gap-2 px-1">
             <span className="text-[9px] font-semibold tracking-wide text-muted-foreground uppercase">
-              {hasApplicationActions ? "Acciones sugeridas" : "Referencias utilizadas"}
+              Referencias utilizadas
               <span className="ml-1 font-normal text-muted-foreground/70">
                 · {message.sources.length}
               </span>
@@ -752,12 +777,8 @@ function ChatBubble({
               aria-expanded={sourcesExpanded}
               aria-label={
                 sourcesExpanded
-                  ? hasApplicationActions
-                    ? "Ocultar acciones sugeridas"
-                    : "Ocultar referencias utilizadas"
-                  : hasApplicationActions
-                    ? "Mostrar acciones sugeridas"
-                    : "Mostrar referencias utilizadas"
+                  ? "Ocultar referencias utilizadas"
+                  : "Mostrar referencias utilizadas"
               }
               className="flex size-5 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
             >
@@ -789,6 +810,43 @@ function ChatBubble({
         </div>
       )}
     </article>
+  )
+}
+
+function NavigationActionCard({
+  action,
+  onBeforeNavigation,
+}: {
+  readonly action: ChatMessage["actions"][number]
+  readonly onBeforeNavigation: () => void
+}) {
+  const router = useRouter()
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        onBeforeNavigation()
+        router.push(action.route)
+      }}
+      className="group flex w-full items-center gap-2 rounded-xl border border-primary/20 bg-primary/5 p-2 text-left transition-colors hover:border-primary/40 hover:bg-primary/10"
+    >
+      <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+        <Waypoints className="size-3.5" />
+      </div>
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center gap-1.5 text-[10px] font-semibold text-foreground">
+          <span className="truncate">{action.label}</span>
+          <ExternalLink className="size-2.5 shrink-0 text-primary opacity-0 transition-opacity group-hover:opacity-100" />
+        </span>
+        <span className="mt-0.5 block text-[9px] text-muted-foreground">
+          {action.description}
+        </span>
+      </span>
+      <span className="shrink-0 text-[9px] font-semibold text-primary">
+        Ir ahí
+      </span>
+    </button>
   )
 }
 
@@ -1113,40 +1171,7 @@ function SourceCard({
       ? BookOpen
       : source.kind === "timeline"
         ? Clock3
-        : source.kind === "application"
-          ? Waypoints
-          : FileText
-
-  if (source.kind === "application") {
-    return (
-      <button
-        type="button"
-        disabled={!source.route}
-        onClick={() => {
-          if (!source.route) return
-          onBeforeNavigation()
-          router.push(source.route)
-        }}
-        className="group flex w-full items-center gap-2 rounded-xl border border-primary/20 bg-primary/5 p-2 text-left transition-colors enabled:hover:border-primary/40 enabled:hover:bg-primary/10 disabled:cursor-default"
-      >
-        <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-          <Waypoints className="size-3.5" />
-        </div>
-        <span className="min-w-0 flex-1">
-          <span className="flex items-center gap-1.5 text-[10px] font-semibold text-foreground">
-            <span className="truncate">{source.label}</span>
-            <ExternalLink className="size-2.5 shrink-0 text-primary opacity-0 transition-opacity group-hover:opacity-100" />
-          </span>
-          <span className="mt-0.5 block text-[9px] text-muted-foreground">
-            Abrir esta sección de PlumIA
-          </span>
-        </span>
-        <span className="shrink-0 text-[9px] font-semibold text-primary">
-          Ir ahí
-        </span>
-      </button>
-    )
-  }
+        : FileText
 
   const navigateToScene = () => {
     if (!source.sceneId) return
@@ -1313,10 +1338,8 @@ function getWikiSourceDetails(source: ChatSource): WikiSourceDetails {
 
 function ThinkingBubble({
   status,
-  onCancel,
 }: {
   readonly status: string
-  readonly onCancel: () => void
 }) {
   return (
     <div className="mr-3 flex items-start gap-2" aria-label="Analizando la obra">
@@ -1327,14 +1350,6 @@ function ThinkingBubble({
         <span className="text-[10px] text-muted-foreground" aria-live="polite">
           {status}
         </span>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[9px] font-semibold text-primary hover:bg-primary/10"
-        >
-          <Square className="size-2.5 fill-current" />
-          Cancelar
-        </button>
       </div>
     </div>
   )

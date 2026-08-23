@@ -2,7 +2,6 @@ export type ChatSourceKind =
   | "manuscript"
   | "wiki"
   | "timeline"
-  | "application"
 
 export type ChatSource = {
   id: string
@@ -20,6 +19,14 @@ export type ChatSource = {
   occurrenceCount?: number
   textQuote?: string
   route?: string
+}
+
+export type ChatAction = {
+  id: string
+  kind: "navigation"
+  label: string
+  description: string
+  route: string
 }
 
 export type ChatThread = {
@@ -45,6 +52,7 @@ export type ChatMessage = {
   role: "user" | "assistant" | "system"
   content: string
   sources: ChatSource[]
+  actions: ChatAction[]
   inputTokens: number | null
   outputTokens: number | null
   createdAt: string
