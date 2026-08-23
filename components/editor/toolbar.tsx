@@ -11,6 +11,7 @@ interface EditorToolbarProps {
   isUploadingImage?: boolean
   onAnalyzeChanges?: () => void
   isAnalysisSaving?: boolean
+  isZenMode?: boolean
 }
 
 export function EditorToolbar({
@@ -20,8 +21,9 @@ export function EditorToolbar({
   isUploadingImage = false,
   onAnalyzeChanges,
   isAnalysisSaving = false,
+  isZenMode = false,
 }: EditorToolbarProps) {
-  return (
+  const toolbar = (
     <div className="flex h-12 w-full items-center gap-2 bg-white px-4">
       <Button
         type="button"
@@ -84,4 +86,16 @@ export function EditorToolbar({
       </div>
     </div>
   )
+
+  if (isZenMode) {
+    return (
+      <div className="group/zen-toolbar absolute inset-x-0 top-0 z-20 h-2 hover:h-12 focus-within:h-12">
+        <div className="-translate-y-10 opacity-0 shadow-sm transition-all duration-200 group-hover/zen-toolbar:translate-y-0 group-hover/zen-toolbar:opacity-100 group-focus-within/zen-toolbar:translate-y-0 group-focus-within/zen-toolbar:opacity-100">
+          {toolbar}
+        </div>
+      </div>
+    )
+  }
+
+  return toolbar
 }

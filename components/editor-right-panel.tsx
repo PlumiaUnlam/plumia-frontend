@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BarChart2, GitBranch, MessageSquare } from "lucide-react";
 import useSWR from "swr";
 
@@ -19,15 +19,21 @@ import {
   getRelationshipProposals,
   rejectRelationshipProposal,
 } from "@/services/relationship-proposals.service";
+import { updateAuditAlert } from "@/services/audit-alerts.service";
+import { useAuditAlerts } from "@/hooks/use-audit-alerts";
+import { useKnowledgeRefresh } from "@/hooks/use-knowledge-refresh";
 import type { CreateEntityInput, Entity, UpdateEntityInput } from "@/types/entity";
 import type { EntityProposal } from "@/types/entity-proposal";
 import type { UpdateRelationshipInput } from "@/types/relationship";
+import type { AuditAlertResolution } from "@/types/audit-alert";
+import type { WritingMode } from "@/types/writing-mode";
 
 type RightTab = "wiki" | "chat" | "stats";
 
 type EditorRightPanelProps = {
   readonly projectId: string;
   readonly currentChapterId?: string;
+  readonly mode: Exclude<WritingMode, "zen">;
 };
 
 type EntityActionFeedback = {
@@ -44,7 +50,9 @@ const tabs = [
 export function EditorRightPanel({
   projectId,
   currentChapterId,
+  mode,
 }: EditorRightPanelProps) {
+  const refreshTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [activeTab, setActiveTab] = useState<RightTab>("wiki");
   const [acceptingProposalId, setAcceptingProposalId] = useState<string | null>(
     null,
@@ -56,6 +64,9 @@ export function EditorRightPanel({
     useState<string | null>(null);
   const [rejectingRelationshipProposalId, setRejectingRelationshipProposalId] =
     useState<string | null>(null);
+  const [updatingAuditAlertId, setUpdatingAuditAlertId] = useState<
+    string | null
+  >(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [entityActionFeedback, setEntityActionFeedback] =
     useState<EntityActionFeedback | null>(null);
@@ -106,6 +117,55 @@ export function EditorRightPanel({
       : null,
     () => getEntityProposals(projectId),
   );
+  const {
+    data: auditAlerts,
+    error: auditAlertsError,
+    isLoading: isLoadingAuditAlerts,
+    mutate: mutateAuditAlerts,
+  } = useAuditAlerts(projectId);
+
+  const refreshKnowledge = useCallback(() => {
+    void Promise.all([
+      mutateEntities(),
+      mutateProposals(),
+      mutateRelationshipProposals(),
+      mutateAuditAlerts(),
+    ]).catch(() => undefined);
+  }, [
+    mutateAuditAlerts,
+    mutateEntities,
+    mutateProposals,
+    mutateRelationshipProposals,
+  ]);
+
+  const scheduleKnowledgeRefresh = useCallback(() => {
+    refreshKnowledge();
+
+    if (refreshTimerRef.current) {
+      clearInterval(refreshTimerRef.current);
+    }
+
+    let remainingRefreshes = 12;
+    refreshTimerRef.current = setInterval(() => {
+      refreshKnowledge();
+      remainingRefreshes -= 1;
+
+      if (remainingRefreshes === 0 && refreshTimerRef.current) {
+        clearInterval(refreshTimerRef.current);
+        refreshTimerRef.current = null;
+      }
+    }, 5000);
+  }, [refreshKnowledge]);
+
+  useKnowledgeRefresh(projectId, scheduleKnowledgeRefresh);
+
+  useEffect(() => {
+    return () => {
+      if (refreshTimerRef.current) {
+        clearInterval(refreshTimerRef.current);
+      }
+    };
+  }, []);
 
   const handleAcceptProposal = async (
     proposal: EntityProposal,
@@ -214,6 +274,30 @@ export function EditorRightPanel({
     }
   };
 
+  const handleUpdateAuditAlert = async (
+    alertId: string,
+    status: AuditAlertResolution,
+  ) => {
+    setUpdatingAuditAlertId(alertId);
+    setActionError(null);
+    try {
+      await updateAuditAlert(alertId, status);
+      await mutateAuditAlerts(
+        (current) => (current ?? []).filter((alert) => alert.id !== alertId),
+        { revalidate: false },
+      );
+      void mutateAuditAlerts().catch(() => undefined);
+    } catch (error) {
+      setActionError(
+        error instanceof Error
+          ? error.message
+          : "No se pudo actualizar la advertencia.",
+      );
+    } finally {
+      setUpdatingAuditAlertId(null);
+    }
+  };
+
   return (
     <aside className="flex w-80 min-w-0 shrink-0 flex-col overflow-hidden border-l border-border bg-card xl:w-96">
       <div className="flex h-12 shrink-0 border-b border-border">
@@ -239,12 +323,15 @@ export function EditorRightPanel({
           entities={entities ?? []}
           proposals={proposals ?? []}
           relationshipProposals={relationshipProposals ?? []}
+          auditAlerts={auditAlerts ?? []}
           loading={isLoading}
           proposalsLoading={isLoadingProposals}
           entitiesError={error}
           proposalsError={proposalsError}
           relationshipProposalsError={relationshipProposalsError}
           relationshipProposalsLoading={isLoadingRelationshipProposals}
+          auditAlertsError={auditAlertsError}
+          auditAlertsLoading={isLoadingAuditAlerts}
           primaryImageUrls={primaryImageUrls}
           acceptingProposalId={acceptingProposalId}
           rejectingProposalId={rejectingProposalId}
@@ -254,8 +341,11 @@ export function EditorRightPanel({
           rejectingRelationshipProposalId={rejectingRelationshipProposalId}
           onAcceptRelationshipProposal={handleAcceptRelationshipProposal}
           onRejectRelationshipProposal={handleRejectRelationshipProposal}
+          updatingAuditAlertId={updatingAuditAlertId}
+          onUpdateAuditAlert={handleUpdateAuditAlert}
           actionError={actionError}
           entityActionFeedback={entityActionFeedback}
+          showReviewSections={mode === "review"}
         />
       )}
 

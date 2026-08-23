@@ -8,6 +8,7 @@ import { SidebarProvider } from "@/components/ui/sidebar"
 import { EditorRightPanel } from "@/components/editor-right-panel"
 import { useEditorStore } from "@/stores/editor.store"
 import { EditorContainer } from "./editor-container"
+import type { WritingMode } from "@/types/writing-mode"
 
 type EditorLayoutProps = {
   projectId: string
@@ -17,6 +18,7 @@ export function EditorLayout({ projectId }: EditorLayoutProps) {
   const [projectTitle, setProjectTitle] = useState("Proyecto")
   const [books, setBooks] = useState<SidebarBook[]>([])
   const [projectsError, setProjectsError] = useState<string | null>(null)
+  const [writingMode, setWritingMode] = useState<WritingMode>("review")
   const activeSceneId = useEditorStore((s) => s.activeSceneId)
 
   const activeChapter = books
@@ -58,16 +60,18 @@ export function EditorLayout({ projectId }: EditorLayoutProps) {
 
   return (
     <div className="flex h-screen max-h-screen flex-col overflow-hidden bg-background text-foreground">
-      <Header />
+      <Header mode={writingMode} onModeChange={setWritingMode} />
 
       <SidebarProvider className="flex min-h-0 flex-1">
         <div className="flex min-h-0 flex-1 overflow-hidden">
-          <LeftSidebar
-            projectTitle={projectTitle}
-            books={books}
-            projectId={projectId}
-            onRefresh={loadProject}
-          />
+          {writingMode !== "zen" && (
+            <LeftSidebar
+              projectTitle={projectTitle}
+              books={books}
+              projectId={projectId}
+              onRefresh={loadProject}
+            />
+          )}
 
           <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
             {projectsError && (
@@ -79,14 +83,18 @@ export function EditorLayout({ projectId }: EditorLayoutProps) {
                 chapterTitle={chapterTitle}
                 sceneTitle={sceneTitle}
                 projectId={projectId}
+                isZenMode={writingMode === "zen"}
               />
             )}
           </main>
 
-          <EditorRightPanel
-            projectId={projectId}
-            currentChapterId={activeChapter?.id}
-          />
+          {writingMode !== "zen" && (
+            <EditorRightPanel
+              projectId={projectId}
+              currentChapterId={activeChapter?.id}
+              mode={writingMode}
+            />
+          )}
         </div>
       </SidebarProvider>
 

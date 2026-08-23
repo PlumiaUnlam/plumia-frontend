@@ -2,6 +2,7 @@
 
 import { useMemo, useState, type ComponentType } from "react";
 import {
+  AlertTriangle,
   Check,
   ChevronDown,
   ChevronRight,
@@ -35,17 +36,22 @@ import type { EntityProposal } from "@/types/entity-proposal";
 import type { RelationshipProposal } from "@/types/relationship-proposal";
 import type { UpdateRelationshipInput } from "@/types/relationship";
 import { relationStyles } from "@/lib/relation-style";
+import { AuditAlertCard } from "@/components/wiki/audit-alert-card";
+import type { AuditAlert, AuditAlertResolution } from "@/types/audit-alert";
 
 type WikiPanelProps = {
   readonly entities: readonly Entity[];
   readonly proposals: readonly EntityProposal[];
   readonly relationshipProposals: readonly RelationshipProposal[];
+  readonly auditAlerts: readonly AuditAlert[];
   readonly loading: boolean;
   readonly proposalsLoading: boolean;
   readonly entitiesError: Error | undefined;
   readonly proposalsError: Error | undefined;
   readonly relationshipProposalsError: Error | undefined;
   readonly relationshipProposalsLoading: boolean;
+  readonly auditAlertsError: Error | undefined;
+  readonly auditAlertsLoading: boolean;
   readonly primaryImageUrls: Readonly<Record<string, string>>;
   readonly acceptingProposalId: string | null;
   readonly rejectingProposalId: string | null;
@@ -61,25 +67,38 @@ type WikiPanelProps = {
     override?: UpdateRelationshipInput,
   ) => Promise<void>;
   readonly onRejectRelationshipProposal: (proposalId: string) => Promise<void>;
+  readonly updatingAuditAlertId: string | null;
+  readonly onUpdateAuditAlert: (
+    alertId: string,
+    status: AuditAlertResolution,
+  ) => Promise<void>;
   readonly actionError: string | null;
   readonly entityActionFeedback: {
     kind: "success" | "error";
     message: string;
   } | null;
+  readonly showReviewSections: boolean;
 };
 
-type WikiSectionKey = "relationships" | "entities" | "proposals";
+type WikiSectionKey =
+  | "inconsistencies"
+  | "relationships"
+  | "entities"
+  | "proposals";
 
 export function WikiPanel({
   entities,
   proposals,
   relationshipProposals,
+  auditAlerts,
   loading,
   proposalsLoading,
   entitiesError,
   proposalsError,
   relationshipProposalsError,
   relationshipProposalsLoading,
+  auditAlertsError,
+  auditAlertsLoading,
   primaryImageUrls,
   acceptingProposalId,
   rejectingProposalId,
@@ -89,8 +108,11 @@ export function WikiPanel({
   rejectingRelationshipProposalId,
   onAcceptRelationshipProposal,
   onRejectRelationshipProposal,
+  updatingAuditAlertId,
+  onUpdateAuditAlert,
   actionError,
   entityActionFeedback,
+  showReviewSections,
 }: WikiPanelProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [reviewingProposalId, setReviewingProposalId] = useState<string | null>(
@@ -104,6 +126,7 @@ export function WikiPanel({
   const [expandedSections, setExpandedSections] = useState<
     Record<WikiSectionKey, boolean>
   >({
+    inconsistencies: true,
     relationships: true,
     entities: true,
     proposals: true,
@@ -155,6 +178,23 @@ export function WikiPanel({
       );
     });
   }, [proposals, searchQuery]);
+
+  const filteredAuditAlerts = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return auditAlerts;
+
+    return auditAlerts.filter((alert) =>
+      [
+        alert.title,
+        alert.description,
+        alert.explanation,
+        alert.conflict?.entityName,
+        alert.conflict?.field,
+        alert.conflict?.currentValue,
+        alert.conflict?.observedValue,
+      ].some((value) => value?.toLowerCase().includes(query)),
+    );
+  }, [auditAlerts, searchQuery]);
 
   const updateProposalsByEntityId = useMemo(() => {
     const result = new Map<string, EntityProposal>();
@@ -230,20 +270,63 @@ export function WikiPanel({
 
       <ScrollArea className="min-h-0 min-w-0 flex-1 overflow-x-hidden">
         <div className="min-w-0 max-w-full space-y-2 overflow-x-hidden p-3">
-          {actionError && (
+          {showReviewSections && actionError && (
             <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-xs text-destructive">
               {actionError}
             </div>
           )}
 
-          <WikiSectionTitle
-            icon={RefreshCw}
-            label="Relaciones detectadas"
-            count={relationshipProposals.length}
-            expanded={expandedSections.relationships}
-            onToggle={() => toggleSection("relationships")}
-          />
-          {expandedSections.relationships &&
+          {showReviewSections && (
+            <>
+              <WikiSectionTitle
+                icon={AlertTriangle}
+                label="Inconsistencias detectadas"
+                count={filteredAuditAlerts.length}
+                expanded={expandedSections.inconsistencies}
+                onToggle={() => toggleSection("inconsistencies")}
+              />
+              {expandedSections.inconsistencies &&
+            (auditAlertsLoading ? (
+              <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 text-xs text-muted-foreground">
+                Revisando inconsistencias...
+              </div>
+            ) : auditAlertsError ? (
+              <div className="rounded-lg border border-dashed border-border bg-background p-3 text-xs text-muted-foreground">
+                No se pudieron cargar las inconsistencias.
+              </div>
+            ) : filteredAuditAlerts.length === 0 ? (
+              <EmptyWikiState
+                title="Sin inconsistencias pendientes"
+                description="Las posibles contradicciones de entidades apareceran aqui para tu revision."
+              />
+            ) : (
+              filteredAuditAlerts.map((alert) => (
+                <AuditAlertCard
+                  key={alert.id}
+                  alert={alert}
+                  updating={updatingAuditAlertId === alert.id}
+                  onResolve={() =>
+                    void onUpdateAuditAlert(alert.id, "RESOLVED")
+                  }
+                  onDismiss={() =>
+                    void onUpdateAuditAlert(alert.id, "DISMISSED")
+                  }
+                />
+              ))
+              ))}
+            </>
+          )}
+
+          {showReviewSections && (
+            <>
+              <WikiSectionTitle
+                icon={RefreshCw}
+                label="Relaciones detectadas"
+                count={relationshipProposals.length}
+                expanded={expandedSections.relationships}
+                onToggle={() => toggleSection("relationships")}
+              />
+              {expandedSections.relationships &&
             (relationshipProposalsLoading ? (
               <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-3 text-xs text-muted-foreground">
                 Revisando relaciones...
@@ -273,7 +356,9 @@ export function WikiPanel({
                   onEdit={() => setEditingRelationshipProposalId(proposal.id)}
                 />
               ))
-            ))}
+              ))}
+            </>
+          )}
 
           <WikiSectionTitle
             icon={FileText}
@@ -312,7 +397,9 @@ export function WikiPanel({
                   entity={entity}
                   primaryImageUrl={primaryImageUrls[entity.id]}
                   updateProposal={
-                    updateProposalsByEntityId.get(entity.id) ?? null
+                    showReviewSections
+                      ? updateProposalsByEntityId.get(entity.id) ?? null
+                      : null
                   }
                   onReviewProposal={(proposalId) => {
                     const proposal = proposals.find(
@@ -324,14 +411,16 @@ export function WikiPanel({
               ))
             ))}
 
-          <WikiSectionTitle
-            icon={Sparkles}
-            label="Propuestas detectadas"
-            count={filteredProposals.length}
-            expanded={expandedSections.proposals}
-            onToggle={() => toggleSection("proposals")}
-          />
-          {expandedSections.proposals && entityActionFeedback && (
+          {showReviewSections && (
+            <>
+              <WikiSectionTitle
+                icon={Sparkles}
+                label="Propuestas detectadas"
+                count={filteredProposals.length}
+                expanded={expandedSections.proposals}
+                onToggle={() => toggleSection("proposals")}
+              />
+              {expandedSections.proposals && entityActionFeedback && (
             <div
               role={entityActionFeedback.kind === "error" ? "alert" : "status"}
               aria-live="polite"
@@ -343,8 +432,8 @@ export function WikiPanel({
             >
               {entityActionFeedback.message}
             </div>
-          )}
-          {expandedSections.proposals &&
+              )}
+              {expandedSections.proposals &&
             (proposalsLoading ? (
               Array.from({ length: 2 }).map((_, index) => (
                 <div
@@ -381,7 +470,9 @@ export function WikiPanel({
                   onEdit={() => handleEntityProposalEdit(proposal)}
                 />
               ))
-            ))}
+              ))}
+            </>
+          )}
         </div>
       </ScrollArea>
 
