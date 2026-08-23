@@ -39,6 +39,14 @@ import {
 
 import { Button } from "@/components/ui/button"
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
   createChatThread,
   deleteChatThread,
   getChatMessages,
@@ -90,6 +98,8 @@ export function ChatPanel({
   const [waitingMessageIndex, setWaitingMessageIndex] = useState(0)
   const [hasUsedVoiceInput, setHasUsedVoiceInput] = useState(false)
   const [isVoiceSettingsOpen, setIsVoiceSettingsOpen] = useState(false)
+  const [threadToDelete, setThreadToDelete] = useState<ChatThread | null>(null)
+  const [isDeletingThread, setIsDeletingThread] = useState(false)
   const endRef = useRef<HTMLDivElement | null>(null)
   const threadsRequestRef = useRef<AbortController | null>(null)
   const sendAbortControllerRef = useRef<AbortController | null>(null)
@@ -361,12 +371,23 @@ export function ChatPanel({
     }
   }
 
-  const handleRemoveThread = async (nextThreadId: string) => {
+  const requestDeleteThread = (nextThreadId: string) => {
+    const nextThread = threads.find((thread) => thread.id === nextThreadId)
+    if (nextThread) setThreadToDelete(nextThread)
+  }
+
+  const confirmDeleteThread = async () => {
+    const nextThread = threadToDelete
+    if (!nextThread || isDeletingThread) return
+
+    setIsDeletingThread(true)
     try {
-      await removeThread(nextThreadId)
+      await removeThread(nextThread.id)
+      setThreadToDelete(null)
     } catch (deleteError: unknown) {
       setError(errorMessage(deleteError, "No se pudo eliminar la conversación."))
-      throw deleteError
+    } finally {
+      setIsDeletingThread(false)
     }
   }
 
@@ -475,7 +496,7 @@ export function ChatPanel({
               onSearchChange={setHistorySearch}
               onLoadMore={loadMoreThreads}
               onRenameThread={handleRenameThread}
-              onDeleteThread={handleRemoveThread}
+              onRequestDeleteThread={requestDeleteThread}
             />
           )}
         </div>
@@ -679,6 +700,14 @@ export function ChatPanel({
         </div>
       </form>
       </section>
+      <DeleteThreadDialog
+        thread={threadToDelete}
+        isDeleting={isDeletingThread}
+        onOpenChange={(open) => {
+          if (!open && !isDeletingThread) setThreadToDelete(null)
+        }}
+        onConfirm={() => void confirmDeleteThread()}
+      />
     </div>
   )
 }
@@ -850,6 +879,51 @@ function NavigationActionCard({
   )
 }
 
+function DeleteThreadDialog({
+  thread,
+  isDeleting,
+  onOpenChange,
+  onConfirm,
+}: {
+  readonly thread: ChatThread | null
+  readonly isDeleting: boolean
+  readonly onOpenChange: (open: boolean) => void
+  readonly onConfirm: () => void
+}) {
+  return (
+    <Dialog open={thread !== null} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Eliminar conversación</DialogTitle>
+          <DialogDescription>
+            ¿Seguro que querés eliminar “{thread?.title || "Nueva conversación"}”?
+            Esta acción no se puede deshacer.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={isDeleting}
+            onClick={() => onOpenChange(false)}
+          >
+            Cancelar
+          </Button>
+          <Button
+            type="button"
+            variant="destructive"
+            disabled={isDeleting}
+            onClick={onConfirm}
+          >
+            {isDeleting && <Loader2 className="size-3.5 animate-spin" />}
+            {isDeleting ? "Eliminando…" : "Eliminar"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 function ChatHistoryMenu({
   threads,
   currentThreadId,
@@ -861,7 +935,7 @@ function ChatHistoryMenu({
   onSearchChange,
   onLoadMore,
   onRenameThread,
-  onDeleteThread,
+  onRequestDeleteThread,
 }: {
   readonly threads: ChatThread[]
   readonly currentThreadId: string | null
@@ -873,7 +947,7 @@ function ChatHistoryMenu({
   readonly onSearchChange: (value: string) => void
   readonly onLoadMore: () => void
   readonly onRenameThread: (threadId: string, title: string) => Promise<void>
-  readonly onDeleteThread: (threadId: string) => Promise<void>
+  readonly onRequestDeleteThread: (threadId: string) => void
 }) {
   return (
     <div
@@ -947,11 +1021,7 @@ function ChatHistoryMenu({
                   />
                   <button
                     type="button"
-                    onClick={() => {
-                      if (window.confirm("¿Eliminar esta conversación?")) {
-                        void onDeleteThread(thread.id)
-                      }
-                    }}
+                    onClick={() => onRequestDeleteThread(thread.id)}
                     aria-label={`Eliminar ${thread.title || "conversación"}`}
                     title="Eliminar conversación"
                     className="flex size-6 items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
