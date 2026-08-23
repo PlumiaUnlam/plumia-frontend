@@ -2,9 +2,6 @@ export type ChatSourceKind =
   | "manuscript"
   | "wiki"
   | "timeline"
-  | "storyboard"
-  | "summary"
-  | "audit"
   | "application"
 
 export type ChatSource = {
@@ -30,10 +27,16 @@ export type ChatThread = {
   projectId: string
   title: string
   isArchived: boolean
-  antiSpoilerEnabled: boolean
-  currentChapterId: string | null
   createdAt: string
   updatedAt: string
+}
+
+export type ChatThreadPage = {
+  items: ChatThread[]
+  page: number
+  pageSize: number
+  total: number
+  hasMore: boolean
 }
 
 export type ChatMessage = {

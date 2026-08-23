@@ -25,6 +25,7 @@ type UseVoiceTranscriberResult = {
   isRecording: boolean
   isTranscribing: boolean
   audioLevel: number
+  recordingDurationSeconds: number
   audioInputDevices: AudioInputDevice[]
   selectedAudioInputId: string
   error: string | null
@@ -47,6 +48,7 @@ const AUDIO_MIME_TYPES = [
   "audio/mp4",
 ]
 const AUDIO_LEVEL_UPDATE_THRESHOLD = 0.02
+const MAX_RECORDING_DURATION_SECONDS = 180
 
 const subscribeToVoiceSupport = () => () => undefined
 const getVoiceSupportSnapshot = () =>
@@ -66,6 +68,7 @@ export function useVoiceTranscriber({
   const [isRecording, setIsRecording] = useState(false)
   const [isTranscribing, setIsTranscribing] = useState(false)
   const [audioLevel, setAudioLevel] = useState(0)
+  const [recordingDurationSeconds, setRecordingDurationSeconds] = useState(0)
   const [audioInputDevices, setAudioInputDevices] = useState<
     AudioInputDevice[]
   >([])
@@ -83,6 +86,19 @@ export function useVoiceTranscriber({
   const onTranscriptRef = useRef(onTranscript)
   const mountedRef = useRef(false)
   const transcriptionAbortRef = useRef<AbortController | null>(null)
+  const recordingLimitTimeoutRef = useRef<number | null>(null)
+  const recordingDurationIntervalRef = useRef<number | null>(null)
+
+  const clearRecordingTimers = useCallback(() => {
+    if (recordingLimitTimeoutRef.current !== null) {
+      window.clearTimeout(recordingLimitTimeoutRef.current)
+      recordingLimitTimeoutRef.current = null
+    }
+    if (recordingDurationIntervalRef.current !== null) {
+      window.clearInterval(recordingDurationIntervalRef.current)
+      recordingDurationIntervalRef.current = null
+    }
+  }, [])
 
   const refreshAudioInputDevices = useCallback(async () => {
     if (!navigator.mediaDevices?.enumerateDevices) return
@@ -207,6 +223,7 @@ export function useVoiceTranscriber({
       mountedRef.current = false
       transcriptionAbortRef.current?.abort()
       transcriptionAbortRef.current = null
+      clearRecordingTimers()
 
       const recorder = recorderRef.current
       if (recorder && recorder.state !== "inactive") {
@@ -220,13 +237,14 @@ export function useVoiceTranscriber({
       recorderRef.current = null
       streamRef.current = null
     }
-  }, [stopAudioMonitor])
+  }, [clearRecordingTimers, stopAudioMonitor])
 
   const stop = useCallback(() => {
     const recorder = recorderRef.current
     if (!recorder || recorder.state === "inactive") return
+    clearRecordingTimers()
     recorder.stop()
-  }, [])
+  }, [clearRecordingTimers])
 
   const start = useCallback(async () => {
     if (isRecording || isTranscribing) return
@@ -244,6 +262,8 @@ export function useVoiceTranscriber({
 
     setError(null)
     setAudioLevel(0)
+    setRecordingDurationSeconds(0)
+    clearRecordingTimers()
     hasAudioSignalRef.current = false
     let stream: MediaStream
     try {
@@ -302,14 +322,21 @@ export function useVoiceTranscriber({
       setError("Se produjo un error al grabar el audio.")
     }
     recorder.onstop = () => {
+      clearRecordingTimers()
       const audioType = recorder.mimeType || mimeType || "audio/webm"
       const audio = new Blob(chunksRef.current, { type: audioType })
       const hadAudioSignal = hasAudioSignalRef.current
       const startedAt = recordingStartedAtRef.current
-      const durationSeconds = Math.max(
-        1,
-        Math.round(((performance.now() - (startedAt ?? performance.now())) / 1000)),
+      const durationSeconds = Math.min(
+        MAX_RECORDING_DURATION_SECONDS,
+        Math.max(
+          1,
+          Math.round(
+            (performance.now() - (startedAt ?? performance.now())) / 1000,
+          ),
+        ),
       )
+      setRecordingDurationSeconds(durationSeconds)
       const recording: VoiceRecording = {
         audio,
         filename: audioFilename(audioType),
@@ -369,6 +396,22 @@ export function useVoiceTranscriber({
     try {
       recorder.start()
       recordingStartedAtRef.current = performance.now()
+      recordingDurationIntervalRef.current = window.setInterval(() => {
+        const startedAt = recordingStartedAtRef.current
+        if (startedAt === null) return
+        setRecordingDurationSeconds(
+          Math.min(
+            MAX_RECORDING_DURATION_SECONDS,
+            Math.floor((performance.now() - startedAt) / 1000),
+          ),
+        )
+      }, 250)
+      recordingLimitTimeoutRef.current = window.setTimeout(() => {
+        const activeRecorder = recorderRef.current
+        if (activeRecorder && activeRecorder.state !== "inactive") {
+          activeRecorder.stop()
+        }
+      }, MAX_RECORDING_DURATION_SECONDS * 1000)
       void startAudioMonitor(stream)
       setIsRecording(true)
     } catch {
@@ -381,6 +424,7 @@ export function useVoiceTranscriber({
   }, [
     isRecording,
     isTranscribing,
+    clearRecordingTimers,
     refreshAudioInputDevices,
     selectedAudioInputId,
     startAudioMonitor,
@@ -394,6 +438,7 @@ export function useVoiceTranscriber({
     isRecording,
     isTranscribing,
     audioLevel,
+    recordingDurationSeconds,
     audioInputDevices,
     selectedAudioInputId,
     error,

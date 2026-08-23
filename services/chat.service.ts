@@ -1,20 +1,39 @@
 import { api } from "@/services/api.service"
-import type { ChatExchange, ChatMessage, ChatThread } from "@/types/chat"
+import type {
+  ChatExchange,
+  ChatMessage,
+  ChatThread,
+  ChatThreadPage,
+} from "@/types/chat"
 
 export function getChatThreads(
   projectId: string,
-  options: Pick<RequestInit, "signal"> = {},
-): Promise<ChatThread[]> {
-  return api.get<ChatThread[]>(`/projects/${projectId}/chat/threads`, options)
+  options: Pick<RequestInit, "signal"> & {
+    page?: number
+    pageSize?: number
+    search?: string
+  } = {},
+): Promise<ChatThreadPage> {
+  const query = new URLSearchParams({
+    page: String(options.page ?? 1),
+    pageSize: String(options.pageSize ?? 20),
+    ...(options.search ? { search: options.search } : {}),
+  })
+  return api.get<ChatThreadPage>(
+    `/projects/${projectId}/chat/threads?${query.toString()}`,
+    { signal: options.signal },
+  )
 }
 
 export function createChatThread(
   projectId: string,
-  currentChapterId?: string,
+  options: Pick<RequestInit, "signal"> = {},
 ): Promise<ChatThread> {
-  return api.post<ChatThread>(`/projects/${projectId}/chat/threads`, {
-    currentChapterId,
-  })
+  return api.post<ChatThread>(
+    `/projects/${projectId}/chat/threads`,
+    {},
+    options,
+  )
 }
 
 export function getChatMessages(
@@ -29,7 +48,6 @@ export function updateChatThread(
   input: {
     title?: string
     isArchived?: boolean
-    antiSpoilerEnabled?: boolean
   },
 ): Promise<ChatThread> {
   return api.patch<ChatThread>(`/chat/threads/${threadId}`, input)
@@ -42,10 +60,11 @@ export function deleteChatThread(threadId: string): Promise<void> {
 export function sendChatMessage(
   threadId: string,
   content: string,
-  currentChapterId?: string,
+  options: Pick<RequestInit, "signal"> = {},
 ): Promise<ChatExchange> {
-  return api.post<ChatExchange>(`/chat/threads/${threadId}/messages`, {
-    content,
-    currentChapterId,
-  })
+  return api.post<ChatExchange>(
+    `/chat/threads/${threadId}/messages`,
+    { content },
+    options,
+  )
 }

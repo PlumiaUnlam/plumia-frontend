@@ -91,7 +91,6 @@ export function EditorLayout({ projectId }: EditorLayoutProps) {
           {writingMode !== "zen" && (
             <EditorRightPanel
               projectId={projectId}
-              currentChapterId={activeChapter?.id}
               mode={writingMode}
             />
           )}

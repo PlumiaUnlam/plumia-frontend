@@ -32,7 +32,6 @@ type RightTab = "wiki" | "chat" | "stats";
 
 type EditorRightPanelProps = {
   readonly projectId: string;
-  readonly currentChapterId?: string;
   readonly mode: Exclude<WritingMode, "zen">;
 };
 
@@ -49,7 +48,6 @@ const tabs = [
 
 export function EditorRightPanel({
   projectId,
-  currentChapterId,
   mode,
 }: EditorRightPanelProps) {
   const refreshTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -353,7 +351,6 @@ export function EditorRightPanel({
         <ChatPanel
           key={projectId}
           projectId={projectId}
-          currentChapterId={currentChapterId}
           primaryImageUrls={primaryImageUrls}
         />
       )}

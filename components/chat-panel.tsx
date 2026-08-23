@@ -26,18 +26,21 @@ import {
   Plus,
   RefreshCw,
   Send,
-  ShieldCheck,
-  ShieldAlert,
-  ShieldOff,
+  Search,
+  Settings,
   Sparkles,
-  StickyNote,
   Square,
+  Trash2,
+  Pencil,
+  Check,
+  X,
   Waypoints,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
   createChatThread,
+  deleteChatThread,
   getChatMessages,
   getChatThreads,
   sendChatMessage,
@@ -49,9 +52,16 @@ import type { ChatMessage, ChatSource, ChatThread } from "@/types/chat"
 
 type ChatPanelProps = {
   readonly projectId: string
-  readonly currentChapterId?: string
   readonly primaryImageUrls?: Readonly<Record<string, string>>
 }
+
+const HISTORY_PAGE_SIZE = 8
+const WAITING_MESSAGES = [
+  "Buscando fragmentos relevantes…",
+  "Contrastando manuscrito, Wiki y línea de tiempo…",
+  "Verificando las referencias…",
+  "Preparando una respuesta respaldada…",
+]
 
 const promptSuggestions = [
   "¿Qué hechos importantes registra la línea de tiempo?",
@@ -61,7 +71,6 @@ const promptSuggestions = [
 
 export function ChatPanel({
   projectId,
-  currentChapterId,
   primaryImageUrls = {},
 }: ChatPanelProps) {
   const [threadId, setThreadId] = useState<string | null>(null)
@@ -73,7 +82,17 @@ export function ChatPanel({
   const [isHistoryOpen, setIsHistoryOpen] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [failedContent, setFailedContent] = useState<string | null>(null)
+  const [historySearch, setHistorySearch] = useState("")
+  const [historyPage, setHistoryPage] = useState(1)
+  const [hasMoreThreads, setHasMoreThreads] = useState(false)
+  const [isHistoryLoading, setIsHistoryLoading] = useState(false)
+  const [waitingMessageIndex, setWaitingMessageIndex] = useState(0)
+  const [hasUsedVoiceInput, setHasUsedVoiceInput] = useState(false)
+  const [isVoiceSettingsOpen, setIsVoiceSettingsOpen] = useState(false)
   const endRef = useRef<HTMLDivElement | null>(null)
+  const threadsRequestRef = useRef<AbortController | null>(null)
+  const sendAbortControllerRef = useRef<AbortController | null>(null)
   const handleVoiceTranscript = useCallback((text: string) => {
     setDraft((current) => {
       const base = current.trim()
@@ -88,6 +107,11 @@ export function ChatPanel({
     isRecording,
     isTranscribing,
     audioLevel,
+    audioInputDevices,
+    selectedAudioInputId,
+    selectAudioInput,
+    refreshAudioInputDevices,
+    recordingDurationSeconds,
     error: voiceError,
     start: startVoiceRecording,
     stop: stopVoiceRecording,
@@ -96,14 +120,55 @@ export function ChatPanel({
   const isVoiceBusy = isRecording || isTranscribing
   const displayError = voiceError ?? error
 
+  const loadThreads = useCallback(
+    async (page: number, search: string, append: boolean) => {
+      threadsRequestRef.current?.abort()
+      const controller = new AbortController()
+      threadsRequestRef.current = controller
+      setIsHistoryLoading(true)
+      try {
+        const result = await getChatThreads(projectId, {
+          signal: controller.signal,
+          page,
+          pageSize: HISTORY_PAGE_SIZE,
+          search,
+        })
+        if (controller.signal.aborted) return
+        setThreads((current) =>
+          append ? [...current, ...result.items] : result.items,
+        )
+        setHistoryPage(result.page)
+        setHasMoreThreads(result.hasMore)
+      } catch (loadError: unknown) {
+        if (!controller.signal.aborted) {
+          setError(errorMessage(loadError, "No se pudo cargar el historial."))
+        }
+      } finally {
+        if (threadsRequestRef.current === controller) {
+          threadsRequestRef.current = null
+          setIsHistoryLoading(false)
+        }
+      }
+    },
+    [projectId],
+  )
+
   useEffect(() => {
     let cancelled = false
     const controller = new AbortController()
 
-    void getChatThreads(projectId, { signal: controller.signal })
-      .then(async (threads) => {
-        if (!cancelled) setThreads(threads)
-        const currentThread = threads[0]
+    void getChatThreads(projectId, {
+      signal: controller.signal,
+      page: 1,
+      pageSize: HISTORY_PAGE_SIZE,
+    })
+      .then(async (threadPage) => {
+        if (!cancelled) {
+          setThreads(threadPage.items)
+          setHistoryPage(threadPage.page)
+          setHasMoreThreads(threadPage.hasMore)
+        }
+        const currentThread = threadPage.items[0]
         if (!currentThread) return { thread: null, messages: [] }
         return {
           thread: currentThread,
@@ -132,6 +197,24 @@ export function ChatPanel({
   }, [projectId])
 
   useEffect(() => {
+    if (!isHistoryOpen) return
+    const timeout = window.setTimeout(() => {
+      void loadThreads(1, historySearch, false)
+    }, 250)
+    return () => window.clearTimeout(timeout)
+  }, [historySearch, isHistoryOpen, loadThreads])
+
+  useEffect(() => {
+    if (!isSending) return
+    const interval = window.setInterval(() => {
+      setWaitingMessageIndex((current) =>
+        (current + 1) % WAITING_MESSAGES.length,
+      )
+    }, 2600)
+    return () => window.clearInterval(interval)
+  }, [isSending])
+
+  useEffect(() => {
     if (!isFullscreen) return
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") setIsFullscreen(false)
@@ -149,61 +232,86 @@ export function ChatPanel({
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" })
   }, [messages, isSending])
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    const content = draft.trim()
-    if (!content || isSending || isVoiceBusy) return
-
-    const optimisticId = `pending-${Date.now()}`
-    const optimisticMessage: ChatMessage = {
-      id: optimisticId,
-      threadId: threadId ?? "pending",
-      role: "user",
-      content,
-      sources: [],
-      inputTokens: null,
-      outputTokens: null,
-      createdAt: new Date().toISOString(),
-    }
-    setDraft("")
-    setError(null)
-    setIsSending(true)
-    setMessages((current) => [...current, optimisticMessage])
-
-    try {
-      let activeThreadId = threadId
-      if (!activeThreadId) {
-        const thread = await createChatThread(projectId, currentChapterId)
-        activeThreadId = thread.id
-        setThreadId(thread.id)
-        setThreads((current) => [thread, ...current])
-      }
-      const exchange = await sendChatMessage(
-        activeThreadId,
+  const sendContent = useCallback(
+    async (content: string) => {
+      if (!content || isSending || isVoiceBusy) return
+      const controller = new AbortController()
+      sendAbortControllerRef.current = controller
+      const optimisticId = `pending-${Date.now()}`
+      const optimisticMessage: ChatMessage = {
+        id: optimisticId,
+        threadId: threadId ?? "pending",
+        role: "user",
         content,
-        currentChapterId,
-      )
-      setMessages((current) => [
-        ...current.filter((message) => message.id !== optimisticId),
-        exchange.userMessage,
-        exchange.assistantMessage,
-      ])
-      setThreads((current) =>
-        current.map((thread) =>
-          thread.id === activeThreadId && thread.title === "Nueva conversacion"
-            ? { ...thread, title: content.slice(0, 197) }
-            : thread,
-        ),
-      )
-    } catch (sendError: unknown) {
-      setMessages((current) =>
-        current.filter((message) => message.id !== optimisticId),
-      )
-      setDraft(content)
-      setError(errorMessage(sendError, "No se pudo enviar la consulta."))
-    } finally {
-      setIsSending(false)
-    }
+        sources: [],
+        inputTokens: null,
+        outputTokens: null,
+        createdAt: new Date().toISOString(),
+      }
+      setDraft("")
+      setError(null)
+      setFailedContent(null)
+      setWaitingMessageIndex(0)
+      setIsSending(true)
+      setMessages((current) => [...current, optimisticMessage])
+
+      try {
+        let activeThreadId = threadId
+        if (!activeThreadId) {
+          const thread = await createChatThread(projectId, {
+            signal: controller.signal,
+          })
+          activeThreadId = thread.id
+          setThreadId(thread.id)
+          setThreads((current) => [thread, ...current])
+        }
+        const exchange = await sendChatMessage(activeThreadId, content, {
+          signal: controller.signal,
+        })
+        setMessages((current) => [
+          ...current.filter((message) => message.id !== optimisticId),
+          exchange.userMessage,
+          exchange.assistantMessage,
+        ])
+        setThreads((current) =>
+          current.map((thread) =>
+            thread.id === activeThreadId && thread.title === "Nueva conversacion"
+              ? { ...thread, title: content.slice(0, 197) }
+              : thread,
+          ),
+        )
+      } catch (sendError: unknown) {
+        setMessages((current) =>
+          current.filter((message) => message.id !== optimisticId),
+        )
+        setDraft(content)
+        setFailedContent(content)
+        setError(
+          isAbortError(sendError)
+            ? "Respuesta cancelada. Podés reintentarlo cuando quieras."
+            : errorMessage(sendError, "No se pudo enviar la consulta."),
+        )
+      } finally {
+        if (sendAbortControllerRef.current === controller) {
+          sendAbortControllerRef.current = null
+        }
+        setIsSending(false)
+      }
+    },
+    [isSending, isVoiceBusy, projectId, threadId],
+  )
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    void sendContent(draft.trim())
+  }
+
+  const cancelSending = () => {
+    sendAbortControllerRef.current?.abort()
+  }
+
+  const retryLastRequest = () => {
+    if (failedContent) void sendContent(failedContent)
   }
 
   const selectThread = async (nextThreadId: string) => {
@@ -227,21 +335,43 @@ export function ChatPanel({
     }
   }
 
-  const toggleAntiSpoiler = async () => {
-    const currentThread = threads.find((thread) => thread.id === threadId)
-    if (!currentThread) return
-    try {
-      const updated = await updateChatThread(currentThread.id, {
-        antiSpoilerEnabled: !currentThread.antiSpoilerEnabled,
-      })
-      setThreads((current) =>
-        current.map((thread) => (thread.id === updated.id ? updated : thread)),
-      )
-    } catch (updateError: unknown) {
-      setError(
-        errorMessage(updateError, "No se pudo cambiar el filtro anti-spoiler."),
-      )
+  const renameThread = async (nextThreadId: string, title: string) => {
+    const updated = await updateChatThread(nextThreadId, { title })
+    setThreads((current) =>
+      current.map((thread) => (thread.id === updated.id ? updated : thread)),
+    )
+  }
+
+  const removeThread = async (nextThreadId: string) => {
+    await deleteChatThread(nextThreadId)
+    setThreads((current) => current.filter((thread) => thread.id !== nextThreadId))
+    if (threadId === nextThreadId) {
+      setThreadId(null)
+      setMessages([])
     }
+  }
+
+  const handleRenameThread = async (nextThreadId: string, title: string) => {
+    try {
+      await renameThread(nextThreadId, title)
+    } catch (updateError: unknown) {
+      setError(errorMessage(updateError, "No se pudo renombrar la conversación."))
+      throw updateError
+    }
+  }
+
+  const handleRemoveThread = async (nextThreadId: string) => {
+    try {
+      await removeThread(nextThreadId)
+    } catch (deleteError: unknown) {
+      setError(errorMessage(deleteError, "No se pudo eliminar la conversación."))
+      throw deleteError
+    }
+  }
+
+  const loadMoreThreads = () => {
+    if (!hasMoreThreads || isHistoryLoading) return
+    void loadThreads(historyPage + 1, historySearch, true)
   }
 
   const currentThread = threads.find((thread) => thread.id === threadId)
@@ -255,6 +385,7 @@ export function ChatPanel({
 
     setError(null)
     clearVoiceError()
+    setHasUsedVoiceInput(true)
     void startVoiceRecording()
   }
 
@@ -312,31 +443,6 @@ export function ChatPanel({
               type="button"
               variant="ghost"
               size="icon-sm"
-              disabled={!currentThread}
-              onClick={() => void toggleAntiSpoiler()}
-              aria-label={
-                currentThread?.antiSpoilerEnabled
-                  ? "Desactivar filtro anti-spoiler"
-                  : "Activar filtro anti-spoiler"
-              }
-              aria-pressed={currentThread?.antiSpoilerEnabled ?? true}
-              title={
-                currentThread?.antiSpoilerEnabled
-                  ? "Anti-spoiler activo"
-                  : "Anti-spoiler desactivado"
-              }
-              className="size-7 rounded-lg text-muted-foreground"
-            >
-              {currentThread?.antiSpoilerEnabled === false ? (
-                <ShieldOff className="size-3.5" />
-              ) : (
-                <ShieldCheck className="size-3.5" />
-              )}
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
               onClick={() => setIsFullscreen((fullscreen) => !fullscreen)}
               aria-label={
                 isFullscreen ? "Salir de pantalla completa" : "Pantalla completa"
@@ -360,8 +466,15 @@ export function ChatPanel({
             <ChatHistoryMenu
               threads={threads}
               currentThreadId={threadId}
+              search={historySearch}
+              isLoading={isHistoryLoading}
+              hasMore={hasMoreThreads}
               onSelectThread={(nextThreadId) => void selectThread(nextThreadId)}
               onNewThread={() => void selectThread("new")}
+              onSearchChange={setHistorySearch}
+              onLoadMore={loadMoreThreads}
+              onRenameThread={handleRenameThread}
+              onDeleteThread={handleRemoveThread}
             />
           )}
         </div>
@@ -385,7 +498,12 @@ export function ChatPanel({
                       onBeforeSourceNavigation={handleBeforeSourceNavigation}
                     />
                   ))}
-                {isSending && <ThinkingBubble />}
+                {isSending && (
+                  <ThinkingBubble
+                    status={WAITING_MESSAGES[waitingMessageIndex]}
+                    onCancel={cancelSending}
+                  />
+                )}
               </div>
             )}
             <div ref={endRef} />
@@ -404,6 +522,16 @@ export function ChatPanel({
             >
               <RefreshCw className="mt-0.5 size-3 shrink-0" />
               {displayError}
+              {failedContent && !isSending && (
+                <button
+                  type="button"
+                  onClick={retryLastRequest}
+                  className="ml-auto inline-flex shrink-0 items-center gap-1 font-semibold underline underline-offset-2"
+                >
+                  <RefreshCw className="size-3" />
+                  Reintentar
+                </button>
+              )}
             </div>
           )}
           <div className="rounded-2xl border border-border bg-muted/70 p-2 transition-colors focus-within:border-primary/40 focus-within:bg-background focus-within:ring-2 focus-within:ring-primary/10">
@@ -439,7 +567,25 @@ export function ChatPanel({
                   />
                   <Mic className="relative size-3.5 text-primary" />
                 </div>
-                <span>{getAudioSignalMessage(audioLevel)}</span>
+                <span>
+                  {getAudioSignalMessage(audioLevel)} · {formatDuration(recordingDurationSeconds)} / 3:00
+                </span>
+                {hasUsedVoiceInput && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={() => {
+                      setIsVoiceSettingsOpen(true)
+                      void refreshAudioInputDevices()
+                    }}
+                    aria-label="Configurar micrófono"
+                    title="Configurar micrófono"
+                    className="ml-auto size-7 rounded-lg text-muted-foreground hover:text-primary"
+                  >
+                    <Settings className="size-3.5" />
+                  </Button>
+                )}
               </div>
             )}
             {isTranscribing && (
@@ -508,6 +654,15 @@ export function ChatPanel({
                 ? "Transcribiendo…"
                 : "Enter para enviar · Shift + Enter para nueva línea"}
           </p>
+          {isVoiceSettingsOpen && isRecording && (
+            <VoiceSettingsModal
+              audioInputDevices={audioInputDevices}
+              selectedAudioInputId={selectedAudioInputId}
+              audioLevel={audioLevel}
+              onSelectAudioInput={selectAudioInput}
+              onClose={() => setIsVoiceSettingsOpen(false)}
+            />
+          )}
         </div>
       </form>
       </section>
@@ -561,6 +716,9 @@ function ChatBubble({
 }) {
   const isUser = message.role === "user"
   const [sourcesExpanded, setSourcesExpanded] = useState(true)
+  const hasApplicationActions = message.sources.some(
+    (source) => source.kind === "application",
+  )
   return (
     <article className={isUser ? "ml-8" : "mr-3"}>
       <div className={`flex items-start gap-2 ${isUser ? "justify-end" : ""}`}>
@@ -583,7 +741,7 @@ function ChatBubble({
         <div className="ml-8 mt-2 space-y-1.5">
           <div className="flex items-center justify-between gap-2 px-1">
             <span className="text-[9px] font-semibold tracking-wide text-muted-foreground uppercase">
-              Referencias utilizadas
+              {hasApplicationActions ? "Acciones sugeridas" : "Referencias utilizadas"}
               <span className="ml-1 font-normal text-muted-foreground/70">
                 · {message.sources.length}
               </span>
@@ -594,8 +752,12 @@ function ChatBubble({
               aria-expanded={sourcesExpanded}
               aria-label={
                 sourcesExpanded
-                  ? "Ocultar referencias utilizadas"
-                  : "Mostrar referencias utilizadas"
+                  ? hasApplicationActions
+                    ? "Ocultar acciones sugeridas"
+                    : "Ocultar referencias utilizadas"
+                  : hasApplicationActions
+                    ? "Mostrar acciones sugeridas"
+                    : "Mostrar referencias utilizadas"
               }
               className="flex size-5 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
             >
@@ -633,13 +795,27 @@ function ChatBubble({
 function ChatHistoryMenu({
   threads,
   currentThreadId,
+  search,
+  isLoading,
+  hasMore,
   onSelectThread,
   onNewThread,
+  onSearchChange,
+  onLoadMore,
+  onRenameThread,
+  onDeleteThread,
 }: {
   readonly threads: ChatThread[]
   readonly currentThreadId: string | null
+  readonly search: string
+  readonly isLoading: boolean
+  readonly hasMore: boolean
   readonly onSelectThread: (threadId: string) => void
   readonly onNewThread: () => void
+  readonly onSearchChange: (value: string) => void
+  readonly onLoadMore: () => void
+  readonly onRenameThread: (threadId: string, title: string) => Promise<void>
+  readonly onDeleteThread: (threadId: string) => Promise<void>
 }) {
   return (
     <div
@@ -654,42 +830,95 @@ function ChatHistoryMenu({
           {threads.length} {threads.length === 1 ? "conversación" : "conversaciones"}
         </span>
       </div>
+      <div className="relative px-1 pb-2">
+        <Search className="pointer-events-none absolute left-3 top-2.5 size-3 text-muted-foreground" />
+        <input
+          value={search}
+          onChange={(event) => onSearchChange(event.target.value)}
+          placeholder="Buscar conversaciones…"
+          aria-label="Buscar conversaciones"
+          className="h-8 w-full rounded-lg border border-border bg-background pl-8 pr-2 text-[10px] outline-none focus:border-primary/40 focus:ring-1 focus:ring-primary/10"
+        />
+      </div>
       <div className="max-h-64 space-y-0.5 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {threads.length === 0 ? (
+        {isLoading && threads.length === 0 ? (
+          <p className="flex items-center justify-center gap-1.5 px-2.5 py-4 text-center text-[10px] text-muted-foreground">
+            <Loader2 className="size-3 animate-spin" />
+            Buscando…
+          </p>
+        ) : threads.length === 0 ? (
           <p className="px-2.5 py-4 text-center text-[10px] text-muted-foreground">
-            Todavía no hay conversaciones guardadas.
+            {search
+              ? "No hay conversaciones que coincidan."
+              : "Todavía no hay conversaciones guardadas."}
           </p>
         ) : (
           threads.map((thread) => {
             const isCurrent = thread.id === currentThreadId
             return (
-              <button
+              <div
                 key={thread.id}
-                type="button"
-                onClick={() => onSelectThread(thread.id)}
                 className={`flex w-full items-start gap-2 rounded-xl px-2.5 py-2 text-left transition-colors ${
                   isCurrent
                     ? "bg-primary/10 text-primary"
                     : "text-foreground hover:bg-muted"
                 }`}
               >
-                <History className="mt-0.5 size-3.5 shrink-0 opacity-70" />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[10px] font-medium">
-                    {thread.title || "Nueva conversación"}
+                <button
+                  type="button"
+                  onClick={() => onSelectThread(thread.id)}
+                  className="flex min-w-0 flex-1 items-start gap-2 text-left"
+                >
+                  <History className="mt-0.5 size-3.5 shrink-0 opacity-70" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[10px] font-medium">
+                      {thread.title || "Nueva conversación"}
+                    </span>
+                    <span className="mt-0.5 block text-[9px] text-muted-foreground">
+                      {formatThreadDate(thread.updatedAt)}
+                    </span>
                   </span>
-                  <span className="mt-0.5 block text-[9px] text-muted-foreground">
-                    {formatThreadDate(thread.updatedAt)}
-                  </span>
-                </span>
-                {isCurrent && (
-                  <span className="mt-1 size-1.5 shrink-0 rounded-full bg-primary" />
-                )}
-              </button>
+                  {isCurrent && (
+                    <span className="mt-1 size-1.5 shrink-0 rounded-full bg-primary" />
+                  )}
+                </button>
+                <div className="flex shrink-0 items-center gap-0.5">
+                  <ThreadRenameButton
+                    thread={thread}
+                    onRename={onRenameThread}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (window.confirm("¿Eliminar esta conversación?")) {
+                        void onDeleteThread(thread.id)
+                      }
+                    }}
+                    aria-label={`Eliminar ${thread.title || "conversación"}`}
+                    title="Eliminar conversación"
+                    className="flex size-6 items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                  >
+                    <Trash2 className="size-3" />
+                  </button>
+                </div>
+              </div>
             )
           })
         )}
       </div>
+      {hasMore && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={onLoadMore}
+          disabled={isLoading}
+          className="mt-1 w-full justify-center gap-1 rounded-xl px-2.5 text-[10px] text-muted-foreground hover:bg-muted"
+        >
+          {isLoading && <Loader2 className="size-3 animate-spin" />}
+          Cargar más
+        </Button>
+      )}
       <Button
         type="button"
         variant="ghost"
@@ -711,6 +940,148 @@ function formatThreadDate(value: string): string {
     day: "numeric",
     month: "short",
   }).format(date)
+}
+
+function ThreadRenameButton({
+  thread,
+  onRename,
+}: {
+  readonly thread: ChatThread
+  readonly onRename: (threadId: string, title: string) => Promise<void>
+}) {
+  const [isEditing, setIsEditing] = useState(false)
+  const [title, setTitle] = useState(thread.title)
+
+  if (isEditing) {
+    return (
+      <span className="flex items-center gap-0.5">
+        <input
+          autoFocus
+          value={title}
+          onChange={(event) => setTitle(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault()
+              void submitRename()
+            }
+            if (event.key === "Escape") setIsEditing(false)
+          }}
+          aria-label="Nuevo nombre de conversación"
+          className="h-6 w-28 rounded-md border border-primary/30 bg-background px-1.5 text-[9px] outline-none"
+        />
+        <button
+          type="button"
+          onClick={() => void submitRename()}
+          aria-label="Guardar nombre"
+          className="flex size-6 items-center justify-center rounded-md text-primary hover:bg-primary/10"
+        >
+          <Check className="size-3" />
+        </button>
+        <button
+          type="button"
+          onClick={() => setIsEditing(false)}
+          aria-label="Cancelar renombrado"
+          className="flex size-6 items-center justify-center rounded-md text-muted-foreground hover:bg-muted"
+        >
+          <X className="size-3" />
+        </button>
+      </span>
+    )
+  }
+
+  async function submitRename() {
+    const nextTitle = title.trim()
+    if (!nextTitle) return
+    await onRename(thread.id, nextTitle)
+    setIsEditing(false)
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        setTitle(thread.title)
+        setIsEditing(true)
+      }}
+      aria-label={`Renombrar ${thread.title || "conversación"}`}
+      title="Renombrar conversación"
+      className="flex size-6 items-center justify-center rounded-md text-muted-foreground hover:bg-primary/10 hover:text-primary"
+    >
+      <Pencil className="size-3" />
+    </button>
+  )
+}
+
+function VoiceSettingsModal({
+  audioInputDevices,
+  selectedAudioInputId,
+  audioLevel,
+  onSelectAudioInput,
+  onClose,
+}: {
+  readonly audioInputDevices: ReadonlyArray<{ deviceId: string; label: string }>
+  readonly selectedAudioInputId: string
+  readonly audioLevel: number
+  readonly onSelectAudioInput: (deviceId: string) => void
+  readonly onClose: () => void
+}) {
+  return (
+    <div
+      role="dialog"
+      aria-label="Configuración del micrófono"
+      className="mt-2 rounded-xl border border-primary/20 bg-background p-3 shadow-sm"
+    >
+      <div className="flex items-center justify-between gap-2">
+        <div>
+          <p className="text-[10px] font-semibold">Configurar micrófono</p>
+          <p className="text-[9px] text-muted-foreground">
+            Hablá para comprobar que la señal se escuche correctamente.
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          onClick={onClose}
+          aria-label="Cerrar configuración del micrófono"
+          className="size-6 rounded-md"
+        >
+          <X className="size-3" />
+        </Button>
+      </div>
+      <label className="mt-3 block text-[9px] font-medium text-muted-foreground">
+        Entrada de audio
+        <select
+          value={selectedAudioInputId}
+          onChange={(event) => onSelectAudioInput(event.target.value)}
+          disabled={audioInputDevices.length === 0}
+          className="mt-1 h-8 w-full rounded-lg border border-border bg-card px-2 text-[10px] text-foreground outline-none focus:border-primary/40"
+        >
+          {audioInputDevices.length === 0 ? (
+            <option value="">Micrófono predeterminado</option>
+          ) : (
+            audioInputDevices.map((device) => (
+              <option key={device.deviceId} value={device.deviceId}>
+                {device.label}
+              </option>
+            ))
+          )}
+        </select>
+      </label>
+      <div className="mt-3">
+        <div className="mb-1 flex justify-between text-[9px] text-muted-foreground">
+          <span>Nivel detectado</span>
+          <span>{Math.round(audioLevel * 100)}%</span>
+        </div>
+        <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+          <div
+            className="h-full rounded-full bg-primary transition-[width] duration-75"
+            style={{ width: `${Math.min(100, audioLevel * 100)}%` }}
+          />
+        </div>
+      </div>
+    </div>
+  )
 }
 
 function SourceCard({
@@ -742,15 +1113,40 @@ function SourceCard({
       ? BookOpen
       : source.kind === "timeline"
         ? Clock3
-        : source.kind === "storyboard"
-          ? StickyNote
-          : source.kind === "summary"
-            ? FileText
-          : source.kind === "audit"
-            ? ShieldAlert
-          : source.kind === "application"
-            ? Waypoints
-            : FileText
+        : source.kind === "application"
+          ? Waypoints
+          : FileText
+
+  if (source.kind === "application") {
+    return (
+      <button
+        type="button"
+        disabled={!source.route}
+        onClick={() => {
+          if (!source.route) return
+          onBeforeNavigation()
+          router.push(source.route)
+        }}
+        className="group flex w-full items-center gap-2 rounded-xl border border-primary/20 bg-primary/5 p-2 text-left transition-colors enabled:hover:border-primary/40 enabled:hover:bg-primary/10 disabled:cursor-default"
+      >
+        <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+          <Waypoints className="size-3.5" />
+        </div>
+        <span className="min-w-0 flex-1">
+          <span className="flex items-center gap-1.5 text-[10px] font-semibold text-foreground">
+            <span className="truncate">{source.label}</span>
+            <ExternalLink className="size-2.5 shrink-0 text-primary opacity-0 transition-opacity group-hover:opacity-100" />
+          </span>
+          <span className="mt-0.5 block text-[9px] text-muted-foreground">
+            Abrir esta sección de PlumIA
+          </span>
+        </span>
+        <span className="shrink-0 text-[9px] font-semibold text-primary">
+          Ir ahí
+        </span>
+      </button>
+    )
+  }
 
   const navigateToScene = () => {
     if (!source.sceneId) return
@@ -915,20 +1311,30 @@ function getWikiSourceDetails(source: ChatSource): WikiSourceDetails {
   }
 }
 
-function ThinkingBubble() {
+function ThinkingBubble({
+  status,
+  onCancel,
+}: {
+  readonly status: string
+  readonly onCancel: () => void
+}) {
   return (
     <div className="mr-3 flex items-start gap-2" aria-label="Analizando la obra">
       <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
         <Feather className="size-3" />
       </div>
-      <div className="flex h-9 items-center gap-1 rounded-2xl rounded-tl-md bg-muted px-3">
-        {[0, 1, 2].map((index) => (
-          <span
-            key={index}
-            className="size-1.5 animate-bounce rounded-full bg-primary/45"
-            style={{ animationDelay: `${index * 120}ms` }}
-          />
-        ))}
+      <div className="flex min-h-9 items-center gap-2 rounded-2xl rounded-tl-md bg-muted px-3 py-1.5">
+        <span className="text-[10px] text-muted-foreground" aria-live="polite">
+          {status}
+        </span>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[9px] font-semibold text-primary hover:bg-primary/10"
+        >
+          <Square className="size-2.5 fill-current" />
+          Cancelar
+        </button>
       </div>
     </div>
   )
@@ -947,6 +1353,15 @@ function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message.trim()
     ? error.message
     : fallback
+}
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof DOMException && error.name === "AbortError"
+}
+
+function formatDuration(totalSeconds: number): string {
+  const seconds = Math.max(0, Math.min(180, Math.floor(totalSeconds)))
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`
 }
 
 function getAudioSignalMessage(audioLevel: number): string {
