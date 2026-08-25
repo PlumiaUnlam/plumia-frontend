@@ -89,7 +89,10 @@ export function EditorLayout({ projectId }: EditorLayoutProps) {
           </main>
 
           {writingMode !== "zen" && (
-            <EditorRightPanel projectId={projectId} mode={writingMode} />
+            <EditorRightPanel
+              projectId={projectId}
+              mode={writingMode}
+            />
           )}
         </div>
       </SidebarProvider>

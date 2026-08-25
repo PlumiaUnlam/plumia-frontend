@@ -30,22 +30,35 @@ function isSummaryNotFound(error: unknown) {
   return error instanceof Error && error.message.includes("Summary not found");
 }
 
-export async function getChapterSummary(chapterId: string) {
+export async function getChapterSummary(
+  chapterId: string,
+  options: Pick<RequestInit, "signal"> = {},
+) {
   try {
-    return await api.get<SummaryResponse>(`/chapters/${chapterId}/summary`);
+    return await api.get<SummaryResponse>(
+      `/chapters/${chapterId}/summary`,
+      options,
+    );
   } catch (error) {
     if (isSummaryNotFound(error)) return null;
     throw error;
   }
 }
 
-export async function generateChapterSummary(chapterId: string) {
+export async function generateChapterSummary(
+  chapterId: string,
+  options: Pick<RequestInit, "signal"> = {},
+) {
   return api.post<SummaryJobResponse>(
     `/chapters/${chapterId}/summary/generate`,
     {},
+    options,
   );
 }
 
-export async function getSummaryJob(jobId: string) {
-  return api.get<SummaryJobResponse>(`/summary-jobs/${jobId}`);
+export async function getSummaryJob(
+  jobId: string,
+  options: Pick<RequestInit, "signal"> = {},
+) {
+  return api.get<SummaryJobResponse>(`/summary-jobs/${jobId}`, options);
 }

@@ -97,6 +97,7 @@ export function normalizeSceneContentForSave(
 
 export async function resolveSceneContentImages(
   content: ProseMirrorJSON | null | undefined,
+  options: Pick<RequestInit, "signal"> = {},
 ): Promise<ProseMirrorJSON | null> {
   if (!content) return content ?? null
 
@@ -106,7 +107,7 @@ export async function resolveSceneContentImages(
     const cached = urlCache.get(storageKey)
     if (cached) return cached
 
-    const promise = resolveStorageKeyUrl(storageKey)
+    const promise = resolveStorageKeyUrl(storageKey, options)
     urlCache.set(storageKey, promise)
     return promise
   }
@@ -163,8 +164,11 @@ export function countWords(content: ProseMirrorJSON | null | undefined): number 
 }
 
 /** Carga perezosa de una escena (`GET /scenes/:id`). */
-export async function getScene(id: string): Promise<SceneDocument> {
-  return api.get<SceneDocument>(`/scenes/${id}`)
+export async function getScene(
+  id: string,
+  options: Pick<RequestInit, "signal"> = {},
+): Promise<SceneDocument> {
+  return api.get<SceneDocument>(`/scenes/${id}`, options)
 }
 
 /**
@@ -209,9 +213,11 @@ export async function createSceneVersion(
 export async function getSceneVersion(
   sceneId: string,
   versionId: string,
+  options: Pick<RequestInit, "signal"> = {},
 ): Promise<SceneVersionDocument> {
   return api.get<SceneVersionDocument>(
     `/scenes/${sceneId}/versions/${versionId}`,
+    options,
   )
 }
 

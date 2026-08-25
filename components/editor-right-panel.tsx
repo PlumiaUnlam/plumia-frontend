@@ -4,21 +4,22 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BarChart2, GitBranch, MessageSquare } from "lucide-react";
 import useSWR from "swr";
 
+import { ChatPanel } from "@/components/chat-panel";
+import { WikiPanel } from "@/components/wiki-panel";
 import { getEntities } from "@/services/entities.service";
-import { getPrimaryEntityImages } from "@/services/image-generation.service";
 import {
   acceptEntityProposal,
   buildEntityProposalAcceptanceInput,
   getEntityProposals,
   rejectEntityProposal,
 } from "@/services/entity-proposals.service";
+import { getPrimaryEntityImages } from "@/services/image-generation.service";
 import {
   acceptRelationshipProposal,
   getRelationshipProposals,
   rejectRelationshipProposal,
 } from "@/services/relationship-proposals.service";
 import { updateAuditAlert } from "@/services/audit-alerts.service";
-import { WikiPanel } from "@/components/wiki-panel";
 import { useAuditAlerts } from "@/hooks/use-audit-alerts";
 import { useKnowledgeRefresh } from "@/hooks/use-knowledge-refresh";
 import type { CreateEntityInput, Entity, UpdateEntityInput } from "@/types/entity";
@@ -45,7 +46,10 @@ const tabs = [
   { id: "stats" as const, label: "Stats", icon: BarChart2 },
 ];
 
-export function EditorRightPanel({ projectId, mode }: EditorRightPanelProps) {
+export function EditorRightPanel({
+  projectId,
+  mode,
+}: EditorRightPanelProps) {
   const refreshTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [activeTab, setActiveTab] = useState<RightTab>("wiki");
   const [acceptingProposalId, setAcceptingProposalId] = useState<string | null>(
@@ -64,6 +68,8 @@ export function EditorRightPanel({ projectId, mode }: EditorRightPanelProps) {
   const [actionError, setActionError] = useState<string | null>(null);
   const [entityActionFeedback, setEntityActionFeedback] =
     useState<EntityActionFeedback | null>(null);
+  const shouldLoadEntityData = activeTab === "wiki" || activeTab === "chat";
+  const shouldLoadWikiData = activeTab === "wiki";
 
   const {
     data: entities,
@@ -71,7 +77,9 @@ export function EditorRightPanel({ projectId, mode }: EditorRightPanelProps) {
     isLoading,
     mutate: mutateEntities,
   } = useSWR(
-    projectId ? `/knowledge/entities?projectId=${projectId}` : null,
+    projectId && shouldLoadEntityData
+      ? `/knowledge/entities?projectId=${projectId}`
+      : null,
     () => getEntities(projectId),
   );
   const entityIds = useMemo(
@@ -79,7 +87,7 @@ export function EditorRightPanel({ projectId, mode }: EditorRightPanelProps) {
     [entities],
   );
   const primaryImagesKey =
-    projectId && entityIds.length > 0
+    projectId && shouldLoadEntityData && entityIds.length > 0
       ? `/publishing/images/primary?entityIds=${encodeURIComponent(entityIds.join(","))}`
       : null;
   const { data: primaryImageUrls = {} } = useSWR(primaryImagesKey, () =>
@@ -91,7 +99,9 @@ export function EditorRightPanel({ projectId, mode }: EditorRightPanelProps) {
     isLoading: isLoadingRelationshipProposals,
     mutate: mutateRelationshipProposals,
   } = useSWR(
-    projectId ? `/v1/projects/${projectId}/relationship-proposals` : null,
+    projectId && shouldLoadWikiData
+      ? `/v1/projects/${projectId}/relationship-proposals`
+      : null,
     () => getRelationshipProposals(projectId),
   );
   const {
@@ -99,8 +109,11 @@ export function EditorRightPanel({ projectId, mode }: EditorRightPanelProps) {
     error: proposalsError,
     isLoading: isLoadingProposals,
     mutate: mutateProposals,
-  } = useSWR(projectId ? `/v1/projects/${projectId}/proposals` : null, () =>
-    getEntityProposals(projectId),
+  } = useSWR(
+    projectId && shouldLoadWikiData
+      ? `/v1/projects/${projectId}/proposals`
+      : null,
+    () => getEntityProposals(projectId),
   );
   const {
     data: auditAlerts,
@@ -334,7 +347,13 @@ export function EditorRightPanel({ projectId, mode }: EditorRightPanelProps) {
         />
       )}
 
-      {activeTab === "chat" && <div className="min-h-0 flex-1" />}
+      {activeTab === "chat" && (
+        <ChatPanel
+          key={projectId}
+          projectId={projectId}
+          primaryImageUrls={primaryImageUrls}
+        />
+      )}
 
       {activeTab === "stats" && <div className="min-h-0 flex-1" />}
     </aside>

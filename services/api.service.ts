@@ -38,8 +38,6 @@ async function request<T>(
     headers,
   })
 
-  console.log(`${path} status:`, response.status)
-
   if (!response.ok) {
     let errorText = await response.text()
     try {
@@ -58,22 +56,37 @@ async function request<T>(
     return undefined as T
   }
 
-  const data = JSON.parse(responseText) as T
-  console.log(`${path} response:`, data)
-
-  return data
+  return JSON.parse(responseText) as T
 }
 
 export const api = {
-  get: <T>(path: string) => request<T>(path), 
-  post: <T>(path: string, body: unknown) =>
-    request<T>(path, { method: "POST", body: JSON.stringify(body) }),
+  get: <T>(path: string, options: Pick<RequestInit, "signal"> = {}) =>
+    request<T>(path, options),
+  post: <T>(
+    path: string,
+    body: unknown,
+    options: Pick<RequestInit, "signal"> = {},
+  ) =>
+    request<T>(path, {
+      method: "POST",
+      body: JSON.stringify(body),
+      ...options,
+    }),
   postFormData: <T>(
     path: string,
     body: FormData,
     options: Pick<RequestInit, "signal"> = {},
   ) => request<T>(path, { method: "POST", body, ...options }),
-  patch: <T>(path: string, body: unknown) =>
-    request<T>(path, { method: "PATCH", body: JSON.stringify(body) }),
-  delete: <T>(path: string) => request<T>(path, { method: "DELETE" }),
+  patch: <T>(
+    path: string,
+    body: unknown,
+    options: Pick<RequestInit, "signal"> = {},
+  ) =>
+    request<T>(path, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+      ...options,
+    }),
+  delete: <T>(path: string, options: Pick<RequestInit, "signal"> = {}) =>
+    request<T>(path, { method: "DELETE", ...options }),
 }

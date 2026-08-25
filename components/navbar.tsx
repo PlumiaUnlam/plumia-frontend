@@ -25,7 +25,13 @@ export function Navbar({ searchQuery, onSearchChange, onCreateProject }: NavbarP
             <div className="container mx-auto flex h-16 items-center justify-between px-4">
                 {/* Logo */}
                 <div className="flex items-center gap-1">
-                    <Image src="/logo.png" alt="PlumIA Logo" width={40} height={40} />
+                    <Image
+                        src="/logo.png"
+                        alt="PlumIA Logo"
+                        width={40}
+                        height={40}
+                        className="h-10 w-auto object-contain"
+                    />
                     <Link
                         href="/"
                         className="text-xl font-semibold tracking-tight"

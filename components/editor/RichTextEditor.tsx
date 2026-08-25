@@ -1,9 +1,14 @@
 import { useEffect } from "react"
 import { EditorContent, useEditor } from "@tiptap/react"
 import StarterKit from "@tiptap/starter-kit"
-import Link from "@tiptap/extension-link"
 
 import type { ProseMirrorJSON } from "@/types/scene"
+import { useEditorStore } from "@/stores/editor.store"
+import {
+  CitationFocus,
+  citationFocusPluginKey,
+  findCitationRange,
+} from "./editor-citation-focus"
 import { EditorToolbar } from "./toolbar"
 import { EditorImage } from "./image/editor-image-extension"
 import { useEditorImage } from "./image/use-editor-image"
@@ -48,11 +53,21 @@ export function RichTextEditor({
   } = useEditorImage({ sceneId })
 
   const { goToEntity } = useEntityLink({ projectId })
+  const citationFocus = useEditorStore((state) => state.citationFocus)
+  const clearCitationFocus = useEditorStore(
+    (state) => state.clearCitationFocus,
+  )
 
   const editor = useEditor({
+    // El editor se monta después de cargar la escena en el cliente.
+    immediatelyRender: true,
     extensions: [
       StarterKit.configure({
         heading: { levels: [1, 2, 3] },
+        link: {
+          openOnClick: false,
+          autolink: false,
+        },
       }),
       EditorImage.configure({
         inline: false,
@@ -61,11 +76,8 @@ export function RichTextEditor({
           class: "mx-auto my-6 max-w-full",
         },
       }),
-      Link.configure({
-        openOnClick: false,
-        autolink: false,
-      }),
       EntityLink,
+      CitationFocus,
     ],
     content: content ?? "",
     editorProps: {
@@ -79,6 +91,49 @@ export function RichTextEditor({
   useEffect(() => {
     bindEditor(editor ?? null)
   }, [editor, bindEditor])
+
+  useEffect(() => {
+    if (!editor) return
+
+    const clearCitationDecoration = () => {
+      if (editor.isDestroyed) return
+      editor.view.dispatch(
+        editor.state.tr.setMeta(citationFocusPluginKey, { clear: true }),
+      )
+    }
+
+    if (citationFocus?.sceneId !== sceneId) {
+      clearCitationDecoration()
+      return
+    }
+
+    const range = findCitationRange(editor.state.doc, citationFocus.textQuote)
+    if (!range) {
+      clearCitationDecoration()
+      clearCitationFocus()
+      return
+    }
+
+    editor.view.dispatch(
+      editor.state.tr.setMeta(citationFocusPluginKey, {
+        from: range.from,
+        to: range.to,
+      }),
+    )
+    const domNode = editor.view.domAtPos(range.from).node
+    const scrollTarget =
+      domNode instanceof HTMLElement ? domNode : domNode.parentElement
+    scrollTarget?.scrollIntoView({ behavior: "smooth", block: "center" })
+    const timeoutId = window.setTimeout(() => {
+      if (editor.isDestroyed) return
+      editor.view.dispatch(
+        editor.state.tr.setMeta(citationFocusPluginKey, { clear: true }),
+      )
+      clearCitationFocus()
+    }, 2600)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [citationFocus, clearCitationFocus, editor, sceneId])
 
   if (!editor) return null
 
@@ -154,7 +209,7 @@ export function RichTextEditor({
                 prose-img:shadow-sm
 
                 text-[16px]
-                
+
                 flex
                 flex-1
                 flex-col

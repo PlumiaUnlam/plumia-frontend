@@ -32,7 +32,13 @@ export function Header({ mode, onModeChange }: HeaderProps) {
   return (
     <header className="relative z-10 flex h-12 shrink-0 items-center gap-3 bg-primary px-4 text-primary-foreground">
       <div className="mr-1 flex items-center gap-2.5">
-        <Image src="/dark-logo.png" alt="PlumIA Logo" width={35} height={30} />
+        <Image
+          src="/dark-logo.png"
+          alt="PlumIA Logo"
+          width={729}
+          height={816}
+          className="h-7 w-auto"
+        />
 
         <Link
           href="/"
