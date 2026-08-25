@@ -1,6 +1,14 @@
 "use client";
 
-import { useCallback, useMemo, useState, useRef, useEffect } from "react";
+import {
+  useCallback,
+  useMemo,
+  useState,
+  useRef,
+  useEffect,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import { useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import {
@@ -11,7 +19,7 @@ import {
   FileText,
   GitBranch,
 } from "lucide-react";
-import useSWR from "swr";
+import useSWR, { type KeyedMutator } from "swr";
 import useSWRMutation from "swr/mutation";
 
 import { Header } from "../header";
@@ -288,6 +296,362 @@ type PreviewImageInput = {
   aliases: string[];
   attributes: Record<string, unknown>;
 };
+
+type WorldbuildingActionsOptions = {
+  projectId: string;
+  editingEntity: Entity | null;
+  showNewEntityModal: boolean;
+  timelineEntityInitialName: string | null;
+  editingRelationship: Relationship | null;
+  selectedEntity: Entity | null;
+  imageToDelete: ImageResponse | null;
+  deleteConfirmEntity: Entity | null;
+  deleteConfirmRelationship: Relationship | null;
+  deletingImage: boolean;
+  deletingRelationship: boolean;
+  mutate: KeyedMutator<Entity[]>;
+  mutateImages: () => Promise<unknown>;
+  mutatePrimaryImages: () => Promise<unknown>;
+  mutateRelationships: () => Promise<unknown>;
+  triggerDelete: (id: string) => Promise<unknown>;
+  startImageGeneration: (input: GenerateImageInput) => Promise<void>;
+  aiStorageKeyRef: { current: string | null };
+  aiPromptRef: { current: string | null };
+  aiImageTypeRef: { current: string | null };
+  setEditingEntity: Dispatch<SetStateAction<Entity | null>>;
+  setSelectedEntityId: Dispatch<SetStateAction<string | null>>;
+  setTimelineCreatedEntity: Dispatch<
+    SetStateAction<{ id: string; revision: number } | null>
+  >;
+  setDeleteConfirmEntity: Dispatch<SetStateAction<Entity | null>>;
+  setDeleting: Dispatch<SetStateAction<boolean>>;
+  setImageActionError: Dispatch<SetStateAction<string | null>>;
+  setImageToDelete: Dispatch<SetStateAction<ImageResponse | null>>;
+  setDeletingImage: Dispatch<SetStateAction<boolean>>;
+  setShowNewEntityModal: Dispatch<SetStateAction<boolean>>;
+  setTimelineEntityInitialName: Dispatch<SetStateAction<string | null>>;
+  setShowNewRelationModal: Dispatch<SetStateAction<boolean>>;
+  setEditingRelationship: Dispatch<SetStateAction<Relationship | null>>;
+  setDeleteConfirmRelationship: Dispatch<SetStateAction<Relationship | null>>;
+  setDeletingRelationship: Dispatch<SetStateAction<boolean>>;
+};
+
+function useWorldbuildingActions({
+  projectId,
+  editingEntity,
+  showNewEntityModal,
+  timelineEntityInitialName,
+  editingRelationship,
+  selectedEntity,
+  imageToDelete,
+  deleteConfirmEntity,
+  deleteConfirmRelationship,
+  deletingImage,
+  deletingRelationship,
+  mutate,
+  mutateImages,
+  mutatePrimaryImages,
+  mutateRelationships,
+  triggerDelete,
+  startImageGeneration,
+  aiStorageKeyRef,
+  aiPromptRef,
+  aiImageTypeRef,
+  setEditingEntity,
+  setSelectedEntityId,
+  setTimelineCreatedEntity,
+  setDeleteConfirmEntity,
+  setDeleting,
+  setImageActionError,
+  setImageToDelete,
+  setDeletingImage,
+  setShowNewEntityModal,
+  setTimelineEntityInitialName,
+  setShowNewRelationModal,
+  setEditingRelationship,
+  setDeleteConfirmRelationship,
+  setDeletingRelationship,
+}: Readonly<WorldbuildingActionsOptions>) {
+  const handleClearAiPreview = () => {
+    aiStorageKeyRef.current = null;
+    aiPromptRef.current = null;
+    aiImageTypeRef.current = null;
+  };
+
+  const handleGenerateImage = async (
+    data: PreviewImageInput,
+  ): Promise<string> => {
+    const result = await generatePreviewImage({
+      name: data.canonicalName,
+      type: data.type,
+      description: data.description || undefined,
+      attributes: data.attributes,
+    });
+
+    aiStorageKeyRef.current = result.storageKey;
+    aiPromptRef.current = result.prompt;
+    aiImageTypeRef.current = result.imageType;
+
+    return result.imageUrl;
+  };
+
+  const attachPendingAiImage = async (entityId: string) => {
+    const storageKey = aiStorageKeyRef.current;
+    if (!storageKey) return;
+
+    await attachImage({
+      entityId,
+      storageKey,
+      prompt: aiPromptRef.current!,
+      imageType: aiImageTypeRef.current!,
+    });
+    handleClearAiPreview();
+  };
+
+  const uploadAndSaveEntityImage = async (
+    entityId: string,
+    file: File | null | undefined,
+  ) => {
+    if (!file) return;
+
+    const { storageKey } = await uploadEntityImage(entityId, file);
+    await attachImage({
+      entityId,
+      storageKey,
+      prompt: "Imagen cargada manualmente",
+      imageType: file.type,
+    });
+  };
+
+  const createEntityFromModal = async (
+    data: CreateEntityInput,
+    file: File | null | undefined,
+  ) => {
+    const entity = await createEntity(projectId, data);
+
+    if (aiStorageKeyRef.current) {
+      await attachPendingAiImage(entity.id);
+      await uploadAndSaveEntityImage(entity.id, file);
+      return entity.id;
+    }
+
+    try {
+      await uploadAndSaveEntityImage(entity.id, file);
+      return entity.id;
+    } catch (error) {
+      await deleteEntity(entity.id).catch(() => {});
+      throw error;
+    }
+  };
+
+  const handleSubmitModal = async (
+    data: CreateEntityInput | UpdateEntityInput,
+    file?: File | null,
+  ) => {
+    const isTimelineEntityCreation =
+      timelineEntityInitialName !== null && !editingEntity;
+
+    let entityId: string;
+    if (editingEntity) {
+      entityId = editingEntity.id;
+      await updateEntity(entityId, data as UpdateEntityInput);
+      await attachPendingAiImage(entityId);
+      await uploadAndSaveEntityImage(entityId, file);
+      setEditingEntity(null);
+    } else {
+      entityId = await createEntityFromModal(data as CreateEntityInput, file);
+    }
+    await mutate();
+    await Promise.all([mutateImages(), mutatePrimaryImages()]);
+    setSelectedEntityId(entityId);
+    if (isTimelineEntityCreation) {
+      setTimelineCreatedEntity((current) => ({
+        id: entityId,
+        revision: (current?.revision ?? 0) + 1,
+      }));
+    }
+  };
+
+  const handleSubmitRelation = async (
+    input: CreateRelationshipInput | UpdateRelationshipInput,
+  ) => {
+    if (editingRelationship) {
+      await updateRelationship(editingRelationship.id, input);
+    } else {
+      await createRelationship(projectId, input as CreateRelationshipInput);
+    }
+    await mutateRelationships();
+  };
+
+  const handleDelete = (entity: Entity) => {
+    setDeleteConfirmEntity(entity);
+  };
+
+  const handleDeleteConfirmed = async (id: string) => {
+    try {
+      await triggerDelete(id);
+      mutate(
+        (currentData) => currentData?.filter((entity) => entity.id !== id) ?? [],
+        { revalidate: false },
+      );
+      await mutate();
+    } finally {
+      setDeleteConfirmEntity(null);
+      setDeleting(false);
+    }
+  };
+
+  const handleEdit = (entity: Entity) => {
+    setSelectedEntityId(entity.id);
+    setEditingEntity(entity);
+    setShowNewEntityModal(true);
+  };
+
+  const handleRequestImageGeneration = async (input: GenerateImageInput) => {
+    await startImageGeneration(input);
+  };
+
+  const handleRegenerateReviewedImage = async (
+    image: ImageResponse,
+    feedback: string,
+  ) => {
+    await startImageGeneration({
+      entityId: image.entityId,
+      referenceImageId: image.id,
+      additionalInstructions: feedback,
+    });
+  };
+
+  const handleAcceptReviewedImage = async (image: ImageResponse) => {
+    await setPrimaryImage(image.entityId, image.id);
+    await Promise.all([mutateImages(), mutatePrimaryImages(), mutate()]);
+  };
+
+  const handleSetPrimaryImage = async (imageId: string) => {
+    if (!selectedEntity) return;
+    setImageActionError(null);
+    try {
+      await setPrimaryImage(selectedEntity.id, imageId);
+      await mutateImages();
+      await mutatePrimaryImages();
+      await mutate();
+    } catch (error) {
+      setImageActionError(
+        error instanceof Error
+          ? error.message
+          : "No se pudo establecer la imagen principal.",
+      );
+    }
+  };
+
+  const handleUploadImage = async (file: File) => {
+    if (!selectedEntity) return;
+    await uploadAndSaveEntityImage(selectedEntity.id, file);
+    await Promise.all([mutateImages(), mutatePrimaryImages(), mutate()]);
+  };
+
+  const handleDeleteImage = async () => {
+    if (!selectedEntity || !imageToDelete) return;
+    setDeletingImage(true);
+    setImageActionError(null);
+    try {
+      await deleteEntityImage(selectedEntity.id, imageToDelete.id);
+      await mutateImages();
+      await mutatePrimaryImages();
+      await mutate();
+      setImageToDelete(null);
+    } catch (error) {
+      setImageActionError(
+        error instanceof Error
+          ? error.message
+          : "No se pudo eliminar la imagen.",
+      );
+    } finally {
+      setDeletingImage(false);
+    }
+  };
+
+  const requestImageDelete = (image: ImageResponse) => {
+    setImageActionError(null);
+    setImageToDelete(image);
+  };
+
+  const handleModalClose = () => {
+    setShowNewEntityModal(false);
+    setEditingEntity(null);
+    setTimelineEntityInitialName(null);
+    handleClearAiPreview();
+  };
+
+  const handleRelationModalClose = () => {
+    setShowNewRelationModal(false);
+    setEditingRelationship(null);
+  };
+
+  const handleDeleteRelationshipConfirmed = async (id: string) => {
+    try {
+      await deleteRelationship(id);
+      await mutateRelationships();
+    } finally {
+      setDeleteConfirmRelationship(null);
+      setDeletingRelationship(false);
+    }
+  };
+
+  const handleConfirmEntityDelete = () => {
+    if (!deleteConfirmEntity) return;
+    setSelectedEntityId(null);
+    setDeleting(true);
+    void handleDeleteConfirmed(deleteConfirmEntity.id);
+  };
+
+  const handleEntityDeleteDialogChange = (open: boolean) => {
+    if (!open) setDeleteConfirmEntity(null);
+  };
+
+  const handleImageDeleteDialogChange = (open: boolean) => {
+    if (!open && !deletingImage) {
+      setImageToDelete(null);
+      setImageActionError(null);
+    }
+  };
+
+  const handleRelationshipDeleteDialogChange = (open: boolean) => {
+    if (!open && !deletingRelationship) {
+      setDeleteConfirmRelationship(null);
+    }
+  };
+
+  const handleConfirmRelationshipDelete = () => {
+    if (!deleteConfirmRelationship) return;
+    setDeletingRelationship(true);
+    void handleDeleteRelationshipConfirmed(deleteConfirmRelationship.id);
+  };
+
+  return {
+    currentEntity: showNewEntityModal ? editingEntity : null,
+    handleClearAiPreview,
+    handleGenerateImage,
+    handleSubmitModal,
+    handleSubmitRelation,
+    handleDelete,
+    handleEdit,
+    handleRequestImageGeneration,
+    handleRegenerateReviewedImage,
+    handleAcceptReviewedImage,
+    handleSetPrimaryImage,
+    handleUploadImage,
+    handleDeleteImage,
+    requestImageDelete,
+    handleModalClose,
+    handleRelationModalClose,
+    handleConfirmEntityDelete,
+    handleEntityDeleteDialogChange,
+    handleImageDeleteDialogChange,
+    handleConfirmRelationshipDelete,
+    handleRelationshipDeleteDialogChange,
+  };
+}
 
 type WorldbuildingModalsProps = {
   showNewEntityModal: boolean;
@@ -834,9 +1198,6 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
   } | null>(null);
   const [mockEntities] = useState<Entity[]>(worldbuildingEntitiesMock);
   const [deleting, setDeleting] = useState(false);
-  const aiStorageKeyRef = useRef<string | null>(null);
-  const aiPromptRef = useRef<string | null>(null);
-  const aiImageTypeRef = useRef<string | null>(null);
   const [deletingRelationship, setDeletingRelationship] = useState(false);
   const [showImageGenerationModal, setShowImageGenerationModal] =
     useState(false);
@@ -949,27 +1310,6 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
       ? imageGenerationJob
       : null;
 
-  const handleGenerateImage = async (data: {
-    canonicalName: string;
-    description: string;
-    type: string;
-    aliases: string[];
-    attributes: Record<string, unknown>;
-  }): Promise<string> => {
-    const result = await generatePreviewImage({
-      name: data.canonicalName,
-      type: data.type,
-      description: data.description || undefined,
-      attributes: data.attributes,
-    });
-
-    aiStorageKeyRef.current = result.storageKey;
-    aiPromptRef.current = result.prompt;
-    aiImageTypeRef.current = result.imageType;
-
-    return result.imageUrl;
-  };
-
   const chapters = useMemo(() => {
     return (
       project?.books.flatMap((book) =>
@@ -982,259 +1322,68 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
     );
   }, [project]);
 
-  const attachPendingAiImage = async (entityId: string) => {
-    const storageKey = aiStorageKeyRef.current;
-    if (!storageKey) return;
-
-    await attachImage({
-      entityId,
-      storageKey,
-      prompt: aiPromptRef.current!,
-      imageType: aiImageTypeRef.current!,
-    });
-    handleClearAiPreview();
-  };
-
-  const uploadAndSaveEntityImage = async (
-    entityId: string,
-    file: File | null | undefined,
-  ) => {
-    if (!file) return;
-
-    const { storageKey } = await uploadEntityImage(entityId, file);
-    await attachImage({
-      entityId,
-      storageKey,
-      prompt: "Imagen cargada manualmente",
-      imageType: file.type,
-    });
-  };
-
-  const createEntityFromModal = async (
-    data: CreateEntityInput,
-    file: File | null | undefined,
-  ) => {
-    const entity = await createEntity(projectId, data);
-
-    if (aiStorageKeyRef.current) {
-      await attachPendingAiImage(entity.id);
-      await uploadAndSaveEntityImage(entity.id, file);
-      return entity.id;
-    }
-
-    try {
-      await uploadAndSaveEntityImage(entity.id, file);
-      return entity.id;
-    } catch (error) {
-      await deleteEntity(entity.id).catch(() => {});
-      throw error;
-    }
-  };
-
-  const handleSubmitModal = async (
-    data: CreateEntityInput | UpdateEntityInput,
-    file?: File | null,
-  ) => {
-    const isTimelineEntityCreation =
-      timelineEntityInitialName !== null && !editingEntity;
-
-    let entityId: string;
-    if (editingEntity) {
-      entityId = editingEntity.id;
-      await updateEntity(entityId, data as UpdateEntityInput);
-      await attachPendingAiImage(entityId);
-      await uploadAndSaveEntityImage(entityId, file);
-      setEditingEntity(null);
-    } else {
-      entityId = await createEntityFromModal(data as CreateEntityInput, file);
-    }
-    await mutate();
-    await Promise.all([mutateImages(), mutatePrimaryImages()]);
-    setSelectedEntityId(entityId);
-    if (isTimelineEntityCreation) {
-      setTimelineCreatedEntity((current) => ({
-        id: entityId,
-        revision: (current?.revision ?? 0) + 1,
-      }));
-    }
-  };
-
-  const handleSubmitRelation = async (
-    input: CreateRelationshipInput | UpdateRelationshipInput,
-  ) => {
-    if (editingRelationship) {
-      await updateRelationship(editingRelationship.id, input);
-    } else {
-      await createRelationship(projectId, input as CreateRelationshipInput);
-    }
-    await mutateRelationships();
-  };
-
-  const handleDelete = (entity: Entity) => {
-    setDeleteConfirmEntity(entity);
-  };
-
-  const handleDeleteConfirmed = async (id: string) => {
-    try {
-      await triggerDelete(id);
-      mutate(
-        (currentData?: Entity[]) =>
-          currentData?.filter((e) => e.id !== id) ?? [],
-        { revalidate: false },
-      );
-      await mutate();
-    } finally {
-      setDeleteConfirmEntity(null);
-      setDeleting(false);
-    }
-  };
-
-  const handleEdit = (entity: Entity) => {
-    setSelectedEntityId(entity.id);
-    setEditingEntity(entity);
-    setShowNewEntityModal(true);
-  };
-
-  const handleClearAiPreview = () => {
-    aiStorageKeyRef.current = null;
-    aiPromptRef.current = null;
-    aiImageTypeRef.current = null;
-  };
-
-  const handleRequestImageGeneration = async (input: {
-    entityId: string;
-    referenceImageId?: string;
-    expression?: string;
-    pose?: string;
-    background?: string;
-    framing?: string;
-    lighting?: string;
-    style?: string;
-    additionalInstructions?: string;
-  }) => {
-    await startImageGeneration(input);
-  };
-
-  const handleRegenerateReviewedImage = async (
-    image: ImageResponse,
-    feedback: string,
-  ) => {
-    await startImageGeneration({
-      entityId: image.entityId,
-      referenceImageId: image.id,
-      additionalInstructions: feedback,
-    });
-  };
-
-  const handleAcceptReviewedImage = async (image: ImageResponse) => {
-    await setPrimaryImage(image.entityId, image.id);
-    await Promise.all([mutateImages(), mutatePrimaryImages(), mutate()]);
-  };
-
-  const handleSetPrimaryImage = async (imageId: string) => {
-    if (!selectedEntity) return;
-    setImageActionError(null);
-    try {
-      await setPrimaryImage(selectedEntity.id, imageId);
-      await mutateImages();
-      await mutatePrimaryImages();
-      await mutate();
-    } catch (error) {
-      setImageActionError(
-        error instanceof Error
-          ? error.message
-          : "No se pudo establecer la imagen principal.",
-      );
-    }
-  };
-
-  const handleUploadImage = async (file: File) => {
-    if (!selectedEntity) return;
-    await uploadAndSaveEntityImage(selectedEntity.id, file);
-    await Promise.all([mutateImages(), mutatePrimaryImages(), mutate()]);
-  };
-
-  const handleDeleteImage = async () => {
-    if (!selectedEntity || !imageToDelete) return;
-    setDeletingImage(true);
-    setImageActionError(null);
-    try {
-      await deleteEntityImage(selectedEntity.id, imageToDelete.id);
-      await mutateImages();
-      await mutatePrimaryImages();
-      await mutate();
-      setImageToDelete(null);
-    } catch (error) {
-      setImageActionError(
-        error instanceof Error
-          ? error.message
-          : "No se pudo eliminar la imagen.",
-      );
-    } finally {
-      setDeletingImage(false);
-    }
-  };
-
-  const requestImageDelete = (image: ImageResponse) => {
-    setImageActionError(null);
-    setImageToDelete(image);
-  };
-
-  const handleModalClose = () => {
-    setShowNewEntityModal(false);
-    setEditingEntity(null);
-    setTimelineEntityInitialName(null);
-    aiStorageKeyRef.current = null;
-    aiPromptRef.current = null;
-    aiImageTypeRef.current = null;
-  };
-
-  const handleRelationModalClose = () => {
-    setShowNewRelationModal(false);
-    setEditingRelationship(null);
-  };
-
-  const handleDeleteRelationshipConfirmed = async (id: string) => {
-    try {
-      await deleteRelationship(id);
-      await mutateRelationships();
-    } finally {
-      setDeleteConfirmRelationship(null);
-      setDeletingRelationship(false);
-    }
-  };
-
-  const handleConfirmEntityDelete = () => {
-    if (!deleteConfirmEntity) return;
-    setSelectedEntityId(null);
-    setDeleting(true);
-    void handleDeleteConfirmed(deleteConfirmEntity.id);
-  };
-
-  const handleEntityDeleteDialogChange = (open: boolean) => {
-    if (!open) setDeleteConfirmEntity(null);
-  };
-
-  const handleImageDeleteDialogChange = (open: boolean) => {
-    if (!open && !deletingImage) {
-      setImageToDelete(null);
-      setImageActionError(null);
-    }
-  };
-
-  const handleRelationshipDeleteDialogChange = (open: boolean) => {
-    if (!open && !deletingRelationship) {
-      setDeleteConfirmRelationship(null);
-    }
-  };
-
-  const handleConfirmRelationshipDelete = () => {
-    if (!deleteConfirmRelationship) return;
-    setDeletingRelationship(true);
-    void handleDeleteRelationshipConfirmed(deleteConfirmRelationship.id);
-  };
-
-  const currentEntity = showNewEntityModal ? editingEntity : null;
+  const aiStorageKeyRef = useRef<string | null>(null);
+  const aiPromptRef = useRef<string | null>(null);
+  const aiImageTypeRef = useRef<string | null>(null);
+  const actions = useWorldbuildingActions({
+    projectId,
+    editingEntity,
+    showNewEntityModal,
+    timelineEntityInitialName,
+    editingRelationship,
+    selectedEntity,
+    imageToDelete,
+    deleteConfirmEntity,
+    deleteConfirmRelationship,
+    deletingImage,
+    deletingRelationship,
+    mutate,
+    mutateImages,
+    mutatePrimaryImages,
+    mutateRelationships,
+    triggerDelete,
+    startImageGeneration,
+    aiStorageKeyRef,
+    aiPromptRef,
+    aiImageTypeRef,
+    setEditingEntity,
+    setSelectedEntityId,
+    setTimelineCreatedEntity,
+    setDeleteConfirmEntity,
+    setDeleting,
+    setImageActionError,
+    setImageToDelete,
+    setDeletingImage,
+    setShowNewEntityModal,
+    setTimelineEntityInitialName,
+    setShowNewRelationModal,
+    setEditingRelationship,
+    setDeleteConfirmRelationship,
+    setDeletingRelationship,
+  });
+  const {
+    currentEntity,
+    handleClearAiPreview,
+    handleGenerateImage,
+    handleSubmitModal,
+    handleSubmitRelation,
+    handleDelete,
+    handleEdit,
+    handleRequestImageGeneration,
+    handleRegenerateReviewedImage,
+    handleAcceptReviewedImage,
+    handleSetPrimaryImage,
+    handleUploadImage,
+    handleDeleteImage,
+    requestImageDelete,
+    handleModalClose,
+    handleRelationModalClose,
+    handleConfirmEntityDelete,
+    handleEntityDeleteDialogChange,
+    handleImageDeleteDialogChange,
+    handleConfirmRelationshipDelete,
+    handleRelationshipDeleteDialogChange,
+  } = actions;
 
   return (
     <div className="flex h-screen max-h-screen flex-col overflow-hidden bg-background text-foreground">
