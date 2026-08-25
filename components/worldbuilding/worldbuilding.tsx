@@ -76,6 +76,19 @@ import type {
 
 type WorldbuildingTab = "wiki" | "relationships" | "timeline" | "summaries";
 
+const WORLD_BUILDING_TABS = [
+  { id: "wiki" as const, label: "Wiki del Universo", icon: Star },
+  { id: "relationships" as const, label: "Relaciones", icon: GitBranch },
+  { id: "timeline" as const, label: "Línea Temporal", icon: Calendar },
+  { id: "summaries" as const, label: "Resúmenes", icon: FileText },
+];
+
+type WorldbuildingChapter = {
+  id: string;
+  title: string;
+  wordCount: number;
+};
+
 function isWorldbuildingTab(value: string | null): value is WorldbuildingTab {
   return (
     value === "wiki" ||
@@ -346,7 +359,7 @@ function WorldbuildingModals({
   onCloseImageReview,
   onAcceptReviewedImage,
   onRegenerateReviewedImage,
-}: WorldbuildingModalsProps) {
+}: Readonly<WorldbuildingModalsProps>) {
   const referenceImageId = entityImages.find((image) => image.isPrimary)?.id;
 
   return (
@@ -420,6 +433,354 @@ function WorldbuildingModals({
   );
 }
 
+function WorldbuildingHeader({
+  activeTab,
+  entityCount,
+  onCreateEntity,
+  onCreateRelationship,
+  onCreateTimelineEvent,
+}: Readonly<{
+  activeTab: WorldbuildingTab;
+  entityCount: number;
+  onCreateEntity: () => void;
+  onCreateRelationship: () => void;
+  onCreateTimelineEvent: () => void;
+}>) {
+  return (
+    <div className="flex shrink-0 items-center justify-between px-4 py-4">
+      <div>
+        <h1 className="text-xl font-semibold text-foreground">Worldbuilding</h1>
+        <p className="mt-0.5 text-sm text-muted-foreground">
+          Explora y gestiona el universo narrativo de tu obra
+        </p>
+      </div>
+      {activeTab === "wiki" && (
+        <Button onClick={onCreateEntity}>
+          <Plus size={16} />
+          Nueva Entidad
+        </Button>
+      )}
+      {activeTab === "relationships" && (
+        <Button
+          onClick={onCreateRelationship}
+          disabled={entityCount < 2}
+        >
+          <GitBranch size={16} />
+          Nueva Relación
+        </Button>
+      )}
+      {activeTab === "timeline" && (
+        <Button onClick={onCreateTimelineEvent}>
+          <Plus size={16} />
+          Nuevo Evento
+        </Button>
+      )}
+    </div>
+  );
+}
+
+type WorldbuildingTabsProps = {
+  tabs: typeof WORLD_BUILDING_TABS;
+  activeTab: WorldbuildingTab;
+  onTabChange: (value: string) => void;
+  projectId: string;
+  enabled: boolean;
+  timelineEventId: string | null;
+  timelineCreatedEntity: { id: string; revision: number } | null;
+  timelineNewEventRequest: number;
+  entities: Entity[];
+  isLoadingEntities: boolean;
+  entityError: Error | undefined;
+  selectedEntity: Entity | null;
+  entityImages: ImageResponse[];
+  primaryImageUrls: Readonly<Record<string, string>>;
+  isLoadingImages: boolean;
+  selectedEntityImageJob: ImageGenerationJob | null;
+  imageActionError: string | null;
+  onEditEntity: (entity: Entity) => void;
+  onDeleteEntity: (entity: Entity) => void;
+  onSelectEntity: (entity: Entity | null) => void;
+  onGenerateImage: () => void;
+  onUploadImage: (file: File) => Promise<void>;
+  onSetPrimaryImage: (imageId: string) => void;
+  onDeleteImage: (image: ImageResponse) => void;
+  relationships: Relationship[];
+  isLoadingRelationships: boolean;
+  relationshipError: Error | undefined;
+  onEditRelationship: (relationship: Relationship) => void;
+  onDeleteRelationship: (relationship: Relationship) => void;
+  chapters: WorldbuildingChapter[];
+  isLoadingProject: boolean;
+  projectError: Error | undefined;
+  onRequestCreateEntity: (canonicalName: string) => void;
+};
+
+function WorldbuildingTabs({
+  tabs,
+  activeTab,
+  onTabChange,
+  projectId,
+  enabled,
+  timelineEventId,
+  timelineCreatedEntity,
+  timelineNewEventRequest,
+  entities,
+  isLoadingEntities,
+  entityError,
+  selectedEntity,
+  entityImages,
+  primaryImageUrls,
+  isLoadingImages,
+  selectedEntityImageJob,
+  imageActionError,
+  onEditEntity,
+  onDeleteEntity,
+  onSelectEntity,
+  onGenerateImage,
+  onUploadImage,
+  onSetPrimaryImage,
+  onDeleteImage,
+  relationships,
+  isLoadingRelationships,
+  relationshipError,
+  onEditRelationship,
+  onDeleteRelationship,
+  chapters,
+  isLoadingProject,
+  projectError,
+  onRequestCreateEntity,
+}: Readonly<WorldbuildingTabsProps>) {
+  return (
+    <Tabs
+      value={activeTab}
+      onValueChange={onTabChange}
+      className="flex min-h-0 flex-1 flex-col overflow-hidden"
+    >
+      <TabsList className="sticky top-0 z-10 flex h-auto gap-1 bg-card px-4 py-0">
+        {tabs.map(({ id, label, icon: Icon }) => (
+          <TabsTrigger
+            key={id}
+            value={id}
+            className="
+              flex items-center gap-2 rounded-lg px-4 py-2.5
+              data-[state=active]:border
+              data-[state=active]:border-primary/20
+              data-[state=active]:bg-primary/10
+              data-[state=active]:text-primary
+            "
+          >
+            <Icon size={16} />
+            {label}
+          </TabsTrigger>
+        ))}
+      </TabsList>
+
+      <TabsContent
+        value="wiki"
+        className="mt-4 min-h-0 flex-1 overflow-hidden border-t bg-card"
+      >
+        <WikiTab
+          entities={entities}
+          loading={isLoadingEntities}
+          error={entityError}
+          onEdit={onEditEntity}
+          onDelete={onDeleteEntity}
+          selectedEntity={selectedEntity}
+          onSelectEntity={onSelectEntity}
+          images={entityImages}
+          primaryImageUrls={primaryImageUrls}
+          imagesLoading={isLoadingImages}
+          activeImageJob={selectedEntityImageJob}
+          onGenerateImage={onGenerateImage}
+          onUploadImage={onUploadImage}
+          onSetPrimaryImage={onSetPrimaryImage}
+          onDeleteImage={onDeleteImage}
+          imageActionError={imageActionError}
+        />
+      </TabsContent>
+
+      <TabsContent
+        value="relationships"
+        className="mt-4 min-h-0 flex-1 overflow-hidden border-t bg-card"
+      >
+        <RelationshipsPanel
+          entities={entities}
+          relationships={relationships}
+          loading={isLoadingEntities || isLoadingRelationships}
+          error={entityError ?? relationshipError}
+          onEditRelationship={onEditRelationship}
+          onDeleteRelationship={onDeleteRelationship}
+        />
+      </TabsContent>
+
+      <TabsContent
+        value="timeline"
+        className="mt-4 min-h-0 flex-1 overflow-hidden border-t bg-card"
+      >
+        <TimelinePanel
+          projectId={projectId}
+          enabled={enabled}
+          entities={entities}
+          focusEventId={timelineEventId}
+          createdEntity={timelineCreatedEntity}
+          newEventRequest={timelineNewEventRequest}
+          onRequestCreateEntity={onRequestCreateEntity}
+        />
+      </TabsContent>
+
+      <TabsContent
+        value="summaries"
+        className="mt-4 min-h-0 flex-1 overflow-hidden border-t bg-card"
+      >
+        <SummariesPanel
+          chapters={chapters}
+          loading={isLoadingProject}
+          error={projectError}
+        />
+      </TabsContent>
+    </Tabs>
+  );
+}
+
+function WorldbuildingDeleteDialogs({
+  deleteConfirmEntity,
+  deletingEntity,
+  onEntityDialogChange,
+  onCancelEntityDelete,
+  onConfirmEntityDelete,
+  imageToDelete,
+  deletingImage,
+  imageActionError,
+  onImageDialogChange,
+  onCancelImageDelete,
+  onConfirmImageDelete,
+  deleteConfirmRelationship,
+  deletingRelationship,
+  onRelationshipDialogChange,
+  onCancelRelationshipDelete,
+  onConfirmRelationshipDelete,
+}: Readonly<{
+  deleteConfirmEntity: Entity | null;
+  deletingEntity: boolean;
+  onEntityDialogChange: (open: boolean) => void;
+  onCancelEntityDelete: () => void;
+  onConfirmEntityDelete: () => void;
+  imageToDelete: ImageResponse | null;
+  deletingImage: boolean;
+  imageActionError: string | null;
+  onImageDialogChange: (open: boolean) => void;
+  onCancelImageDelete: () => void;
+  onConfirmImageDelete: () => void;
+  deleteConfirmRelationship: Relationship | null;
+  deletingRelationship: boolean;
+  onRelationshipDialogChange: (open: boolean) => void;
+  onCancelRelationshipDelete: () => void;
+  onConfirmRelationshipDelete: () => void;
+}>) {
+  return (
+    <>
+      <Dialog
+        open={!!deleteConfirmEntity}
+        onOpenChange={onEntityDialogChange}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmar eliminación</DialogTitle>
+            <DialogDescription>
+              ¿Estás seguro de que querés eliminar &ldquo;
+              {deleteConfirmEntity?.canonicalName}&rdquo;? Esta acción no se
+              puede deshacer.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={onCancelEntityDelete}
+              disabled={deletingEntity}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={deletingEntity}
+              onClick={onConfirmEntityDelete}
+            >
+              {deletingEntity && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Eliminar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!imageToDelete} onOpenChange={onImageDialogChange}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Eliminar imagen</DialogTitle>
+            <DialogDescription>
+              ¿Querés eliminar esta variante del baúl de imágenes? Esta acción
+              no se puede deshacer.
+            </DialogDescription>
+            {imageActionError && (
+              <p className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+                {imageActionError}
+              </p>
+            )}
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={onCancelImageDelete}
+              disabled={deletingImage}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={onConfirmImageDelete}
+              disabled={deletingImage}
+            >
+              {deletingImage && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Eliminar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!deleteConfirmRelationship}
+        onOpenChange={onRelationshipDialogChange}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmar eliminación</DialogTitle>
+            <DialogDescription>
+              ¿Estás seguro de que querés eliminar esta relación? Esta acción no
+              se puede deshacer.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={onCancelRelationshipDelete}
+              disabled={deletingRelationship}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={deletingRelationship}
+              onClick={onConfirmRelationshipDelete}
+            >
+              {deletingRelationship && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Eliminar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
 export function Worldbuilding({ projectId }: WorldbuildingProps) {
   const { loading, firebaseUser } = useAuth();
   const shouldFetch = !!projectId && !loading && !!firebaseUser;
@@ -427,13 +788,6 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
   const entityIdParam = searchParams.get("entityId");
   const tabParam = searchParams.get("tab");
   const timelineEventIdParam = searchParams.get("eventId");
-
-  const tabs = [
-    { id: "wiki" as const, label: "Wiki del Universo", icon: Star },
-    { id: "relationships" as const, label: "Relaciones", icon: GitBranch },
-    { id: "timeline" as const, label: "Línea Temporal", icon: Calendar },
-    { id: "summaries" as const, label: "Resúmenes", icon: FileText },
-  ];
 
   const [activeTab, setActiveTab] = useState<WorldbuildingTab>(
     isWorldbuildingTab(tabParam) ? tabParam : "wiki",
@@ -850,6 +1204,36 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
     }
   };
 
+  const handleConfirmEntityDelete = () => {
+    if (!deleteConfirmEntity) return;
+    setSelectedEntityId(null);
+    setDeleting(true);
+    void handleDeleteConfirmed(deleteConfirmEntity.id);
+  };
+
+  const handleEntityDeleteDialogChange = (open: boolean) => {
+    if (!open) setDeleteConfirmEntity(null);
+  };
+
+  const handleImageDeleteDialogChange = (open: boolean) => {
+    if (!open && !deletingImage) {
+      setImageToDelete(null);
+      setImageActionError(null);
+    }
+  };
+
+  const handleRelationshipDeleteDialogChange = (open: boolean) => {
+    if (!open && !deletingRelationship) {
+      setDeleteConfirmRelationship(null);
+    }
+  };
+
+  const handleConfirmRelationshipDelete = () => {
+    if (!deleteConfirmRelationship) return;
+    setDeletingRelationship(true);
+    void handleDeleteRelationshipConfirmed(deleteConfirmRelationship.id);
+  };
+
   const currentEntity = showNewEntityModal ? editingEntity : null;
 
   return (
@@ -857,44 +1241,18 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
       <Header />
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden border-b border-border bg-card">
-        <div className="flex shrink-0 items-center justify-between px-4 py-4">
-          <div>
-            <h1 className="text-xl font-semibold text-foreground">
-              Worldbuilding
-            </h1>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              Explora y gestiona el universo narrativo de tu obra
-            </p>
-          </div>
-          {activeTab === "wiki" && (
-            <Button onClick={() => setShowNewEntityModal(true)}>
-              <Plus size={16} />
-              Nueva Entidad
-            </Button>
-          )}
-          {activeTab === "relationships" && (
-            <Button
-              onClick={() => {
-                setEditingRelationship(null);
-                setShowNewRelationModal(true);
-              }}
-              disabled={worldbuildingEntities.length < 2}
-            >
-              <GitBranch size={16} />
-              Nueva Relación
-            </Button>
-          )}
-          {activeTab === "timeline" && (
-            <Button
-              onClick={() =>
-                setTimelineNewEventRequest((current) => current + 1)
-              }
-            >
-              <Plus size={16} />
-              Nuevo Evento
-            </Button>
-          )}
-        </div>
+        <WorldbuildingHeader
+          activeTab={activeTab}
+          entityCount={worldbuildingEntities.length}
+          onCreateEntity={() => setShowNewEntityModal(true)}
+          onCreateRelationship={() => {
+            setEditingRelationship(null);
+            setShowNewRelationModal(true);
+          }}
+          onCreateTimelineEvent={() =>
+            setTimelineNewEventRequest((current) => current + 1)
+          }
+        />
 
         <WorldbuildingModals
           showNewEntityModal={showNewEntityModal}
@@ -928,235 +1286,74 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
           onRegenerateReviewedImage={handleRegenerateReviewedImage}
         />
 
-        <Tabs
-          value={activeTab}
-          onValueChange={(value) => setActiveTab(value as WorldbuildingTab)}
-          className="flex min-h-0 flex-1 flex-col overflow-hidden"
-        >
-          <TabsList className="sticky top-0 z-10 flex h-auto gap-1 bg-card px-4 py-0">
-            {tabs.map(({ id, label, icon: Icon }) => (
-              <TabsTrigger
-                key={id}
-                value={id}
-                className="
-                  flex items-center gap-2 px-4 py-2.5 rounded-lg
-                  data-[state=active]:bg-primary/10
-                  data-[state=active]:text-primary
-                  data-[state=active]:border
-                  data-[state=active]:border-primary/20
-                "
-              >
-                <Icon size={16} />
-                {label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-
-          <TabsContent
-            value="wiki"
-            className="mt-4 min-h-0 flex-1 overflow-hidden border-t bg-card"
-          >
-            <WikiTab
-              entities={worldbuildingEntities}
-              loading={isLoading}
-              error={error}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-              selectedEntity={selectedEntity}
-              onSelectEntity={(entity) =>
-                setSelectedEntityId(entity?.id ?? null)
-              }
-              images={entityImages}
-              primaryImageUrls={primaryImageUrls}
-              imagesLoading={isLoadingImages}
-              activeImageJob={selectedEntityImageJob}
-              onGenerateImage={() => setShowImageGenerationModal(true)}
-              onUploadImage={handleUploadImage}
-              onSetPrimaryImage={(imageId) => {
-                void handleSetPrimaryImage(imageId);
-              }}
-              onDeleteImage={requestImageDelete}
-              imageActionError={imageActionError}
-            />
-          </TabsContent>
-
-          <TabsContent
-            value="relationships"
-            className="mt-4 min-h-0 flex-1 overflow-hidden border-t bg-card"
-          >
-            <RelationshipsPanel
-              entities={worldbuildingEntities}
-              relationships={relationships ?? []}
-              loading={isLoading || isLoadingRelationships}
-              error={error ?? relationshipsError}
-              onEditRelationship={(relationship) => {
-                setEditingRelationship(relationship);
-                setShowNewRelationModal(true);
-              }}
-              onDeleteRelationship={setDeleteConfirmRelationship}
-            />
-          </TabsContent>
-
-          <TabsContent
-            value="timeline"
-            className="mt-4 min-h-0 flex-1 overflow-hidden border-t bg-card"
-          >
-            <TimelinePanel
-              projectId={projectId}
-              enabled={shouldFetch}
-              entities={worldbuildingEntities}
-              focusEventId={timelineEventIdParam}
-              createdEntity={timelineCreatedEntity}
-              newEventRequest={timelineNewEventRequest}
-              onRequestCreateEntity={(canonicalName) => {
-                setEditingEntity(null);
-                setTimelineEntityInitialName(canonicalName);
-                setShowNewEntityModal(true);
-              }}
-            />
-          </TabsContent>
-
-          <TabsContent
-            value="summaries"
-            className="mt-4 min-h-0 flex-1 overflow-hidden border-t bg-card"
-          >
-            <SummariesPanel
-              chapters={chapters}
-              loading={isLoadingProject}
-              error={projectError}
-            />
-          </TabsContent>
-        </Tabs>
+        <WorldbuildingTabs
+          tabs={WORLD_BUILDING_TABS}
+          activeTab={activeTab}
+          onTabChange={(value) => setActiveTab(value as WorldbuildingTab)}
+          projectId={projectId}
+          enabled={shouldFetch}
+          timelineEventId={timelineEventIdParam}
+          timelineCreatedEntity={timelineCreatedEntity}
+          timelineNewEventRequest={timelineNewEventRequest}
+          entities={worldbuildingEntities}
+          isLoadingEntities={isLoading}
+          entityError={error}
+          selectedEntity={selectedEntity}
+          entityImages={entityImages}
+          primaryImageUrls={primaryImageUrls}
+          isLoadingImages={isLoadingImages}
+          selectedEntityImageJob={selectedEntityImageJob}
+          imageActionError={imageActionError}
+          onEditEntity={handleEdit}
+          onDeleteEntity={handleDelete}
+          onSelectEntity={(entity) => setSelectedEntityId(entity?.id ?? null)}
+          onGenerateImage={() => setShowImageGenerationModal(true)}
+          onUploadImage={handleUploadImage}
+          onSetPrimaryImage={(imageId) => {
+            void handleSetPrimaryImage(imageId);
+          }}
+          onDeleteImage={requestImageDelete}
+          relationships={relationships ?? []}
+          isLoadingRelationships={isLoadingRelationships}
+          relationshipError={relationshipsError}
+          onEditRelationship={(relationship) => {
+            setEditingRelationship(relationship);
+            setShowNewRelationModal(true);
+          }}
+          onDeleteRelationship={setDeleteConfirmRelationship}
+          chapters={chapters}
+          isLoadingProject={isLoadingProject}
+          projectError={projectError}
+          onRequestCreateEntity={(canonicalName) => {
+            setEditingEntity(null);
+            setTimelineEntityInitialName(canonicalName);
+            setShowNewEntityModal(true);
+          }}
+        />
       </div>
 
-      <Dialog
-        open={!!deleteConfirmEntity}
-        onOpenChange={(open) => !open && setDeleteConfirmEntity(null)}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirmar eliminación</DialogTitle>
-            <DialogDescription>
-              ¿Estás seguro de que querés eliminar &ldquo;
-              {deleteConfirmEntity?.canonicalName}&rdquo;? Esta acción no se
-              puede deshacer.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setDeleteConfirmEntity(null)}
-              disabled={deleting}
-            >
-              Cancelar
-            </Button>
-            <Button
-              variant="destructive"
-              disabled={deleting}
-              onClick={() => {
-                if (!deleteConfirmEntity) return;
-                setSelectedEntityId(null);
-                setDeleting(true);
-                void handleDeleteConfirmed(deleteConfirmEntity.id);
-              }}
-            >
-              {deleting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Eliminar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
-        open={!!imageToDelete}
-        onOpenChange={(open) => {
-          if (!open && !deletingImage) {
-            setImageToDelete(null);
-            setImageActionError(null);
-          }
+      <WorldbuildingDeleteDialogs
+        deleteConfirmEntity={deleteConfirmEntity}
+        deletingEntity={deleting}
+        onEntityDialogChange={handleEntityDeleteDialogChange}
+        onCancelEntityDelete={() => setDeleteConfirmEntity(null)}
+        onConfirmEntityDelete={handleConfirmEntityDelete}
+        imageToDelete={imageToDelete}
+        deletingImage={deletingImage}
+        imageActionError={imageActionError}
+        onImageDialogChange={handleImageDeleteDialogChange}
+        onCancelImageDelete={() => {
+          setImageToDelete(null);
+          setImageActionError(null);
         }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Eliminar imagen</DialogTitle>
-            <DialogDescription>
-              ¿Querés eliminar esta variante del baúl de imágenes? Esta acción
-              no se puede deshacer.
-            </DialogDescription>
-            {imageActionError && (
-              <p className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-                {imageActionError}
-              </p>
-            )}
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setImageToDelete(null);
-                setImageActionError(null);
-              }}
-              disabled={deletingImage}
-            >
-              Cancelar
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={() => void handleDeleteImage()}
-              disabled={deletingImage}
-            >
-              {deletingImage && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
-              Eliminar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        onConfirmImageDelete={() => void handleDeleteImage()}
+        deleteConfirmRelationship={deleteConfirmRelationship}
+        deletingRelationship={deletingRelationship}
+        onRelationshipDialogChange={handleRelationshipDeleteDialogChange}
+        onCancelRelationshipDelete={() => setDeleteConfirmRelationship(null)}
+        onConfirmRelationshipDelete={handleConfirmRelationshipDelete}
+      />
 
-      <Dialog
-        open={!!deleteConfirmRelationship}
-        onOpenChange={(open) => {
-          if (!open && !deletingRelationship) {
-            setDeleteConfirmRelationship(null);
-          }
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirmar eliminación</DialogTitle>
-            <DialogDescription>
-              ¿Estás seguro de que querés eliminar esta relación? Esta acción no
-              se puede deshacer.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setDeleteConfirmRelationship(null)}
-              disabled={deletingRelationship}
-            >
-              Cancelar
-            </Button>
-            <Button
-              variant="destructive"
-              disabled={deletingRelationship}
-              onClick={() => {
-                if (!deleteConfirmRelationship) return;
-                setDeletingRelationship(true);
-                void handleDeleteRelationshipConfirmed(
-                  deleteConfirmRelationship.id,
-                );
-              }}
-            >
-              {deletingRelationship && (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              )}
-              Eliminar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

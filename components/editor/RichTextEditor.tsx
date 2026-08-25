@@ -102,7 +102,7 @@ export function RichTextEditor({
       )
     }
 
-    if (!citationFocus || citationFocus.sceneId !== sceneId) {
+    if (citationFocus?.sceneId !== sceneId) {
       clearCitationDecoration()
       return
     }
