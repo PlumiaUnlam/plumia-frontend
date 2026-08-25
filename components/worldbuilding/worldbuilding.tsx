@@ -1145,31 +1145,85 @@ function WorldbuildingDeleteDialogs({
   );
 }
 
-export function Worldbuilding({ projectId }: WorldbuildingProps) {
-  const { loading, firebaseUser } = useAuth();
-  const shouldFetch = !!projectId && !loading && !!firebaseUser;
-  const searchParams = useSearchParams();
-  const entityIdParam = searchParams.get("entityId");
-  const tabParam = searchParams.get("tab");
-  const timelineEventIdParam = searchParams.get("eventId");
+function canFetchWorldbuildingData(
+  projectId: string,
+  loading: boolean,
+  firebaseUser: unknown,
+) {
+  return Boolean(projectId) && !loading && Boolean(firebaseUser);
+}
 
+function getEntitiesKey(projectId: string, shouldFetch: boolean) {
+  return shouldFetch ? `/knowledge/entities?projectId=${projectId}` : null;
+}
+
+function getProjectKey(
+  projectId: string,
+  shouldFetch: boolean,
+  activeTab: WorldbuildingTab,
+) {
+  return shouldFetch && activeTab === "summaries"
+    ? `/projects/${projectId}`
+    : null;
+}
+
+function getRelationshipsKey(
+  projectId: string,
+  shouldFetch: boolean,
+  activeTab: WorldbuildingTab,
+) {
+  return shouldFetch && activeTab === "relationships"
+    ? `/knowledge/relationships?projectId=${projectId}`
+    : null;
+}
+
+function getEntityImagesKey(
+  shouldFetch: boolean,
+  selectedEntity: Entity | null,
+) {
+  return shouldFetch && selectedEntity
+    ? `/publishing/images/${selectedEntity.id}`
+    : null;
+}
+
+function getPrimaryImagesKey(
+  shouldFetch: boolean,
+  activeTab: WorldbuildingTab,
+  entityIds: string[],
+) {
+  const canLoadPrimaryImages =
+    shouldFetch && activeTab === "wiki" && entityIds.length > 0;
+  return canLoadPrimaryImages
+    ? `/publishing/images/primary?entityIds=${encodeURIComponent(entityIds.join(","))}`
+    : null;
+}
+
+function getDeleteMutationKey(projectId: string) {
+  return projectId ? `/knowledge/entities?projectId=${projectId}` : null;
+}
+
+function getSelectedEntityImageJob(
+  selectedEntity: Entity | null,
+  imageGenerationJob: ImageGenerationJob | null,
+) {
+  return selectedEntity && imageGenerationJob?.entityId === selectedEntity.id
+    ? imageGenerationJob
+    : null;
+}
+
+function useWorldbuildingSelection(
+  entityIdParam: string | null,
+  tabParam: string | null,
+) {
   const [activeTab, setActiveTab] = useState<WorldbuildingTab>(
     isWorldbuildingTab(tabParam) ? tabParam : "wiki",
   );
-  const [showNewEntityModal, setShowNewEntityModal] = useState(false);
-  const [showNewRelationModal, setShowNewRelationModal] = useState(false);
-  const [editingRelationship, setEditingRelationship] =
-    useState<Relationship | null>(null);
-  const [deleteConfirmRelationship, setDeleteConfirmRelationship] =
-    useState<Relationship | null>(null);
-  const [editingEntity, setEditingEntity] = useState<Entity | null>(null);
   const [selectedEntityId, setSelectedEntityId] = useState<string | null>(
     entityIdParam,
   );
 
-  // Preselecciona la entidad indicada por ?entityId= (ej. al venir de un link
-  // del editor). Se ajusta durante el render, no en un efecto, para evitar
-  // cascading renders (ver patrón equivalente en editor-right-panel.tsx).
+  // Keep URL-driven selection synchronous so editor links select the entity
+  // before the first data-dependent render, matching the previous behavior.
   const [lastEntityIdParam, setLastEntityIdParam] = useState(entityIdParam);
   if (entityIdParam !== lastEntityIdParam) {
     setLastEntityIdParam(entityIdParam);
@@ -1178,6 +1232,7 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
       setActiveTab("wiki");
     }
   }
+
   const [lastTabParam, setLastTabParam] = useState(tabParam);
   if (tabParam !== lastTabParam) {
     setLastTabParam(tabParam);
@@ -1185,6 +1240,184 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
       setActiveTab(tabParam);
     }
   }
+
+  return {
+    activeTab,
+    setActiveTab,
+    selectedEntityId,
+    setSelectedEntityId,
+  };
+}
+
+type WorldbuildingDataOptions = {
+  projectId: string;
+  shouldFetch: boolean;
+  activeTab: WorldbuildingTab;
+  selectedEntityId: string | null;
+  mockEntities: Entity[];
+  setImageReview: Dispatch<SetStateAction<ImageReviewState | null>>;
+};
+
+function useWorldbuildingData({
+  projectId,
+  shouldFetch,
+  activeTab,
+  selectedEntityId,
+  mockEntities,
+  setImageReview,
+}: Readonly<WorldbuildingDataOptions>) {
+  const {
+    data: entities,
+    error,
+    isLoading,
+    mutate,
+  } = useSWR(
+    getEntitiesKey(projectId, shouldFetch),
+    () => getEntities(projectId),
+  );
+
+  const {
+    data: project,
+    error: projectError,
+    isLoading: isLoadingProject,
+  } = useSWR(
+    getProjectKey(projectId, shouldFetch, activeTab),
+    () => getProject(projectId),
+  );
+
+  const {
+    data: relationships,
+    error: relationshipsError,
+    isLoading: isLoadingRelationships,
+    mutate: mutateRelationships,
+  } = useSWR(
+    getRelationshipsKey(projectId, shouldFetch, activeTab),
+    () => getRelationships(projectId),
+  );
+
+  const { trigger: triggerDelete } = useSWRMutation(
+    getDeleteMutationKey(projectId),
+    async (_key: string, { arg }: { arg: string }) => {
+      await deleteEntity(arg);
+    },
+  );
+
+  const worldbuildingEntities = entities ?? mockEntities;
+  const selectedEntity = useMemo(
+    () =>
+      worldbuildingEntities.find((entity) => entity.id === selectedEntityId) ??
+      null,
+    [selectedEntityId, worldbuildingEntities],
+  );
+
+  const {
+    data: entityImages = [],
+    isLoading: isLoadingImages,
+    mutate: mutateImages,
+  } = useSWR(
+    getEntityImagesKey(shouldFetch, selectedEntity),
+    () => getEntityImages(selectedEntity!.id),
+  );
+
+  const entityIds = useMemo(
+    () => (entities ?? []).map((entity) => entity.id),
+    [entities],
+  );
+  const { data: primaryImageUrls = {}, mutate: mutatePrimaryImages } = useSWR(
+    getPrimaryImagesKey(shouldFetch, activeTab, entityIds),
+    () => getPrimaryEntityImages(entityIds),
+  );
+
+  const handleImageJobCompleted = useCallback(
+    (job: ImageGenerationJob) => {
+      const generatedEntity = worldbuildingEntities.find(
+        (entity) => entity.id === job.entityId,
+      );
+      if (job.generatedImage && generatedEntity) {
+        setImageReview({
+          entityId: job.entityId,
+          entityName: generatedEntity.canonicalName,
+          entityType: generatedEntity.type,
+          image: job.generatedImage,
+        });
+      }
+    },
+    [setImageReview, worldbuildingEntities],
+  );
+  const { imageGenerationJob, startImageGeneration } =
+    useImageGenerationPolling({
+      entities: worldbuildingEntities,
+      mutate,
+      mutateImages,
+      mutatePrimaryImages,
+      onCompleted: handleImageJobCompleted,
+    });
+
+  const selectedEntityImageJob = getSelectedEntityImageJob(
+    selectedEntity,
+    imageGenerationJob,
+  );
+  const chapters = useMemo(
+    () =>
+      project?.books.flatMap((book) =>
+        book.chapters.map((chapter) => ({
+          id: chapter.id,
+          title: chapter.title,
+          wordCount: chapter.wordCount,
+        })),
+      ) ?? [],
+    [project],
+  );
+
+  return {
+    error,
+    isLoading,
+    mutate,
+    projectError,
+    isLoadingProject,
+    relationships,
+    relationshipsError,
+    isLoadingRelationships,
+    mutateRelationships,
+    triggerDelete,
+    worldbuildingEntities,
+    selectedEntity,
+    entityImages,
+    isLoadingImages,
+    mutateImages,
+    primaryImageUrls,
+    mutatePrimaryImages,
+    startImageGeneration,
+    selectedEntityImageJob,
+    chapters,
+  };
+}
+
+export function Worldbuilding({ projectId }: WorldbuildingProps) {
+  const { loading, firebaseUser } = useAuth();
+  const shouldFetch = canFetchWorldbuildingData(
+    projectId,
+    loading,
+    firebaseUser,
+  );
+  const searchParams = useSearchParams();
+  const entityIdParam = searchParams.get("entityId");
+  const tabParam = searchParams.get("tab");
+  const timelineEventIdParam = searchParams.get("eventId");
+
+  const {
+    activeTab,
+    setActiveTab,
+    selectedEntityId,
+    setSelectedEntityId,
+  } = useWorldbuildingSelection(entityIdParam, tabParam);
+  const [showNewEntityModal, setShowNewEntityModal] = useState(false);
+  const [showNewRelationModal, setShowNewRelationModal] = useState(false);
+  const [editingRelationship, setEditingRelationship] =
+    useState<Relationship | null>(null);
+  const [deleteConfirmRelationship, setDeleteConfirmRelationship] =
+    useState<Relationship | null>(null);
+  const [editingEntity, setEditingEntity] = useState<Entity | null>(null);
   const [deleteConfirmEntity, setDeleteConfirmEntity] = useState<Entity | null>(
     null,
   );
@@ -1212,115 +1445,34 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
     null,
   );
   const {
-    data: entities,
     error,
     isLoading,
     mutate,
-  } = useSWR(
-    shouldFetch ? `/knowledge/entities?projectId=${projectId}` : null,
-    () => getEntities(projectId),
-  );
-
-  const {
-    data: project,
-    error: projectError,
-    isLoading: isLoadingProject,
-  } = useSWR(
-    shouldFetch && activeTab === "summaries" ? `/projects/${projectId}` : null,
-    () => getProject(projectId),
-  );
-
-  const {
-    data: relationships,
-    error: relationshipsError,
-    isLoading: isLoadingRelationships,
-    mutate: mutateRelationships,
-  } = useSWR(
-    shouldFetch && activeTab === "relationships"
-      ? `/knowledge/relationships?projectId=${projectId}`
-      : null,
-    () => getRelationships(projectId),
-  );
-
-  const { trigger: triggerDelete } = useSWRMutation(
-    projectId ? `/knowledge/entities?projectId=${projectId}` : null,
-    async (_key: string, { arg }: { arg: string }) => {
-      await deleteEntity(arg);
-    },
-  );
-
-  const worldbuildingEntities = entities ?? mockEntities;
-
-  const selectedEntity = useMemo(
-    () =>
-      worldbuildingEntities.find((entity) => entity.id === selectedEntityId) ??
-      null,
-    [selectedEntityId, worldbuildingEntities],
-  );
-  const {
-    data: entityImages = [],
-    isLoading: isLoadingImages,
-    mutate: mutateImages,
-  } = useSWR(
-    shouldFetch && selectedEntity
-      ? `/publishing/images/${selectedEntity.id}`
-      : null,
-    () => getEntityImages(selectedEntity!.id),
-  );
-
-  const entityIds = useMemo(
-    () => (entities ?? []).map((entity) => entity.id),
-    [entities],
-  );
-  const primaryImagesKey =
-    shouldFetch && activeTab === "wiki" && entityIds.length > 0
-      ? `/publishing/images/primary?entityIds=${encodeURIComponent(entityIds.join(","))}`
-      : null;
-  const { data: primaryImageUrls = {}, mutate: mutatePrimaryImages } = useSWR(
-    primaryImagesKey,
-    () => getPrimaryEntityImages(entityIds),
-  );
-
-  const handleImageJobCompleted = useCallback(
-    (job: ImageGenerationJob) => {
-      const generatedEntity = worldbuildingEntities.find(
-        (entity) => entity.id === job.entityId,
-      );
-      if (job.generatedImage && generatedEntity) {
-        setImageReview({
-          entityId: job.entityId,
-          entityName: generatedEntity.canonicalName,
-          entityType: generatedEntity.type,
-          image: job.generatedImage,
-        });
-      }
-    },
-    [worldbuildingEntities],
-  );
-  const { imageGenerationJob, startImageGeneration } =
-    useImageGenerationPolling({
-      entities: worldbuildingEntities,
-      mutate,
-      mutateImages,
-      mutatePrimaryImages,
-      onCompleted: handleImageJobCompleted,
-    });
-  const selectedEntityImageJob =
-    selectedEntity && imageGenerationJob?.entityId === selectedEntity.id
-      ? imageGenerationJob
-      : null;
-
-  const chapters = useMemo(() => {
-    return (
-      project?.books.flatMap((book) =>
-        book.chapters.map((chapter) => ({
-          id: chapter.id,
-          title: chapter.title,
-          wordCount: chapter.wordCount,
-        })),
-      ) ?? []
-    );
-  }, [project]);
+    projectError,
+    isLoadingProject,
+    relationships,
+    relationshipsError,
+    isLoadingRelationships,
+    mutateRelationships,
+    triggerDelete,
+    worldbuildingEntities,
+    selectedEntity,
+    entityImages,
+    isLoadingImages,
+    mutateImages,
+    primaryImageUrls,
+    mutatePrimaryImages,
+    startImageGeneration,
+    selectedEntityImageJob,
+    chapters,
+  } = useWorldbuildingData({
+    projectId,
+    shouldFetch,
+    activeTab,
+    selectedEntityId,
+    mockEntities,
+    setImageReview,
+  });
 
   const aiStorageKeyRef = useRef<string | null>(null);
   const aiPromptRef = useRef<string | null>(null);
