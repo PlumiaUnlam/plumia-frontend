@@ -64,6 +64,7 @@ type ChatPanelProps = {
 }
 
 const HISTORY_PAGE_SIZE = 8
+const PRODUCT_TIME_ZONE = "America/Argentina/Buenos_Aires"
 const WAITING_MESSAGES = [
   "Buscando fragmentos relevantes…",
   "Contrastando manuscrito, Wiki y línea de tiempo…",
@@ -205,6 +206,13 @@ export function ChatPanel({
       controller.abort()
     }
   }, [projectId])
+
+  useEffect(() => {
+    return () => {
+      threadsRequestRef.current?.abort()
+      sendAbortControllerRef.current?.abort()
+    }
+  }, [])
 
   useEffect(() => {
     if (!isHistoryOpen) return
@@ -509,202 +517,47 @@ export function ChatPanel({
 
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4 sm:px-6 sm:py-6">
           <div className="mx-auto w-full max-w-3xl">
-            {isLoading ? (
-              <ChatLoadingState />
-            ) : messages.length === 0 ? (
-              <EmptyChatState onSuggestion={setDraft} />
-            ) : (
-              <div className="space-y-4">
-                {messages
-                  .filter((message) => message.role !== "system")
-                  .map((message) => (
-                    <ChatBubble
-                      key={message.id}
-                      message={message}
-                      projectId={projectId}
-                      primaryImageUrls={primaryImageUrls}
-                      onBeforeSourceNavigation={handleBeforeSourceNavigation}
-                    />
-                  ))}
-                {isSending && (
-                  <ThinkingBubble
-                    status={WAITING_MESSAGES[waitingMessageIndex]}
-                  />
-                )}
-              </div>
-            )}
+            <ChatMessages
+              isLoading={isLoading}
+              messages={messages}
+              projectId={projectId}
+              primaryImageUrls={primaryImageUrls}
+              isSending={isSending}
+              waitingMessageIndex={waitingMessageIndex}
+              onSuggestion={setDraft}
+              onBeforeSourceNavigation={handleBeforeSourceNavigation}
+            />
             <div ref={endRef} />
           </div>
         </div>
 
-      <form
-        onSubmit={handleSubmit}
-        className="shrink-0 border-t border-border bg-card px-3 py-3 sm:px-6 sm:py-4"
-      >
-        <div className="mx-auto w-full max-w-3xl">
-          {displayError && (
-            <div
-              role="alert"
-              className="mb-2 flex items-start gap-2 rounded-lg border border-destructive/20 bg-destructive/5 px-2.5 py-2 text-[10px] leading-relaxed text-destructive"
-            >
-              <RefreshCw className="mt-0.5 size-3 shrink-0" />
-              {displayError}
-              {failedContent && !isSending && (
-                <button
-                  type="button"
-                  onClick={retryLastRequest}
-                  className="ml-auto inline-flex shrink-0 items-center gap-1 font-semibold underline underline-offset-2"
-                >
-                  <RefreshCw className="size-3" />
-                  Reintentar
-                </button>
-              )}
-            </div>
-          )}
-          <div className="rounded-2xl border border-border bg-muted/70 p-2 transition-colors focus-within:border-primary/40 focus-within:bg-background focus-within:ring-2 focus-within:ring-primary/10">
-            <textarea
-              value={draft}
-              onChange={(event) => setDraft(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" && !event.shiftKey) {
-                  event.preventDefault()
-                  event.currentTarget.form?.requestSubmit()
-                }
-              }}
-              rows={1}
-              maxLength={4000}
-              disabled={isSending}
-              aria-label="Pregunta sobre tu obra"
-              placeholder="Pregunta sobre tu obra..."
-              className="max-h-28 min-h-9 w-full resize-none overflow-y-auto bg-transparent px-1 py-1 text-[11px] leading-relaxed text-foreground outline-none placeholder:text-muted-foreground [scrollbar-width:none] [&::-webkit-scrollbar]:hidden disabled:opacity-60"
-            />
-            {isRecording && (
-              <div className="mt-2 flex items-center gap-2 text-[10px] text-muted-foreground">
-                <div
-                  className="relative flex size-8 items-center justify-center rounded-full border border-primary/30 bg-primary/5"
-                  aria-label={`Nivel de audio: ${Math.round(audioLevel * 100)}%`}
-                  role="img"
-                >
-                  <span
-                    className="absolute inset-0 rounded-full bg-primary/20 transition-transform duration-75"
-                    style={{
-                      opacity: 0.35 + audioLevel * 0.65,
-                      transform: `scale(${0.75 + audioLevel * 0.25})`,
-                    }}
-                  />
-                  <Mic className="relative size-3.5 text-primary" />
-                </div>
-                <span>
-                  {getAudioSignalMessage(audioLevel)} · {formatDuration(recordingDurationSeconds)} / 3:00
-                </span>
-                {hasUsedVoiceInput && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={() => {
-                      setIsVoiceSettingsOpen(true)
-                      void refreshAudioInputDevices()
-                    }}
-                    aria-label="Configurar micrófono"
-                    title="Configurar micrófono"
-                    className="ml-auto size-7 rounded-lg text-muted-foreground hover:text-primary"
-                  >
-                    <Settings className="size-3.5" />
-                  </Button>
-                )}
-              </div>
-            )}
-            {isTranscribing && (
-              <output
-                className="mt-2 flex items-center gap-1.5 px-1 text-[10px] text-muted-foreground"
-                aria-live="polite"
-              >
-                <Loader2 className="size-3 animate-spin" />
-                Transcribiendo tu pregunta...
-              </output>
-            )}
-            <div className="mt-1 flex items-center justify-between gap-2">
-              <span className="px-1 text-[9px] text-muted-foreground">
-                PlumIA · fuentes de tu proyecto
-              </span>
-              <div className="flex items-center gap-1">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  disabled={!speechSupported || isSending || isTranscribing}
-                  onClick={toggleVoiceInput}
-                  aria-label={
-                    isRecording ? "Detener dictado" : "Dictar pregunta"
-                  }
-                  aria-pressed={isRecording}
-                  title={
-                    speechSupported
-                      ? isRecording
-                        ? "Detener dictado"
-                        : "Dictar pregunta con Whisper"
-                      : "El navegador no permite grabar audio"
-                  }
-                  className={
-                    isRecording
-                      ? "animate-pulse rounded-xl bg-primary/15 text-primary"
-                      : "rounded-xl text-muted-foreground"
-                  }
-                >
-                  {isTranscribing ? (
-                    <Loader2 className="size-3.5 animate-spin" />
-                  ) : isRecording ? (
-                    <Square className="size-3.5 fill-current" />
-                  ) : speechSupported ? (
-                    <Mic className="size-3.5" />
-                  ) : (
-                    <MicOff className="size-3.5" />
-                  )}
-                </Button>
-                {isSending ? (
-                  <Button
-                    type="button"
-                    size="icon-sm"
-                    onClick={cancelSending}
-                    aria-label="Detener respuesta"
-                    title="Detener respuesta"
-                    className="rounded-xl"
-                  >
-                    <Square className="size-3.5 fill-current" />
-                  </Button>
-                ) : (
-                  <Button
-                    type="submit"
-                    size="icon-sm"
-                    disabled={!draft.trim() || isVoiceBusy}
-                    aria-label="Enviar consulta"
-                    className="rounded-xl"
-                  >
-                    <Send className="size-3.5" />
-                  </Button>
-                )}
-              </div>
-            </div>
-          </div>
-          <p className="mt-1.5 text-center text-[9px] text-muted-foreground">
-            {isRecording
-              ? "Escuchando… hablá con naturalidad"
-              : isTranscribing
-                ? "Transcribiendo…"
-                : "Enter para enviar · Shift + Enter para nueva línea"}
-          </p>
-          {isVoiceSettingsOpen && isRecording && (
-            <VoiceSettingsModal
-              audioInputDevices={audioInputDevices}
-              selectedAudioInputId={selectedAudioInputId}
-              audioLevel={audioLevel}
-              onSelectAudioInput={selectAudioInput}
-              onClose={() => setIsVoiceSettingsOpen(false)}
-            />
-          )}
-        </div>
-      </form>
+        <ChatComposer
+          draft={draft}
+          isSending={isSending}
+          isVoiceBusy={isVoiceBusy}
+          displayError={displayError}
+          failedContent={failedContent}
+          isRecording={isRecording}
+          isTranscribing={isTranscribing}
+          speechSupported={speechSupported}
+          audioLevel={audioLevel}
+          recordingDurationSeconds={recordingDurationSeconds}
+          hasUsedVoiceInput={hasUsedVoiceInput}
+          isVoiceSettingsOpen={isVoiceSettingsOpen}
+          audioInputDevices={audioInputDevices}
+          selectedAudioInputId={selectedAudioInputId}
+          onDraftChange={setDraft}
+          onSubmit={handleSubmit}
+          onRetry={retryLastRequest}
+          onToggleVoiceInput={toggleVoiceInput}
+          onCancelSending={cancelSending}
+          onOpenVoiceSettings={() => {
+            setIsVoiceSettingsOpen(true)
+            void refreshAudioInputDevices()
+          }}
+          onSelectAudioInput={selectAudioInput}
+          onCloseVoiceSettings={() => setIsVoiceSettingsOpen(false)}
+        />
       </section>
       <DeleteThreadDialog
         thread={threadToDelete}
@@ -716,6 +569,276 @@ export function ChatPanel({
       />
     </div>
   )
+}
+
+function ChatMessages({
+  isLoading,
+  messages,
+  projectId,
+  primaryImageUrls,
+  isSending,
+  waitingMessageIndex,
+  onSuggestion,
+  onBeforeSourceNavigation,
+}: {
+  readonly isLoading: boolean
+  readonly messages: ChatMessage[]
+  readonly projectId: string
+  readonly primaryImageUrls: Readonly<Record<string, string>>
+  readonly isSending: boolean
+  readonly waitingMessageIndex: number
+  readonly onSuggestion: (suggestion: string) => void
+  readonly onBeforeSourceNavigation: () => void
+}) {
+  if (isLoading) return <ChatLoadingState />
+  if (messages.length === 0) return <EmptyChatState onSuggestion={onSuggestion} />
+
+  return (
+    <div className="space-y-4">
+      {messages
+        .filter((message) => message.role !== "system")
+        .map((message) => (
+          <ChatBubble
+            key={message.id}
+            message={message}
+            projectId={projectId}
+            primaryImageUrls={primaryImageUrls}
+            onBeforeSourceNavigation={onBeforeSourceNavigation}
+          />
+        ))}
+      {isSending && (
+        <ThinkingBubble status={WAITING_MESSAGES[waitingMessageIndex]} />
+      )}
+    </div>
+  )
+}
+
+function ChatComposer({
+  draft,
+  isSending,
+  isVoiceBusy,
+  displayError,
+  failedContent,
+  isRecording,
+  isTranscribing,
+  speechSupported,
+  audioLevel,
+  recordingDurationSeconds,
+  hasUsedVoiceInput,
+  isVoiceSettingsOpen,
+  audioInputDevices,
+  selectedAudioInputId,
+  onDraftChange,
+  onSubmit,
+  onRetry,
+  onToggleVoiceInput,
+  onCancelSending,
+  onOpenVoiceSettings,
+  onSelectAudioInput,
+  onCloseVoiceSettings,
+}: {
+  readonly draft: string
+  readonly isSending: boolean
+  readonly isVoiceBusy: boolean
+  readonly displayError: string | null
+  readonly failedContent: string | null
+  readonly isRecording: boolean
+  readonly isTranscribing: boolean
+  readonly speechSupported: boolean
+  readonly audioLevel: number
+  readonly recordingDurationSeconds: number
+  readonly hasUsedVoiceInput: boolean
+  readonly isVoiceSettingsOpen: boolean
+  readonly audioInputDevices: ReadonlyArray<{
+    deviceId: string
+    label: string
+  }>
+  readonly selectedAudioInputId: string
+  readonly onDraftChange: (value: string) => void
+  readonly onSubmit: (event: FormEvent<HTMLFormElement>) => void
+  readonly onRetry: () => void
+  readonly onToggleVoiceInput: () => void
+  readonly onCancelSending: () => void
+  readonly onOpenVoiceSettings: () => void
+  readonly onSelectAudioInput: (deviceId: string) => void
+  readonly onCloseVoiceSettings: () => void
+}) {
+  return (
+    <form
+      onSubmit={onSubmit}
+      className="shrink-0 border-t border-border bg-card px-3 py-3 sm:px-6 sm:py-4"
+    >
+      <div className="mx-auto w-full max-w-3xl">
+        {displayError && (
+          <div
+            role="alert"
+            className="mb-2 flex items-start gap-2 rounded-lg border border-destructive/20 bg-destructive/5 px-2.5 py-2 text-[10px] leading-relaxed text-destructive"
+          >
+            <RefreshCw className="mt-0.5 size-3 shrink-0" />
+            {displayError}
+            {failedContent && !isSending && (
+              <button
+                type="button"
+                onClick={onRetry}
+                className="ml-auto inline-flex shrink-0 items-center gap-1 font-semibold underline underline-offset-2"
+              >
+                <RefreshCw className="size-3" />
+                Reintentar
+              </button>
+            )}
+          </div>
+        )}
+        <div className="rounded-2xl border border-border bg-muted/70 p-2 transition-colors focus-within:border-primary/40 focus-within:bg-background focus-within:ring-2 focus-within:ring-primary/10">
+          <textarea
+            value={draft}
+            onChange={(event) => onDraftChange(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault()
+                event.currentTarget.form?.requestSubmit()
+              }
+            }}
+            rows={1}
+            maxLength={4000}
+            disabled={isSending}
+            aria-label="Pregunta sobre tu obra"
+            placeholder="Pregunta sobre tu obra..."
+            className="max-h-28 min-h-9 w-full resize-none overflow-y-auto bg-transparent px-1 py-1 text-[11px] leading-relaxed text-foreground outline-none placeholder:text-muted-foreground [scrollbar-width:none] [&::-webkit-scrollbar]:hidden disabled:opacity-60"
+          />
+          {isRecording && (
+            <div className="mt-2 flex items-center gap-2 text-[10px] text-muted-foreground">
+              <div
+                className="relative flex size-8 items-center justify-center rounded-full border border-primary/30 bg-primary/5"
+                aria-label={`Nivel de audio: ${Math.round(audioLevel * 100)}%`}
+                role="img"
+              >
+                <span
+                  className="absolute inset-0 rounded-full bg-primary/20 transition-transform duration-75"
+                  style={{
+                    opacity: 0.35 + audioLevel * 0.65,
+                    transform: `scale(${0.75 + audioLevel * 0.25})`,
+                  }}
+                />
+                <Mic className="relative size-3.5 text-primary" />
+              </div>
+              <span>
+                {getAudioSignalMessage(audioLevel)} · {formatDuration(recordingDurationSeconds)} / 3:00
+              </span>
+              {hasUsedVoiceInput && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={onOpenVoiceSettings}
+                  aria-label="Configurar micrófono"
+                  title="Configurar micrófono"
+                  className="ml-auto size-7 rounded-lg text-muted-foreground hover:text-primary"
+                >
+                  <Settings className="size-3.5" />
+                </Button>
+              )}
+            </div>
+          )}
+          {isTranscribing && (
+            <output
+              className="mt-2 flex items-center gap-1.5 px-1 text-[10px] text-muted-foreground"
+              aria-live="polite"
+            >
+              <Loader2 className="size-3 animate-spin" />
+              Transcribiendo tu pregunta...
+            </output>
+          )}
+          <div className="mt-1 flex items-center justify-between gap-2">
+            <span className="px-1 text-[9px] text-muted-foreground">
+              PlumIA · fuentes de tu proyecto
+            </span>
+            <div className="flex items-center gap-1">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                disabled={!speechSupported || isSending || isTranscribing}
+                onClick={onToggleVoiceInput}
+                aria-label={isRecording ? "Detener dictado" : "Dictar pregunta"}
+                aria-pressed={isRecording}
+                title={getVoiceButtonTitle(speechSupported, isRecording)}
+                className={
+                  isRecording
+                    ? "animate-pulse rounded-xl bg-primary/15 text-primary"
+                    : "rounded-xl text-muted-foreground"
+                }
+              >
+                {getVoiceButtonIcon(speechSupported, isRecording, isTranscribing)}
+              </Button>
+              {isSending ? (
+                <Button
+                  type="button"
+                  size="icon-sm"
+                  onClick={onCancelSending}
+                  aria-label="Detener respuesta"
+                  title="Detener respuesta"
+                  className="rounded-xl"
+                >
+                  <Square className="size-3.5 fill-current" />
+                </Button>
+              ) : (
+                <Button
+                  type="submit"
+                  size="icon-sm"
+                  disabled={!draft.trim() || isVoiceBusy}
+                  aria-label="Enviar consulta"
+                  className="rounded-xl"
+                >
+                  <Send className="size-3.5" />
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+        <p className="mt-1.5 text-center text-[9px] text-muted-foreground">
+          {getVoiceStatusMessage(isRecording, isTranscribing)}
+        </p>
+        {isVoiceSettingsOpen && isRecording && (
+          <VoiceSettingsModal
+            audioInputDevices={audioInputDevices}
+            selectedAudioInputId={selectedAudioInputId}
+            audioLevel={audioLevel}
+            onSelectAudioInput={onSelectAudioInput}
+            onClose={onCloseVoiceSettings}
+          />
+        )}
+      </div>
+    </form>
+  )
+}
+
+function getVoiceButtonTitle(
+  speechSupported: boolean,
+  isRecording: boolean,
+): string {
+  if (!speechSupported) return "El navegador no permite grabar audio"
+  if (isRecording) return "Detener dictado"
+  return "Dictar pregunta con Whisper"
+}
+
+function getVoiceButtonIcon(
+  speechSupported: boolean,
+  isRecording: boolean,
+  isTranscribing: boolean,
+) {
+  if (isTranscribing) return <Loader2 className="size-3.5 animate-spin" />
+  if (isRecording) return <Square className="size-3.5 fill-current" />
+  if (speechSupported) return <Mic className="size-3.5" />
+  return <MicOff className="size-3.5" />
+}
+
+function getVoiceStatusMessage(
+  isRecording: boolean,
+  isTranscribing: boolean,
+): string {
+  if (isRecording) return "Escuchando… hablá con naturalidad"
+  if (isTranscribing) return "Transcribiendo…"
+  return "Enter para enviar · Shift + Enter para nueva línea"
 }
 
 function EmptyChatState({
@@ -801,7 +924,7 @@ function ChatBubble({
         <div className="ml-8 mt-2 space-y-1.5">
           <div className="flex items-center justify-between gap-2 px-1">
             <span className="text-[9px] font-semibold tracking-wide text-muted-foreground uppercase">
-              Referencias utilizadas
+              Referencias utilizadas{" "}
               <span className="ml-1 font-normal text-muted-foreground/70">
                 · {message.sources.length}
               </span>
@@ -956,8 +1079,8 @@ function ChatHistoryMenu({
   readonly onRequestDeleteThread: (threadId: string) => void
 }) {
   return (
-    <div
-      role="dialog"
+    <dialog
+      open
       aria-label="Historial de conversaciones"
       className="absolute right-2 top-[4.5rem] z-30 w-[min(19rem,calc(100%-1rem))] overflow-hidden rounded-2xl border border-border bg-popover p-2 text-popover-foreground shadow-xl shadow-primary/10"
     >
@@ -979,66 +1102,15 @@ function ChatHistoryMenu({
         />
       </div>
       <div className="max-h-64 space-y-0.5 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {isLoading && threads.length === 0 ? (
-          <p className="flex items-center justify-center gap-1.5 px-2.5 py-4 text-center text-[10px] text-muted-foreground">
-            <Loader2 className="size-3 animate-spin" />
-            Buscando…
-          </p>
-        ) : threads.length === 0 ? (
-          <p className="px-2.5 py-4 text-center text-[10px] text-muted-foreground">
-            {search
-              ? "No hay conversaciones que coincidan."
-              : "Todavía no hay conversaciones guardadas."}
-          </p>
-        ) : (
-          threads.map((thread) => {
-            const isCurrent = thread.id === currentThreadId
-            return (
-              <div
-                key={thread.id}
-                className={`flex w-full items-start gap-2 rounded-xl px-2.5 py-2 text-left transition-colors ${
-                  isCurrent
-                    ? "bg-primary/10 text-primary"
-                    : "text-foreground hover:bg-muted"
-                }`}
-              >
-                <button
-                  type="button"
-                  onClick={() => onSelectThread(thread.id)}
-                  className="flex min-w-0 flex-1 items-start gap-2 text-left"
-                >
-                  <History className="mt-0.5 size-3.5 shrink-0 opacity-70" />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[10px] font-medium">
-                      {thread.title || "Nueva conversación"}
-                    </span>
-                    <span className="mt-0.5 block text-[9px] text-muted-foreground">
-                      {formatThreadDate(thread.updatedAt)}
-                    </span>
-                  </span>
-                  {isCurrent && (
-                    <span className="mt-1 size-1.5 shrink-0 rounded-full bg-primary" />
-                  )}
-                </button>
-                <div className="flex shrink-0 items-center gap-0.5">
-                  <ThreadRenameButton
-                    thread={thread}
-                    onRename={onRenameThread}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => onRequestDeleteThread(thread.id)}
-                    aria-label={`Eliminar ${thread.title || "conversación"}`}
-                    title="Eliminar conversación"
-                    className="flex size-6 items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                  >
-                    <Trash2 className="size-3" />
-                  </button>
-                </div>
-              </div>
-            )
-          })
-        )}
+        <ChatHistoryThreads
+          threads={threads}
+          currentThreadId={currentThreadId}
+          search={search}
+          isLoading={isLoading}
+          onSelectThread={onSelectThread}
+          onRenameThread={onRenameThread}
+          onRequestDeleteThread={onRequestDeleteThread}
+        />
       </div>
       {hasMore && (
         <Button
@@ -1063,7 +1135,96 @@ function ChatHistoryMenu({
         <Plus className="size-3.5" />
         Nueva conversación
       </Button>
-    </div>
+    </dialog>
+  )
+}
+
+function ChatHistoryThreads({
+  threads,
+  currentThreadId,
+  search,
+  isLoading,
+  onSelectThread,
+  onRenameThread,
+  onRequestDeleteThread,
+}: {
+  readonly threads: ChatThread[]
+  readonly currentThreadId: string | null
+  readonly search: string
+  readonly isLoading: boolean
+  readonly onSelectThread: (threadId: string) => void
+  readonly onRenameThread: (threadId: string, title: string) => Promise<void>
+  readonly onRequestDeleteThread: (threadId: string) => void
+}) {
+  if (isLoading && threads.length === 0) {
+    return (
+      <p className="flex items-center justify-center gap-1.5 px-2.5 py-4 text-center text-[10px] text-muted-foreground">
+        <Loader2 className="size-3 animate-spin" />
+        Buscando…
+      </p>
+    )
+  }
+
+  if (threads.length === 0) {
+    return (
+      <p className="px-2.5 py-4 text-center text-[10px] text-muted-foreground">
+        {search
+          ? "No hay conversaciones que coincidan."
+          : "Todavía no hay conversaciones guardadas."}
+      </p>
+    )
+  }
+
+  return (
+    <>
+      {threads.map((thread) => {
+        const isCurrent = thread.id === currentThreadId
+        const threadClassName = isCurrent
+          ? "bg-primary/10 text-primary"
+          : "text-foreground hover:bg-muted"
+
+        return (
+          <div
+            key={thread.id}
+            className={`flex w-full items-start gap-2 rounded-xl px-2.5 py-2 text-left transition-colors ${threadClassName}`}
+          >
+            <button
+              type="button"
+              onClick={() => onSelectThread(thread.id)}
+              className="flex min-w-0 flex-1 items-start gap-2 text-left"
+            >
+              <History className="mt-0.5 size-3.5 shrink-0 opacity-70" />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[10px] font-medium">
+                  {thread.title || "Nueva conversación"}
+                </span>
+                <span className="mt-0.5 block text-[9px] text-muted-foreground">
+                  {formatThreadDate(thread.updatedAt)}
+                </span>
+              </span>
+              {isCurrent && (
+                <span className="mt-1 size-1.5 shrink-0 rounded-full bg-primary" />
+              )}
+            </button>
+            <div className="flex shrink-0 items-center gap-0.5">
+              <ThreadRenameButton
+                thread={thread}
+                onRename={onRenameThread}
+              />
+              <button
+                type="button"
+                onClick={() => onRequestDeleteThread(thread.id)}
+                aria-label={`Eliminar ${thread.title || "conversación"}`}
+                title="Eliminar conversación"
+                className="flex size-6 items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+              >
+                <Trash2 className="size-3" />
+              </button>
+            </div>
+          </div>
+        )
+      })}
+    </>
   )
 }
 
@@ -1073,6 +1234,7 @@ function formatThreadDate(value: string): string {
   return new Intl.DateTimeFormat("es-AR", {
     day: "numeric",
     month: "short",
+    timeZone: PRODUCT_TIME_ZONE,
   }).format(date)
 }
 
@@ -1160,8 +1322,8 @@ function VoiceSettingsModal({
   readonly onClose: () => void
 }) {
   return (
-    <div
-      role="dialog"
+    <dialog
+      open
       aria-label="Configuración del micrófono"
       className="mt-2 rounded-xl border border-primary/20 bg-background p-3 shadow-sm"
     >
@@ -1184,7 +1346,7 @@ function VoiceSettingsModal({
         </Button>
       </div>
       <label className="mt-3 block text-[9px] font-medium text-muted-foreground">
-        Entrada de audio
+        <span className="block">Entrada de audio</span>
         <select
           value={selectedAudioInputId}
           onChange={(event) => onSelectAudioInput(event.target.value)}
@@ -1214,7 +1376,7 @@ function VoiceSettingsModal({
           />
         </div>
       </div>
-    </div>
+    </dialog>
   )
 }
 
@@ -1235,19 +1397,15 @@ function SourceCard({
   const setActiveScene = useEditorStore((state) => state.setActiveScene)
   const focusCitation = useEditorStore((state) => state.focusCitation)
   const clearCitationFocus = useEditorStore((state) => state.clearCitationFocus)
-  const canNavigate = Boolean(source.sceneId || source.entityId || source.route)
   const isTimelineSource = source.kind === "timeline"
   const timelineRoute = isTimelineSource
     ? getTimelineSourceRoute(source, projectId)
     : null
+  const canNavigate = Boolean(
+    source.sceneId || source.entityId || source.route || timelineRoute,
+  )
   const wikiDetails =
     source.kind === "wiki" ? getWikiSourceDetails(source) : null
-  const Icon =
-    source.kind === "manuscript"
-      ? BookOpen
-      : source.kind === "timeline"
-        ? Clock3
-        : FileText
 
   const navigateToScene = () => {
     if (!source.sceneId) return
@@ -1293,7 +1451,38 @@ function SourceCard({
     }
   }
 
-  const cardContent = (
+  return (
+    <button
+      type="button"
+      disabled={!canNavigate}
+      onClick={navigate}
+      className="group flex w-full items-start gap-2 rounded-xl border border-border bg-background p-2 text-left transition-colors enabled:hover:border-primary/30 enabled:hover:bg-primary/5 disabled:cursor-default"
+    >
+      <SourceCardContent
+        source={source}
+        citationNumber={citationNumber}
+        imageUrl={imageUrl}
+        wikiDetails={wikiDetails}
+        canNavigate={canNavigate}
+      />
+    </button>
+  )
+}
+
+function SourceCardContent({
+  source,
+  citationNumber,
+  imageUrl,
+  wikiDetails,
+  canNavigate,
+}: {
+  readonly source: ChatSource
+  readonly citationNumber: number
+  readonly imageUrl?: string
+  readonly wikiDetails: WikiSourceDetails | null
+  readonly canNavigate: boolean
+}) {
+  return (
     <>
       {imageUrl ? (
         <Image
@@ -1308,12 +1497,12 @@ function SourceCard({
         <div
           className={`${wikiDetails ? "size-11 rounded-xl" : "size-7 rounded-lg"} flex shrink-0 items-center justify-center bg-primary/10 text-primary`}
         >
-          <Icon className="size-3.5" />
+          {getSourceIcon(source.kind)}
         </div>
       )}
       <span className="min-w-0 flex-1">
-          <span className="flex items-center gap-1.5 text-[9px] font-semibold text-foreground">
-            <span className="shrink-0 text-primary">[{citationNumber}]</span>
+        <span className="flex items-center gap-1.5 text-[9px] font-semibold text-foreground">
+          <span className="shrink-0 text-primary">[{citationNumber}]</span>{" "}
           {wikiDetails ? (
             <span className="truncate text-[10px] font-semibold">
               {wikiDetails.name}
@@ -1347,17 +1536,12 @@ function SourceCard({
       </span>
     </>
   )
+}
 
-  return (
-    <button
-      type="button"
-      disabled={!canNavigate}
-      onClick={navigate}
-      className="group flex w-full items-start gap-2 rounded-xl border border-border bg-background p-2 text-left transition-colors enabled:hover:border-primary/30 enabled:hover:bg-primary/5 disabled:cursor-default"
-    >
-      {cardContent}
-    </button>
-  )
+function getSourceIcon(kind: ChatSource["kind"]) {
+  if (kind === "manuscript") return <BookOpen className="size-3.5" />
+  if (kind === "timeline") return <Clock3 className="size-3.5" />
+  return <FileText className="size-3.5" />
 }
 
 function getTimelineSourceRoute(source: ChatSource, projectId: string): string {
@@ -1386,7 +1570,7 @@ function getWikiSourceDetails(source: ChatSource): WikiSourceDetails {
     .replace(/\s+/g, " ")
     .trim()
     .split(
-      /\s+(?=(?:alias|ficha|hechos|estados|relaciones):|la entidad tiene una imagen asociada\.?$)/i,
+      /\s(?=(?:alias|ficha|hechos|estados|relaciones):|la entidad tiene una imagen asociada\.?$)/i,
     )
     .filter(Boolean)
   const aliasLine = lines.find((line) => /^alias:/i.test(line))

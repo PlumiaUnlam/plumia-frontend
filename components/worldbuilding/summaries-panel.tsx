@@ -229,13 +229,13 @@ export function SummariesPanel({
           : "No se pudo generar el resumen.",
       );
     } finally {
-      if (signal?.aborted) return;
-
-      setGeneratingIds((current) => {
-        const next = new Set(current);
-        next.delete(chapter.id);
-        return next;
-      });
+      if (!signal.aborted) {
+        setGeneratingIds((current) => {
+          const next = new Set(current);
+          next.delete(chapter.id);
+          return next;
+        });
+      }
     }
   };
 

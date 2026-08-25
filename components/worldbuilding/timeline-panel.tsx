@@ -319,17 +319,17 @@ export function TimelinePanel({
       return
     }
 
-    const focusedEvent = displayedEvents.find(
-      (event) => event.id === focusEventId,
-    )
     if (
-      !focusedEvent ||
-      focusedEventIdRef.current === focusEventId
+      isLoadingEvents ||
+      isLoadingArcs ||
+      eventsError ||
+      arcsError ||
+      focusedEventIdRef.current === focusEventId ||
+      !displayedEvents.some((event) => event.id === focusEventId)
     ) {
       return
     }
 
-    focusedEventIdRef.current = focusEventId
     setExpandedEventIds((current) => {
       if (current.has(focusEventId)) return current
       const next = new Set(current)
@@ -340,9 +340,13 @@ export function TimelinePanel({
     let settleFrameId: number | null = null
     const frameId = window.requestAnimationFrame(() => {
       settleFrameId = window.requestAnimationFrame(() => {
-        document
-          .getElementById(`timeline-event-${focusEventId}`)
-          ?.scrollIntoView({ behavior: "smooth", block: "center" })
+        const element = document.getElementById(
+          `timeline-event-${focusEventId}`,
+        )
+        if (!element) return
+
+        focusedEventIdRef.current = focusEventId
+        element.scrollIntoView({ behavior: "smooth", block: "center" })
       })
     })
 
@@ -350,7 +354,14 @@ export function TimelinePanel({
       window.cancelAnimationFrame(frameId)
       if (settleFrameId !== null) window.cancelAnimationFrame(settleFrameId)
     }
-  }, [displayedEvents, focusEventId])
+  }, [
+    arcsError,
+    displayedEvents,
+    eventsError,
+    focusEventId,
+    isLoadingArcs,
+    isLoadingEvents,
+  ])
   const activeDragEvent = useMemo(
     () => displayedEvents.find((event) => event.id === activeDragEventId) ?? null,
     [activeDragEventId, displayedEvents],

@@ -44,13 +44,15 @@ export const useEditorStore = create<EditorState>((set) => ({
   citationFocus: null,
 
   setActiveScene: (id) =>
-    set({
+    set((state) => ({
       activeSceneId: id,
       selectedSceneVersionId: null,
       currentContent: null,
       saveStatus: "idle",
       error: null,
-    }),
+      citationFocus:
+        state.citationFocus?.sceneId === id ? state.citationFocus : null,
+    })),
   setSelectedSceneVersion: (id) =>
     set({
       selectedSceneVersionId: id,

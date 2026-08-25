@@ -93,9 +93,23 @@ export function RichTextEditor({
   }, [editor, bindEditor])
 
   useEffect(() => {
-    if (!editor || citationFocus?.sceneId !== sceneId) return
+    if (!editor) return
+
+    const clearCitationDecoration = () => {
+      if (editor.isDestroyed) return
+      editor.view.dispatch(
+        editor.state.tr.setMeta(citationFocusPluginKey, { clear: true }),
+      )
+    }
+
+    if (!citationFocus || citationFocus.sceneId !== sceneId) {
+      clearCitationDecoration()
+      return
+    }
+
     const range = findCitationRange(editor.state.doc, citationFocus.textQuote)
     if (!range) {
+      clearCitationDecoration()
       clearCitationFocus()
       return
     }
