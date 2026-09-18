@@ -16,6 +16,7 @@ import { EntityLink } from "./entity-link/entity-link-extension"
 import { useEntityLink } from "./entity-link/use-entity-link"
 import { EntityLinkHoverTooltip } from "./entity-link/entity-link-hover-tooltip"
 import { SelectionBubbleMenu } from "./selection-menu/selection-bubble-menu"
+import { SceneDivider } from "./scene-divider"
 
 type RichTextEditorProps = {
   title: string
@@ -76,6 +77,7 @@ export function RichTextEditor({
           class: "mx-auto my-6 max-w-full",
         },
       }),
+      SceneDivider,
       EntityLink,
       CitationFocus,
     ],
@@ -155,6 +157,9 @@ export function RichTextEditor({
         onAnalyzeChanges={onAnalyzeChanges}
         isAnalysisSaving={isAnalysisSaving}
         isZenMode={isZenMode}
+        onInsertDivider={(variant) =>
+          editor.chain().focus().setSceneDivider(variant).run()
+        }
       />
 
       {error && (
