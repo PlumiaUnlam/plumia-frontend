@@ -1,8 +1,26 @@
 import type { Editor } from "@tiptap/react"
-import { Bold, ImagePlus, Italic, Loader2 } from "lucide-react"
+import {
+  Bold,
+  ImagePlus,
+  Italic,
+  Loader2,
+  SeparatorHorizontal,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { SaveStatusIndicator } from "./save-status-indicator"
 import { AnalysisButton } from "./analysis/analysis-button"
+import {
+  SCENE_DIVIDER_OPTIONS,
+  SceneDividerPreview,
+  type SceneDividerVariant,
+} from "./scene-divider"
 
 interface EditorToolbarProps {
   editor: Editor
@@ -12,6 +30,7 @@ interface EditorToolbarProps {
   onAnalyzeChanges?: () => void
   isAnalysisSaving?: boolean
   isZenMode?: boolean
+  onInsertDivider?: (variant: SceneDividerVariant) => void
 }
 
 export function EditorToolbar({
@@ -22,6 +41,7 @@ export function EditorToolbar({
   onAnalyzeChanges,
   isAnalysisSaving = false,
   isZenMode = false,
+  onInsertDivider,
 }: EditorToolbarProps) {
   const toolbar = (
     <div className="flex h-12 w-full items-center gap-2 bg-white px-4">
@@ -54,6 +74,39 @@ export function EditorToolbar({
       >
         <Italic className="h-4 w-4" />
       </Button>
+
+      {onInsertDivider && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              title="Insertar separador"
+              aria-label="Insertar separador ornamental"
+              onMouseDown={(event) => event.preventDefault()}
+            >
+              <SeparatorHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-64">
+            <DropdownMenuLabel>Separador de escena</DropdownMenuLabel>
+            {SCENE_DIVIDER_OPTIONS.map((option) => (
+              <DropdownMenuItem
+                key={option.value}
+                className="gap-3 py-2"
+                onSelect={() => onInsertDivider(option.value)}
+              >
+                <SceneDividerPreview
+                  variant={option.value}
+                  className="w-24 shrink-0"
+                />
+                <span>{option.label}</span>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
 
       <div className="ml-auto flex min-w-0 items-center gap-2">
         <span className="max-w-48 truncate rounded-md border border-border bg-muted px-2 py-1 text-[11px] font-medium text-muted-foreground">
