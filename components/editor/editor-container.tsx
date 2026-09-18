@@ -33,6 +33,7 @@ function SceneEditor({
   selectedVersionId,
   projectId,
   isZenMode,
+  onToggleZenMode,
 }: {
   sceneId: string
   document: SceneDocument | SceneVersionDocument
@@ -41,6 +42,7 @@ function SceneEditor({
   selectedVersionId: string | null
   projectId: string
   isZenMode: boolean
+  onToggleZenMode: () => void
 }) {
   const setCurrentContent = useEditorStore((s) => s.setCurrentContent)
   const saveStatus = useEditorStore((s) => s.saveStatus)
@@ -120,11 +122,13 @@ function SceneEditor({
             : "Borrador principal"
         }
         onChange={handleContentChange}
+        onSave={() => void saveNow()}
         onAnalyzeChanges={
           selectedVersionId === null ? handleAnalyzeChanges : undefined
         }
         isAnalysisSaving={saveStatus === "saving"}
         isZenMode={isZenMode}
+        onToggleZenMode={onToggleZenMode}
       />
     </>
   )
@@ -136,12 +140,14 @@ export function EditorContainer({
   sceneTitle,
   projectId,
   isZenMode,
+  onToggleZenMode,
 }: {
   sceneId: string
   chapterTitle: string
   sceneTitle?: string
   projectId: string
   isZenMode: boolean
+  onToggleZenMode: () => void
 }) {
   const setActiveScene = useEditorStore((s) => s.setActiveScene)
   const selectedVersionId = useEditorStore((s) => s.selectedSceneVersionId)
@@ -213,6 +219,7 @@ export function EditorContainer({
       selectedVersionId={selectedVersionId}
       projectId={projectId}
       isZenMode={isZenMode}
+      onToggleZenMode={onToggleZenMode}
     />
   )
 }

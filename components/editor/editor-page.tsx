@@ -84,6 +84,11 @@ export function EditorLayout({ projectId }: EditorLayoutProps) {
                 sceneTitle={sceneTitle}
                 projectId={projectId}
                 isZenMode={writingMode === "zen"}
+                onToggleZenMode={() =>
+                  setWritingMode((currentMode) =>
+                    currentMode === "zen" ? "creation" : "zen",
+                  )
+                }
               />
             )}
           </main>
