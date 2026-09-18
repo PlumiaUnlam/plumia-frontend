@@ -40,6 +40,7 @@ type NewRelationModalProps = {
     input: CreateRelationshipInput | UpdateRelationshipInput,
   ) => Promise<void>;
   readonly relationship?: Relationship | null;
+  readonly scenes?: readonly { id: string; title: string }[];
   readonly mode?: "create" | "edit" | "proposal";
   readonly initialValues?: {
     sourceEntityId: string | null;
@@ -49,6 +50,8 @@ type NewRelationModalProps = {
     relationType: RelationType;
     intensity: number;
     description: string | null;
+    validFromSceneId?: string | null;
+    validToSceneId?: string | null;
   };
 };
 
@@ -58,6 +61,7 @@ export function NewRelationModal({
   onClose,
   onSubmit,
   relationship,
+  scenes = [],
   mode = relationship ? "edit" : "create",
   initialValues,
 }: NewRelationModalProps) {
@@ -66,6 +70,8 @@ export function NewRelationModal({
   const [relationType, setRelationType] = useState<RelationType>("ALLY");
   const [intensity, setIntensity] = useState(3);
   const [description, setDescription] = useState("");
+  const [validFromSceneId, setValidFromSceneId] = useState("");
+  const [validToSceneId, setValidToSceneId] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const isProposal = mode === "proposal";
@@ -105,6 +111,8 @@ export function NewRelationModal({
       setRelationType(values?.relationType ?? "ALLY");
       setIntensity(values?.intensity ?? 3);
       setDescription(values?.description ?? "");
+      setValidFromSceneId(values?.validFromSceneId ?? "");
+      setValidToSceneId(values?.validToSceneId ?? "");
       setSubmitting(false);
       setError(null);
     });
@@ -137,6 +145,12 @@ export function NewRelationModal({
         relationType: activeRelationType,
         intensity,
         description: description.trim() || (isEditing ? null : undefined),
+        ...(isProposal
+          ? {}
+          : {
+              validFromSceneId: validFromSceneId || null,
+              validToSceneId: validToSceneId || null,
+            }),
       };
       await onSubmit(input);
       onClose();
@@ -243,6 +257,51 @@ export function NewRelationModal({
               </div>
             </FieldContent>
           </Field>
+
+          {!isProposal && scenes.length > 0 && (
+            <FieldGroup className="grid grid-cols-2 gap-3">
+              <Field>
+                <FieldLabel htmlFor="relation-valid-from">
+                  Vigente desde
+                </FieldLabel>
+                <FieldContent>
+                  <select
+                    id="relation-valid-from"
+                    value={validFromSceneId}
+                    onChange={(event) => setValidFromSceneId(event.target.value)}
+                    className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm"
+                  >
+                    <option value="">Vigente en toda la obra</option>
+                    {scenes.map((scene) => (
+                      <option key={scene.id} value={scene.id}>
+                        {scene.title}
+                      </option>
+                    ))}
+                  </select>
+                </FieldContent>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="relation-valid-to">
+                  Vigente hasta
+                </FieldLabel>
+                <FieldContent>
+                  <select
+                    id="relation-valid-to"
+                    value={validToSceneId}
+                    onChange={(event) => setValidToSceneId(event.target.value)}
+                    className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm"
+                  >
+                    <option value="">Sigue vigente</option>
+                    {scenes.map((scene) => (
+                      <option key={scene.id} value={scene.id}>
+                        {scene.title}
+                      </option>
+                    ))}
+                  </select>
+                </FieldContent>
+              </Field>
+            </FieldGroup>
+          )}
 
           <Field>
             <FieldLabel htmlFor="relation-description">

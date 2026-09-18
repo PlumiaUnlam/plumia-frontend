@@ -1,4 +1,4 @@
-import { AlertTriangle, Check, X } from "lucide-react";
+import { AlertTriangle, Check, FileText, RefreshCw, X } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,19 +14,30 @@ const severityLabel = {
 export function AuditAlertCard({
   alert,
   updating,
+  onFocusEvidence,
   onResolve,
   onDismiss,
+  onApplyKnowledgeUpdate,
 }: {
   readonly alert: AuditAlert;
   readonly updating: boolean;
+  readonly onFocusEvidence: () => void;
   readonly onResolve: () => void;
   readonly onDismiss: () => void;
+  readonly onApplyKnowledgeUpdate?: () => void;
 }) {
   const conflict = alert.conflict;
+  const canApplyKnowledgeUpdate = Boolean(
+    conflict &&
+      ["location", "status", "health_status"].includes(
+        conflict.field.trim().toLowerCase().replace(/[\s-]+/g, "_"),
+      ) &&
+      alert.sourceChunkId,
+  );
 
   return (
-    <article className="min-w-0 rounded-xl border border-amber-500/25 bg-amber-500/5 p-3">
-      <div className="flex min-w-0 items-start gap-2">
+    <article className="w-full min-w-0 max-w-full overflow-hidden rounded-xl border border-amber-500/25 bg-amber-500/5 p-3">
+      <div className="flex w-full min-w-0 items-start gap-2">
         <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600" />
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 flex-wrap items-center gap-1.5">
@@ -67,12 +78,36 @@ export function AuditAlertCard({
             </p>
           )}
 
-          <div className="mt-3 flex w-full min-w-0 gap-1.5">
+          <div className="mt-3 grid w-full min-w-0 grid-cols-3 gap-1.5">
             <Button
               type="button"
               size="xs"
               variant="outline"
-              className="h-7 min-w-0 flex-1 text-[11px]"
+              className="h-auto min-h-7 min-w-0 w-full whitespace-normal px-1 py-1 text-[10px] leading-tight"
+              disabled={updating}
+              onClick={onFocusEvidence}
+            >
+              <FileText className="size-3.5" />
+              {conflict?.evidence[0] ? "Ver evidencia" : "Abrir escena"}
+            </Button>
+            {canApplyKnowledgeUpdate && onApplyKnowledgeUpdate && (
+              <Button
+                type="button"
+                size="xs"
+                variant="outline"
+                className="h-auto min-h-7 min-w-0 w-full whitespace-normal px-1 py-1 text-[10px] leading-tight"
+                disabled={updating}
+                onClick={onApplyKnowledgeUpdate}
+              >
+                <RefreshCw className="size-3.5" />
+                Actualizar KB
+              </Button>
+            )}
+            <Button
+              type="button"
+              size="xs"
+              variant="outline"
+              className="h-auto min-h-7 min-w-0 w-full whitespace-normal px-1 py-1 text-[10px] leading-tight"
               disabled={updating}
               onClick={onDismiss}
             >
@@ -83,7 +118,7 @@ export function AuditAlertCard({
               type="button"
               size="xs"
               variant="outline"
-              className="h-7 min-w-0 flex-1 text-[11px]"
+              className="h-auto min-h-7 min-w-0 w-full whitespace-normal px-1 py-1 text-[10px] leading-tight"
               disabled={updating}
               onClick={onResolve}
             >

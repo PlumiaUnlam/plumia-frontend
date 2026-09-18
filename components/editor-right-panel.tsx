@@ -19,13 +19,29 @@ import {
   getRelationshipProposals,
   rejectRelationshipProposal,
 } from "@/services/relationship-proposals.service";
-import { updateAuditAlert } from "@/services/audit-alerts.service";
+import {
+  applyAuditAlertKnowledgeUpdate,
+  updateAuditAlert,
+} from "@/services/audit-alerts.service";
+import {
+  acceptEntityStateProposal,
+  createEntityState,
+  getEntityStateProposals,
+  getTemporalKnowledgeView,
+  rejectEntityStateProposal,
+} from "@/services/entity-states.service";
 import { useAuditAlerts } from "@/hooks/use-audit-alerts";
 import { useKnowledgeRefresh } from "@/hooks/use-knowledge-refresh";
+import { useEditorStore } from "@/stores/editor.store";
 import type { CreateEntityInput, Entity, UpdateEntityInput } from "@/types/entity";
 import type { EntityProposal } from "@/types/entity-proposal";
 import type { UpdateRelationshipInput } from "@/types/relationship";
-import type { AuditAlertResolution } from "@/types/audit-alert";
+import type { AuditAlert, AuditAlertResolution } from "@/types/audit-alert";
+import type {
+  CreateEntityStateInput,
+  EntityStateProposal,
+  EntityStateProposalOverride,
+} from "@/types/entity-state";
 import type { WritingMode } from "@/types/writing-mode";
 
 type RightTab = "wiki" | "chat" | "stats";
@@ -50,6 +66,12 @@ export function EditorRightPanel({
   projectId,
   mode,
 }: EditorRightPanelProps) {
+  const activeSceneId = useEditorStore((state) => state.activeSceneId);
+  const setActiveScene = useEditorStore((state) => state.setActiveScene);
+  const focusCitation = useEditorStore((state) => state.focusCitation);
+  const clearCitationFocus = useEditorStore(
+    (state) => state.clearCitationFocus,
+  );
   const refreshTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [activeTab, setActiveTab] = useState<RightTab>("wiki");
   const [acceptingProposalId, setAcceptingProposalId] = useState<string | null>(
@@ -65,6 +87,16 @@ export function EditorRightPanel({
   const [updatingAuditAlertId, setUpdatingAuditAlertId] = useState<
     string | null
   >(null);
+  const [acceptingStateProposalId, setAcceptingStateProposalId] = useState<
+    string | null
+  >(null);
+  const [rejectingStateProposalId, setRejectingStateProposalId] = useState<
+    string | null
+  >(null);
+  const [creatingStateForEntityId, setCreatingStateForEntityId] = useState<
+    string | null
+  >(null);
+  const [temporalSceneId, setTemporalSceneId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [entityActionFeedback, setEntityActionFeedback] =
     useState<EntityActionFeedback | null>(null);
@@ -121,6 +153,29 @@ export function EditorRightPanel({
     isLoading: isLoadingAuditAlerts,
     mutate: mutateAuditAlerts,
   } = useAuditAlerts(projectId);
+  const {
+    data: stateProposals,
+    error: stateProposalsError,
+    isLoading: isLoadingStateProposals,
+    mutate: mutateStateProposals,
+  } = useSWR(
+    projectId && shouldLoadWikiData
+      ? `/v1/projects/${projectId}/state-proposals`
+      : null,
+    () => getEntityStateProposals(projectId),
+  );
+  const selectedTemporalSceneId = temporalSceneId ?? activeSceneId;
+  const {
+    data: temporalKnowledgeView,
+    error: temporalKnowledgeViewError,
+    isLoading: isLoadingTemporalKnowledgeView,
+    mutate: mutateTemporalKnowledgeView,
+  } = useSWR(
+    projectId && shouldLoadWikiData && selectedTemporalSceneId
+      ? `/knowledge/projects/${projectId}/temporal-view?sceneId=${selectedTemporalSceneId}`
+      : null,
+    () => getTemporalKnowledgeView(projectId, selectedTemporalSceneId!),
+  );
 
   const refreshKnowledge = useCallback(() => {
     void Promise.all([
@@ -128,12 +183,16 @@ export function EditorRightPanel({
       mutateProposals(),
       mutateRelationshipProposals(),
       mutateAuditAlerts(),
+      mutateStateProposals(),
+      mutateTemporalKnowledgeView(),
     ]).catch(() => undefined);
   }, [
     mutateAuditAlerts,
     mutateEntities,
     mutateProposals,
     mutateRelationshipProposals,
+    mutateStateProposals,
+    mutateTemporalKnowledgeView,
   ]);
 
   const scheduleKnowledgeRefresh = useCallback(() => {
@@ -280,6 +339,9 @@ export function EditorRightPanel({
     setActionError(null);
     try {
       await updateAuditAlert(alertId, status);
+      if (status === "DISMISSED") {
+        clearCitationFocus();
+      }
       await mutateAuditAlerts(
         (current) => (current ?? []).filter((alert) => alert.id !== alertId),
         { revalidate: false },
@@ -293,6 +355,100 @@ export function EditorRightPanel({
       );
     } finally {
       setUpdatingAuditAlertId(null);
+    }
+  };
+
+  const handleFocusAuditAlert = useCallback(
+    (alert: AuditAlert) => {
+      const evidence = alert.conflict?.evidence[0];
+      setActiveScene(alert.sceneId);
+      if (evidence) {
+        focusCitation({ sceneId: alert.sceneId, textQuote: evidence });
+      } else {
+        clearCitationFocus();
+      }
+    },
+    [clearCitationFocus, focusCitation, setActiveScene],
+  );
+
+  const handleApplyAuditKnowledgeUpdate = async (alertId: string) => {
+    setUpdatingAuditAlertId(alertId);
+    setActionError(null);
+    try {
+      await applyAuditAlertKnowledgeUpdate(alertId);
+      await Promise.all([
+        mutateAuditAlerts(),
+        mutateStateProposals(),
+        mutateTemporalKnowledgeView(),
+      ]);
+      scheduleKnowledgeRefresh();
+    } catch (error) {
+      setActionError(
+        error instanceof Error
+          ? error.message
+          : "No se pudo actualizar la base de conocimiento.",
+      );
+    } finally {
+      setUpdatingAuditAlertId(null);
+    }
+  };
+
+  const handleAcceptStateProposal = async (
+    proposal: EntityStateProposal,
+    override?: EntityStateProposalOverride,
+  ) => {
+    setAcceptingStateProposalId(proposal.id);
+    setActionError(null);
+    try {
+      await acceptEntityStateProposal(proposal.id, override);
+      await Promise.all([mutateStateProposals(), mutateTemporalKnowledgeView()]);
+      scheduleKnowledgeRefresh();
+    } catch (error) {
+      setActionError(
+        error instanceof Error
+          ? error.message
+          : "No se pudo aceptar el cambio de estado.",
+      );
+      throw error;
+    } finally {
+      setAcceptingStateProposalId(null);
+    }
+  };
+
+  const handleRejectStateProposal = async (proposalId: string) => {
+    setRejectingStateProposalId(proposalId);
+    setActionError(null);
+    try {
+      await rejectEntityStateProposal(proposalId);
+      await mutateStateProposals();
+    } catch (error) {
+      setActionError(
+        error instanceof Error
+          ? error.message
+          : "No se pudo rechazar el cambio de estado.",
+      );
+    } finally {
+      setRejectingStateProposalId(null);
+    }
+  };
+
+  const handleCreateEntityState = async (
+    entityId: string,
+    input: CreateEntityStateInput,
+  ) => {
+    setCreatingStateForEntityId(entityId);
+    setActionError(null);
+    try {
+      await createEntityState(entityId, input);
+      await mutateTemporalKnowledgeView();
+      scheduleKnowledgeRefresh();
+    } catch (error) {
+      setActionError(
+        error instanceof Error ? error.message : "No se pudo guardar el estado.",
+      );
+      throw error;
+    } finally {
+      setCreatingStateForEntityId(null);
     }
   };
 
@@ -321,6 +477,7 @@ export function EditorRightPanel({
           entities={entities ?? []}
           proposals={proposals ?? []}
           relationshipProposals={relationshipProposals ?? []}
+          stateProposals={stateProposals ?? []}
           auditAlerts={auditAlerts ?? []}
           loading={isLoading}
           proposalsLoading={isLoadingProposals}
@@ -328,6 +485,8 @@ export function EditorRightPanel({
           proposalsError={proposalsError}
           relationshipProposalsError={relationshipProposalsError}
           relationshipProposalsLoading={isLoadingRelationshipProposals}
+          stateProposalsError={stateProposalsError}
+          stateProposalsLoading={isLoadingStateProposals}
           auditAlertsError={auditAlertsError}
           auditAlertsLoading={isLoadingAuditAlerts}
           primaryImageUrls={primaryImageUrls}
@@ -339,8 +498,21 @@ export function EditorRightPanel({
           rejectingRelationshipProposalId={rejectingRelationshipProposalId}
           onAcceptRelationshipProposal={handleAcceptRelationshipProposal}
           onRejectRelationshipProposal={handleRejectRelationshipProposal}
+          acceptingStateProposalId={acceptingStateProposalId}
+          rejectingStateProposalId={rejectingStateProposalId}
+          onAcceptStateProposal={handleAcceptStateProposal}
+          onRejectStateProposal={handleRejectStateProposal}
+          creatingStateForEntityId={creatingStateForEntityId}
+          onCreateEntityState={handleCreateEntityState}
+          temporalKnowledgeView={temporalKnowledgeView ?? null}
+          temporalKnowledgeViewError={temporalKnowledgeViewError}
+          temporalKnowledgeViewLoading={isLoadingTemporalKnowledgeView}
+          selectedTemporalSceneId={selectedTemporalSceneId}
+          onSelectTemporalScene={setTemporalSceneId}
           updatingAuditAlertId={updatingAuditAlertId}
           onUpdateAuditAlert={handleUpdateAuditAlert}
+          onFocusAuditAlert={handleFocusAuditAlert}
+          onApplyAuditKnowledgeUpdate={handleApplyAuditKnowledgeUpdate}
           actionError={actionError}
           entityActionFeedback={entityActionFeedback}
           showReviewSections={mode === "review"}
