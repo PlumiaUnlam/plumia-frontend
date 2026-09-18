@@ -1,3 +1,4 @@
+
 import { useEffect } from "react"
 import { EditorContent, useEditor } from "@tiptap/react"
 import StarterKit from "@tiptap/starter-kit"
@@ -17,6 +18,11 @@ import { useEntityLink } from "./entity-link/use-entity-link"
 import { EntityLinkHoverTooltip } from "./entity-link/entity-link-hover-tooltip"
 import { SelectionBubbleMenu } from "./selection-menu/selection-bubble-menu"
 import { SceneDivider } from "./scene-divider"
+import type {
+  EditorPaneId,
+  EditorToolbarActions,
+} from "./editor-types"
+import type { SceneDividerVariant } from "./scene-divider"
 
 type RichTextEditorProps = {
   title: string
@@ -29,6 +35,16 @@ type RichTextEditorProps = {
   onAnalyzeChanges?: () => void
   isAnalysisSaving?: boolean
   isZenMode?: boolean
+  paneId?: EditorPaneId
+  saveNow?: () => Promise<unknown>
+  showToolbar?: boolean
+  onEditorFocus?: () => void
+  onToolbarActionsChange?: (
+    actions: EditorToolbarActions | null,
+  ) => void
+  onToggleSplit?: () => void
+  isSplit?: boolean
+  canSplit?: boolean
 }
 
 export function RichTextEditor({
@@ -42,6 +58,14 @@ export function RichTextEditor({
   onAnalyzeChanges,
   isAnalysisSaving = false,
   isZenMode = false,
+  paneId = "primary",
+  saveNow,
+  showToolbar = true,
+  onEditorFocus,
+  onToolbarActionsChange,
+  onToggleSplit,
+  isSplit = false,
+  canSplit = true,
 }: RichTextEditorProps) {
   const {
     error,
@@ -54,13 +78,15 @@ export function RichTextEditor({
   } = useEditorImage({ sceneId })
 
   const { goToEntity } = useEntityLink({ projectId })
+  const saveStatus = useEditorStore(
+    (state) => state.saveStatusByPane[paneId],
+  )
   const citationFocus = useEditorStore((state) => state.citationFocus)
   const clearCitationFocus = useEditorStore(
     (state) => state.clearCitationFocus,
   )
 
   const editor = useEditor({
-    // El editor se monta después de cargar la escena en el cliente.
     immediatelyRender: true,
     extensions: [
       StarterKit.configure({
@@ -85,14 +111,47 @@ export function RichTextEditor({
     editorProps: {
       handlePaste,
     },
-    onUpdate: ({ editor }) => {
-      onChange?.(editor.getJSON())
+    onFocus: () => onEditorFocus?.(),
+    onUpdate: ({ editor: nextEditor }) => {
+      onChange?.(nextEditor.getJSON())
     },
   })
 
   useEffect(() => {
     bindEditor(editor ?? null)
   }, [editor, bindEditor])
+
+  useEffect(() => {
+    if (!onToolbarActionsChange) return
+
+    if (!editor) {
+      onToolbarActionsChange(null)
+      return
+    }
+
+    onToolbarActionsChange({
+      editor,
+      onInsertImage: openImagePicker,
+      isUploadingImage: isUploading,
+      onAnalyzeChanges,
+      isAnalysisSaving,
+      versionLabel,
+      saveStatus,
+      saveNow: saveNow ?? (async () => undefined),
+    })
+
+    return () => onToolbarActionsChange(null)
+  }, [
+    editor,
+    isAnalysisSaving,
+    isUploading,
+    onAnalyzeChanges,
+    onToolbarActionsChange,
+    openImagePicker,
+    saveNow,
+    saveStatus,
+    versionLabel,
+  ])
 
   useEffect(() => {
     if (!editor) return
@@ -140,7 +199,10 @@ export function RichTextEditor({
   if (!editor) return null
 
   return (
-    <div className="relative flex h-full min-h-0 flex-col">
+    <div
+      className="relative flex h-full min-h-0 flex-col"
+      onMouseDown={() => onEditorFocus?.()}
+    >
       <input
         ref={registerFileInput}
         className="hidden"
@@ -149,18 +211,24 @@ export function RichTextEditor({
         onChange={handleFileSelected}
       />
 
-      <EditorToolbar
-        editor={editor}
-        versionLabel={versionLabel}
-        onInsertImage={openImagePicker}
-        isUploadingImage={isUploading}
-        onAnalyzeChanges={onAnalyzeChanges}
-        isAnalysisSaving={isAnalysisSaving}
-        isZenMode={isZenMode}
-        onInsertDivider={(variant) =>
-          editor.chain().focus().setSceneDivider(variant).run()
-        }
-      />
+      {showToolbar && (
+        <EditorToolbar
+          editor={editor}
+          versionLabel={versionLabel}
+          onInsertImage={openImagePicker}
+          isUploadingImage={isUploading}
+          onAnalyzeChanges={onAnalyzeChanges}
+          isAnalysisSaving={isAnalysisSaving}
+          isZenMode={isZenMode}
+          paneId={paneId}
+          onToggleSplit={onToggleSplit}
+          isSplit={isSplit}
+          canSplit={canSplit}
+          onInsertDivider={(variant: SceneDividerVariant) =>
+            editor.chain().focus().setSceneDivider(variant).run()
+          }
+        />
+      )}
 
       {error && (
         <div className="border-b border-border bg-destructive/10 px-4 py-2 text-xs text-destructive">
@@ -168,7 +236,7 @@ export function RichTextEditor({
         </div>
       )}
 
-      <div className="flex-1 min-h-0 overflow-y-auto">
+      <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto max-w-3xl px-6 py-10">
           <div
             className="
@@ -185,17 +253,20 @@ export function RichTextEditor({
           >
             {title && (
               <>
-              <h2 className="mb-6 shrink-0 text-center text-3xl font-bold text-foreground">
-                {title}
-              </h2>
-              <h1 className="mb-6 shrink-0 text-center text-2xl font-bold text-foreground">
-                {subtitle}
-              </h1>
+                <h2 className="mb-6 shrink-0 text-center text-3xl font-bold text-foreground">
+                  {title}
+                </h2>
+                <h1 className="mb-6 shrink-0 text-center text-2xl font-bold text-foreground">
+                  {subtitle}
+                </h1>
               </>
             )}
 
             <SelectionBubbleMenu editor={editor} projectId={projectId} />
-            <EntityLinkHoverTooltip editor={editor} onGoToEntity={goToEntity} />
+            <EntityLinkHoverTooltip
+              editor={editor}
+              onGoToEntity={goToEntity}
+            />
 
             <EditorContent
               editor={editor}
