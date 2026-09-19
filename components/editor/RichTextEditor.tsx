@@ -10,6 +10,11 @@ import {
   citationFocusPluginKey,
   findCitationRange,
 } from "./editor-citation-focus"
+import {
+  EditorSearchFocus,
+  editorSearchFocusPluginKey,
+  findEditorSearchRange,
+} from "./editor-search-focus"
 import { EditorToolbar } from "./toolbar"
 import { EditorImage } from "./image/editor-image-extension"
 import { useEditorImage } from "./image/use-editor-image"
@@ -39,6 +44,7 @@ type RichTextEditorProps = {
   isAnalysisSaving?: boolean
   isZenMode?: boolean
   onToggleZenMode?: () => void
+  onOpenSearch?: () => void
   paneId?: EditorPaneId
   saveNow?: () => Promise<unknown>
   showToolbar?: boolean
@@ -64,6 +70,7 @@ export function RichTextEditor({
   isAnalysisSaving = false,
   isZenMode = false,
   onToggleZenMode,
+  onOpenSearch,
   paneId = "primary",
   saveNow,
   showToolbar = true,
@@ -91,6 +98,11 @@ export function RichTextEditor({
   const clearCitationFocus = useEditorStore(
     (state) => state.clearCitationFocus,
   )
+  const searchFocus = useEditorStore((state) => state.searchFocus)
+  const clearSearchFocus = useEditorStore((state) => state.clearSearchFocus)
+  const spellcheckLanguage = useEditorStore(
+    (state) => state.spellcheckLanguage,
+  )
 
   const editor = useEditor({
     immediatelyRender: true,
@@ -112,10 +124,15 @@ export function RichTextEditor({
       }),
       SceneDivider,
       EntityLink,
+      EditorSearchFocus,
       CitationFocus,
     ],
     content: content ?? "",
     editorProps: {
+      attributes: {
+        spellcheck: "true",
+        lang: spellcheckLanguage,
+      },
       handlePaste,
     },
     onFocus: () => onEditorFocus?.(),
@@ -163,6 +180,13 @@ export function RichTextEditor({
   useEffect(() => {
     if (!editor) return
 
+    editor.view.dom.setAttribute("spellcheck", "true")
+    editor.view.dom.setAttribute("lang", spellcheckLanguage)
+  }, [editor, spellcheckLanguage])
+
+  useEffect(() => {
+    if (!editor) return
+
     const clearCitationDecoration = () => {
       if (editor.isDestroyed) return
       editor.view.dispatch(
@@ -203,6 +227,50 @@ export function RichTextEditor({
     return () => window.clearTimeout(timeoutId)
   }, [citationFocus, clearCitationFocus, editor, sceneId])
 
+  useEffect(() => {
+    if (!editor) return
+
+    const clearSearchDecoration = () => {
+      if (editor.isDestroyed) return
+      editor.view.dispatch(
+        editor.state.tr.setMeta(editorSearchFocusPluginKey, { clear: true }),
+      )
+    }
+
+    if (searchFocus?.sceneId !== sceneId) {
+      clearSearchDecoration()
+      return
+    }
+
+    const range = findEditorSearchRange(
+      editor.state.doc,
+      searchFocus.query,
+      searchFocus.occurrence,
+    )
+    if (!range) {
+      clearSearchDecoration()
+      clearSearchFocus()
+      return
+    }
+
+    editor.view.dispatch(
+      editor.state.tr.setMeta(editorSearchFocusPluginKey, range),
+    )
+    const domNode = editor.view.domAtPos(range.from).node
+    const scrollTarget =
+      domNode instanceof HTMLElement ? domNode : domNode.parentElement
+    scrollTarget?.scrollIntoView({ behavior: "smooth", block: "center" })
+    const timeoutId = window.setTimeout(() => {
+      if (editor.isDestroyed) return
+      editor.view.dispatch(
+        editor.state.tr.setMeta(editorSearchFocusPluginKey, { clear: true }),
+      )
+      clearSearchFocus()
+    }, 2600)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [clearSearchFocus, editor, sceneId, searchFocus])
+
   if (!editor) return null
 
   return (
@@ -219,11 +287,12 @@ export function RichTextEditor({
       />
 
       {showToolbar && !isZenMode && (
-        <EditorMenuBar
-          editor={editor}
-          versionLabel={versionLabel}
-          onSave={onSave}
-          onInsertImage={openImagePicker}
+          <EditorMenuBar
+            editor={editor}
+            versionLabel={versionLabel}
+            onSave={onSave}
+            onOpenSearch={onOpenSearch}
+            onInsertImage={openImagePicker}
           onAnalyzeChanges={onAnalyzeChanges}
           isAnalysisSaving={isAnalysisSaving}
           onToggleZenMode={onToggleZenMode}
@@ -305,6 +374,10 @@ export function RichTextEditor({
                 prose-img:border
                 prose-img:border-border
                 prose-img:shadow-sm
+
+                [&_.editor-search-focus]:rounded-sm
+                [&_.editor-search-focus]:bg-yellow-200/80
+                [&_.editor-search-focus]:text-inherit
 
                 text-[16px]
 

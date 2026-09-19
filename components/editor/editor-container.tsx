@@ -38,6 +38,7 @@ type SceneEditorProps = {
   projectId: string
   isZenMode: boolean
   onToggleZenMode: () => void
+  onOpenSearch?: () => void
   paneId: EditorPaneId
   showToolbar: boolean
   onEditorFocus?: () => void
@@ -58,6 +59,7 @@ function SceneEditor({
   projectId,
   isZenMode,
   onToggleZenMode,
+  onOpenSearch,
   paneId,
   showToolbar,
   onEditorFocus,
@@ -156,6 +158,7 @@ function SceneEditor({
         isAnalysisSaving={saveStatus === "saving"}
         isZenMode={isZenMode}
         onToggleZenMode={onToggleZenMode}
+        onOpenSearch={onOpenSearch}
         paneId={paneId}
         saveNow={saveNow}
         showToolbar={showToolbar}
@@ -178,6 +181,7 @@ function SceneDocumentLoader({
   sceneTitle,
   isZenMode,
   onToggleZenMode,
+  onOpenSearch,
   showToolbar,
   onEditorFocus,
   onToolbarActionsChange,
@@ -193,6 +197,7 @@ function SceneDocumentLoader({
   sceneTitle?: string
   isZenMode: boolean
   onToggleZenMode: () => void
+  onOpenSearch?: () => void
   showToolbar: boolean
   onEditorFocus?: () => void
   onToolbarActionsChange?: (
@@ -270,6 +275,7 @@ function SceneDocumentLoader({
       projectId={projectId}
       isZenMode={isZenMode}
       onToggleZenMode={onToggleZenMode}
+      onOpenSearch={onOpenSearch}
       paneId={paneId}
       showToolbar={showToolbar}
       onEditorFocus={onEditorFocus}
@@ -358,6 +364,7 @@ function EditorPanel({
   paneId,
   isZenMode,
   onToggleZenMode,
+  onOpenSearch,
   showToolbar,
   onEditorFocus,
   onToolbarActionsChange,
@@ -372,6 +379,7 @@ function EditorPanel({
   paneId: EditorPaneId
   isZenMode: boolean
   onToggleZenMode: () => void
+  onOpenSearch?: () => void
   showToolbar: boolean
   onEditorFocus?: () => void
   onToolbarActionsChange?: (
@@ -391,6 +399,7 @@ function EditorPanel({
       sceneTitle={section.title}
       isZenMode={isZenMode}
       onToggleZenMode={onToggleZenMode}
+      onOpenSearch={onOpenSearch}
       showToolbar={showToolbar}
       onEditorFocus={onEditorFocus}
       onToolbarActionsChange={onToolbarActionsChange}
@@ -408,6 +417,7 @@ function EditorWorkspace({
   sections,
   isZenMode,
   onToggleZenMode,
+  onOpenSearch,
   onBeforeExportChange,
 }: {
   sceneId: string
@@ -416,6 +426,7 @@ function EditorWorkspace({
   sections: EditorSectionOption[]
   isZenMode: boolean
   onToggleZenMode: () => void
+  onOpenSearch?: () => void
   onBeforeExportChange?: (handler: (() => Promise<void>) | null) => void
 }) {
   const setActiveScene = useEditorStore((s) => s.setActiveScene)
@@ -596,6 +607,7 @@ function EditorWorkspace({
           onAnalyzeChanges={focusedActions.onAnalyzeChanges}
           isAnalysisSaving={focusedActions.isAnalysisSaving}
           onToggleZenMode={onToggleZenMode}
+          onOpenSearch={onOpenSearch}
           isZenMode={isZenMode}
           onInsertDivider={(variant) =>
             focusedActions.editor
@@ -663,6 +675,7 @@ function EditorWorkspace({
               paneId="primary"
               isZenMode={isZenMode}
               onToggleZenMode={onToggleZenMode}
+              onOpenSearch={onOpenSearch}
               showToolbar={!effectiveIsSplit}
               onEditorFocus={() => setFocusedPane("primary")}
               onToolbarActionsChange={registerPrimaryActions}
@@ -717,6 +730,7 @@ export function EditorContainer({
   isZenMode,
   sections,
   onToggleZenMode,
+  onOpenSearch,
   onBeforeExportChange,
 }: {
   sceneId: string
@@ -724,6 +738,7 @@ export function EditorContainer({
   isZenMode: boolean
   sections: EditorSectionOption[]
   onToggleZenMode: () => void
+  onOpenSearch?: () => void
   onBeforeExportChange?: (handler: (() => Promise<void>) | null) => void
 }) {
   const selectedVersionId = useEditorStore((s) => s.selectedSceneVersionId)
@@ -736,6 +751,7 @@ export function EditorContainer({
       sections={sections}
       isZenMode={isZenMode}
       onToggleZenMode={onToggleZenMode}
+      onOpenSearch={onOpenSearch}
       onBeforeExportChange={onBeforeExportChange}
     />
   )
