@@ -3,11 +3,24 @@
 import { Check, CloudUpload, Loader2, TriangleAlert } from "lucide-react"
 
 import { cn } from "@/lib/utils"
-import { useEditorStore } from "@/stores/editor.store"
+import {
+  useEditorStore,
+  type SaveStatus,
+} from "@/stores/editor.store"
+import type { EditorPaneId } from "./editor-types"
 
 /** Indicador minimalista del estado de autoguardado. Lee el editorStore. */
-export function SaveStatusIndicator({ className }: { className?: string }) {
-  const saveStatus = useEditorStore((s) => s.saveStatus)
+export function SaveStatusIndicator({
+  className,
+  paneId = "primary",
+  status,
+}: {
+  className?: string
+  paneId?: EditorPaneId
+  status?: SaveStatus
+}) {
+  const storedStatus = useEditorStore((s) => s.saveStatusByPane[paneId])
+  const saveStatus = status ?? storedStatus
 
   const config = {
     idle: { icon: Check, label: "Guardado", spin: false },

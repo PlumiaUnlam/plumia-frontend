@@ -1,5 +1,6 @@
 import { create } from "zustand"
 import type { ProseMirrorJSON } from "@/types/scene"
+import type { EditorPaneId } from "@/components/editor/editor-types"
 
 export type SaveStatus = "idle" | "dirty" | "saving" | "saved" | "error"
 
@@ -20,6 +21,9 @@ type EditorState = {
   lastSavedAt: string | null
   /** Mensaje de error del último guardado fallido. */
   error: string | null
+  saveStatusByPane: Record<EditorPaneId, SaveStatus>
+  lastSavedAtByPane: Record<EditorPaneId, string | null>
+  errorByPane: Record<EditorPaneId, string | null>
   citationFocus: EditorCitationFocus | null
 
   setActiveScene: (id: string) => void
@@ -29,6 +33,9 @@ type EditorState = {
   setSaveStatus: (status: SaveStatus) => void
   markSaved: (updatedAt: string) => void
   setError: (message: string) => void
+  setPaneSaveStatus: (paneId: EditorPaneId, status: SaveStatus) => void
+  markPaneSaved: (paneId: EditorPaneId, updatedAt: string) => void
+  setPaneError: (paneId: EditorPaneId, message: string) => void
   focusCitation: (focus: EditorCitationFocus) => void
   clearCitationFocus: () => void
 }
@@ -41,6 +48,9 @@ export const useEditorStore = create<EditorState>((set) => ({
   saveStatus: "idle",
   lastSavedAt: null,
   error: null,
+  saveStatusByPane: { primary: "idle", secondary: "idle" },
+  lastSavedAtByPane: { primary: null, secondary: null },
+  errorByPane: { primary: null, secondary: null },
   citationFocus: null,
 
   setActiveScene: (id) =>
@@ -50,26 +60,72 @@ export const useEditorStore = create<EditorState>((set) => ({
       currentContent: null,
       saveStatus: "idle",
       error: null,
+      saveStatusByPane: { ...state.saveStatusByPane, primary: "idle" },
+      errorByPane: { ...state.errorByPane, primary: null },
       citationFocus:
         state.citationFocus?.sceneId === id ? state.citationFocus : null,
     })),
   setSelectedSceneVersion: (id) =>
-    set({
+    set((state) => ({
       selectedSceneVersionId: id,
       currentContent: null,
       saveStatus: "idle",
       error: null,
-    }),
+      saveStatusByPane: { ...state.saveStatusByPane, primary: "idle" },
+      errorByPane: { ...state.errorByPane, primary: null },
+    })),
   setCurrentContent: (content) => set({ currentContent: content }),
   refreshEditorDocument: () =>
     set((state) => ({
       documentReloadToken: state.documentReloadToken + 1,
       currentContent: null,
     })),
-  setSaveStatus: (status) => set({ saveStatus: status }),
+  setSaveStatus: (status) =>
+    set((state) => ({
+      saveStatus: status,
+      saveStatusByPane: { ...state.saveStatusByPane, primary: status },
+    })),
   markSaved: (updatedAt) =>
-    set({ saveStatus: "saved", lastSavedAt: updatedAt, error: null }),
-  setError: (message) => set({ saveStatus: "error", error: message }),
+    set((state) => ({
+      saveStatus: "saved",
+      lastSavedAt: updatedAt,
+      error: null,
+      saveStatusByPane: { ...state.saveStatusByPane, primary: "saved" },
+      lastSavedAtByPane: { ...state.lastSavedAtByPane, primary: updatedAt },
+      errorByPane: { ...state.errorByPane, primary: null },
+    })),
+  setError: (message) =>
+    set((state) => ({
+      saveStatus: "error",
+      error: message,
+      saveStatusByPane: { ...state.saveStatusByPane, primary: "error" },
+      errorByPane: { ...state.errorByPane, primary: message },
+    })),
+  setPaneSaveStatus: (paneId, status) =>
+    set((state) => ({
+      saveStatusByPane: { ...state.saveStatusByPane, [paneId]: status },
+      ...(paneId === "primary" ? { saveStatus: status } : {}),
+    })),
+  markPaneSaved: (paneId, updatedAt) =>
+    set((state) => ({
+      saveStatusByPane: { ...state.saveStatusByPane, [paneId]: "saved" },
+      lastSavedAtByPane: {
+        ...state.lastSavedAtByPane,
+        [paneId]: updatedAt,
+      },
+      errorByPane: { ...state.errorByPane, [paneId]: null },
+      ...(paneId === "primary"
+        ? { saveStatus: "saved", lastSavedAt: updatedAt, error: null }
+        : {}),
+    })),
+  setPaneError: (paneId, message) =>
+    set((state) => ({
+      saveStatusByPane: { ...state.saveStatusByPane, [paneId]: "error" },
+      errorByPane: { ...state.errorByPane, [paneId]: message },
+      ...(paneId === "primary"
+        ? { saveStatus: "error", error: message }
+        : {}),
+    })),
   focusCitation: (citationFocus) => set({ citationFocus }),
   clearCitationFocus: () => set({ citationFocus: null }),
 }))

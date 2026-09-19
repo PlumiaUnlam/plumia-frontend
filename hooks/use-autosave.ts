@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from "react"
 
 import { saveScene, saveSceneVersion } from "@/services/scene.service"
 import { useEditorStore } from "@/stores/editor.store"
+import type { EditorPaneId } from "@/components/editor/editor-types"
 import type {
   ProseMirrorJSON,
   SaveSceneResult,
@@ -21,6 +22,7 @@ export type AutosaveResult =
 type UseAutosaveArgs = {
   sceneId: string
   versionId?: string | null
+  paneId?: EditorPaneId
   content: ProseMirrorJSON | null
   onSaveComplete?: (result: SavedSceneResult) => void
 }
@@ -32,12 +34,13 @@ type UseAutosaveArgs = {
 export function useAutosave({
   sceneId,
   versionId,
+  paneId = "primary",
   content,
   onSaveComplete,
 }: UseAutosaveArgs) {
-  const setSaveStatus = useEditorStore((state) => state.setSaveStatus)
-  const markSaved = useEditorStore((state) => state.markSaved)
-  const setError = useEditorStore((state) => state.setError)
+  const setPaneSaveStatus = useEditorStore((state) => state.setPaneSaveStatus)
+  const markPaneSaved = useEditorStore((state) => state.markPaneSaved)
+  const setPaneError = useEditorStore((state) => state.setPaneError)
 
   const latestRef = useRef<ProseMirrorJSON | null>(content)
   const lastSavedSerializedRef = useRef<string | null>(null)
@@ -54,9 +57,10 @@ export function useAutosave({
     lastSavedSerializedRef.current = content ? JSON.stringify(content) : null
     latestRef.current = content
     retriesRef.current = 0
+    setPaneSaveStatus(paneId, "idle")
     // Only reset the baseline when changing the document being edited.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sceneId, versionId])
+  }, [paneId, sceneId, versionId])
 
   const runSave = useCallback(async (): Promise<AutosaveResult> => {
     if (savingRef.current) {
@@ -72,7 +76,7 @@ export function useAutosave({
     }
 
     savingRef.current = true
-    setSaveStatus("saving")
+    setPaneSaveStatus(paneId, "saving")
 
     const operation = (async (): Promise<AutosaveResult> => {
       try {
@@ -82,7 +86,7 @@ export function useAutosave({
 
         lastSavedSerializedRef.current = serialized
         retriesRef.current = 0
-        markSaved(result.updatedAt)
+        markPaneSaved(paneId, result.updatedAt)
         savingRef.current = false
         onSaveComplete?.(result)
 
@@ -93,7 +97,10 @@ export function useAutosave({
         return { status: "saved", result }
       } catch (error) {
         savingRef.current = false
-        setError(error instanceof Error ? error.message : "Error al guardar")
+        setPaneError(
+          paneId,
+          error instanceof Error ? error.message : "Error al guardar",
+        )
         retriesRef.current += 1
 
         if (retriesRef.current <= MAX_RETRIES) {
@@ -116,7 +123,7 @@ export function useAutosave({
         inFlightRef.current = null
       }
     }
-  }, [markSaved, onSaveComplete, sceneId, setError, setSaveStatus, versionId])
+  }, [markPaneSaved, onSaveComplete, paneId, sceneId, setPaneError, setPaneSaveStatus, versionId])
 
   useEffect(() => {
     runSaveRef.current = runSave
@@ -129,14 +136,14 @@ export function useAutosave({
     const serialized = JSON.stringify(content)
     if (serialized === lastSavedSerializedRef.current) return
 
-    setSaveStatus("dirty")
+    setPaneSaveStatus(paneId, "dirty")
     if (timerRef.current) clearTimeout(timerRef.current)
     timerRef.current = setTimeout(() => void runSaveRef.current(), DEBOUNCE_MS)
 
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current)
     }
-  }, [content, setSaveStatus])
+  }, [content, paneId, setPaneSaveStatus])
 
   const saveNow = useCallback(() => {
     if (timerRef.current) {
