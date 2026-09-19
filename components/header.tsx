@@ -2,12 +2,20 @@
 import Link from "next/link";
 import { useRouter, usePathname } from 'next/navigation'
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import Image from 'next/image';
+import { Download } from "lucide-react";
 import type { WritingMode } from "@/types/writing-mode";
 
 type HeaderProps = {
   readonly mode?: WritingMode;
   readonly onModeChange?: (mode: WritingMode) => void;
+  readonly onExportClick?: () => void;
 };
 
 const writingModes: readonly WritingMode[] = ["creation", "review", "zen"];
@@ -18,7 +26,7 @@ const modeLabels: Record<WritingMode, string> = {
   zen: "Zen",
 };
 
-export function Header({ mode, onModeChange }: HeaderProps) {
+export function Header({ mode, onModeChange, onExportClick }: HeaderProps) {
   const router = useRouter();
   const pathname = usePathname();
   const segments = pathname.split("/");
@@ -72,7 +80,28 @@ export function Header({ mode, onModeChange }: HeaderProps) {
         </div>
       )}
 
-      <div className="h-5 w-px bg-white/20" />
+      <div className="ml-auto flex items-center gap-2">
+        <div className="h-5 w-px bg-white/20" />
+        {onExportClick && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  size="icon-sm"
+                  variant="ghost"
+                  aria-label="Exportar obra"
+                  onClick={onExportClick}
+                  className="text-white hover:bg-white/10 hover:text-white"
+                >
+                  <Download className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Exportar obra</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+      </div>
     </header>
   )
 }
