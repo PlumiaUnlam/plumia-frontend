@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Header } from "../header"
 import { LeftSidebar, type SidebarBook } from "../left-sidebar"
 import { getProject } from "@/services/project.service"
@@ -10,6 +10,7 @@ import { useEditorStore } from "@/stores/editor.store"
 import { EditorContainer } from "./editor-container"
 import type { WritingMode } from "@/types/writing-mode"
 import type { EditorSectionOption } from "./editor-types"
+import { ExportDialog } from "@/components/export/export-dialog"
 
 type EditorLayoutProps = {
   projectId: string
@@ -20,7 +21,23 @@ export function EditorLayout({ projectId }: EditorLayoutProps) {
   const [books, setBooks] = useState<SidebarBook[]>([])
   const [projectsError, setProjectsError] = useState<string | null>(null)
   const [writingMode, setWritingMode] = useState<WritingMode>("review")
+  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false)
+  const beforeExportRef = useRef<(() => Promise<void>) | null>(null)
   const activeSceneId = useEditorStore((s) => s.activeSceneId)
+  const selectedSceneVersionId = useEditorStore(
+    (s) => s.selectedSceneVersionId,
+  )
+
+  const registerBeforeExport = useCallback(
+    (handler: (() => Promise<void>) | null) => {
+      beforeExportRef.current = handler
+    },
+    [],
+  )
+
+  const saveBeforeExport = useCallback(async () => {
+    await beforeExportRef.current?.()
+  }, [])
 
   const sections = useMemo<EditorSectionOption[]>(
     () =>
@@ -69,7 +86,11 @@ export function EditorLayout({ projectId }: EditorLayoutProps) {
 
   return (
     <div className="flex h-screen max-h-screen flex-col overflow-hidden bg-background text-foreground">
-      <Header mode={writingMode} onModeChange={setWritingMode} />
+      <Header
+        mode={writingMode}
+        onModeChange={setWritingMode}
+        onExportClick={() => setIsExportDialogOpen(true)}
+      />
 
       <SidebarProvider className="flex min-h-0 flex-1">
         <div className="flex min-h-0 flex-1 overflow-hidden">
@@ -97,6 +118,7 @@ export function EditorLayout({ projectId }: EditorLayoutProps) {
                   )
                 }
                 sections={sections}
+                onBeforeExportChange={registerBeforeExport}
               />
             )}
           </main>
@@ -112,6 +134,14 @@ export function EditorLayout({ projectId }: EditorLayoutProps) {
 
       <footer className="flex h-8 shrink-0 items-center border-t border-border bg-muted/50 px-5 text-[10px] text-muted-foreground">
       </footer>
+
+      <ExportDialog
+        projectId={projectId}
+        open={isExportDialogOpen}
+        isHistoricalVersion={Boolean(selectedSceneVersionId)}
+        onOpenChange={setIsExportDialogOpen}
+        onBeforeExport={saveBeforeExport}
+      />
     </div>
   )
 }

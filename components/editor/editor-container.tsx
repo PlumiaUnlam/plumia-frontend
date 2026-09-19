@@ -408,6 +408,7 @@ function EditorWorkspace({
   sections,
   isZenMode,
   onToggleZenMode,
+  onBeforeExportChange,
 }: {
   sceneId: string
   selectedVersionId: string | null
@@ -415,6 +416,7 @@ function EditorWorkspace({
   sections: EditorSectionOption[]
   isZenMode: boolean
   onToggleZenMode: () => void
+  onBeforeExportChange?: (handler: (() => Promise<void>) | null) => void
 }) {
   const setActiveScene = useEditorStore((s) => s.setActiveScene)
   const [isSplit, setIsSplit] = useState(false)
@@ -465,6 +467,28 @@ function EditorWorkspace({
     },
     [],
   )
+
+  const saveBeforeExport = useCallback(async () => {
+    const results = await Promise.all([
+      primaryActions?.saveNow(),
+      ...(effectiveIsSplit ? [secondaryActions?.saveNow()] : []),
+    ])
+    const failed = results.some(
+      (result) =>
+        result &&
+        typeof result === "object" &&
+        "status" in result &&
+        result.status === "failed",
+    )
+    if (failed) {
+      throw new Error("No se pudieron guardar los cambios pendientes")
+    }
+  }, [effectiveIsSplit, primaryActions, secondaryActions])
+
+  useEffect(() => {
+    onBeforeExportChange?.(saveBeforeExport)
+    return () => onBeforeExportChange?.(null)
+  }, [onBeforeExportChange, saveBeforeExport])
 
   const handlePrimarySceneChange = useCallback(
     async (nextSceneId: string) => {
@@ -693,12 +717,14 @@ export function EditorContainer({
   isZenMode,
   sections,
   onToggleZenMode,
+  onBeforeExportChange,
 }: {
   sceneId: string
   projectId: string
   isZenMode: boolean
   sections: EditorSectionOption[]
   onToggleZenMode: () => void
+  onBeforeExportChange?: (handler: (() => Promise<void>) | null) => void
 }) {
   const selectedVersionId = useEditorStore((s) => s.selectedSceneVersionId)
 
@@ -710,6 +736,7 @@ export function EditorContainer({
       sections={sections}
       isZenMode={isZenMode}
       onToggleZenMode={onToggleZenMode}
+      onBeforeExportChange={onBeforeExportChange}
     />
   )
 }
