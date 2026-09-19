@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { Header } from "../header"
 import { LeftSidebar, type SidebarBook } from "../left-sidebar"
 import { getProject } from "@/services/project.service"
@@ -9,6 +9,7 @@ import { EditorRightPanel } from "@/components/editor-right-panel"
 import { useEditorStore } from "@/stores/editor.store"
 import { EditorContainer } from "./editor-container"
 import type { WritingMode } from "@/types/writing-mode"
+import type { EditorSectionOption } from "./editor-types"
 
 type EditorLayoutProps = {
   projectId: string
@@ -21,12 +22,20 @@ export function EditorLayout({ projectId }: EditorLayoutProps) {
   const [writingMode, setWritingMode] = useState<WritingMode>("review")
   const activeSceneId = useEditorStore((s) => s.activeSceneId)
 
-  const activeChapter = books
-    .flatMap((book) => book.chapters)
-    .find((chapter) => chapter.scenes.some((s) => s.id === activeSceneId))
-  const activeScene = activeChapter?.scenes.find((s) => s.id === activeSceneId)
-  const chapterTitle = activeChapter?.title ?? ""
-  const sceneTitle = activeScene?.title
+  const sections = useMemo<EditorSectionOption[]>(
+    () =>
+      books.flatMap((book) =>
+        book.chapters.flatMap((chapter) =>
+          chapter.scenes.map((scene) => ({
+            id: scene.id,
+            title: scene.title,
+            chapterTitle: chapter.title,
+            bookTitle: book.title,
+          })),
+        ),
+      ),
+    [books],
+  )
 
   const loadProject = useCallback(async () => {
     if (!projectId) {
@@ -80,8 +89,6 @@ export function EditorLayout({ projectId }: EditorLayoutProps) {
             {activeSceneId && (
               <EditorContainer
                 sceneId={activeSceneId}
-                chapterTitle={chapterTitle}
-                sceneTitle={sceneTitle}
                 projectId={projectId}
                 isZenMode={writingMode === "zen"}
                 onToggleZenMode={() =>
@@ -89,6 +96,7 @@ export function EditorLayout({ projectId }: EditorLayoutProps) {
                     currentMode === "zen" ? "creation" : "zen",
                   )
                 }
+                sections={sections}
               />
             )}
           </main>
