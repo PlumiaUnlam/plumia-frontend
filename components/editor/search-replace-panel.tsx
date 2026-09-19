@@ -17,10 +17,7 @@ import { getScene, saveScene } from "@/services/scene.service"
 import { useEditorStore } from "@/stores/editor.store"
 import type { EditorSectionOption } from "./editor-types"
 import type { ProseMirrorJSON } from "@/types/scene"
-import type {
-  EditorSearchMatch,
-  SpellcheckLanguage,
-} from "@/types/editor-search"
+import type { EditorSearchMatch } from "@/types/editor-search"
 import {
   findEditorSearchMatches,
   getSearchResultSummary,
@@ -52,14 +49,6 @@ type SearchReplacePanelProps = {
   onScenesUpdated: (sceneIds: string[]) => Promise<void>
 }
 
-const languageOptions: ReadonlyArray<{
-  value: SpellcheckLanguage
-  label: string
-}> = [
-  { value: "es-AR", label: "Español (Argentina)" },
-  { value: "en-US", label: "English (United States)" },
-]
-
 export function SearchReplacePanel({
   open,
   onOpenChange,
@@ -89,13 +78,6 @@ export function SearchReplacePanel({
   const query = useEditorStore((state) => state.searchQuery)
   const setSearchQuery = useEditorStore((state) => state.setSearchQuery)
   const clearSearchFocus = useEditorStore((state) => state.clearSearchFocus)
-  const spellcheckLanguage = useEditorStore(
-    (state) => state.spellcheckLanguage,
-  )
-  const setSpellcheckLanguage = useEditorStore(
-    (state) => state.setSpellcheckLanguage,
-  )
-  const [languageLoaded, setLanguageLoaded] = useState(false)
 
   useEffect(() => {
     if (!open) return
@@ -131,27 +113,6 @@ export function SearchReplacePanel({
       controller.abort()
     }
   }, [loadKey, open, reloadToken, sections])
-
-  useEffect(() => {
-    try {
-      const storedLanguage = window.localStorage.getItem(
-        "plumia:spellcheck-language",
-      )
-      if (storedLanguage === "es-AR" || storedLanguage === "en-US") {
-        setSpellcheckLanguage(storedLanguage)
-      }
-    } finally {
-      setLanguageLoaded(true)
-    }
-  }, [setSpellcheckLanguage])
-
-  useEffect(() => {
-    if (!languageLoaded) return
-    window.localStorage.setItem(
-      "plumia:spellcheck-language",
-      spellcheckLanguage,
-    )
-  }, [languageLoaded, spellcheckLanguage])
 
   const searchableDocuments = useMemo(() => {
     if (
@@ -364,29 +325,6 @@ export function SearchReplacePanel({
                   onChange={(event) => setReplacement(event.target.value)}
                   placeholder="Texto nuevo"
                 />
-              </div>
-
-              <div className="space-y-1.5">
-                <label
-                  htmlFor="editor-spellcheck-language"
-                  className="text-xs font-medium text-foreground"
-                >
-                  Idioma del corrector
-                </label>
-                <select
-                  id="editor-spellcheck-language"
-                  value={spellcheckLanguage}
-                  onChange={(event) =>
-                    setSpellcheckLanguage(event.target.value as SpellcheckLanguage)
-                  }
-                  className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-                >
-                  {languageOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
               </div>
 
               <div className="flex flex-wrap gap-2">

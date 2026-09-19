@@ -39,6 +39,7 @@ type SceneEditorProps = {
   isZenMode: boolean
   onToggleZenMode: () => void
   onOpenSearch?: () => void
+  onOpenSpellcheckSettings?: () => void
   paneId: EditorPaneId
   showToolbar: boolean
   onEditorFocus?: () => void
@@ -60,6 +61,7 @@ function SceneEditor({
   isZenMode,
   onToggleZenMode,
   onOpenSearch,
+  onOpenSpellcheckSettings,
   paneId,
   showToolbar,
   onEditorFocus,
@@ -159,6 +161,7 @@ function SceneEditor({
         isZenMode={isZenMode}
         onToggleZenMode={onToggleZenMode}
         onOpenSearch={onOpenSearch}
+        onOpenSpellcheckSettings={onOpenSpellcheckSettings}
         paneId={paneId}
         saveNow={saveNow}
         showToolbar={showToolbar}
@@ -182,6 +185,7 @@ function SceneDocumentLoader({
   isZenMode,
   onToggleZenMode,
   onOpenSearch,
+  onOpenSpellcheckSettings,
   showToolbar,
   onEditorFocus,
   onToolbarActionsChange,
@@ -198,6 +202,7 @@ function SceneDocumentLoader({
   isZenMode: boolean
   onToggleZenMode: () => void
   onOpenSearch?: () => void
+  onOpenSpellcheckSettings?: () => void
   showToolbar: boolean
   onEditorFocus?: () => void
   onToolbarActionsChange?: (
@@ -276,6 +281,7 @@ function SceneDocumentLoader({
       isZenMode={isZenMode}
       onToggleZenMode={onToggleZenMode}
       onOpenSearch={onOpenSearch}
+      onOpenSpellcheckSettings={onOpenSpellcheckSettings}
       paneId={paneId}
       showToolbar={showToolbar}
       onEditorFocus={onEditorFocus}
@@ -365,6 +371,7 @@ function EditorPanel({
   isZenMode,
   onToggleZenMode,
   onOpenSearch,
+  onOpenSpellcheckSettings,
   showToolbar,
   onEditorFocus,
   onToolbarActionsChange,
@@ -380,6 +387,7 @@ function EditorPanel({
   isZenMode: boolean
   onToggleZenMode: () => void
   onOpenSearch?: () => void
+  onOpenSpellcheckSettings?: () => void
   showToolbar: boolean
   onEditorFocus?: () => void
   onToolbarActionsChange?: (
@@ -400,6 +408,7 @@ function EditorPanel({
       isZenMode={isZenMode}
       onToggleZenMode={onToggleZenMode}
       onOpenSearch={onOpenSearch}
+      onOpenSpellcheckSettings={onOpenSpellcheckSettings}
       showToolbar={showToolbar}
       onEditorFocus={onEditorFocus}
       onToolbarActionsChange={onToolbarActionsChange}
@@ -418,6 +427,7 @@ function EditorWorkspace({
   isZenMode,
   onToggleZenMode,
   onOpenSearch,
+  onOpenSpellcheckSettings,
   onBeforeExportChange,
 }: {
   sceneId: string
@@ -427,6 +437,7 @@ function EditorWorkspace({
   isZenMode: boolean
   onToggleZenMode: () => void
   onOpenSearch?: () => void
+  onOpenSpellcheckSettings?: () => void
   onBeforeExportChange?: (handler: (() => Promise<void>) | null) => void
 }) {
   const setActiveScene = useEditorStore((s) => s.setActiveScene)
@@ -608,6 +619,7 @@ function EditorWorkspace({
           isAnalysisSaving={focusedActions.isAnalysisSaving}
           onToggleZenMode={onToggleZenMode}
           onOpenSearch={onOpenSearch}
+          onOpenSpellcheckSettings={onOpenSpellcheckSettings}
           isZenMode={isZenMode}
           onInsertDivider={(variant) =>
             focusedActions.editor
@@ -676,6 +688,7 @@ function EditorWorkspace({
               isZenMode={isZenMode}
               onToggleZenMode={onToggleZenMode}
               onOpenSearch={onOpenSearch}
+              onOpenSpellcheckSettings={onOpenSpellcheckSettings}
               showToolbar={!effectiveIsSplit}
               onEditorFocus={() => setFocusedPane("primary")}
               onToolbarActionsChange={registerPrimaryActions}
@@ -731,6 +744,7 @@ export function EditorContainer({
   sections,
   onToggleZenMode,
   onOpenSearch,
+  onOpenSpellcheckSettings,
   onBeforeExportChange,
 }: {
   sceneId: string
@@ -739,6 +753,7 @@ export function EditorContainer({
   sections: EditorSectionOption[]
   onToggleZenMode: () => void
   onOpenSearch?: () => void
+  onOpenSpellcheckSettings?: () => void
   onBeforeExportChange?: (handler: (() => Promise<void>) | null) => void
 }) {
   const selectedVersionId = useEditorStore((s) => s.selectedSceneVersionId)
@@ -752,6 +767,7 @@ export function EditorContainer({
       isZenMode={isZenMode}
       onToggleZenMode={onToggleZenMode}
       onOpenSearch={onOpenSearch}
+      onOpenSpellcheckSettings={onOpenSpellcheckSettings}
       onBeforeExportChange={onBeforeExportChange}
     />
   )

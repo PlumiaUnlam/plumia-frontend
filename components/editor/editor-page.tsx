@@ -9,9 +9,10 @@ import { EditorRightPanel } from "@/components/editor-right-panel"
 import { useEditorStore } from "@/stores/editor.store"
 import { EditorContainer } from "./editor-container"
 import { SearchReplacePanel } from "./search-replace-panel"
+import { SpellcheckSettingsDialog } from "./spellcheck-settings-dialog"
 import type { WritingMode } from "@/types/writing-mode"
 import type { EditorSectionOption } from "./editor-types"
-import type { EditorSearchMatch } from "@/types/editor-search"
+import type { EditorSearchMatch, SpellcheckLanguage } from "@/types/editor-search"
 import { ExportDialog } from "@/components/export/export-dialog"
 
 type EditorLayoutProps = {
@@ -25,6 +26,9 @@ export function EditorLayout({ projectId }: EditorLayoutProps) {
   const [writingMode, setWritingMode] = useState<WritingMode>("review")
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false)
   const [isSearchPanelOpen, setIsSearchPanelOpen] = useState(false)
+  const [isSpellcheckSettingsOpen, setIsSpellcheckSettingsOpen] = useState(false)
+  const [draftSpellcheckLanguage, setDraftSpellcheckLanguage] =
+    useState<SpellcheckLanguage>("es-AR")
   const beforeExportRef = useRef<(() => Promise<void>) | null>(null)
   const activeSceneId = useEditorStore((s) => s.activeSceneId)
   const currentContent = useEditorStore((s) => s.currentContent)
@@ -32,6 +36,7 @@ export function EditorLayout({ projectId }: EditorLayoutProps) {
   const focusSearch = useEditorStore((s) => s.focusSearch)
   const clearSearchFocus = useEditorStore((s) => s.clearSearchFocus)
   const setSearchQuery = useEditorStore((s) => s.setSearchQuery)
+  const setSpellcheckLanguage = useEditorStore((s) => s.setSpellcheckLanguage)
   const refreshEditorDocument = useEditorStore((s) => s.refreshEditorDocument)
   const selectedSceneVersionId = useEditorStore(
     (s) => s.selectedSceneVersionId,
@@ -47,6 +52,20 @@ export function EditorLayout({ projectId }: EditorLayoutProps) {
   const saveBeforeExport = useCallback(async () => {
     await beforeExportRef.current?.()
   }, [])
+
+  const handleOpenSpellcheckSettings = useCallback(() => {
+    setDraftSpellcheckLanguage(useEditorStore.getState().spellcheckLanguage)
+    setIsSpellcheckSettingsOpen(true)
+  }, [])
+
+  const handleSaveSpellcheckSettings = useCallback(() => {
+    setSpellcheckLanguage(draftSpellcheckLanguage)
+    window.localStorage.setItem(
+      "plumia:spellcheck-language",
+      draftSpellcheckLanguage,
+    )
+    setIsSpellcheckSettingsOpen(false)
+  }, [draftSpellcheckLanguage, setSpellcheckLanguage])
 
   const handleSearchPanelChange = useCallback(
     (open: boolean) => {
@@ -150,6 +169,16 @@ export function EditorLayout({ projectId }: EditorLayoutProps) {
     return () => window.removeEventListener("keydown", handleShortcut)
   }, [])
 
+  useEffect(() => {
+    const storedLanguage = window.localStorage.getItem(
+      "plumia:spellcheck-language",
+    )
+
+    if (storedLanguage === "es-AR" || storedLanguage === "en-US") {
+      setSpellcheckLanguage(storedLanguage)
+    }
+  }, [setSpellcheckLanguage])
+
   return (
     <div className="flex h-screen max-h-screen flex-col overflow-hidden bg-background text-foreground">
       <Header
@@ -185,6 +214,7 @@ export function EditorLayout({ projectId }: EditorLayoutProps) {
                 }
                 sections={sections}
                 onOpenSearch={() => setIsSearchPanelOpen(true)}
+                onOpenSpellcheckSettings={handleOpenSpellcheckSettings}
                 onBeforeExportChange={registerBeforeExport}
               />
             )}
@@ -220,6 +250,14 @@ export function EditorLayout({ projectId }: EditorLayoutProps) {
         isHistoricalVersion={Boolean(selectedSceneVersionId)}
         onOpenChange={setIsExportDialogOpen}
         onBeforeExport={saveBeforeExport}
+      />
+
+      <SpellcheckSettingsDialog
+        open={isSpellcheckSettingsOpen}
+        language={draftSpellcheckLanguage}
+        onLanguageChange={setDraftSpellcheckLanguage}
+        onOpenChange={setIsSpellcheckSettingsOpen}
+        onSave={handleSaveSpellcheckSettings}
       />
     </div>
   )

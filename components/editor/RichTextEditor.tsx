@@ -46,6 +46,7 @@ type RichTextEditorProps = {
   isZenMode?: boolean
   onToggleZenMode?: () => void
   onOpenSearch?: () => void
+  onOpenSpellcheckSettings?: () => void
   paneId?: EditorPaneId
   saveNow?: () => Promise<unknown>
   showToolbar?: boolean
@@ -72,6 +73,7 @@ export function RichTextEditor({
   isZenMode = false,
   onToggleZenMode,
   onOpenSearch,
+  onOpenSpellcheckSettings,
   paneId = "primary",
   saveNow,
   showToolbar = true,
@@ -291,6 +293,7 @@ export function RichTextEditor({
             versionLabel={versionLabel}
             onSave={onSave}
             onOpenSearch={onOpenSearch}
+            onOpenSpellcheckSettings={onOpenSpellcheckSettings}
             onInsertImage={openImagePicker}
           onAnalyzeChanges={onAnalyzeChanges}
           isAnalysisSaving={isAnalysisSaving}
