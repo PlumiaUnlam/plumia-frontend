@@ -33,6 +33,7 @@ type EditorState = {
   errorByPane: Record<EditorPaneId, string | null>
   citationFocus: EditorCitationFocus | null
   searchFocus: EditorSearchFocus | null
+  searchQuery: string
   spellcheckLanguage: SpellcheckLanguage
 
   setActiveScene: (id: string) => void
@@ -49,6 +50,7 @@ type EditorState = {
   clearCitationFocus: () => void
   focusSearch: (focus: EditorSearchFocus) => void
   clearSearchFocus: () => void
+  setSearchQuery: (query: string) => void
   setSpellcheckLanguage: (language: SpellcheckLanguage) => void
 }
 
@@ -65,6 +67,7 @@ export const useEditorStore = create<EditorState>((set) => ({
   errorByPane: { primary: null, secondary: null },
   citationFocus: null,
   searchFocus: null,
+  searchQuery: "",
   spellcheckLanguage: "es-AR",
 
   setActiveScene: (id) =>
@@ -144,5 +147,6 @@ export const useEditorStore = create<EditorState>((set) => ({
   clearCitationFocus: () => set({ citationFocus: null }),
   focusSearch: (searchFocus) => set({ searchFocus }),
   clearSearchFocus: () => set({ searchFocus: null }),
+  setSearchQuery: (searchQuery) => set({ searchQuery }),
   setSpellcheckLanguage: (spellcheckLanguage) => set({ spellcheckLanguage }),
 }))

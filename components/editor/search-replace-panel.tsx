@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { Loader2, RefreshCw, Replace, Search } from "lucide-react"
+import { Loader2, RefreshCw, Replace, Search, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -13,13 +13,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet"
 import { getScene, saveScene } from "@/services/scene.service"
 import { useEditorStore } from "@/stores/editor.store"
 import type { EditorSectionOption } from "./editor-types"
@@ -78,7 +71,6 @@ export function SearchReplacePanel({
   onPrepareWrite,
   onScenesUpdated,
 }: SearchReplacePanelProps) {
-  const [query, setQuery] = useState("")
   const [replacement, setReplacement] = useState("")
   const [documents, setDocuments] = useState<
     Record<string, ProseMirrorJSON | null>
@@ -94,6 +86,9 @@ export function SearchReplacePanel({
   const loadKey = `${reloadToken}:${sceneIdsKey}`
   const [completedLoadKey, setCompletedLoadKey] = useState<string | null>(null)
   const isLoading = open && completedLoadKey !== loadKey
+  const query = useEditorStore((state) => state.searchQuery)
+  const setSearchQuery = useEditorStore((state) => state.setSearchQuery)
+  const clearSearchFocus = useEditorStore((state) => state.clearSearchFocus)
   const spellcheckLanguage = useEditorStore(
     (state) => state.spellcheckLanguage,
   )
@@ -299,25 +294,37 @@ export function SearchReplacePanel({
     setPendingReplace({ scope, matches: selectedMatches })
   }
 
+  if (!open) return null
+
   return (
     <>
-      <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent
-          side="right"
-          className="w-full gap-0 overflow-hidden p-0 sm:max-w-[430px]"
-        >
-          <SheetHeader className="border-b px-4 py-3 pr-12">
-            <SheetTitle className="flex items-center gap-2 text-base">
+      <aside className="relative flex h-full min-h-0 w-full shrink-0 flex-col overflow-hidden border-l border-border bg-card shadow-sm sm:w-[390px] xl:w-[430px]">
+        <div className="shrink-0 border-b px-4 py-3 pr-12">
+          <div className="flex items-center gap-2 text-base font-medium text-foreground">
               <Search className="h-4 w-4" />
-              Buscar y reemplazar
-            </SheetTitle>
-            <SheetDescription className="text-xs">
-              Busca en el contenido de todas las escenas del proyecto.
-            </SheetDescription>
-          </SheetHeader>
+            <h2>Buscar y reemplazar</h2>
+          </div>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Busca en el contenido de todas las escenas del proyecto.
+          </p>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            className="absolute right-3 top-3"
+            aria-label="Cerrar búsqueda y reemplazo"
+            title="Cerrar búsqueda y reemplazo"
+            onClick={() => {
+              setPendingReplace(null)
+              onOpenChange(false)
+            }}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto">
-            <div className="space-y-4 p-4">
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="space-y-4 p-4">
               <div className="space-y-1.5">
                 <label
                   htmlFor="editor-search-query"
@@ -330,7 +337,10 @@ export function SearchReplacePanel({
                   <Input
                     id="editor-search-query"
                     value={query}
-                    onChange={(event) => setQuery(event.target.value)}
+                    onChange={(event) => {
+                      setSearchQuery(event.target.value)
+                      clearSearchFocus()
+                    }}
                     placeholder="Texto a buscar"
                     className="pl-9"
                     autoFocus
@@ -499,10 +509,9 @@ export function SearchReplacePanel({
                   ))}
                 </div>
               )}
-            </div>
           </div>
-        </SheetContent>
-      </Sheet>
+        </div>
+      </aside>
 
       <Dialog
         open={pendingReplace !== null}

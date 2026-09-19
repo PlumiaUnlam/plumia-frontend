@@ -30,6 +30,8 @@ export function EditorLayout({ projectId }: EditorLayoutProps) {
   const currentContent = useEditorStore((s) => s.currentContent)
   const setActiveScene = useEditorStore((s) => s.setActiveScene)
   const focusSearch = useEditorStore((s) => s.focusSearch)
+  const clearSearchFocus = useEditorStore((s) => s.clearSearchFocus)
+  const setSearchQuery = useEditorStore((s) => s.setSearchQuery)
   const refreshEditorDocument = useEditorStore((s) => s.refreshEditorDocument)
   const selectedSceneVersionId = useEditorStore(
     (s) => s.selectedSceneVersionId,
@@ -45,6 +47,17 @@ export function EditorLayout({ projectId }: EditorLayoutProps) {
   const saveBeforeExport = useCallback(async () => {
     await beforeExportRef.current?.()
   }, [])
+
+  const handleSearchPanelChange = useCallback(
+    (open: boolean) => {
+      setIsSearchPanelOpen(open)
+      if (!open) {
+        setSearchQuery("")
+        clearSearchFocus()
+      }
+    },
+    [clearSearchFocus, setSearchQuery],
+  )
 
   const handleNavigateToMatch = useCallback(
     async (match: EditorSearchMatch) => {
@@ -177,6 +190,18 @@ export function EditorLayout({ projectId }: EditorLayoutProps) {
             )}
           </main>
 
+          <SearchReplacePanel
+            open={isSearchPanelOpen}
+            onOpenChange={handleSearchPanelChange}
+            sections={sections}
+            activeSceneId={activeSceneId}
+            currentContent={currentContent}
+            selectedSceneVersionId={selectedSceneVersionId}
+            onNavigateToMatch={handleNavigateToMatch}
+            onPrepareWrite={saveBeforeExport}
+            onScenesUpdated={handleScenesUpdated}
+          />
+
           {writingMode !== "zen" && (
             <EditorRightPanel
               projectId={projectId}
@@ -185,18 +210,6 @@ export function EditorLayout({ projectId }: EditorLayoutProps) {
           )}
         </div>
       </SidebarProvider>
-
-      <SearchReplacePanel
-        open={isSearchPanelOpen}
-        onOpenChange={setIsSearchPanelOpen}
-        sections={sections}
-        activeSceneId={activeSceneId}
-        currentContent={currentContent}
-        selectedSceneVersionId={selectedSceneVersionId}
-        onNavigateToMatch={handleNavigateToMatch}
-        onPrepareWrite={saveBeforeExport}
-        onScenesUpdated={handleScenesUpdated}
-      />
 
       <footer className="flex h-8 shrink-0 items-center border-t border-border bg-muted/50 px-5 text-[10px] text-muted-foreground">
       </footer>

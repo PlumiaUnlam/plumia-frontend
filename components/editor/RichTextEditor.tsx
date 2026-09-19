@@ -14,6 +14,7 @@ import {
   EditorSearchFocus,
   editorSearchFocusPluginKey,
   findEditorSearchRange,
+  findEditorSearchRanges,
 } from "./editor-search-focus"
 import { EditorToolbar } from "./toolbar"
 import { EditorImage } from "./image/editor-image-extension"
@@ -99,6 +100,7 @@ export function RichTextEditor({
     (state) => state.clearCitationFocus,
   )
   const searchFocus = useEditorStore((state) => state.searchFocus)
+  const searchQuery = useEditorStore((state) => state.searchQuery)
   const clearSearchFocus = useEditorStore((state) => state.clearSearchFocus)
   const spellcheckLanguage = useEditorStore(
     (state) => state.spellcheckLanguage,
@@ -230,46 +232,43 @@ export function RichTextEditor({
   useEffect(() => {
     if (!editor) return
 
-    const clearSearchDecoration = () => {
-      if (editor.isDestroyed) return
+    const ranges = findEditorSearchRanges(editor.state.doc, searchQuery)
+    const activeRange =
+      searchFocus?.sceneId === sceneId
+        ? findEditorSearchRange(
+            editor.state.doc,
+            searchQuery,
+            searchFocus.occurrence,
+          )
+        : null
+
+    if (ranges.length === 0) {
       editor.view.dispatch(
         editor.state.tr.setMeta(editorSearchFocusPluginKey, { clear: true }),
       )
-    }
-
-    if (searchFocus?.sceneId !== sceneId) {
-      clearSearchDecoration()
-      return
-    }
-
-    const range = findEditorSearchRange(
-      editor.state.doc,
-      searchFocus.query,
-      searchFocus.occurrence,
-    )
-    if (!range) {
-      clearSearchDecoration()
-      clearSearchFocus()
       return
     }
 
     editor.view.dispatch(
-      editor.state.tr.setMeta(editorSearchFocusPluginKey, range),
+      editor.state.tr.setMeta(editorSearchFocusPluginKey, {
+        ranges,
+        activeRange,
+      }),
     )
-    const domNode = editor.view.domAtPos(range.from).node
+
+    if (!activeRange) return
+
+    const domNode = editor.view.domAtPos(activeRange.from).node
     const scrollTarget =
       domNode instanceof HTMLElement ? domNode : domNode.parentElement
     scrollTarget?.scrollIntoView({ behavior: "smooth", block: "center" })
     const timeoutId = window.setTimeout(() => {
       if (editor.isDestroyed) return
-      editor.view.dispatch(
-        editor.state.tr.setMeta(editorSearchFocusPluginKey, { clear: true }),
-      )
       clearSearchFocus()
     }, 2600)
 
     return () => window.clearTimeout(timeoutId)
-  }, [clearSearchFocus, editor, sceneId, searchFocus])
+  }, [clearSearchFocus, editor, sceneId, searchFocus, searchQuery])
 
   if (!editor) return null
 
@@ -378,6 +377,9 @@ export function RichTextEditor({
                 [&_.editor-search-focus]:rounded-sm
                 [&_.editor-search-focus]:bg-yellow-200/80
                 [&_.editor-search-focus]:text-inherit
+                [&_.editor-search-match]:rounded-sm
+                [&_.editor-search-match]:bg-yellow-100/70
+                [&_.editor-search-match]:text-inherit
 
                 text-[16px]
 

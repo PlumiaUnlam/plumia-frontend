@@ -3,8 +3,10 @@ import type { Node as ProseMirrorNode } from "@tiptap/pm/model"
 import { Decoration, DecorationSet } from "@tiptap/pm/view"
 import { Plugin, PluginKey } from "@tiptap/pm/state"
 
+export type EditorSearchRange = { from: number; to: number }
+
 export type EditorSearchHighlightMeta =
-  | { from: number; to: number }
+  | { ranges: EditorSearchRange[]; activeRange?: EditorSearchRange | null }
   | { clear: true }
 
 export const editorSearchFocusPluginKey = new PluginKey<DecorationSet>(
@@ -26,13 +28,22 @@ export const EditorSearchFocus = Extension.create({
             ) as EditorSearchHighlightMeta | undefined
 
             if (meta && "clear" in meta) return DecorationSet.empty
-            if (meta && "from" in meta) {
-              return DecorationSet.create(transaction.doc, [
-                Decoration.inline(meta.from, meta.to, {
-                  class: "editor-search-focus",
-                  "data-editor-search-focus": "true",
+            if (meta && "ranges" in meta) {
+              return DecorationSet.create(
+                transaction.doc,
+                meta.ranges.map((range) => {
+                  const isActive =
+                    meta.activeRange?.from === range.from &&
+                    meta.activeRange.to === range.to
+
+                  return Decoration.inline(range.from, range.to, {
+                    class: isActive
+                      ? "editor-search-focus"
+                      : "editor-search-match",
+                    "data-editor-search-focus": isActive ? "true" : "false",
+                  })
                 }),
-              ])
+              )
             }
 
             return transaction.docChanged
@@ -52,28 +63,29 @@ export function findEditorSearchRange(
   document: ProseMirrorNode,
   query: string,
   occurrence: number,
-): { from: number; to: number } | null {
-  const queryLower = query.trim().toLocaleLowerCase()
-  if (!queryLower || occurrence < 0) return null
+): EditorSearchRange | null {
+  return findEditorSearchRanges(document, query)[occurrence] ?? null
+}
 
-  let currentOccurrence = 0
-  let result: { from: number; to: number } | null = null
+export function findEditorSearchRanges(
+  document: ProseMirrorNode,
+  query: string,
+): EditorSearchRange[] {
+  const queryLower = query.trim().toLocaleLowerCase()
+  if (!queryLower) return []
+
+  const ranges: EditorSearchRange[] = []
 
   document.descendants((node, position) => {
-    if (result || !node.isText || !node.text) return
+    if (!node.isText || !node.text) return
 
     const textLower = node.text.toLocaleLowerCase()
     let offset = textLower.indexOf(queryLower)
     while (offset >= 0) {
-      if (currentOccurrence === occurrence) {
-        result = {
-          from: position + offset,
-          to: position + offset + queryLower.length,
-        }
-        return
-      }
-
-      currentOccurrence += 1
+      ranges.push({
+        from: position + offset,
+        to: position + offset + queryLower.length,
+      })
       offset = textLower.indexOf(
         queryLower,
         offset + Math.max(queryLower.length, 1),
@@ -81,6 +93,5 @@ export function findEditorSearchRange(
     }
   })
 
-  return result
+  return ranges
 }
-
