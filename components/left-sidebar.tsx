@@ -20,9 +20,9 @@ import {
   Layers3,
   TrendingUp,
   Plus,
-  ChevronLeft,
+  PanelLeftClose,
   Undo2,
-  ChevronRight,
+  PanelLeftOpen,
 } from "lucide-react";
 
 import {
@@ -325,23 +325,23 @@ export function LeftSidebar({
             </Button>
 
             <Button
-              size="icon-xs"
+              size="icon-sm"
               variant="ghost"
-              className="size-6"
+              className="size-8 rounded-md text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
               onClick={toggleSidebar}
               aria-label="Cerrar estructura del proyecto"
             >
-              <ChevronLeft className="size-3.5" />
+              <PanelLeftClose className="size-4" />
             </Button>
           </div>
           <Button
-            size="icon-xs"
+            size="icon-sm"
             variant="ghost"
-            className="mx-auto hidden size-6 group-data-[collapsible=icon]:flex"
+            className="mx-auto hidden size-8 rounded-md text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground group-data-[collapsible=icon]:flex"
             onClick={toggleSidebar}
             aria-label="Abrir estructura del proyecto"
           >
-            <ChevronRight className="size-3.5" />
+            <PanelLeftOpen className="size-4" />
           </Button>
         </SidebarHeader>
         <LeftSidebarTree

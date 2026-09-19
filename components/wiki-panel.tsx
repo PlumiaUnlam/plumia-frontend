@@ -255,7 +255,7 @@ export function WikiPanel({
   };
 
   return (
-    <div className="flex min-h-0 min-w-0 max-w-full flex-1 flex-col overflow-hidden">
+    <div className="flex h-full min-h-0 min-w-0 max-w-full flex-1 flex-col overflow-hidden">
       <div className="shrink-0 border-b border-border p-3">
         <div className="flex min-w-0 items-center gap-2 rounded-lg bg-muted px-2.5 py-1.5">
           <Search size={11} className="shrink-0 text-muted-foreground" />
@@ -268,7 +268,7 @@ export function WikiPanel({
         </div>
       </div>
 
-      <ScrollArea className="min-h-0 min-w-0 flex-1 overflow-x-hidden">
+      <ScrollArea className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain">
         <div className="min-w-0 max-w-full space-y-2 overflow-x-hidden p-3">
           {showReviewSections && actionError && (
             <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-xs text-destructive">

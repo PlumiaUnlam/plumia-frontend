@@ -580,11 +580,11 @@ function EditorWorkspace({
         className={
           effectiveIsSplit
             ? "grid min-h-0 flex-1 grid-cols-2 divide-x divide-border"
-            : "min-h-0 flex-1"
+            : "flex min-h-0 flex-1 flex-col overflow-hidden"
         }
       >
         <div
-          className="flex min-h-0 min-w-0 flex-col overflow-hidden"
+          className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
           onMouseDown={() => setFocusedPane("primary")}
         >
           {effectiveIsSplit && (
