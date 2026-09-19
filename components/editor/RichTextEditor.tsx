@@ -10,6 +10,12 @@ import {
   citationFocusPluginKey,
   findCitationRange,
 } from "./editor-citation-focus"
+import {
+  EditorSearchFocus,
+  editorSearchFocusPluginKey,
+  findEditorSearchRange,
+  findEditorSearchRanges,
+} from "./editor-search-focus"
 import { EditorToolbar } from "./toolbar"
 import { EditorImage } from "./image/editor-image-extension"
 import { useEditorImage } from "./image/use-editor-image"
@@ -39,6 +45,8 @@ type RichTextEditorProps = {
   isAnalysisSaving?: boolean
   isZenMode?: boolean
   onToggleZenMode?: () => void
+  onOpenSearch?: () => void
+  onOpenSpellcheckSettings?: () => void
   paneId?: EditorPaneId
   saveNow?: () => Promise<unknown>
   showToolbar?: boolean
@@ -64,6 +72,8 @@ export function RichTextEditor({
   isAnalysisSaving = false,
   isZenMode = false,
   onToggleZenMode,
+  onOpenSearch,
+  onOpenSpellcheckSettings,
   paneId = "primary",
   saveNow,
   showToolbar = true,
@@ -91,6 +101,12 @@ export function RichTextEditor({
   const clearCitationFocus = useEditorStore(
     (state) => state.clearCitationFocus,
   )
+  const searchFocus = useEditorStore((state) => state.searchFocus)
+  const searchQuery = useEditorStore((state) => state.searchQuery)
+  const clearSearchFocus = useEditorStore((state) => state.clearSearchFocus)
+  const spellcheckLanguage = useEditorStore(
+    (state) => state.spellcheckLanguage,
+  )
 
   const editor = useEditor({
     immediatelyRender: true,
@@ -112,10 +128,15 @@ export function RichTextEditor({
       }),
       SceneDivider,
       EntityLink,
+      EditorSearchFocus,
       CitationFocus,
     ],
     content: content ?? "",
     editorProps: {
+      attributes: {
+        spellcheck: "true",
+        lang: spellcheckLanguage,
+      },
       handlePaste,
     },
     onFocus: () => onEditorFocus?.(),
@@ -163,6 +184,13 @@ export function RichTextEditor({
   useEffect(() => {
     if (!editor) return
 
+    editor.view.dom.setAttribute("spellcheck", "true")
+    editor.view.dom.setAttribute("lang", spellcheckLanguage)
+  }, [editor, spellcheckLanguage])
+
+  useEffect(() => {
+    if (!editor) return
+
     const clearCitationDecoration = () => {
       if (editor.isDestroyed) return
       editor.view.dispatch(
@@ -203,6 +231,47 @@ export function RichTextEditor({
     return () => window.clearTimeout(timeoutId)
   }, [citationFocus, clearCitationFocus, editor, sceneId])
 
+  useEffect(() => {
+    if (!editor) return
+
+    const ranges = findEditorSearchRanges(editor.state.doc, searchQuery)
+    const activeRange =
+      searchFocus?.sceneId === sceneId
+        ? findEditorSearchRange(
+            editor.state.doc,
+            searchQuery,
+            searchFocus.occurrence,
+          )
+        : null
+
+    if (ranges.length === 0) {
+      editor.view.dispatch(
+        editor.state.tr.setMeta(editorSearchFocusPluginKey, { clear: true }),
+      )
+      return
+    }
+
+    editor.view.dispatch(
+      editor.state.tr.setMeta(editorSearchFocusPluginKey, {
+        ranges,
+        activeRange,
+      }),
+    )
+
+    if (!activeRange) return
+
+    const domNode = editor.view.domAtPos(activeRange.from).node
+    const scrollTarget =
+      domNode instanceof HTMLElement ? domNode : domNode.parentElement
+    scrollTarget?.scrollIntoView({ behavior: "smooth", block: "center" })
+    const timeoutId = window.setTimeout(() => {
+      if (editor.isDestroyed) return
+      clearSearchFocus()
+    }, 2600)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [clearSearchFocus, editor, sceneId, searchFocus, searchQuery])
+
   if (!editor) return null
 
   return (
@@ -219,11 +288,13 @@ export function RichTextEditor({
       />
 
       {showToolbar && !isZenMode && (
-        <EditorMenuBar
-          editor={editor}
-          versionLabel={versionLabel}
-          onSave={onSave}
-          onInsertImage={openImagePicker}
+          <EditorMenuBar
+            editor={editor}
+            versionLabel={versionLabel}
+            onSave={onSave}
+            onOpenSearch={onOpenSearch}
+            onOpenSpellcheckSettings={onOpenSpellcheckSettings}
+            onInsertImage={openImagePicker}
           onAnalyzeChanges={onAnalyzeChanges}
           isAnalysisSaving={isAnalysisSaving}
           onToggleZenMode={onToggleZenMode}
@@ -305,6 +376,13 @@ export function RichTextEditor({
                 prose-img:border
                 prose-img:border-border
                 prose-img:shadow-sm
+
+                [&_.editor-search-focus]:rounded-sm
+                [&_.editor-search-focus]:bg-yellow-200/80
+                [&_.editor-search-focus]:text-inherit
+                [&_.editor-search-match]:rounded-sm
+                [&_.editor-search-match]:bg-yellow-100/70
+                [&_.editor-search-match]:text-inherit
 
                 text-[16px]
 

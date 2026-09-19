@@ -1,5 +1,6 @@
 import { create } from "zustand"
 import type { ProseMirrorJSON } from "@/types/scene"
+import type { SpellcheckLanguage } from "@/types/editor-search"
 import type { EditorPaneId } from "@/components/editor/editor-types"
 
 export type SaveStatus = "idle" | "dirty" | "saving" | "saved" | "error"
@@ -7,6 +8,12 @@ export type SaveStatus = "idle" | "dirty" | "saving" | "saved" | "error"
 export type EditorCitationFocus = {
   sceneId: string
   textQuote: string
+}
+
+export type EditorSearchFocus = {
+  sceneId: string
+  query: string
+  occurrence: number
 }
 
 type EditorState = {
@@ -25,6 +32,9 @@ type EditorState = {
   lastSavedAtByPane: Record<EditorPaneId, string | null>
   errorByPane: Record<EditorPaneId, string | null>
   citationFocus: EditorCitationFocus | null
+  searchFocus: EditorSearchFocus | null
+  searchQuery: string
+  spellcheckLanguage: SpellcheckLanguage
 
   setActiveScene: (id: string) => void
   setSelectedSceneVersion: (id: string | null) => void
@@ -38,6 +48,10 @@ type EditorState = {
   setPaneError: (paneId: EditorPaneId, message: string) => void
   focusCitation: (focus: EditorCitationFocus) => void
   clearCitationFocus: () => void
+  focusSearch: (focus: EditorSearchFocus) => void
+  clearSearchFocus: () => void
+  setSearchQuery: (query: string) => void
+  setSpellcheckLanguage: (language: SpellcheckLanguage) => void
 }
 
 export const useEditorStore = create<EditorState>((set) => ({
@@ -52,6 +66,9 @@ export const useEditorStore = create<EditorState>((set) => ({
   lastSavedAtByPane: { primary: null, secondary: null },
   errorByPane: { primary: null, secondary: null },
   citationFocus: null,
+  searchFocus: null,
+  searchQuery: "",
+  spellcheckLanguage: "es-AR",
 
   setActiveScene: (id) =>
     set((state) => ({
@@ -128,4 +145,8 @@ export const useEditorStore = create<EditorState>((set) => ({
     })),
   focusCitation: (citationFocus) => set({ citationFocus }),
   clearCitationFocus: () => set({ citationFocus: null }),
+  focusSearch: (searchFocus) => set({ searchFocus }),
+  clearSearchFocus: () => set({ searchFocus: null }),
+  setSearchQuery: (searchQuery) => set({ searchQuery }),
+  setSpellcheckLanguage: (spellcheckLanguage) => set({ spellcheckLanguage }),
 }))
