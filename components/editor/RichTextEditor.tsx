@@ -19,7 +19,10 @@ import { EntityLinkHoverTooltip } from "./entity-link/entity-link-hover-tooltip"
 import { SelectionBubbleMenu } from "./selection-menu/selection-bubble-menu"
 import { SceneDivider } from "./scene-divider"
 import { ParagraphFormatting } from "./paragraph-formatting"
+import { ListFormatting } from "./list-formatting"
+import { TextFormatting } from "./text-formatting"
 import { EditorMenuBar } from "./editor-menu-bar"
+import { ListNumberingMenu } from "./list-numbering-menu"
 import type {
   EditorPaneId,
   EditorToolbarActions,
@@ -103,6 +106,8 @@ export function RichTextEditor({
         },
       }),
       ParagraphFormatting,
+      ListFormatting,
+      TextFormatting,
       EditorImage.configure({
         inline: false,
         allowBase64: false,
@@ -285,6 +290,7 @@ export function RichTextEditor({
             )}
 
             <SelectionBubbleMenu editor={editor} projectId={projectId} />
+            <ListNumberingMenu editor={editor} />
             <EntityLinkHoverTooltip
               editor={editor}
               onGoToEntity={goToEntity}
