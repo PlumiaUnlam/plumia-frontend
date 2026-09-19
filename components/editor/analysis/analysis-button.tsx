@@ -13,7 +13,7 @@ export function AnalysisButton({ isSaving, onClick }: AnalysisButtonProps) {
       type="button"
       size="sm"
       variant="outline"
-      className="h-7 gap-1.5 px-2 text-[10px]"
+      className="h-7 gap-1.5 border-[#dadce0] bg-transparent px-2 text-[10px] text-[#3c4043] hover:bg-[#e8eaed] hover:text-[#202124]"
       onClick={onClick}
       title={isSaving ? "Guardando y programando analisis" : "Analizar cambios"}
     >

@@ -18,6 +18,8 @@ import { useEntityLink } from "./entity-link/use-entity-link"
 import { EntityLinkHoverTooltip } from "./entity-link/entity-link-hover-tooltip"
 import { SelectionBubbleMenu } from "./selection-menu/selection-bubble-menu"
 import { SceneDivider } from "./scene-divider"
+import { ParagraphFormatting } from "./paragraph-formatting"
+import { EditorMenuBar } from "./editor-menu-bar"
 import type {
   EditorPaneId,
   EditorToolbarActions,
@@ -32,9 +34,11 @@ type RichTextEditorProps = {
   content?: ProseMirrorJSON | null
   versionLabel: string
   onChange?: (json: ProseMirrorJSON) => void
+  onSave?: () => void
   onAnalyzeChanges?: () => void
   isAnalysisSaving?: boolean
   isZenMode?: boolean
+  onToggleZenMode?: () => void
   paneId?: EditorPaneId
   saveNow?: () => Promise<unknown>
   showToolbar?: boolean
@@ -55,9 +59,11 @@ export function RichTextEditor({
   content,
   versionLabel,
   onChange,
+  onSave,
   onAnalyzeChanges,
   isAnalysisSaving = false,
   isZenMode = false,
+  onToggleZenMode,
   paneId = "primary",
   saveNow,
   showToolbar = true,
@@ -96,6 +102,7 @@ export function RichTextEditor({
           autolink: false,
         },
       }),
+      ParagraphFormatting,
       EditorImage.configure({
         inline: false,
         allowBase64: false,
@@ -211,6 +218,21 @@ export function RichTextEditor({
         onChange={handleFileSelected}
       />
 
+      {showToolbar && !isZenMode && (
+        <EditorMenuBar
+          editor={editor}
+          versionLabel={versionLabel}
+          onSave={onSave}
+          onInsertImage={openImagePicker}
+          onAnalyzeChanges={onAnalyzeChanges}
+          isAnalysisSaving={isAnalysisSaving}
+          onToggleZenMode={onToggleZenMode}
+          isZenMode={isZenMode}
+          onInsertDivider={(variant) =>
+            editor.chain().focus().setSceneDivider(variant).run()
+          }
+        />
+      )}
       {showToolbar && (
         <EditorToolbar
           editor={editor}

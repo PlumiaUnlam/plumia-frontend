@@ -19,6 +19,7 @@ import {
   type SavedSceneResult,
 } from "@/hooks/use-autosave"
 import { requestKnowledgeRefresh } from "@/hooks/use-knowledge-refresh"
+import { EditorMenuBar } from "./editor-menu-bar"
 import { EditorToolbar } from "./toolbar"
 import { RichTextEditor } from "./RichTextEditor"
 import { AnalysisToast } from "./analysis/analysis-toast"
@@ -36,6 +37,7 @@ type SceneEditorProps = {
   selectedVersionId: string | null
   projectId: string
   isZenMode: boolean
+  onToggleZenMode: () => void
   paneId: EditorPaneId
   showToolbar: boolean
   onEditorFocus?: () => void
@@ -55,6 +57,7 @@ function SceneEditor({
   selectedVersionId,
   projectId,
   isZenMode,
+  onToggleZenMode,
   paneId,
   showToolbar,
   onEditorFocus,
@@ -146,11 +149,13 @@ function SceneEditor({
             : "Borrador principal"
         }
         onChange={handleContentChange}
+        onSave={() => void saveNow()}
         onAnalyzeChanges={
           selectedVersionId === null ? handleAnalyzeChanges : undefined
         }
         isAnalysisSaving={saveStatus === "saving"}
         isZenMode={isZenMode}
+        onToggleZenMode={onToggleZenMode}
         paneId={paneId}
         saveNow={saveNow}
         showToolbar={showToolbar}
@@ -172,6 +177,7 @@ function SceneDocumentLoader({
   chapterTitle,
   sceneTitle,
   isZenMode,
+  onToggleZenMode,
   showToolbar,
   onEditorFocus,
   onToolbarActionsChange,
@@ -186,6 +192,7 @@ function SceneDocumentLoader({
   chapterTitle: string
   sceneTitle?: string
   isZenMode: boolean
+  onToggleZenMode: () => void
   showToolbar: boolean
   onEditorFocus?: () => void
   onToolbarActionsChange?: (
@@ -262,6 +269,7 @@ function SceneDocumentLoader({
       selectedVersionId={selectedVersionId}
       projectId={projectId}
       isZenMode={isZenMode}
+      onToggleZenMode={onToggleZenMode}
       paneId={paneId}
       showToolbar={showToolbar}
       onEditorFocus={onEditorFocus}
@@ -349,6 +357,7 @@ function EditorPanel({
   projectId,
   paneId,
   isZenMode,
+  onToggleZenMode,
   showToolbar,
   onEditorFocus,
   onToolbarActionsChange,
@@ -362,6 +371,7 @@ function EditorPanel({
   projectId: string
   paneId: EditorPaneId
   isZenMode: boolean
+  onToggleZenMode: () => void
   showToolbar: boolean
   onEditorFocus?: () => void
   onToolbarActionsChange?: (
@@ -380,6 +390,7 @@ function EditorPanel({
       chapterTitle={section.chapterTitle}
       sceneTitle={section.title}
       isZenMode={isZenMode}
+      onToggleZenMode={onToggleZenMode}
       showToolbar={showToolbar}
       onEditorFocus={onEditorFocus}
       onToolbarActionsChange={onToolbarActionsChange}
@@ -396,12 +407,14 @@ function EditorWorkspace({
   projectId,
   sections,
   isZenMode,
+  onToggleZenMode,
 }: {
   sceneId: string
   selectedVersionId: string | null
   projectId: string
   sections: EditorSectionOption[]
   isZenMode: boolean
+  onToggleZenMode: () => void
 }) {
   const setActiveScene = useEditorStore((s) => s.setActiveScene)
   const [isSplit, setIsSplit] = useState(false)
@@ -550,14 +563,33 @@ function EditorWorkspace({
 
   return (
     <div className="relative flex h-full min-h-0 flex-col">
-      {effectiveIsSplit && (
+      {effectiveIsSplit && focusedActions && !isZenMode && (
+        <EditorMenuBar
+          editor={focusedActions.editor}
+          versionLabel={focusedActions.versionLabel}
+          onSave={() => void focusedActions.saveNow()}
+          onInsertImage={focusedActions.onInsertImage}
+          onAnalyzeChanges={focusedActions.onAnalyzeChanges}
+          isAnalysisSaving={focusedActions.isAnalysisSaving}
+          onToggleZenMode={onToggleZenMode}
+          isZenMode={isZenMode}
+          onInsertDivider={(variant) =>
+            focusedActions.editor
+              .chain()
+              .focus()
+              .setSceneDivider(variant)
+              .run()
+          }
+        />
+      )}
+      {effectiveIsSplit && focusedActions && (
         <EditorToolbar
-          editor={focusedActions?.editor ?? null}
-          versionLabel={focusedActions?.versionLabel ?? "Borrador principal"}
-          onInsertImage={focusedActions?.onInsertImage}
-          isUploadingImage={focusedActions?.isUploadingImage}
-          onAnalyzeChanges={focusedActions?.onAnalyzeChanges}
-          isAnalysisSaving={focusedActions?.isAnalysisSaving}
+          editor={focusedActions.editor}
+          versionLabel={focusedActions.versionLabel}
+          onInsertImage={focusedActions.onInsertImage}
+          isUploadingImage={focusedActions.isUploadingImage}
+          onAnalyzeChanges={focusedActions.onAnalyzeChanges}
+          isAnalysisSaving={focusedActions.isAnalysisSaving}
           isZenMode={isZenMode}
           paneId={focusedPane}
           onToggleSplit={() => void handleToggleSplit()}
@@ -606,6 +638,7 @@ function EditorWorkspace({
               projectId={projectId}
               paneId="primary"
               isZenMode={isZenMode}
+              onToggleZenMode={onToggleZenMode}
               showToolbar={!effectiveIsSplit}
               onEditorFocus={() => setFocusedPane("primary")}
               onToolbarActionsChange={registerPrimaryActions}
@@ -638,6 +671,7 @@ function EditorWorkspace({
                 projectId={projectId}
                 paneId="secondary"
                 isZenMode={isZenMode}
+                onToggleZenMode={onToggleZenMode}
                 showToolbar={false}
                 onEditorFocus={() => setFocusedPane("secondary")}
                 onToolbarActionsChange={registerSecondaryActions}
@@ -658,11 +692,13 @@ export function EditorContainer({
   projectId,
   isZenMode,
   sections,
+  onToggleZenMode,
 }: {
   sceneId: string
   projectId: string
   isZenMode: boolean
   sections: EditorSectionOption[]
+  onToggleZenMode: () => void
 }) {
   const selectedVersionId = useEditorStore((s) => s.selectedSceneVersionId)
 
@@ -673,6 +709,7 @@ export function EditorContainer({
       projectId={projectId}
       sections={sections}
       isZenMode={isZenMode}
+      onToggleZenMode={onToggleZenMode}
     />
   )
 }
