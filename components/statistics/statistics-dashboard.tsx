@@ -5,12 +5,14 @@ import {
   BarChart3,
   BookOpen,
   CalendarCheck2,
+  CalendarDays,
   ChevronDown,
   ChevronRight,
   Clock3,
   Flame,
   Gauge,
   Loader2,
+  Pencil,
   RefreshCw,
   Save,
   Sparkles,
@@ -23,6 +25,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
+  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
@@ -30,6 +33,14 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -175,101 +186,228 @@ function ActivityChart({
   );
 }
 
-function GoalEditor({
-  projectId,
+function GoalCard({
   type,
   goal,
-  onSaved,
 }: {
-  projectId: string;
   type: WritingGoalType;
   goal?: WritingGoal;
+}) {
+  const label = type === "DAILY" ? "Meta diaria" : "Meta semanal";
+  const period = type === "DAILY" ? "Cada día" : "Cada semana";
+
+  return (
+    <div className="rounded-xl border bg-background/70 p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <span className="rounded-lg bg-primary/10 p-2 text-primary">
+            <Target className="size-4" />
+          </span>
+          <div>
+            <p className="font-medium">{label}</p>
+            <p className="text-xs text-muted-foreground">{period}</p>
+          </div>
+        </div>
+        {goal ? (
+          <Badge variant="secondary">{goal.progressPercent}%</Badge>
+        ) : (
+          <Badge variant="outline">Sin configurar</Badge>
+        )}
+      </div>
+      {goal ? (
+        <div className="mt-5 space-y-3">
+          <div className="flex items-end justify-between gap-3">
+            <p className="text-2xl font-semibold tracking-tight">
+              {formatNumber(goal.currentWords)}
+            </p>
+            <p className="pb-0.5 text-xs text-muted-foreground">
+              de {formatNumber(goal.targetWords)} palabras
+            </p>
+          </div>
+          <ProgressBar value={goal.progressPercent} />
+          <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <CalendarDays className="size-3.5" />
+            {goal.deadline
+              ? `Fecha objetivo: ${formatLongDate(goal.deadline)}`
+              : "Sin fecha objetivo"}
+          </p>
+        </div>
+      ) : (
+        <p className="mt-5 text-sm text-muted-foreground">
+          Definí una cantidad de palabras para empezar a medir tu avance.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function GoalsDialog({
+  onOpenChange,
+  projectId,
+  dailyGoal,
+  weeklyGoal,
+  onSaved,
+}: {
+  onOpenChange: (open: boolean) => void;
+  projectId: string;
+  dailyGoal?: WritingGoal;
+  weeklyGoal?: WritingGoal;
   onSaved: () => Promise<void>;
 }) {
-  const [target, setTarget] = useState(String(goal?.targetWords ?? ""));
-  const [deadline, setDeadline] = useState(
-    goal?.deadline ? goal.deadline.slice(0, 10) : "",
+  const [dailyTarget, setDailyTarget] = useState(
+    String(dailyGoal?.targetWords ?? ""),
+  );
+  const [dailyDeadline, setDailyDeadline] = useState(
+    dailyGoal?.deadline?.slice(0, 10) ?? "",
+  );
+  const [weeklyTarget, setWeeklyTarget] = useState(
+    String(weeklyGoal?.targetWords ?? ""),
+  );
+  const [weeklyDeadline, setWeeklyDeadline] = useState(
+    weeklyGoal?.deadline?.slice(0, 10) ?? "",
   );
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
-  const label = type === "DAILY" ? "Meta diaria" : "Meta semanal";
-  const placeholder = type === "DAILY" ? "500" : "3500";
-
   const handleSave = async () => {
-    const parsedTarget = Number(target);
-    if (!Number.isInteger(parsedTarget) || parsedTarget < 1) {
-      setMessage("Ingresá una cantidad válida de palabras.");
+    const entries = [
+      {
+        type: "DAILY" as const,
+        target: dailyTarget,
+        deadline: dailyDeadline,
+      },
+      {
+        type: "WEEKLY" as const,
+        target: weeklyTarget,
+        deadline: weeklyDeadline,
+      },
+    ].filter((entry) => entry.target.trim());
+
+    if (!entries.length) {
+      setMessage("Definí al menos una meta para continuar.");
+      return;
+    }
+
+    if (
+      entries.some((entry) => {
+        const value = Number(entry.target);
+        return !Number.isInteger(value) || value < 1 || value > 1_000_000;
+      })
+    ) {
+      setMessage("Ingresá cantidades válidas de entre 1 y 1.000.000 palabras.");
       return;
     }
 
     setSaving(true);
     setMessage(null);
     try {
-      await upsertWritingGoal(projectId, type, {
-        targetWords: parsedTarget,
-        ...(deadline
-          ? { deadline: new Date(`${deadline}T12:00:00`).toISOString() }
-          : {}),
-      });
+      await Promise.all(
+        entries.map((entry) =>
+          upsertWritingGoal(projectId, entry.type, {
+            targetWords: Number(entry.target),
+            ...(entry.deadline
+              ? {
+                  deadline: new Date(
+                    `${entry.deadline}T12:00:00`,
+                  ).toISOString(),
+                }
+              : {}),
+          }),
+        ),
+      );
       await onSaved();
-      setMessage("Meta guardada");
+      onOpenChange(false);
     } catch (error) {
       setMessage(
-        error instanceof Error ? error.message : "No se pudo guardar la meta",
+        error instanceof Error ? error.message : "No se pudieron guardar las metas",
       );
     } finally {
       setSaving(false);
     }
   };
 
+  const fields = [
+    {
+      type: "daily",
+      title: "Meta diaria",
+      description: "La cantidad que querés escribir cada día.",
+      placeholder: "500",
+      target: dailyTarget,
+      deadline: dailyDeadline,
+      setTarget: setDailyTarget,
+      setDeadline: setDailyDeadline,
+    },
+    {
+      type: "weekly",
+      title: "Meta semanal",
+      description: "Tu objetivo acumulado de lunes a domingo.",
+      placeholder: "3500",
+      target: weeklyTarget,
+      deadline: weeklyDeadline,
+      setTarget: setWeeklyTarget,
+      setDeadline: setWeeklyDeadline,
+    },
+  ];
+
   return (
-    <div className="rounded-xl border bg-background/70 p-4">
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <div>
-          <p className="font-medium">{label}</p>
-          <p className="text-xs text-muted-foreground">
-            {goal
-              ? `${formatNumber(goal.currentWords)} de ${formatNumber(goal.targetWords)} palabras`
-              : "Todavía no configurada"}
-          </p>
+    <Dialog open onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Definir metas de escritura</DialogTitle>
+          <DialogDescription>
+            Configurá una o ambas metas. Podés volver a editarlas cuando cambie
+            tu ritmo.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {fields.map((field) => (
+            <div key={field.type} className="rounded-xl border bg-background p-4">
+              <div className="mb-4">
+                <p className="font-medium">{field.title}</p>
+                <p className="text-xs text-muted-foreground">
+                  {field.description}
+                </p>
+              </div>
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor={`${field.type}-target`}>Palabras</Label>
+                  <Input
+                    id={`${field.type}-target`}
+                    type="number"
+                    min={1}
+                    max={1_000_000}
+                    placeholder={field.placeholder}
+                    value={field.target}
+                    onChange={(event) => field.setTarget(event.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor={`${field.type}-deadline`}>
+                    Fecha objetivo <span className="font-normal text-muted-foreground">(opcional)</span>
+                  </Label>
+                  <Input
+                    id={`${field.type}-deadline`}
+                    type="date"
+                    value={field.deadline}
+                    onChange={(event) => field.setDeadline(event.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
-        {goal ? (
-          <Badge variant="secondary">{goal.progressPercent}%</Badge>
-        ) : null}
-      </div>
-      {goal ? <ProgressBar value={goal.progressPercent} /> : null}
-      <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
-        <div className="space-y-1.5">
-          <Label htmlFor={`${type}-target`}>Palabras</Label>
-          <Input
-            id={`${type}-target`}
-            type="number"
-            min={1}
-            max={1_000_000}
-            placeholder={placeholder}
-            value={target}
-            onChange={(event) => setTarget(event.target.value)}
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor={`${type}-deadline`}>Fecha objetivo</Label>
-          <Input
-            id={`${type}-deadline`}
-            type="date"
-            value={deadline}
-            onChange={(event) => setDeadline(event.target.value)}
-          />
-        </div>
-        <Button onClick={() => void handleSave()} disabled={saving}>
-          {saving ? <Loader2 className="animate-spin" /> : <Save />}
-          Guardar
-        </Button>
-      </div>
-      {message ? (
-        <p className="mt-2 text-xs text-muted-foreground">{message}</p>
-      ) : null}
-    </div>
+        {message ? <p className="text-sm text-destructive">{message}</p> : null}
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
+            Cancelar
+          </Button>
+          <Button onClick={() => void handleSave()} disabled={saving}>
+            {saving ? <Loader2 className="animate-spin" /> : <Save />}
+            Guardar metas
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -371,6 +509,7 @@ export function StatisticsDashboard({ projectId }: { projectId: string }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [goalsDialogOpen, setGoalsDialogOpen] = useState(false);
 
   const loadDashboard = useCallback(
     async (signal?: AbortSignal, silent = false) => {
@@ -398,13 +537,17 @@ export function StatisticsDashboard({ projectId }: { projectId: string }) {
 
   useEffect(() => {
     const controller = new AbortController();
-    void loadDashboard(controller.signal);
+    const initialLoadId = window.setTimeout(
+      () => void loadDashboard(controller.signal),
+      0,
+    );
     const intervalId = window.setInterval(
       () => void loadDashboard(controller.signal, true),
       REFRESH_INTERVAL_MS,
     );
     return () => {
       controller.abort();
+      window.clearTimeout(initialLoadId);
       window.clearInterval(intervalId);
     };
   }, [loadDashboard]);
@@ -551,27 +694,35 @@ export function StatisticsDashboard({ projectId }: { projectId: string }) {
               </Card>
               <Card>
                 <CardHeader>
-                  <CardTitle>Metas personales</CardTitle>
-                  <CardDescription>
-                    Definí objetivos sostenibles para consolidar tu hábito.
-                  </CardDescription>
+                  <div>
+                    <CardTitle>Mis metas</CardTitle>
+                    <CardDescription>
+                      Tu avance diario y semanal en un solo lugar.
+                    </CardDescription>
+                  </div>
+                  <CardAction>
+                    <Button size="sm" onClick={() => setGoalsDialogOpen(true)}>
+                      <Pencil />
+                      Definir metas
+                    </Button>
+                  </CardAction>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <GoalEditor
-                    projectId={projectId}
-                    type="DAILY"
-                    goal={goals.get("DAILY")}
-                    onSaved={() => loadDashboard(undefined, true)}
-                  />
-                  <GoalEditor
-                    projectId={projectId}
-                    type="WEEKLY"
-                    goal={goals.get("WEEKLY")}
-                    onSaved={() => loadDashboard(undefined, true)}
-                  />
+                  <GoalCard type="DAILY" goal={goals.get("DAILY")} />
+                  <GoalCard type="WEEKLY" goal={goals.get("WEEKLY")} />
                 </CardContent>
               </Card>
             </div>
+
+            {goalsDialogOpen ? (
+              <GoalsDialog
+                onOpenChange={setGoalsDialogOpen}
+                projectId={projectId}
+                dailyGoal={goals.get("DAILY")}
+                weeklyGoal={goals.get("WEEKLY")}
+                onSaved={() => loadDashboard(undefined, true)}
+              />
+            ) : null}
 
             <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
               <Card>
