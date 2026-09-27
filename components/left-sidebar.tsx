@@ -424,17 +424,22 @@ export function LeftSidebar({
                   variant="ghost"
                   size="icon-sm"
                   className="h-10 w-full flex-col gap-0.5 px-0 text-muted-foreground hover:text-foreground group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:w-8"
-                  aria-label="Estadisticas"
+                  onClick={() =>
+                    router.push(
+                      `/projects/${encodeURIComponent(projectId)}/statistics`,
+                    )
+                  }
+                  aria-label="Estadísticas"
                 >
                   <TrendingUp className="size-4" />
                   <span className="max-w-full truncate text-[7.5px] font-medium leading-none group-data-[collapsible=icon]:hidden">
-                    Estadisticas
+                    Estadísticas
                   </span>
                 </Button>
               </TooltipTrigger>
               {showFooterTooltips ? (
                 <TooltipContent side="right" sideOffset={8}>
-                  Estadisticas
+                  Estadísticas
                 </TooltipContent>
               ) : null}
             </Tooltip>
