@@ -36,6 +36,8 @@ export function Header({ mode, onModeChange, onExportClick }: HeaderProps) {
     segments[1] === "projects" && segments[3] === "worldbuilding";
   const isStoryboardPage =
     segments[1] === "projects" && segments[3] === "storyboard";
+  const isStatisticsPage =
+    segments[1] === "projects" && segments[3] === "statistics";
 
   return (
     <header className="relative z-10 flex h-12 shrink-0 items-center gap-3 bg-primary px-4 text-primary-foreground">
@@ -55,7 +57,7 @@ export function Header({ mode, onModeChange, onExportClick }: HeaderProps) {
           <span className="text-white">Plum</span><span className="text-primary-foreground opacity-75">IA</span>
         </Link>
 
-        {(isWorldbuildingPage || isStoryboardPage) && projectId && (
+        {(isWorldbuildingPage || isStoryboardPage || isStatisticsPage) && projectId && (
           <Button variant="ghost" onClick={() => router.push(`/projects/${projectId}/editor`)}>Volver al editor</Button>
         )}
       </div>
