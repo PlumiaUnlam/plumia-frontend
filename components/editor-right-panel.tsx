@@ -11,6 +11,7 @@ import {
 import useSWR from "swr";
 
 import { ChatPanel } from "@/components/chat-panel";
+import { StatsSidebarPanel } from "@/components/statistics/stats-sidebar-panel";
 import { WikiPanel } from "@/components/wiki-panel";
 import { getEntities } from "@/services/entities.service";
 import {
@@ -377,7 +378,9 @@ export function EditorRightPanel({
             />
           )}
 
-          {activeTab === "stats" && <div className="min-h-0 flex-1" />}
+          {activeTab === "stats" && (
+            <StatsSidebarPanel projectId={projectId} />
+          )}
         </div>
       </div>
 
