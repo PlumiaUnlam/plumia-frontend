@@ -14,6 +14,7 @@ import type { WritingMode } from "@/types/writing-mode"
 import type { EditorSectionOption } from "./editor-types"
 import type { EditorSearchMatch, SpellcheckLanguage } from "@/types/editor-search"
 import { ExportDialog } from "@/components/export/export-dialog"
+import { ShareDialog } from "@/components/sharing/share-dialog"
 
 type EditorLayoutProps = {
   projectId: string
@@ -25,6 +26,7 @@ export function EditorLayout({ projectId }: EditorLayoutProps) {
   const [projectsError, setProjectsError] = useState<string | null>(null)
   const [writingMode, setWritingMode] = useState<WritingMode>("review")
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false)
+  const [isShareDialogOpen, setIsShareDialogOpen] = useState(false)
   const [isSearchPanelOpen, setIsSearchPanelOpen] = useState(false)
   const [isSpellcheckSettingsOpen, setIsSpellcheckSettingsOpen] = useState(false)
   const [draftSpellcheckLanguage, setDraftSpellcheckLanguage] =
@@ -108,6 +110,16 @@ export function EditorLayout({ projectId }: EditorLayoutProps) {
     [books],
   )
 
+  const activeBookId = useMemo(
+    () =>
+      books.find((book) =>
+        book.chapters.some((chapter) =>
+          chapter.scenes.some((scene) => scene.id === activeSceneId),
+        ),
+      )?.id ?? null,
+    [activeSceneId, books],
+  )
+
   const loadProject = useCallback(async () => {
     if (!projectId) {
       setProjectsError("No se selecciono un proyecto.")
@@ -184,6 +196,7 @@ export function EditorLayout({ projectId }: EditorLayoutProps) {
       <Header
         mode={writingMode}
         onModeChange={setWritingMode}
+        onShareClick={() => setIsShareDialogOpen(true)}
         onExportClick={() => setIsExportDialogOpen(true)}
       />
 
@@ -250,6 +263,14 @@ export function EditorLayout({ projectId }: EditorLayoutProps) {
         isHistoricalVersion={Boolean(selectedSceneVersionId)}
         onOpenChange={setIsExportDialogOpen}
         onBeforeExport={saveBeforeExport}
+      />
+
+      <ShareDialog
+        books={books}
+        activeBookId={activeBookId}
+        open={isShareDialogOpen}
+        onOpenChange={setIsShareDialogOpen}
+        onBeforeShare={saveBeforeExport}
       />
 
       <SpellcheckSettingsDialog

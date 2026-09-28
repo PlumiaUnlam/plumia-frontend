@@ -1,9 +1,11 @@
 "use client"
 
 import {
+  useCallback,
   createContext,
   useContext,
   useEffect,
+  useRef,
   useState,
   type ReactNode,
 } from "react"
@@ -43,28 +45,68 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null)
 
+class BackendSyncError extends Error {
+  constructor(
+    readonly status: number,
+    message: string,
+  ) {
+    super(message)
+    this.name = "BackendSyncError"
+  }
+}
+
+async function requestBackendUser(idToken: string): Promise<BackendUser> {
+  const response = await fetch(`${API_URL}/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ idToken }),
+  })
+
+  if (!response.ok) {
+    const errorText = await response.text()
+    throw new BackendSyncError(
+      response.status,
+      `Failed to sync user with backend (${response.status}): ${errorText}`,
+    )
+  }
+
+  const data = (await response.json()) as { user: BackendUser }
+  return data.user
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null)
   const [user, setUser] = useState<BackendUser | null>(null)
   const [loading, setLoading] = useState(true)
+  const syncInFlightRef = useRef<Promise<void> | null>(null)
 
-  const syncBackendUser = async (idToken: string) => {
-    const response = await fetch(`${API_URL}/auth/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ idToken }),
+  const syncBackendUser = useCallback((fbUser: FirebaseUser) => {
+    if (syncInFlightRef.current) return syncInFlightRef.current
+
+    const sync = (async () => {
+      let token = await fbUser.getIdToken()
+      let backendUser: BackendUser
+
+      try {
+        backendUser = await requestBackendUser(token)
+      } catch (error) {
+        if (!(error instanceof BackendSyncError) || error.status !== 401) {
+          throw error
+        }
+
+        token = await fbUser.getIdToken(true)
+        backendUser = await requestBackendUser(token)
+      }
+
+      document.cookie = `__session=${token}; path=/; max-age=604800; SameSite=Lax`
+      setUser(backendUser)
+    })().finally(() => {
+      syncInFlightRef.current = null
     })
 
-    if (!response.ok) {
-      const errorText = await response.text()
-      throw new Error(
-        `Failed to sync user with backend (${response.status}): ${errorText}`,
-      )
-    }
-
-    const data = (await response.json()) as { user: BackendUser }
-    setUser(data.user)
-  }
+    syncInFlightRef.current = sync
+    return sync
+  }, [])
 
   useEffect(() => {
     const unsubscribe = onIdTokenChanged(auth, async (fbUser) => {
@@ -72,9 +114,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       try {
         if (fbUser) {
-          const token = await fbUser.getIdToken()
-          document.cookie = `__session=${token}; path=/; max-age=604800; SameSite=Lax`
-          await syncBackendUser(token)
+          await syncBackendUser(fbUser)
         } else {
           document.cookie = "__session=; path=/; max-age=0"
           setUser(null)
@@ -89,12 +129,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })
 
     return unsubscribe
-  }, [])
+  }, [syncBackendUser])
 
   const login = async (email: string, password: string) => {
     const credential = await signInWithEmailAndPassword(auth, email, password)
-    const token = await credential.user.getIdToken()
-    await syncBackendUser(token)
+    await syncBackendUser(credential.user)
   }
 
   const register = async (email: string, password: string) => {
@@ -103,8 +142,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       email,
       password,
     )
-    const token = await credential.user.getIdToken()
-    await syncBackendUser(token)
+    await syncBackendUser(credential.user)
   }
 
   const logout = async () => {

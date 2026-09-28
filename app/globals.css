@@ -51,6 +51,49 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+.shared-reader-prose {
+  color: color-mix(in oklch, var(--foreground) 92%, transparent);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.08rem;
+  line-height: 1.9;
+}
+
+.shared-reader-prose p {
+  margin-block: 0.75em;
+}
+
+.shared-reader-prose h1,
+.shared-reader-prose h2,
+.shared-reader-prose h3 {
+  margin-block: 1.4em 0.6em;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.shared-reader-prose blockquote {
+  margin-block: 1.2em;
+  border-left: 3px solid color-mix(in oklch, var(--primary) 30%, transparent);
+  padding-left: 1rem;
+  color: var(--muted-foreground);
+  font-style: italic;
+}
+
+.shared-comment-highlight {
+  cursor: pointer;
+  border-bottom: 2px solid #d29b16;
+  background: color-mix(in srgb, #facc15 23%, transparent);
+  transition: background-color 120ms ease;
+}
+
+.shared-comment-highlight:hover {
+  background: color-mix(in srgb, #facc15 42%, transparent);
+}
+
+.shared-comment-highlight--resolved {
+  border-bottom-color: #94a3b8;
+  background: color-mix(in srgb, #cbd5e1 25%, transparent);
+}
+
 :root {
   --background: #f5f1fb;
   --foreground: #1c0f33;

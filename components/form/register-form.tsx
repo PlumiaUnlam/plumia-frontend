@@ -82,7 +82,8 @@ export function RegisterForm() {
 
     try {
       await register(values.email.trim(), values.password)
-      router.push("/dashboard")
+      const params = new URLSearchParams(globalThis.location?.search ?? "")
+      router.push(params.get("redirect") || "/dashboard")
     } catch {
       setGeneralError("No se pudo crear la cuenta. El email podría estar en uso.")
     } finally {
@@ -213,7 +214,15 @@ export function RegisterForm() {
                   variant="link"
                   type="button"
                   className="p-0 h-auto text-xs font-medium"
-                  onClick={() => void router.push("/login")}
+                  onClick={() => {
+                    const params = new URLSearchParams(globalThis.location?.search ?? "")
+                    const redirect = params.get("redirect")
+                    void router.push(
+                      redirect
+                        ? `/login?redirect=${encodeURIComponent(redirect)}`
+                        : "/login",
+                    )
+                  }}
                 >
                   Inicia sesión
                 </Button>
