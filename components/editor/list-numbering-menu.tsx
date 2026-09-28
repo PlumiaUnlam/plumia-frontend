@@ -48,6 +48,64 @@ type ListNumberingActionsButtonProps = {
   editor: Editor
 }
 
+type StartNumberDialogProps = {
+  open: boolean
+  inputId: string
+  value: string
+  onOpenChange: (open: boolean) => void
+  onValueChange: (value: string) => void
+  onApply: () => void
+}
+
+function StartNumberDialog({
+  open,
+  inputId,
+  value,
+  onOpenChange,
+  onValueChange,
+  onApply,
+}: StartNumberDialogProps) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="w-[min(22rem,calc(100vw-1.5rem))] max-w-none gap-0 overflow-hidden p-0">
+        <DialogHeader className="border-b border-[#dadce0] px-5 py-4">
+          <DialogTitle className="text-[#202124]">
+            Comenzar numeración desde
+          </DialogTitle>
+          <DialogDescription className="text-[#5f6368]">
+            Elegí el número inicial para la lista actual.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-2 px-5 py-4">
+          <Label htmlFor={inputId} className="text-xs font-medium text-[#5f6368]">
+            Número inicial
+          </Label>
+          <Input
+            id={inputId}
+            type="number"
+            min="1"
+            step="1"
+            value={value}
+            onChange={(event) => onValueChange(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") onApply()
+            }}
+            className="h-9"
+          />
+        </div>
+        <DialogFooter className="mx-0 mb-0 border-t border-[#dadce0] bg-[#f8fafd] px-5 py-3 sm:flex-row sm:justify-end">
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            Cancelar
+          </Button>
+          <Button type="button" onClick={onApply}>
+            Aplicar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 /** Toolbar access for the same actions available from an ordered-list marker. */
 export function ListNumberingActionsButton({
   editor,
@@ -111,42 +169,14 @@ export function ListNumberingActionsButton({
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <Dialog open={startDialogOpen} onOpenChange={setStartDialogOpen}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Comenzar numeración desde</DialogTitle>
-            <DialogDescription>
-              Elegí el número inicial para la lista actual.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2">
-            <Label htmlFor="ordered-list-start-toolbar">Número inicial</Label>
-            <Input
-              id="ordered-list-start-toolbar"
-              type="number"
-              min="1"
-              step="1"
-              value={startValue}
-              onChange={(event) => setStartValue(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") applyStartValue()
-              }}
-            />
-          </div>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setStartDialogOpen(false)}
-            >
-              Cancelar
-            </Button>
-            <Button type="button" onClick={applyStartValue}>
-              Aplicar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <StartNumberDialog
+        open={startDialogOpen}
+        inputId="ordered-list-start-toolbar"
+        value={startValue}
+        onOpenChange={setStartDialogOpen}
+        onValueChange={setStartValue}
+        onApply={applyStartValue}
+      />
     </>
   )
 }
@@ -358,42 +388,14 @@ export function ListNumberingMenu({ editor }: ListNumberingMenuProps) {
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <Dialog open={startDialogOpen} onOpenChange={setStartDialogOpen}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Comenzar numeración desde</DialogTitle>
-            <DialogDescription>
-              Elegí el número inicial para la lista actual.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2">
-            <Label htmlFor="ordered-list-start">Número inicial</Label>
-            <Input
-              id="ordered-list-start"
-              type="number"
-              min="1"
-              step="1"
-              value={startValue}
-              onChange={(event) => setStartValue(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") applyStartValue()
-              }}
-            />
-          </div>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setStartDialogOpen(false)}
-            >
-              Cancelar
-            </Button>
-            <Button type="button" onClick={applyStartValue}>
-              Aplicar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <StartNumberDialog
+        open={startDialogOpen}
+        inputId="ordered-list-start"
+        value={startValue}
+        onOpenChange={setStartDialogOpen}
+        onValueChange={setStartValue}
+        onApply={applyStartValue}
+      />
     </>
   )
 }

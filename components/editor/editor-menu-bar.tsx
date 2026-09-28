@@ -172,7 +172,7 @@ export function EditorMenuBar({
   return (
     <nav
       aria-label="Menú del editor"
-      className="mx-2 mt-1 flex min-h-10 flex-wrap items-center gap-0.5 rounded-t-md border border-b-0 border-[#dadce0] bg-[#f8fafd] px-1"
+      className="editor-menu-bar mx-2 mt-1 flex min-h-10 flex-nowrap items-center gap-0.5 rounded-t-md border border-b-0 border-[#dadce0] bg-[#f8fafd] px-1 max-[680px]:flex-wrap"
     >
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -365,7 +365,7 @@ export function EditorMenuBar({
               <span>Color de texto</span>
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent
-              className={`w-[min(20rem,calc(100vw-1rem))] max-w-[calc(100vw-1rem)] p-2 ${menuContentClass}`}
+              className={`w-[min(24rem,calc(100vw-1rem))] max-w-[calc(100vw-1rem)] max-h-[min(70vh,28rem)] overflow-y-auto p-2 ${menuContentClass}`}
             >
               <DropdownMenuLabel>Color de texto</DropdownMenuLabel>
               <ColorPalette

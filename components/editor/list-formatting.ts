@@ -24,7 +24,7 @@ export const BULLET_LIST_COLORS = [
   { value: "#db2777", label: "Rosa" },
 ] as const
 
-export type BulletListColor = (typeof BULLET_LIST_COLORS)[number]["value"]
+export type BulletListColor = string
 export type OrderedListColor = BulletListColor
 
 export const ORDERED_LIST_STYLES = [
@@ -67,16 +67,16 @@ const bulletStyleValues = new Set<string>(
   BULLET_LIST_STYLES.map((style) => style.value),
 )
 
-const bulletColorValues = new Set<string>(
-  BULLET_LIST_COLORS.map((color) => color.value),
-)
-
 function isBulletListStyle(value: string): value is BulletListStyle {
   return bulletStyleValues.has(value)
 }
 
+function isHexColor(value: string) {
+  return /^#[0-9a-f]{6}$/i.test(value)
+}
+
 function isBulletListColor(value: string): value is BulletListColor {
-  return bulletColorValues.has(value)
+  return value === "currentColor" || isHexColor(value)
 }
 
 function parseBulletListStyle(element: HTMLElement): BulletListStyle {

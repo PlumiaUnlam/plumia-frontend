@@ -12,12 +12,10 @@ export const TEXT_COLORS = [
   { value: "#db2777", label: "Rosa" },
 ] as const
 
-export type TextColor = (typeof TEXT_COLORS)[number]["value"]
-
-const textColorValues = new Set<string>(TEXT_COLORS.map((color) => color.value))
+export type TextColor = string
 
 function isTextColor(value: string): value is TextColor {
-  return textColorValues.has(value)
+  return value === "inherit" || /^#[0-9a-f]{6}$/i.test(value)
 }
 
 /** Stores font color as a real inline mark so it survives JSON autosaves. */

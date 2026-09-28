@@ -4,18 +4,19 @@ import {
   AlignJustify,
   AlignLeft,
   AlignRight,
+  Baseline,
   Bold,
   ChevronDown,
   IndentDecrease,
   IndentIncrease,
   Columns2,
+  FileText,
   ImagePlus,
   Italic,
   Loader2,
   List as ListIcon,
   ListOrdered,
   ListX,
-  Palette,
   SeparatorHorizontal,
   Redo2,
   Undo2,
@@ -149,7 +150,7 @@ export function EditorToolbar({
   }
 
   const toolbar = (
-    <div className="mx-2 mb-1 flex min-h-11 flex-wrap items-center gap-0.5 rounded-b-md border border-[#dadce0] bg-[#f1f3f4] px-2 py-1 text-[#3c4043] shadow-sm">
+    <div className="editor-toolbar mx-2 mb-1 flex min-h-11 flex-nowrap items-center gap-0.5 rounded-b-md border border-[#dadce0] bg-[#f1f3f4] px-2 py-1 text-[#3c4043] shadow-sm max-[900px]:flex-wrap">
       <Button
         type="button"
         size="icon-sm"
@@ -219,12 +220,12 @@ export function EditorToolbar({
             aria-label="Cambiar color de texto"
             onMouseDown={(event) => event.preventDefault()}
           >
-            <Palette className="h-4 w-4" />
+            <Baseline className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent
           align="start"
-          className={`w-[min(20rem,calc(100vw-1rem))] max-w-[calc(100vw-1rem)] p-2 ${toolbarMenuClass}`}
+            className={`w-[min(24rem,calc(100vw-1rem))] max-w-[calc(100vw-1rem)] max-h-[min(70vh,28rem)] overflow-y-auto p-2 ${toolbarMenuClass}`}
         >
           <DropdownMenuLabel>Color de texto</DropdownMenuLabel>
           <ColorPalette
@@ -469,9 +470,14 @@ export function EditorToolbar({
         </Button>
       )}
 
-      <div className="ml-auto flex min-w-0 items-center gap-0.5 border-l border-[#dadce0] pl-2">
-        <span className="max-w-48 truncate rounded-md border border-[#dadce0] bg-white px-2 py-1 text-[11px] font-medium text-[#5f6368]">
-          {versionLabel}
+      <div className="ml-auto flex shrink-0 items-center gap-0.5 border-l border-[#dadce0] pl-2">
+        <span
+          className="flex size-8 items-center justify-center rounded-md border border-[#dadce0] bg-white text-[#5f6368]"
+          title={versionLabel}
+          aria-label={versionLabel}
+        >
+          <FileText className="size-4" />
+          <span className="sr-only">{versionLabel}</span>
         </span>
         {onInsertImage && (
           <Button

@@ -11,18 +11,18 @@ export function AnalysisButton({ isSaving, onClick }: AnalysisButtonProps) {
   return (
     <Button
       type="button"
-      size="sm"
+      size="icon-sm"
       variant="outline"
-      className="h-7 gap-1.5 border-[#dadce0] bg-transparent px-2 text-[10px] text-[#3c4043] hover:bg-[#e8eaed] hover:text-[#202124]"
+      className="h-8 w-8 border-[#dadce0] bg-transparent text-[#3c4043] hover:bg-[#e8eaed] hover:text-[#202124]"
       onClick={onClick}
       title={isSaving ? "Guardando y programando analisis" : "Analizar cambios"}
+      aria-label={isSaving ? "Guardando y programando análisis" : "Analizar cambios"}
     >
       {isSaving ? (
         <Loader2 className="size-3 animate-spin" />
       ) : (
         <Sparkles className="size-3" />
       )}
-      <span className="hidden sm:inline">Analizar cambios</span>
     </Button>
   )
 }
