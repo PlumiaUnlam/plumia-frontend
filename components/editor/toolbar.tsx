@@ -4,14 +4,19 @@ import {
   AlignJustify,
   AlignLeft,
   AlignRight,
+  Baseline,
   Bold,
   ChevronDown,
   IndentDecrease,
   IndentIncrease,
   Columns2,
+  FileText,
   ImagePlus,
   Italic,
   Loader2,
+  List as ListIcon,
+  ListOrdered,
+  ListX,
   SeparatorHorizontal,
   Redo2,
   Undo2,
@@ -42,6 +47,10 @@ import {
   type ParagraphAttributes,
 } from "./paragraph-formatting"
 import { ParagraphFormatDialog } from "./paragraph-format-dialog"
+import { ListStyleGrid } from "./list-style-grid"
+import { removeCurrentList } from "./list-formatting"
+import { ListNumberingActionsButton } from "./list-numbering-menu"
+import { ColorPalette } from "./color-palette"
 
 const toolbarButtonClass =
   "h-8 rounded-md text-[#3c4043] hover:bg-[#e8eaed] hover:text-[#202124]"
@@ -96,6 +105,11 @@ export function EditorToolbar({
       isParagraph: currentEditor.isActive("paragraph"),
       canUndo: currentEditor.can().undo(),
       canRedo: currentEditor.can().redo(),
+      isBulletList: currentEditor.isActive("bulletList"),
+      isOrderedList: currentEditor.isActive("orderedList"),
+      isTextColor: currentEditor.isActive("textColor"),
+      canLiftListItem: currentEditor.can().liftListItem("listItem"),
+      canSinkListItem: currentEditor.can().sinkListItem("listItem"),
       attributes: currentEditor.getAttributes(
         "paragraph",
       ) as Partial<ParagraphAttributes>,
@@ -107,23 +121,36 @@ export function EditorToolbar({
     ...paragraphState.attributes,
   }
   const paragraphEnabled = paragraphState.isParagraph
+  const listEnabled = paragraphState.isBulletList || paragraphState.isOrderedList
 
   const updateParagraph = (attributes: Partial<ParagraphAttributes>) => {
     editor.chain().focus().updateAttributes("paragraph", attributes).run()
   }
 
-  const increaseIndent = () =>
+  const increaseIndent = () => {
+    if (listEnabled) {
+      editor.chain().focus().sinkListItem("listItem").run()
+      return
+    }
+
     updateParagraph({
       indentLeft: Math.min(8, paragraphAttributes.indentLeft + 1),
     })
+  }
 
-  const decreaseIndent = () =>
+  const decreaseIndent = () => {
+    if (listEnabled) {
+      editor.chain().focus().liftListItem("listItem").run()
+      return
+    }
+
     updateParagraph({
       indentLeft: Math.max(0, paragraphAttributes.indentLeft - 1),
     })
+  }
 
   const toolbar = (
-    <div className="mx-2 mb-1 flex min-h-11 flex-wrap items-center gap-0.5 rounded-b-md border border-[#dadce0] bg-[#f1f3f4] px-2 py-1 text-[#3c4043] shadow-sm">
+    <div className="editor-toolbar mx-2 mb-1 flex min-h-11 flex-nowrap items-center gap-0.5 rounded-b-md border border-[#dadce0] bg-[#f1f3f4] px-2 py-1 text-[#3c4043] shadow-sm max-[900px]:flex-wrap">
       <Button
         type="button"
         size="icon-sm"
@@ -188,6 +215,135 @@ export function EditorToolbar({
             type="button"
             size="icon-sm"
             variant="ghost"
+            className={`${toolbarButtonClass} ${paragraphState.isTextColor ? "bg-[#d3e3fd] text-[#174ea6] hover:bg-[#c2d7f8]" : ""}`}
+            title="Color de texto"
+            aria-label="Cambiar color de texto"
+            onMouseDown={(event) => event.preventDefault()}
+          >
+            <Baseline className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          align="start"
+            className={`w-[min(24rem,calc(100vw-1rem))] max-w-[calc(100vw-1rem)] max-h-[min(70vh,28rem)] overflow-y-auto p-2 ${toolbarMenuClass}`}
+        >
+          <DropdownMenuLabel>Color de texto</DropdownMenuLabel>
+          <ColorPalette
+            editor={editor}
+            kind="text"
+            menuItemClass={toolbarMenuItemClass}
+          />
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <div className="flex items-center">
+        <Button
+          type="button"
+          size="icon-sm"
+          variant="ghost"
+          className={`${toolbarButtonClass} rounded-r-none pr-1 ${paragraphState.isBulletList ? "bg-[#d3e3fd] text-[#174ea6] hover:bg-[#c2d7f8]" : ""}`}
+          title="Lista con viñetas"
+          aria-label="Lista con viñetas"
+          aria-pressed={paragraphState.isBulletList}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => editor.chain().focus().toggleBulletList().run()}
+        >
+          <ListIcon className="h-4 w-4" />
+        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              size="icon-sm"
+              variant="ghost"
+              className={`${toolbarButtonClass} -ml-px rounded-l-none px-0.5 ${paragraphState.isBulletList ? "bg-[#d3e3fd] text-[#174ea6] hover:bg-[#c2d7f8]" : ""}`}
+              title="Biblioteca de viñetas"
+              aria-label="Abrir biblioteca de viñetas"
+              onMouseDown={(event) => event.preventDefault()}
+            >
+              <ChevronDown className="h-3 w-3" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="start"
+            className={`w-[min(34rem,calc(100vw-1rem))] max-w-[calc(100vw-1rem)] max-h-[min(75vh,38rem)] overflow-x-hidden overflow-y-auto p-2 ${toolbarMenuClass}`}
+          >
+            <DropdownMenuLabel>Biblioteca de viñetas</DropdownMenuLabel>
+            <ListStyleGrid
+              editor={editor}
+              kind="bullet"
+              menuItemClass={toolbarMenuItemClass}
+            />
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      <div className="flex items-center">
+        <Button
+          type="button"
+          size="icon-sm"
+          variant="ghost"
+          className={`${toolbarButtonClass} rounded-r-none pr-1 ${paragraphState.isOrderedList ? "bg-[#d3e3fd] text-[#174ea6] hover:bg-[#c2d7f8]" : ""}`}
+          title="Lista numerada"
+          aria-label="Lista numerada"
+          aria-pressed={paragraphState.isOrderedList}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => editor.chain().focus().toggleOrderedList().run()}
+        >
+          <ListOrdered className="h-4 w-4" />
+        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              size="icon-sm"
+              variant="ghost"
+              className={`${toolbarButtonClass} -ml-px rounded-l-none px-0.5 ${paragraphState.isOrderedList ? "bg-[#d3e3fd] text-[#174ea6] hover:bg-[#c2d7f8]" : ""}`}
+              title="Biblioteca de numeración"
+              aria-label="Abrir biblioteca de numeración"
+              onMouseDown={(event) => event.preventDefault()}
+            >
+              <ChevronDown className="h-3 w-3" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="start"
+            className={`w-[min(34rem,calc(100vw-1rem))] max-w-[calc(100vw-1rem)] max-h-[min(75vh,38rem)] overflow-x-hidden overflow-y-auto p-2 ${toolbarMenuClass}`}
+          >
+            <DropdownMenuLabel>Biblioteca de numeración</DropdownMenuLabel>
+            <ListStyleGrid
+              editor={editor}
+              kind="ordered"
+              menuItemClass={toolbarMenuItemClass}
+            />
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      <ListNumberingActionsButton editor={editor} />
+
+      <Button
+        type="button"
+        size="icon-sm"
+        variant="ghost"
+        className={toolbarButtonClass}
+        disabled={!paragraphState.isBulletList && !paragraphState.isOrderedList}
+        title="Quitar formato de lista"
+        aria-label="Quitar formato de lista"
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={() => removeCurrentList(editor)}
+      >
+        <ListX className="h-4 w-4" />
+      </Button>
+
+      <div className="mx-1 h-5 w-px bg-[#dadce0]" />
+
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            type="button"
+            size="icon-sm"
+            variant="ghost"
             className={toolbarButtonClass}
             disabled={!paragraphEnabled}
             title="Alineación del párrafo"
@@ -233,7 +389,7 @@ export function EditorToolbar({
         size="icon-sm"
         variant="ghost"
         className={toolbarButtonClass}
-        disabled={!paragraphEnabled || paragraphAttributes.indentLeft <= 0}
+        disabled={listEnabled ? !paragraphState.canLiftListItem : !paragraphEnabled || paragraphAttributes.indentLeft <= 0}
         title="Disminuir sangría izquierda"
         aria-label="Disminuir sangría izquierda"
         onMouseDown={(event) => event.preventDefault()}
@@ -247,7 +403,7 @@ export function EditorToolbar({
         size="icon-sm"
         variant="ghost"
         className={toolbarButtonClass}
-        disabled={!paragraphEnabled || paragraphAttributes.indentLeft >= 8}
+        disabled={listEnabled ? !paragraphState.canSinkListItem : !paragraphEnabled || paragraphAttributes.indentLeft >= 8}
         title="Aumentar sangría izquierda"
         aria-label="Aumentar sangría izquierda"
         onMouseDown={(event) => event.preventDefault()}
@@ -314,9 +470,14 @@ export function EditorToolbar({
         </Button>
       )}
 
-      <div className="ml-auto flex min-w-0 items-center gap-0.5 border-l border-[#dadce0] pl-2">
-        <span className="max-w-48 truncate rounded-md border border-[#dadce0] bg-white px-2 py-1 text-[11px] font-medium text-[#5f6368]">
-          {versionLabel}
+      <div className="ml-auto flex shrink-0 items-center gap-0.5 border-l border-[#dadce0] pl-2">
+        <span
+          className="flex size-8 items-center justify-center rounded-md border border-[#dadce0] bg-white text-[#5f6368]"
+          title={versionLabel}
+          aria-label={versionLabel}
+        >
+          <FileText className="size-4" />
+          <span className="sr-only">{versionLabel}</span>
         </span>
         {onInsertImage && (
           <Button

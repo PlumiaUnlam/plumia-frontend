@@ -35,13 +35,15 @@ export function SaveStatusIndicator({
   return (
     <div
       className={cn(
-        "flex items-center gap-1.5 text-xs text-muted-foreground",
+        "flex size-8 items-center justify-center text-xs text-muted-foreground",
         saveStatus === "error" && "text-destructive",
         className,
       )}
+      title={config.label}
+      aria-label={config.label}
     >
       <Icon className={cn("size-3.5", config.spin && "animate-spin")} />
-      <span>{config.label}</span>
+      <span className="sr-only">{config.label}</span>
     </div>
   )
 }

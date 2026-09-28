@@ -179,6 +179,164 @@
   white-space: pre-wrap;
 }
 
+/* Listas del editor: marcadores visibles y alineación cómoda, como en un procesador de texto. */
+.ProseMirror ul,
+.ProseMirror ol {
+  margin: 0;
+  padding-left: 1.75rem;
+}
+
+.ProseMirror ul {
+  list-style-type: disc;
+}
+
+.ProseMirror ol {
+  list-style-type: decimal;
+}
+
+.ProseMirror li::marker {
+  color: currentColor;
+}
+
+.ProseMirror ul[data-bullet-color] > li::marker {
+  color: var(--bullet-color, currentColor);
+}
+
+.ProseMirror ol[data-list-color] li::marker {
+  color: var(--list-color, currentColor);
+}
+
+.ProseMirror ul[data-bullet-style="disc"] {
+  list-style-type: disc;
+}
+
+.ProseMirror ul[data-bullet-style="circle"] {
+  list-style-type: circle;
+}
+
+.ProseMirror ul[data-bullet-style="square"] {
+  list-style-type: square;
+}
+
+/* Presets de listas multinivel. El preset vive en la lista raíz y sus contadores
+   se mantienen aunque cada nivel sea un nodo orderedList distinto. */
+.ProseMirror ol[data-list-style="numeric-alpha-roman"],
+.ProseMirror ol[data-list-style="numeric-decimal"],
+.ProseMirror ol[data-list-style="alpha-roman"] {
+  list-style-type: none;
+  counter-reset: list-level-1 calc(var(--list-start, 1) - 1);
+}
+
+.ProseMirror ol[data-list-style="numeric-alpha-roman"] > li,
+.ProseMirror ol[data-list-style="numeric-decimal"] > li,
+.ProseMirror ol[data-list-style="alpha-roman"] > li {
+  counter-increment: list-level-1;
+}
+
+.ProseMirror ol[data-list-style="numeric-alpha-roman"] > li::marker,
+.ProseMirror ol[data-list-style="numeric-decimal"] > li::marker,
+.ProseMirror ol[data-list-style="alpha-roman"] > li::marker {
+  content: counter(list-level-1) ". ";
+}
+
+.ProseMirror ol[data-list-style="numeric-alpha-roman"] > li > ol,
+.ProseMirror ol[data-list-style="numeric-decimal"] > li > ol,
+.ProseMirror ol[data-list-style="alpha-roman"] > li > ol {
+  list-style-type: none;
+  counter-reset: list-level-2;
+}
+
+.ProseMirror ol[data-list-style="numeric-alpha-roman"] > li > ol > li,
+.ProseMirror ol[data-list-style="numeric-decimal"] > li > ol > li,
+.ProseMirror ol[data-list-style="alpha-roman"] > li > ol > li {
+  counter-increment: list-level-2;
+}
+
+.ProseMirror ol[data-list-style="numeric-alpha-roman"] > li > ol > li::marker {
+  content: counter(list-level-1) "." counter(list-level-2, lower-alpha) ". ";
+}
+
+.ProseMirror ol[data-list-style="numeric-decimal"] > li > ol > li::marker {
+  content: counter(list-level-1) "." counter(list-level-2) ". ";
+}
+
+.ProseMirror ol[data-list-style="alpha-roman"] > li > ol > li::marker {
+  content: counter(list-level-1, upper-alpha) "." counter(list-level-2, lower-alpha) ". ";
+}
+
+.ProseMirror ol[data-list-style="numeric-alpha-roman"] > li > ol > li > ol,
+.ProseMirror ol[data-list-style="numeric-decimal"] > li > ol > li > ol,
+.ProseMirror ol[data-list-style="alpha-roman"] > li > ol > li > ol {
+  list-style-type: none;
+  counter-reset: list-level-3;
+}
+
+.ProseMirror ol[data-list-style="numeric-alpha-roman"] > li > ol > li > ol > li,
+.ProseMirror ol[data-list-style="numeric-decimal"] > li > ol > li > ol > li,
+.ProseMirror ol[data-list-style="alpha-roman"] > li > ol > li > ol > li {
+  counter-increment: list-level-3;
+}
+
+.ProseMirror ol[data-list-style="numeric-alpha-roman"] > li > ol > li > ol > li::marker {
+  content: counter(list-level-1) "." counter(list-level-2, lower-alpha) "." counter(list-level-3, lower-roman) ". ";
+}
+
+.ProseMirror ol[data-list-style="numeric-decimal"] > li > ol > li > ol > li::marker {
+  content: counter(list-level-1) "." counter(list-level-2) "." counter(list-level-3) ". ";
+}
+
+.ProseMirror ol[data-list-style="alpha-roman"] > li > ol > li > ol > li::marker {
+  content: counter(list-level-1, upper-alpha) "." counter(list-level-2, lower-alpha) "." counter(list-level-3, lower-roman) ". ";
+}
+
+.ProseMirror ul[data-bullet-style="diamond"],
+.ProseMirror ul[data-bullet-style="dash"],
+.ProseMirror ul[data-bullet-style="check"] {
+  list-style-type: none;
+}
+
+.ProseMirror ul[data-bullet-style="diamond"] > li::marker,
+.ProseMirror ul[data-bullet-style="dash"] > li::marker,
+.ProseMirror ul[data-bullet-style="check"] > li::marker {
+  content: "";
+}
+
+.ProseMirror ul[data-bullet-style="diamond"] > li::before,
+.ProseMirror ul[data-bullet-style="dash"] > li::before,
+.ProseMirror ul[data-bullet-style="check"] > li::before {
+  display: inline-block;
+  width: 1.25rem;
+  margin-left: -1.25rem;
+  color: var(--bullet-color, currentColor);
+}
+
+.ProseMirror ul[data-bullet-style="diamond"] > li::before {
+  content: "◆";
+}
+
+.ProseMirror ul[data-bullet-style="dash"] > li::before {
+  content: "–";
+}
+
+.ProseMirror ul[data-bullet-style="check"] > li::before {
+  content: "✓";
+}
+
+/* Al pulsar el marcador se selecciona visualmente el ítem y se abre su menú contextual. */
+.ProseMirror li.list-marker-selected {
+  border-radius: 0.25rem;
+  background: color-mix(in srgb, var(--primary) 8%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 24%, transparent);
+}
+
+.ProseMirror li {
+  margin: 0;
+}
+
+.ProseMirror li > p {
+  margin: 0;
+}
+
 /* Separadores ornamentales insertados como nodos propios del editor. */
 .scene-divider,
 .scene-divider-preview {

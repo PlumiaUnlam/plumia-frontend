@@ -11,6 +11,10 @@ import {
   IndentDecrease,
   IndentIncrease,
   Italic,
+  List as ListIcon,
+  ListOrdered,
+  ListX,
+  Palette,
   Languages,
   Redo2,
   RotateCcw,
@@ -48,6 +52,9 @@ import {
   type ParagraphAlignment,
   type ParagraphAttributes,
 } from "./paragraph-formatting"
+import { ListStyleGrid } from "./list-style-grid"
+import { removeCurrentList } from "./list-formatting"
+import { ColorPalette } from "./color-palette"
 
 const menuButtonClass =
   "h-8 rounded-md px-3 text-sm font-medium text-[#3c4043] hover:bg-[#e8eaed] hover:text-[#202124] data-[state=open]:bg-[#d2e3fc] data-[state=open]:text-[#174ea6]"
@@ -101,6 +108,10 @@ export function EditorMenuBar({
       isParagraph: currentEditor.isActive("paragraph"),
       isBold: currentEditor.isActive("bold"),
       isItalic: currentEditor.isActive("italic"),
+      isBulletList: currentEditor.isActive("bulletList"),
+      isOrderedList: currentEditor.isActive("orderedList"),
+      canLiftListItem: currentEditor.can().liftListItem("listItem"),
+      canSinkListItem: currentEditor.can().sinkListItem("listItem"),
       paragraphAttributes: currentEditor.getAttributes(
         "paragraph",
       ) as Partial<ParagraphAttributes>,
@@ -112,9 +123,32 @@ export function EditorMenuBar({
     ...editorState.paragraphAttributes,
   }
   const paragraphEnabled = editorState.isParagraph
+  const listEnabled = editorState.isBulletList || editorState.isOrderedList
 
   const updateParagraph = (attributes: Partial<ParagraphAttributes>) => {
     editor.chain().focus().updateAttributes("paragraph", attributes).run()
+  }
+
+  const decreaseIndent = () => {
+    if (listEnabled) {
+      editor.chain().focus().liftListItem("listItem").run()
+      return
+    }
+
+    updateParagraph({
+      indentLeft: Math.max(0, paragraphAttributes.indentLeft - 1),
+    })
+  }
+
+  const increaseIndent = () => {
+    if (listEnabled) {
+      editor.chain().focus().sinkListItem("listItem").run()
+      return
+    }
+
+    updateParagraph({
+      indentLeft: Math.min(8, paragraphAttributes.indentLeft + 1),
+    })
   }
 
   const menuItem = (
@@ -138,7 +172,7 @@ export function EditorMenuBar({
   return (
     <nav
       aria-label="Menú del editor"
-      className="mx-2 mt-1 flex min-h-10 flex-wrap items-center gap-0.5 rounded-t-md border border-b-0 border-[#dadce0] bg-[#f8fafd] px-1"
+      className="editor-menu-bar mx-2 mt-1 flex min-h-10 flex-nowrap items-center gap-0.5 rounded-t-md border border-b-0 border-[#dadce0] bg-[#f8fafd] px-1 max-[680px]:flex-wrap"
     >
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -267,22 +301,20 @@ export function EditorMenuBar({
           {menuItem(
             <IndentDecrease className="h-4 w-4" />,
             "Disminuir sangría",
-            () =>
-              updateParagraph({
-                indentLeft: Math.max(0, paragraphAttributes.indentLeft - 1),
-              }),
+            decreaseIndent,
             undefined,
-            !paragraphEnabled || paragraphAttributes.indentLeft <= 0,
+            listEnabled
+              ? !editorState.canLiftListItem
+              : !paragraphEnabled || paragraphAttributes.indentLeft <= 0,
           )}
           {menuItem(
             <IndentIncrease className="h-4 w-4" />,
             "Aumentar sangría",
-            () =>
-              updateParagraph({
-                indentLeft: Math.min(8, paragraphAttributes.indentLeft + 1),
-              }),
+            increaseIndent,
             undefined,
-            !paragraphEnabled || paragraphAttributes.indentLeft >= 8,
+            listEnabled
+              ? !editorState.canSinkListItem
+              : !paragraphEnabled || paragraphAttributes.indentLeft >= 8,
           )}
           <DropdownMenuSeparator />
           {menuItem(
@@ -327,6 +359,63 @@ export function EditorMenuBar({
           >
             <Italic className="mr-2 h-4 w-4" /> Cursiva
           </DropdownMenuCheckboxItem>
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger className={menuItemClass}>
+              <Palette className="h-4 w-4" />
+              <span>Color de texto</span>
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent
+              className={`w-[min(24rem,calc(100vw-1rem))] max-w-[calc(100vw-1rem)] max-h-[min(70vh,28rem)] overflow-y-auto p-2 ${menuContentClass}`}
+            >
+              <DropdownMenuLabel>Color de texto</DropdownMenuLabel>
+              <ColorPalette
+                editor={editor}
+                kind="text"
+                menuItemClass={menuItemClass}
+              />
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+          <DropdownMenuSeparator />
+          <DropdownMenuLabel>Listas</DropdownMenuLabel>
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger className={menuItemClass}>
+              <ListIcon className="h-4 w-4" />
+              <span>Viñetas</span>
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent
+              className={`w-[min(34rem,calc(100vw-1rem))] max-w-[calc(100vw-1rem)] max-h-[min(75vh,38rem)] overflow-x-hidden overflow-y-auto p-2 ${menuContentClass}`}
+            >
+              <DropdownMenuLabel>Biblioteca de viñetas</DropdownMenuLabel>
+              <ListStyleGrid
+                editor={editor}
+                kind="bullet"
+                menuItemClass={menuItemClass}
+              />
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger className={menuItemClass}>
+              <ListOrdered className="h-4 w-4" />
+              <span>Numeración</span>
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent
+              className={`w-[min(34rem,calc(100vw-1rem))] max-w-[calc(100vw-1rem)] max-h-[min(75vh,38rem)] overflow-x-hidden overflow-y-auto p-2 ${menuContentClass}`}
+            >
+              <DropdownMenuLabel>Biblioteca de numeración</DropdownMenuLabel>
+              <ListStyleGrid
+                editor={editor}
+                kind="ordered"
+                menuItemClass={menuItemClass}
+              />
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+          {menuItem(
+            <ListX className="h-4 w-4" />,
+            "Quitar formato de lista",
+            () => removeCurrentList(editor),
+            undefined,
+            !editorState.isBulletList && !editorState.isOrderedList,
+          )}
           <DropdownMenuSeparator />
           <DropdownMenuLabel>Alineación</DropdownMenuLabel>
           <DropdownMenuRadioGroup
