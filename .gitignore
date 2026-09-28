@@ -9,6 +9,7 @@
 !.yarn/plugins
 !.yarn/releases
 !.yarn/versions
+.pnpm-store/
 
 # testing
 /coverage
@@ -48,3 +49,6 @@ yarn-error.log*
 next-env.d.ts
 
 .agents/
+# Configuración local de pnpm (el archivo ya está versionado; se mantiene oculto
+# localmente con skip-worktree para que esta regla aplique a clones nuevos).
+.npmrc
