@@ -17,6 +17,8 @@ import {
   List as ListIcon,
   ListOrdered,
   ListX,
+  Minus,
+  Plus,
   SeparatorHorizontal,
   Redo2,
   Undo2,
@@ -51,6 +53,12 @@ import { ListStyleGrid } from "./list-style-grid"
 import { removeCurrentList } from "./list-formatting"
 import { ListNumberingActionsButton } from "./list-numbering-menu"
 import { ColorPalette } from "./color-palette"
+import {
+  applyTextFontSize,
+  getActiveTextFontSize,
+  TEXT_FONT_SIZES,
+  type TextFontSize,
+} from "./text-font-size"
 
 const toolbarButtonClass =
   "h-8 rounded-md text-[#3c4043] hover:bg-[#e8eaed] hover:text-[#202124]"
@@ -108,6 +116,7 @@ export function EditorToolbar({
       isBulletList: currentEditor.isActive("bulletList"),
       isOrderedList: currentEditor.isActive("orderedList"),
       isTextColor: currentEditor.isActive("textColor"),
+      textFontSize: getActiveTextFontSize(currentEditor),
       canLiftListItem: currentEditor.can().liftListItem("listItem"),
       canSinkListItem: currentEditor.can().sinkListItem("listItem"),
       attributes: currentEditor.getAttributes(
@@ -122,6 +131,10 @@ export function EditorToolbar({
   }
   const paragraphEnabled = paragraphState.isParagraph
   const listEnabled = paragraphState.isBulletList || paragraphState.isOrderedList
+  const displayedFontSize = paragraphState.textFontSize ?? "11pt"
+  const displayedFontSizeIndex = TEXT_FONT_SIZES.findIndex(
+    ({ value }) => value === displayedFontSize,
+  )
 
   const updateParagraph = (attributes: Partial<ParagraphAttributes>) => {
     editor.chain().focus().updateAttributes("paragraph", attributes).run()
@@ -147,6 +160,11 @@ export function EditorToolbar({
     updateParagraph({
       indentLeft: Math.max(0, paragraphAttributes.indentLeft - 1),
     })
+  }
+
+  const changeFontSize = (direction: -1 | 1) => {
+    const nextFontSize = TEXT_FONT_SIZES[displayedFontSizeIndex + direction]
+    if (nextFontSize) applyTextFontSize(editor, nextFontSize.value)
   }
 
   const toolbar = (
@@ -206,6 +224,81 @@ export function EditorToolbar({
       >
         <Italic className="h-4 w-4" />
       </Button>
+
+      <div className="mx-1 flex h-8 items-center gap-0.5 border-x border-[#dadce0] px-1">
+        <Button
+          type="button"
+          size="icon-sm"
+          variant="ghost"
+          className={toolbarButtonClass}
+          title="Disminuir tamaño de fuente"
+          aria-label="Disminuir tamaño de fuente"
+          disabled={displayedFontSizeIndex <= 0}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => changeFontSize(-1)}
+        >
+          <Minus className="h-4 w-4" />
+        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-8 min-w-12 border-[#80868b] bg-white px-2 text-sm font-normal text-[#3c4043] shadow-none hover:bg-[#f8fafd] hover:text-[#202124]"
+              title={`Tamaño de fuente: ${displayedFontSize.replace("pt", "")} pt`}
+              aria-label={`Tamaño de fuente: ${displayedFontSize.replace("pt", "")} pt`}
+              onMouseDown={(event) => event.preventDefault()}
+            >
+              {displayedFontSize.replace("pt", "")}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="start"
+            className={`w-40 max-h-[min(70vh,28rem)] overflow-y-auto ${toolbarMenuClass}`}
+          >
+            <DropdownMenuLabel>Tamaño de fuente</DropdownMenuLabel>
+            <DropdownMenuRadioGroup
+              value={paragraphState.textFontSize ?? "normal"}
+              onValueChange={(value) =>
+                applyTextFontSize(
+                  editor,
+                  value === "normal" ? null : (value as TextFontSize),
+                )
+              }
+            >
+              <DropdownMenuRadioItem
+                value="normal"
+                className={toolbarMenuItemClass}
+              >
+                Normal
+              </DropdownMenuRadioItem>
+              {TEXT_FONT_SIZES.map(({ value, label }) => (
+                <DropdownMenuRadioItem
+                  key={value}
+                  value={value}
+                  className={toolbarMenuItemClass}
+                >
+                  {label}
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <Button
+          type="button"
+          size="icon-sm"
+          variant="ghost"
+          className={toolbarButtonClass}
+          title="Aumentar tamaño de fuente"
+          aria-label="Aumentar tamaño de fuente"
+          disabled={displayedFontSizeIndex >= TEXT_FONT_SIZES.length - 1}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => changeFontSize(1)}
+        >
+          <Plus className="h-4 w-4" />
+        </Button>
+      </div>
 
       <div className="mx-1 h-5 w-px bg-[#dadce0]" />
 

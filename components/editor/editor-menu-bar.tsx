@@ -23,6 +23,7 @@ import {
   SeparatorHorizontal,
   Sparkles,
   TextSelect,
+  Type,
   Undo2,
 } from "lucide-react"
 import { useEditorState } from "@tiptap/react"
@@ -55,6 +56,12 @@ import {
 import { ListStyleGrid } from "./list-style-grid"
 import { removeCurrentList } from "./list-formatting"
 import { ColorPalette } from "./color-palette"
+import {
+  applyTextFontSize,
+  getActiveTextFontSize,
+  TEXT_FONT_SIZES,
+  type TextFontSize,
+} from "./text-font-size"
 
 const menuButtonClass =
   "h-8 rounded-md px-3 text-sm font-medium text-[#3c4043] hover:bg-[#e8eaed] hover:text-[#202124] data-[state=open]:bg-[#d2e3fc] data-[state=open]:text-[#174ea6]"
@@ -108,6 +115,7 @@ export function EditorMenuBar({
       isParagraph: currentEditor.isActive("paragraph"),
       isBold: currentEditor.isActive("bold"),
       isItalic: currentEditor.isActive("italic"),
+      textFontSize: getActiveTextFontSize(currentEditor),
       isBulletList: currentEditor.isActive("bulletList"),
       isOrderedList: currentEditor.isActive("orderedList"),
       canLiftListItem: currentEditor.can().liftListItem("listItem"),
@@ -359,6 +367,44 @@ export function EditorMenuBar({
           >
             <Italic className="mr-2 h-4 w-4" /> Cursiva
           </DropdownMenuCheckboxItem>
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger className={menuItemClass}>
+              <Type className="h-4 w-4" />
+              <span>Tamaño de fuente</span>
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent
+              className={`w-40 max-h-[min(70vh,28rem)] overflow-y-auto ${menuContentClass}`}
+            >
+              <DropdownMenuLabel>Tamaño de fuente</DropdownMenuLabel>
+              <DropdownMenuRadioGroup
+                value={editorState.textFontSize ?? "normal"}
+                onValueChange={(value) =>
+                  applyTextFontSize(
+                    editor,
+                    value === "normal"
+                      ? null
+                      : (value as TextFontSize),
+                  )
+                }
+              >
+                <DropdownMenuRadioItem
+                  value="normal"
+                  className={`gap-3 ${menuItemClass}`}
+                >
+                  Normal
+                </DropdownMenuRadioItem>
+                {TEXT_FONT_SIZES.map(({ value, label }) => (
+                  <DropdownMenuRadioItem
+                    key={value}
+                    value={value}
+                    className={`gap-3 ${menuItemClass}`}
+                  >
+                    {label}
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
           <DropdownMenuSub>
             <DropdownMenuSubTrigger className={menuItemClass}>
               <Palette className="h-4 w-4" />
