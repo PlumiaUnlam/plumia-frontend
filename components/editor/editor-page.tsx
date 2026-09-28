@@ -8,8 +8,11 @@ import { SidebarProvider } from "@/components/ui/sidebar"
 import { EditorRightPanel } from "@/components/editor-right-panel"
 import { useEditorStore } from "@/stores/editor.store"
 import { EditorContainer } from "./editor-container"
+import { SearchReplacePanel } from "./search-replace-panel"
+import { SpellcheckSettingsDialog } from "./spellcheck-settings-dialog"
 import type { WritingMode } from "@/types/writing-mode"
 import type { EditorSectionOption } from "./editor-types"
+import type { EditorSearchMatch, SpellcheckLanguage } from "@/types/editor-search"
 import { ExportDialog } from "@/components/export/export-dialog"
 
 type EditorLayoutProps = {
@@ -22,8 +25,19 @@ export function EditorLayout({ projectId }: EditorLayoutProps) {
   const [projectsError, setProjectsError] = useState<string | null>(null)
   const [writingMode, setWritingMode] = useState<WritingMode>("review")
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false)
+  const [isSearchPanelOpen, setIsSearchPanelOpen] = useState(false)
+  const [isSpellcheckSettingsOpen, setIsSpellcheckSettingsOpen] = useState(false)
+  const [draftSpellcheckLanguage, setDraftSpellcheckLanguage] =
+    useState<SpellcheckLanguage>("es-AR")
   const beforeExportRef = useRef<(() => Promise<void>) | null>(null)
   const activeSceneId = useEditorStore((s) => s.activeSceneId)
+  const currentContent = useEditorStore((s) => s.currentContent)
+  const setActiveScene = useEditorStore((s) => s.setActiveScene)
+  const focusSearch = useEditorStore((s) => s.focusSearch)
+  const clearSearchFocus = useEditorStore((s) => s.clearSearchFocus)
+  const setSearchQuery = useEditorStore((s) => s.setSearchQuery)
+  const setSpellcheckLanguage = useEditorStore((s) => s.setSpellcheckLanguage)
+  const refreshEditorDocument = useEditorStore((s) => s.refreshEditorDocument)
   const selectedSceneVersionId = useEditorStore(
     (s) => s.selectedSceneVersionId,
   )
@@ -38,6 +52,46 @@ export function EditorLayout({ projectId }: EditorLayoutProps) {
   const saveBeforeExport = useCallback(async () => {
     await beforeExportRef.current?.()
   }, [])
+
+  const handleOpenSpellcheckSettings = useCallback(() => {
+    setDraftSpellcheckLanguage(useEditorStore.getState().spellcheckLanguage)
+    setIsSpellcheckSettingsOpen(true)
+  }, [])
+
+  const handleSaveSpellcheckSettings = useCallback(() => {
+    setSpellcheckLanguage(draftSpellcheckLanguage)
+    window.localStorage.setItem(
+      "plumia:spellcheck-language",
+      draftSpellcheckLanguage,
+    )
+    setIsSpellcheckSettingsOpen(false)
+  }, [draftSpellcheckLanguage, setSpellcheckLanguage])
+
+  const handleSearchPanelChange = useCallback(
+    (open: boolean) => {
+      setIsSearchPanelOpen(open)
+      if (!open) {
+        setSearchQuery("")
+        clearSearchFocus()
+      }
+    },
+    [clearSearchFocus, setSearchQuery],
+  )
+
+  const handleNavigateToMatch = useCallback(
+    async (match: EditorSearchMatch) => {
+      await beforeExportRef.current?.()
+      if (useEditorStore.getState().activeSceneId !== match.sceneId) {
+        setActiveScene(match.sceneId)
+      }
+      focusSearch({
+        sceneId: match.sceneId,
+        query: match.matchedText,
+        occurrence: match.occurrence,
+      })
+    },
+    [focusSearch, setActiveScene],
+  )
 
   const sections = useMemo<EditorSectionOption[]>(
     () =>
@@ -67,6 +121,21 @@ export function EditorLayout({ projectId }: EditorLayoutProps) {
     setProjectsError(null)
   }, [projectId])
 
+  const handleScenesUpdated = useCallback(
+    async (sceneIds: string[]) => {
+      if (activeSceneId && sceneIds.includes(activeSceneId)) {
+        refreshEditorDocument()
+      }
+
+      try {
+        await loadProject()
+      } catch (error) {
+        console.error("Error refreshing project after replacement:", error)
+      }
+    },
+    [activeSceneId, loadProject, refreshEditorDocument],
+  )
+
   useEffect(() => {
     let isMounted = true
 
@@ -83,6 +152,32 @@ export function EditorLayout({ projectId }: EditorLayoutProps) {
       isMounted = false
     }
   }, [loadProject])
+
+  useEffect(() => {
+    const handleShortcut = (event: KeyboardEvent) => {
+      if (
+        (event.ctrlKey || event.metaKey) &&
+        event.shiftKey &&
+        event.key.toLowerCase() === "f"
+      ) {
+        event.preventDefault()
+        setIsSearchPanelOpen(true)
+      }
+    }
+
+    window.addEventListener("keydown", handleShortcut)
+    return () => window.removeEventListener("keydown", handleShortcut)
+  }, [])
+
+  useEffect(() => {
+    const storedLanguage = window.localStorage.getItem(
+      "plumia:spellcheck-language",
+    )
+
+    if (storedLanguage === "es-AR" || storedLanguage === "en-US") {
+      setSpellcheckLanguage(storedLanguage)
+    }
+  }, [setSpellcheckLanguage])
 
   return (
     <div className="flex h-screen max-h-screen flex-col overflow-hidden bg-background text-foreground">
@@ -118,10 +213,24 @@ export function EditorLayout({ projectId }: EditorLayoutProps) {
                   )
                 }
                 sections={sections}
+                onOpenSearch={() => setIsSearchPanelOpen(true)}
+                onOpenSpellcheckSettings={handleOpenSpellcheckSettings}
                 onBeforeExportChange={registerBeforeExport}
               />
             )}
           </main>
+
+          <SearchReplacePanel
+            open={isSearchPanelOpen}
+            onOpenChange={handleSearchPanelChange}
+            sections={sections}
+            activeSceneId={activeSceneId}
+            currentContent={currentContent}
+            selectedSceneVersionId={selectedSceneVersionId}
+            onNavigateToMatch={handleNavigateToMatch}
+            onPrepareWrite={saveBeforeExport}
+            onScenesUpdated={handleScenesUpdated}
+          />
 
           {writingMode !== "zen" && (
             <EditorRightPanel
@@ -141,6 +250,14 @@ export function EditorLayout({ projectId }: EditorLayoutProps) {
         isHistoricalVersion={Boolean(selectedSceneVersionId)}
         onOpenChange={setIsExportDialogOpen}
         onBeforeExport={saveBeforeExport}
+      />
+
+      <SpellcheckSettingsDialog
+        open={isSpellcheckSettingsOpen}
+        language={draftSpellcheckLanguage}
+        onLanguageChange={setDraftSpellcheckLanguage}
+        onOpenChange={setIsSpellcheckSettingsOpen}
+        onSave={handleSaveSpellcheckSettings}
       />
     </div>
   )

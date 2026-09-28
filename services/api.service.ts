@@ -77,6 +77,16 @@ export const api = {
     body: FormData,
     options: Pick<RequestInit, "signal"> = {},
   ) => request<T>(path, { method: "POST", body, ...options }),
+  put: <T>(
+    path: string,
+    body: unknown,
+    options: Pick<RequestInit, "signal"> = {},
+  ) =>
+    request<T>(path, {
+      method: "PUT",
+      body: JSON.stringify(body),
+      ...options,
+    }),
   patch: <T>(
     path: string,
     body: unknown,

@@ -15,9 +15,11 @@ import {
   ListOrdered,
   ListX,
   Palette,
+  Languages,
   Redo2,
   RotateCcw,
   Save,
+  Search,
   SeparatorHorizontal,
   Sparkles,
   TextSelect,
@@ -79,6 +81,8 @@ type EditorMenuBarProps = {
   onInsertDivider?: (variant: SceneDividerVariant) => void
   onAnalyzeChanges?: () => void
   onToggleZenMode?: () => void
+  onOpenSearch?: () => void
+  onOpenSpellcheckSettings?: () => void
   isAnalysisSaving?: boolean
   isZenMode?: boolean
 }
@@ -91,6 +95,8 @@ export function EditorMenuBar({
   onInsertDivider,
   onAnalyzeChanges,
   onToggleZenMode,
+  onOpenSearch,
+  onOpenSpellcheckSettings,
   isAnalysisSaving = false,
   isZenMode = false,
 }: EditorMenuBarProps) {
@@ -225,6 +231,14 @@ export function EditorMenuBar({
             "Seleccionar todo",
             () => editor.chain().focus().selectAll().run(),
             "Ctrl/Cmd+A",
+          )}
+          <DropdownMenuSeparator />
+          {menuItem(
+            <Search className="h-4 w-4" />,
+            "Buscar y reemplazar",
+            () => onOpenSearch?.(),
+            "Ctrl/Cmd+Shift+F",
+            !onOpenSearch,
           )}
         </DropdownMenuContent>
       </DropdownMenu>
@@ -444,6 +458,13 @@ export function EditorMenuBar({
             () => onAnalyzeChanges?.(),
             undefined,
             !onAnalyzeChanges || isAnalysisSaving,
+          )}
+          {menuItem(
+            <Languages className="h-4 w-4" />,
+            "Configuración del corrector",
+            () => onOpenSpellcheckSettings?.(),
+            undefined,
+            !onOpenSpellcheckSettings,
           )}
         </DropdownMenuContent>
       </DropdownMenu>
