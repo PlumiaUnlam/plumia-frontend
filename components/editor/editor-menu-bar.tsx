@@ -7,11 +7,13 @@ import {
   AlignRight,
   Bold,
   Eye,
+  Highlighter,
   ImagePlus,
   IndentDecrease,
   IndentIncrease,
   Italic,
   PaintRoller,
+  RemoveFormatting,
   List as ListIcon,
   ListOrdered,
   ListX,
@@ -22,9 +24,13 @@ import {
   Save,
   Search,
   SeparatorHorizontal,
+  Strikethrough,
+  Subscript,
+  Superscript,
   Sparkles,
   TextSelect,
   Type,
+  Underline,
   Undo2,
 } from "lucide-react"
 import { useEditorState } from "@tiptap/react"
@@ -72,6 +78,11 @@ import {
   toggleFormatPainter,
   useFormatPainterState,
 } from "./format-painter"
+import {
+  clearTextFormatting,
+  toggleSubscript,
+  toggleSuperscript,
+} from "./text-extra-formatting"
 
 const menuButtonClass =
   "h-8 rounded-md px-3 text-sm font-medium text-[#3c4043] hover:bg-[#e8eaed] hover:text-[#202124] data-[state=open]:bg-[#d2e3fc] data-[state=open]:text-[#174ea6]"
@@ -126,6 +137,11 @@ export function EditorMenuBar({
       isParagraph: currentEditor.isActive("paragraph"),
       isBold: currentEditor.isActive("bold"),
       isItalic: currentEditor.isActive("italic"),
+      isUnderline: currentEditor.isActive("underline"),
+      isStrike: currentEditor.isActive("strike"),
+      isSubscript: currentEditor.isActive("subscript"),
+      isSuperscript: currentEditor.isActive("superscript"),
+      isTextHighlight: currentEditor.isActive("textHighlight"),
       textFontSize: getActiveTextFontSize(currentEditor),
       textFontFamily: getActiveTextFontFamily(currentEditor),
       isBulletList: currentEditor.isActive("bulletList"),
@@ -364,7 +380,10 @@ export function EditorMenuBar({
             Formato
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className={`w-56 ${menuContentClass}`}>
+        <DropdownMenuContent
+          align="start"
+          className={`max-h-[min(80vh,42rem)] w-56 overflow-y-auto ${menuContentClass}`}
+        >
           <DropdownMenuItem
             disabled={!editor.isEditable}
             className={menuItemClass}
@@ -387,6 +406,47 @@ export function EditorMenuBar({
           >
             <Italic className="mr-2 h-4 w-4" /> Cursiva
           </DropdownMenuCheckboxItem>
+          <DropdownMenuCheckboxItem
+            checked={editorState.isUnderline}
+            className={menuItemClass}
+            onCheckedChange={() => editor.chain().focus().toggleUnderline().run()}
+          >
+            <Underline className="mr-2 h-4 w-4" /> Subrayado
+          </DropdownMenuCheckboxItem>
+          <DropdownMenuCheckboxItem
+            checked={editorState.isStrike}
+            className={menuItemClass}
+            onCheckedChange={() => editor.chain().focus().toggleStrike().run()}
+          >
+            <Strikethrough className="mr-2 h-4 w-4" /> Tachado
+          </DropdownMenuCheckboxItem>
+          <DropdownMenuCheckboxItem
+            checked={editorState.isSubscript}
+            className={menuItemClass}
+            onCheckedChange={() => toggleSubscript(editor)}
+          >
+            <Subscript className="mr-2 h-4 w-4" /> Subíndice
+          </DropdownMenuCheckboxItem>
+          <DropdownMenuCheckboxItem
+            checked={editorState.isSuperscript}
+            className={menuItemClass}
+            onCheckedChange={() => toggleSuperscript(editor)}
+          >
+            <Superscript className="mr-2 h-4 w-4" /> Superíndice
+          </DropdownMenuCheckboxItem>
+          <DropdownMenuCheckboxItem
+            checked={editorState.isTextHighlight}
+            className={menuItemClass}
+            onCheckedChange={() => editor.chain().focus().toggleMark("textHighlight").run()}
+          >
+            <Highlighter className="mr-2 h-4 w-4" /> Resaltado amarillo
+          </DropdownMenuCheckboxItem>
+          {menuItem(
+            <RemoveFormatting className="h-4 w-4" />,
+            "Limpiar formato",
+            () => clearTextFormatting(editor),
+          )}
+          <DropdownMenuSeparator />
           <DropdownMenuSub>
             <DropdownMenuSubTrigger className={menuItemClass}>
               <Type className="h-4 w-4" />

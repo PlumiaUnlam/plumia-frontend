@@ -137,7 +137,7 @@ export function ListNumberingActionsButton({
             type="button"
             size="icon-sm"
             variant="ghost"
-            className="h-8 rounded-md text-[#3c4043] hover:bg-[#e8eaed] hover:text-[#202124]"
+            className="h-7 w-7 rounded-md p-1 text-[#3c4043] hover:bg-[#e8eaed] hover:text-[#202124] [&_svg]:size-3.5"
             disabled={!orderedListActive}
             title="Opciones de numeración"
             aria-label="Opciones de numeración"
