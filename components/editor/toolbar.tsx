@@ -19,6 +19,7 @@ import {
   ListX,
   Minus,
   Plus,
+  PaintRoller,
   SeparatorHorizontal,
   Redo2,
   Undo2,
@@ -70,6 +71,10 @@ import {
   getFontFamilyLabel,
 } from "./text-font-family"
 import { TextFontFamilyMenuOptions } from "./text-font-family-menu-options"
+import {
+  toggleFormatPainter,
+  useFormatPainterState,
+} from "./format-painter"
 
 const toolbarButtonClass =
   "h-8 rounded-md text-[#3c4043] hover:bg-[#e8eaed] hover:text-[#202124]"
@@ -145,6 +150,7 @@ export function EditorToolbar({
   const listEnabled = paragraphState.isBulletList || paragraphState.isOrderedList
   const displayedFontSize = paragraphState.textFontSize ?? "11pt"
   const displayedFontFamily = paragraphState.textFontFamily ?? "Lora"
+  const formatPainterActive = useFormatPainterState(editor)
   const displayedFontSizeIndex = TEXT_FONT_SIZES.findIndex(
     ({ value }) => value === displayedFontSize,
   )
@@ -222,6 +228,25 @@ export function EditorToolbar({
       </Button>
 
       <div className="mx-1 h-5 w-px bg-[#dadce0]" />
+
+      <Button
+        type="button"
+        size="icon-sm"
+        variant="ghost"
+        className={`${toolbarButtonClass} ${formatPainterActive ? "bg-[#d3e3fd] text-[#174ea6] hover:bg-[#c2d7f8]" : ""}`}
+        disabled={!editor.isEditable}
+        title={
+          formatPainterActive
+            ? "Formato copiado. Seleccioná el texto destino o Esc para cancelar."
+            : "Copiar formato"
+        }
+        aria-label={formatPainterActive ? "Cancelar o aplicar formato" : "Copiar formato"}
+        aria-pressed={formatPainterActive}
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={() => toggleFormatPainter(editor)}
+      >
+        <PaintRoller className="h-4 w-4" />
+      </Button>
 
       <DropdownMenu
         open={isFontFamilyMenuOpen}

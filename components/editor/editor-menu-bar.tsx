@@ -11,6 +11,7 @@ import {
   IndentDecrease,
   IndentIncrease,
   Italic,
+  PaintRoller,
   List as ListIcon,
   ListOrdered,
   ListX,
@@ -67,6 +68,10 @@ import {
   getActiveTextFontFamily,
 } from "./text-font-family"
 import { TextFontFamilyMenuOptions } from "./text-font-family-menu-options"
+import {
+  toggleFormatPainter,
+  useFormatPainterState,
+} from "./format-painter"
 
 const menuButtonClass =
   "h-8 rounded-md px-3 text-sm font-medium text-[#3c4043] hover:bg-[#e8eaed] hover:text-[#202124] data-[state=open]:bg-[#d2e3fc] data-[state=open]:text-[#174ea6]"
@@ -112,6 +117,7 @@ export function EditorMenuBar({
   isAnalysisSaving = false,
   isZenMode = false,
 }: EditorMenuBarProps) {
+  const formatPainterActive = useFormatPainterState(editor)
   const editorState = useEditorState({
     editor,
     selector: ({ editor: currentEditor }) => ({
@@ -359,6 +365,14 @@ export function EditorMenuBar({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className={`w-56 ${menuContentClass}`}>
+          <DropdownMenuItem
+            disabled={!editor.isEditable}
+            className={menuItemClass}
+            onSelect={() => toggleFormatPainter(editor)}
+          >
+            <PaintRoller className="mr-2 h-4 w-4" />
+            {formatPainterActive ? "Cancelar o aplicar formato" : "Copiar formato"}
+          </DropdownMenuItem>
           <DropdownMenuCheckboxItem
             checked={editorState.isBold}
             className={menuItemClass}

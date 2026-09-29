@@ -218,13 +218,19 @@ const ALL_FONT_FAMILIES = [
   ...GOOGLE_FONT_FAMILIES,
 ] as const
 
+type AllFontFamilyOption = (typeof ALL_FONT_FAMILIES)[number]
+
 export type TextFontFamily = (typeof ALL_FONT_FAMILIES)[number]["value"]
+
+function getCssFontName(option: AllFontFamilyOption) {
+  return "cssName" in option ? option.cssName : undefined
+}
 
 function findFontOption(value: string): TextFontFamilyOption | undefined {
   return ALL_FONT_FAMILIES.find(
     (option) =>
       option.value.toLowerCase() === value.toLowerCase() ||
-      option.cssName?.toLowerCase() === value.toLowerCase(),
+      getCssFontName(option)?.toLowerCase() === value.toLowerCase(),
   )
 }
 
@@ -252,14 +258,14 @@ export function findTextFontFamilyByName(value: string): TextFontFamily | null {
   const exactMatch = ALL_FONT_FAMILIES.find(
     (option) =>
       option.label.toLowerCase() === normalizedValue ||
-      option.cssName?.toLowerCase() === normalizedValue,
+      getCssFontName(option)?.toLowerCase() === normalizedValue,
   )
   if (exactMatch) return exactMatch.value as TextFontFamily
 
   const partialMatches = ALL_FONT_FAMILIES.filter(
     (option) =>
       option.label.toLowerCase().startsWith(normalizedValue) ||
-      option.cssName?.toLowerCase().startsWith(normalizedValue),
+      getCssFontName(option)?.toLowerCase().startsWith(normalizedValue),
   )
   return partialMatches.length === 1
     ? (partialMatches[0].value as TextFontFamily)
