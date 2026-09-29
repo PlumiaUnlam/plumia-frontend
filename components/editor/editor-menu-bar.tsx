@@ -7,10 +7,13 @@ import {
   AlignRight,
   Bold,
   Eye,
+  Highlighter,
   ImagePlus,
   IndentDecrease,
   IndentIncrease,
   Italic,
+  PaintRoller,
+  RemoveFormatting,
   List as ListIcon,
   ListOrdered,
   ListX,
@@ -21,8 +24,13 @@ import {
   Save,
   Search,
   SeparatorHorizontal,
+  Strikethrough,
+  Subscript,
+  Superscript,
   Sparkles,
   TextSelect,
+  Type,
+  Underline,
   Undo2,
 } from "lucide-react"
 import { useEditorState } from "@tiptap/react"
@@ -55,6 +63,26 @@ import {
 import { ListStyleGrid } from "./list-style-grid"
 import { removeCurrentList } from "./list-formatting"
 import { ColorPalette } from "./color-palette"
+import {
+  applyTextFontSize,
+  getActiveTextFontSize,
+  TEXT_FONT_SIZES,
+  type TextFontSize,
+} from "./text-font-size"
+import {
+  applyTextFontFamily,
+  getActiveTextFontFamily,
+} from "./text-font-family"
+import { TextFontFamilyMenuOptions } from "./text-font-family-menu-options"
+import {
+  toggleFormatPainter,
+  useFormatPainterState,
+} from "./format-painter"
+import {
+  clearTextFormatting,
+  toggleSubscript,
+  toggleSuperscript,
+} from "./text-extra-formatting"
 
 const menuButtonClass =
   "h-8 rounded-md px-3 text-sm font-medium text-[#3c4043] hover:bg-[#e8eaed] hover:text-[#202124] data-[state=open]:bg-[#d2e3fc] data-[state=open]:text-[#174ea6]"
@@ -100,6 +128,7 @@ export function EditorMenuBar({
   isAnalysisSaving = false,
   isZenMode = false,
 }: EditorMenuBarProps) {
+  const formatPainterActive = useFormatPainterState(editor)
   const editorState = useEditorState({
     editor,
     selector: ({ editor: currentEditor }) => ({
@@ -108,6 +137,13 @@ export function EditorMenuBar({
       isParagraph: currentEditor.isActive("paragraph"),
       isBold: currentEditor.isActive("bold"),
       isItalic: currentEditor.isActive("italic"),
+      isUnderline: currentEditor.isActive("underline"),
+      isStrike: currentEditor.isActive("strike"),
+      isSubscript: currentEditor.isActive("subscript"),
+      isSuperscript: currentEditor.isActive("superscript"),
+      isTextHighlight: currentEditor.isActive("textHighlight"),
+      textFontSize: getActiveTextFontSize(currentEditor),
+      textFontFamily: getActiveTextFontFamily(currentEditor),
       isBulletList: currentEditor.isActive("bulletList"),
       isOrderedList: currentEditor.isActive("orderedList"),
       canLiftListItem: currentEditor.can().liftListItem("listItem"),
@@ -344,7 +380,18 @@ export function EditorMenuBar({
             Formato
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className={`w-56 ${menuContentClass}`}>
+        <DropdownMenuContent
+          align="start"
+          className={`max-h-[min(80vh,42rem)] w-56 overflow-y-auto ${menuContentClass}`}
+        >
+          <DropdownMenuItem
+            disabled={!editor.isEditable}
+            className={menuItemClass}
+            onSelect={() => toggleFormatPainter(editor)}
+          >
+            <PaintRoller className="mr-2 h-4 w-4" />
+            {formatPainterActive ? "Cancelar o aplicar formato" : "Copiar formato"}
+          </DropdownMenuItem>
           <DropdownMenuCheckboxItem
             checked={editorState.isBold}
             className={menuItemClass}
@@ -359,6 +406,100 @@ export function EditorMenuBar({
           >
             <Italic className="mr-2 h-4 w-4" /> Cursiva
           </DropdownMenuCheckboxItem>
+          <DropdownMenuCheckboxItem
+            checked={editorState.isUnderline}
+            className={menuItemClass}
+            onCheckedChange={() => editor.chain().focus().toggleUnderline().run()}
+          >
+            <Underline className="mr-2 h-4 w-4" /> Subrayado
+          </DropdownMenuCheckboxItem>
+          <DropdownMenuCheckboxItem
+            checked={editorState.isStrike}
+            className={menuItemClass}
+            onCheckedChange={() => editor.chain().focus().toggleStrike().run()}
+          >
+            <Strikethrough className="mr-2 h-4 w-4" /> Tachado
+          </DropdownMenuCheckboxItem>
+          <DropdownMenuCheckboxItem
+            checked={editorState.isSubscript}
+            className={menuItemClass}
+            onCheckedChange={() => toggleSubscript(editor)}
+          >
+            <Subscript className="mr-2 h-4 w-4" /> Subíndice
+          </DropdownMenuCheckboxItem>
+          <DropdownMenuCheckboxItem
+            checked={editorState.isSuperscript}
+            className={menuItemClass}
+            onCheckedChange={() => toggleSuperscript(editor)}
+          >
+            <Superscript className="mr-2 h-4 w-4" /> Superíndice
+          </DropdownMenuCheckboxItem>
+          <DropdownMenuCheckboxItem
+            checked={editorState.isTextHighlight}
+            className={menuItemClass}
+            onCheckedChange={() => editor.chain().focus().toggleMark("textHighlight").run()}
+          >
+            <Highlighter className="mr-2 h-4 w-4" /> Resaltado amarillo
+          </DropdownMenuCheckboxItem>
+          {menuItem(
+            <RemoveFormatting className="h-4 w-4" />,
+            "Limpiar formato",
+            () => clearTextFormatting(editor),
+          )}
+          <DropdownMenuSeparator />
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger className={menuItemClass}>
+              <Type className="h-4 w-4" />
+              <span>Familia tipográfica</span>
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent
+              className={`w-72 overflow-hidden p-0 ${menuContentClass}`}
+            >
+              <TextFontFamilyMenuOptions
+                value={editorState.textFontFamily ?? "Lora"}
+                onValueChange={(value) => applyTextFontFamily(editor, value)}
+                itemClassName={menuItemClass}
+              />
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger className={menuItemClass}>
+              <Type className="h-4 w-4" />
+              <span>Tamaño de fuente</span>
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent
+              className={`w-40 max-h-[min(70vh,28rem)] overflow-y-auto ${menuContentClass}`}
+            >
+              <DropdownMenuLabel>Tamaño de fuente</DropdownMenuLabel>
+              <DropdownMenuRadioGroup
+                value={editorState.textFontSize ?? "normal"}
+                onValueChange={(value) =>
+                  applyTextFontSize(
+                    editor,
+                    value === "normal"
+                      ? null
+                      : (value as TextFontSize),
+                  )
+                }
+              >
+                <DropdownMenuRadioItem
+                  value="normal"
+                  className={`gap-3 ${menuItemClass}`}
+                >
+                  Normal
+                </DropdownMenuRadioItem>
+                {TEXT_FONT_SIZES.map(({ value, label }) => (
+                  <DropdownMenuRadioItem
+                    key={value}
+                    value={value}
+                    className={`gap-3 ${menuItemClass}`}
+                  >
+                    {label}
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
           <DropdownMenuSub>
             <DropdownMenuSubTrigger className={menuItemClass}>
               <Palette className="h-4 w-4" />

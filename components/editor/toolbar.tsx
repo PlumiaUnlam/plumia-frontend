@@ -7,6 +7,7 @@ import {
   Baseline,
   Bold,
   ChevronDown,
+  Highlighter,
   IndentDecrease,
   IndentIncrease,
   Columns2,
@@ -17,13 +18,23 @@ import {
   List as ListIcon,
   ListOrdered,
   ListX,
+  Minus,
+  Plus,
+  PaintRoller,
+  RemoveFormatting,
   SeparatorHorizontal,
   Redo2,
+  Strikethrough,
+  Subscript,
+  Superscript,
+  Underline,
   Undo2,
 } from "lucide-react"
 import { useEditorState } from "@tiptap/react"
+import { useState } from "react"
 
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,6 +42,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { SaveStatusIndicator } from "./save-status-indicator"
@@ -51,9 +63,32 @@ import { ListStyleGrid } from "./list-style-grid"
 import { removeCurrentList } from "./list-formatting"
 import { ListNumberingActionsButton } from "./list-numbering-menu"
 import { ColorPalette } from "./color-palette"
+import {
+  applyTextFontSize,
+  getActiveTextFontSize,
+  TEXT_FONT_SIZES,
+  type TextFontSize,
+} from "./text-font-size"
+import {
+  applyTextFontFamily,
+  findTextFontFamilyByName,
+  getActiveTextFontFamily,
+  getFontFamilyCss,
+  getFontFamilyLabel,
+} from "./text-font-family"
+import { TextFontFamilyMenuOptions } from "./text-font-family-menu-options"
+import {
+  toggleFormatPainter,
+  useFormatPainterState,
+} from "./format-painter"
+import {
+  clearTextFormatting,
+  toggleSubscript,
+  toggleSuperscript,
+} from "./text-extra-formatting"
 
 const toolbarButtonClass =
-  "h-8 rounded-md text-[#3c4043] hover:bg-[#e8eaed] hover:text-[#202124]"
+  "h-7 w-7 rounded-md p-1 text-[#3c4043] hover:bg-[#e8eaed] hover:text-[#202124] [&_svg]:size-3.5"
 const toolbarMenuClass =
   "border-[#dadce0] bg-white text-[#3c4043] shadow-[0_3px_8px_rgba(60,64,67,0.24)]"
 const toolbarMenuItemClass =
@@ -108,6 +143,15 @@ export function EditorToolbar({
       isBulletList: currentEditor.isActive("bulletList"),
       isOrderedList: currentEditor.isActive("orderedList"),
       isTextColor: currentEditor.isActive("textColor"),
+      isBold: currentEditor.isActive("bold"),
+      isItalic: currentEditor.isActive("italic"),
+      isUnderline: currentEditor.isActive("underline"),
+      isStrike: currentEditor.isActive("strike"),
+      isSubscript: currentEditor.isActive("subscript"),
+      isSuperscript: currentEditor.isActive("superscript"),
+      isTextHighlight: currentEditor.isActive("textHighlight"),
+      textFontSize: getActiveTextFontSize(currentEditor),
+      textFontFamily: getActiveTextFontFamily(currentEditor),
       canLiftListItem: currentEditor.can().liftListItem("listItem"),
       canSinkListItem: currentEditor.can().sinkListItem("listItem"),
       attributes: currentEditor.getAttributes(
@@ -122,6 +166,15 @@ export function EditorToolbar({
   }
   const paragraphEnabled = paragraphState.isParagraph
   const listEnabled = paragraphState.isBulletList || paragraphState.isOrderedList
+  const displayedFontSize = paragraphState.textFontSize ?? "11pt"
+  const displayedFontFamily = paragraphState.textFontFamily ?? "Lora"
+  const formatPainterActive = useFormatPainterState(editor)
+  const displayedFontSizeIndex = TEXT_FONT_SIZES.findIndex(
+    ({ value }) => value === displayedFontSize,
+  )
+  const [isFontFamilyEditing, setIsFontFamilyEditing] = useState(false)
+  const [fontFamilySearch, setFontFamilySearch] = useState("")
+  const [isFontFamilyMenuOpen, setIsFontFamilyMenuOpen] = useState(false)
 
   const updateParagraph = (attributes: Partial<ParagraphAttributes>) => {
     editor.chain().focus().updateAttributes("paragraph", attributes).run()
@@ -149,8 +202,22 @@ export function EditorToolbar({
     })
   }
 
+  const changeFontSize = (direction: -1 | 1) => {
+    const nextFontSize = TEXT_FONT_SIZES[displayedFontSizeIndex + direction]
+    if (nextFontSize) applyTextFontSize(editor, nextFontSize.value)
+  }
+
+  const finishFontFamilySearch = () => {
+    const fontFamily = findTextFontFamilyByName(fontFamilySearch)
+    if (!fontFamily) return
+
+    applyTextFontFamily(editor, fontFamily)
+    setIsFontFamilyEditing(false)
+  }
+
   const toolbar = (
-    <div className="editor-toolbar mx-2 mb-1 flex min-h-11 flex-nowrap items-center gap-0.5 rounded-b-md border border-[#dadce0] bg-[#f1f3f4] px-2 py-1 text-[#3c4043] shadow-sm max-[900px]:flex-wrap">
+    <div className="editor-toolbar mx-2 mb-1 flex flex-col gap-1 rounded-b-md border border-[#dadce0] bg-[#f1f3f4] px-2 py-1 text-[#3c4043] shadow-sm">
+      <div className="flex w-full flex-wrap items-center gap-0.5">
       <Button
         type="button"
         size="icon-sm"
@@ -185,7 +252,166 @@ export function EditorToolbar({
         type="button"
         size="icon-sm"
         variant="ghost"
-        className={`${toolbarButtonClass} ${editor.isActive("bold") ? "bg-[#d3e3fd] text-[#174ea6] hover:bg-[#c2d7f8]" : ""}`}
+        className={`${toolbarButtonClass} ${formatPainterActive ? "bg-[#d3e3fd] text-[#174ea6] hover:bg-[#c2d7f8]" : ""}`}
+        disabled={!editor.isEditable}
+        title={
+          formatPainterActive
+            ? "Formato copiado. Seleccioná el texto destino o Esc para cancelar."
+            : "Copiar formato"
+        }
+        aria-label={formatPainterActive ? "Cancelar o aplicar formato" : "Copiar formato"}
+        aria-pressed={formatPainterActive}
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={() => toggleFormatPainter(editor)}
+      >
+        <PaintRoller className="h-3.5 w-3.5" />
+      </Button>
+
+      <DropdownMenu
+        open={isFontFamilyMenuOpen}
+        onOpenChange={setIsFontFamilyMenuOpen}
+      >
+        {isFontFamilyEditing ? (
+          <Input
+            autoFocus
+            value={fontFamilySearch}
+            onChange={(event) => setFontFamilySearch(event.currentTarget.value)}
+            onFocus={(event) => event.currentTarget.select()}
+            onBlur={() => setIsFontFamilyEditing(false)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault()
+                finishFontFamilySearch()
+              } else if (event.key === "Escape") {
+                event.preventDefault()
+                setIsFontFamilyEditing(false)
+              }
+            }}
+            className="h-7 w-32 rounded-md border-[#dadce0] bg-white px-2 text-sm text-[#3c4043] shadow-none focus-visible:ring-2 focus-visible:ring-[#a8c7fa]"
+            style={{ fontFamily: getFontFamilyCss(displayedFontFamily) }}
+            placeholder="Buscar fuente"
+            aria-label="Escribir y aplicar una familia tipográfica"
+            title="Escribe el nombre de una fuente y pulsa Enter"
+          />
+        ) : (
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-7 w-32 justify-between gap-2 border-[#dadce0] bg-white px-2 text-sm font-normal text-[#3c4043] shadow-none hover:bg-[#f8fafd] hover:text-[#202124]"
+              style={{ fontFamily: getFontFamilyCss(displayedFontFamily) }}
+              title={`Familia tipográfica: ${displayedFontFamily}. Doble clic para escribir una fuente.`}
+              aria-label={`Familia tipográfica: ${displayedFontFamily}`}
+              onMouseDown={(event) => event.preventDefault()}
+              onDoubleClick={(event) => {
+                event.preventDefault()
+                setFontFamilySearch(getFontFamilyLabel(displayedFontFamily))
+                setIsFontFamilyMenuOpen(false)
+                setIsFontFamilyEditing(true)
+              }}
+            >
+              <span className="truncate">
+                {getFontFamilyLabel(displayedFontFamily)}
+              </span>
+              <ChevronDown className="h-3 w-3 shrink-0" />
+            </Button>
+          </DropdownMenuTrigger>
+        )}
+        <DropdownMenuContent
+          align="start"
+          className={`w-72 overflow-hidden p-0 ${toolbarMenuClass}`}
+        >
+          <TextFontFamilyMenuOptions
+            value={displayedFontFamily}
+            onValueChange={(value) => applyTextFontFamily(editor, value)}
+            itemClassName={toolbarMenuItemClass}
+          />
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <div className="mx-1 flex h-7 items-center gap-0.5 border-x border-[#dadce0] px-1">
+        <Button
+          type="button"
+          size="icon-sm"
+          variant="ghost"
+          className={toolbarButtonClass}
+          title="Disminuir tamaño de fuente"
+          aria-label="Disminuir tamaño de fuente"
+          disabled={displayedFontSizeIndex <= 0}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => changeFontSize(-1)}
+        >
+          <Minus className="h-4 w-4" />
+        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-7 min-w-10 border-[#80868b] bg-white px-1.5 text-sm font-normal text-[#3c4043] shadow-none hover:bg-[#f8fafd] hover:text-[#202124]"
+              title={`Tamaño de fuente: ${displayedFontSize.replace("pt", "")} pt`}
+              aria-label={`Tamaño de fuente: ${displayedFontSize.replace("pt", "")} pt`}
+              onMouseDown={(event) => event.preventDefault()}
+            >
+              {displayedFontSize.replace("pt", "")}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="start"
+            className={`w-40 max-h-[min(70vh,28rem)] overflow-y-auto ${toolbarMenuClass}`}
+          >
+            <DropdownMenuLabel>Tamaño de fuente</DropdownMenuLabel>
+            <DropdownMenuRadioGroup
+              value={paragraphState.textFontSize ?? "normal"}
+              onValueChange={(value) =>
+                applyTextFontSize(
+                  editor,
+                  value === "normal" ? null : (value as TextFontSize),
+                )
+              }
+            >
+              <DropdownMenuRadioItem
+                value="normal"
+                className={toolbarMenuItemClass}
+              >
+                Normal
+              </DropdownMenuRadioItem>
+              {TEXT_FONT_SIZES.map(({ value, label }) => (
+                <DropdownMenuRadioItem
+                  key={value}
+                  value={value}
+                  className={toolbarMenuItemClass}
+                >
+                  {label}
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <Button
+          type="button"
+          size="icon-sm"
+          variant="ghost"
+          className={toolbarButtonClass}
+          title="Aumentar tamaño de fuente"
+          aria-label="Aumentar tamaño de fuente"
+          disabled={displayedFontSizeIndex >= TEXT_FONT_SIZES.length - 1}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => changeFontSize(1)}
+        >
+          <Plus className="h-4 w-4" />
+        </Button>
+      </div>
+
+      <div className="mx-1 h-5 w-px bg-[#dadce0]" />
+
+      <Button
+        type="button"
+        size="icon-sm"
+        variant="ghost"
+        className={`${toolbarButtonClass} ${paragraphState.isBold ? "bg-[#d3e3fd] text-[#174ea6] hover:bg-[#c2d7f8]" : ""}`}
         title="Negrita"
         aria-label="Negrita"
         onMouseDown={(event) => event.preventDefault()}
@@ -198,7 +424,7 @@ export function EditorToolbar({
         type="button"
         size="icon-sm"
         variant="ghost"
-        className={`${toolbarButtonClass} ${editor.isActive("italic") ? "bg-[#d3e3fd] text-[#174ea6] hover:bg-[#c2d7f8]" : ""}`}
+        className={`${toolbarButtonClass} ${paragraphState.isItalic ? "bg-[#d3e3fd] text-[#174ea6] hover:bg-[#c2d7f8]" : ""}`}
         title="Cursiva"
         aria-label="Cursiva"
         onMouseDown={(event) => event.preventDefault()}
@@ -207,7 +433,75 @@ export function EditorToolbar({
         <Italic className="h-4 w-4" />
       </Button>
 
-      <div className="mx-1 h-5 w-px bg-[#dadce0]" />
+      <Button
+        type="button"
+        size="icon-sm"
+        variant="ghost"
+        className={`${toolbarButtonClass} ${paragraphState.isUnderline ? "bg-[#d3e3fd] text-[#174ea6] hover:bg-[#c2d7f8]" : ""}`}
+        title="Subrayado"
+        aria-label="Subrayado"
+        aria-pressed={paragraphState.isUnderline}
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={() => editor.chain().focus().toggleUnderline().run()}
+      >
+        <Underline />
+      </Button>
+
+      <Button
+        type="button"
+        size="icon-sm"
+        variant="ghost"
+        className={`${toolbarButtonClass} ${paragraphState.isStrike ? "bg-[#d3e3fd] text-[#174ea6] hover:bg-[#c2d7f8]" : ""}`}
+        title="Tachado"
+        aria-label="Tachado"
+        aria-pressed={paragraphState.isStrike}
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={() => editor.chain().focus().toggleStrike().run()}
+      >
+        <Strikethrough />
+      </Button>
+
+      <Button
+        type="button"
+        size="icon-sm"
+        variant="ghost"
+        className={`${toolbarButtonClass} ${paragraphState.isSubscript ? "bg-[#d3e3fd] text-[#174ea6] hover:bg-[#c2d7f8]" : ""}`}
+        title="Subíndice"
+        aria-label="Subíndice"
+        aria-pressed={paragraphState.isSubscript}
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={() => toggleSubscript(editor)}
+      >
+        <Subscript />
+      </Button>
+
+      <Button
+        type="button"
+        size="icon-sm"
+        variant="ghost"
+        className={`${toolbarButtonClass} ${paragraphState.isSuperscript ? "bg-[#d3e3fd] text-[#174ea6] hover:bg-[#c2d7f8]" : ""}`}
+        title="Superíndice"
+        aria-label="Superíndice"
+        aria-pressed={paragraphState.isSuperscript}
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={() => toggleSuperscript(editor)}
+      >
+        <Superscript />
+      </Button>
+
+      <Button
+        type="button"
+        size="icon-sm"
+        variant="ghost"
+        className={`${toolbarButtonClass} ${paragraphState.isTextHighlight ? "bg-[#fff3b0] text-[#3c4043] hover:bg-[#ffe680]" : ""}`}
+        title="Resaltar texto en amarillo"
+        aria-label="Resaltar texto en amarillo"
+        aria-pressed={paragraphState.isTextHighlight}
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={() => editor.chain().focus().toggleMark("textHighlight").run()}
+      >
+        <Highlighter />
+      </Button>
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -235,6 +529,23 @@ export function EditorToolbar({
           />
         </DropdownMenuContent>
       </DropdownMenu>
+
+      <Button
+        type="button"
+        size="icon-sm"
+        variant="ghost"
+        className={toolbarButtonClass}
+        title="Limpiar formato"
+        aria-label="Limpiar formato"
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={() => clearTextFormatting(editor)}
+      >
+        <RemoveFormatting />
+      </Button>
+
+      </div>
+
+      <div className="flex w-full flex-wrap items-center gap-0.5">
 
       <div className="flex items-center">
         <Button
@@ -457,6 +768,7 @@ export function EditorToolbar({
           type="button"
           size="icon"
           variant={isSplit ? "default" : "ghost"}
+          className={toolbarButtonClass}
           disabled={!canSplit && !isSplit}
           onMouseDown={(event) => event.preventDefault()}
           onClick={onToggleSplit}
@@ -472,7 +784,7 @@ export function EditorToolbar({
 
       <div className="ml-auto flex shrink-0 items-center gap-0.5 border-l border-[#dadce0] pl-2">
         <span
-          className="flex size-8 items-center justify-center rounded-md border border-[#dadce0] bg-white text-[#5f6368]"
+          className="flex size-7 items-center justify-center rounded-md border border-[#dadce0] bg-white text-[#5f6368] [&_svg]:size-3.5"
           title={versionLabel}
           aria-label={versionLabel}
         >
@@ -505,13 +817,14 @@ export function EditorToolbar({
         )}
         <SaveStatusIndicator paneId={paneId} className="pr-1" />
       </div>
+      </div>
     </div>
   )
 
   if (isZenMode) {
     return (
-      <div className="group/zen-toolbar absolute inset-x-0 top-0 z-20 h-2 hover:h-12 focus-within:h-12">
-        <div className="-translate-y-10 opacity-0 shadow-sm transition-all duration-200 group-hover/zen-toolbar:translate-y-0 group-hover/zen-toolbar:opacity-100 group-focus-within/zen-toolbar:translate-y-0 group-focus-within/zen-toolbar:opacity-100">
+      <div className="group/zen-toolbar absolute inset-x-0 top-0 z-20 h-2 hover:h-20 focus-within:h-20">
+        <div className="-translate-y-20 opacity-0 shadow-sm transition-all duration-200 group-hover/zen-toolbar:translate-y-0 group-hover/zen-toolbar:opacity-100 group-focus-within/zen-toolbar:translate-y-0 group-focus-within/zen-toolbar:opacity-100">
           {toolbar}
         </div>
       </div>

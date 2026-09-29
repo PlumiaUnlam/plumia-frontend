@@ -27,6 +27,13 @@ import { SceneDivider } from "./scene-divider"
 import { ParagraphFormatting } from "./paragraph-formatting"
 import { ListFormatting } from "./list-formatting"
 import { TextFormatting } from "./text-formatting"
+import {
+  TextHighlightFormatting,
+  TextSubscriptFormatting,
+  TextSuperscriptFormatting,
+} from "./text-extra-formatting"
+import { TextFontSizeFormatting } from "./text-font-size"
+import { TextFontFamilyFormatting } from "./text-font-family"
 import { EditorMenuBar } from "./editor-menu-bar"
 import { ListNumberingMenu } from "./list-numbering-menu"
 import type {
@@ -124,6 +131,11 @@ export function RichTextEditor({
       ParagraphFormatting,
       ListFormatting,
       TextFormatting,
+      TextSubscriptFormatting,
+      TextSuperscriptFormatting,
+      TextHighlightFormatting,
+      TextFontSizeFormatting,
+      TextFontFamilyFormatting,
       EditorImage.configure({
         inline: false,
         allowBase64: false,

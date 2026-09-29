@@ -104,7 +104,7 @@ export function ParagraphFormatDialog({
           type="button"
           size="sm"
           variant="ghost"
-          className="h-8 gap-1 rounded-md px-2 text-[#3c4043] hover:bg-[#e8eaed] hover:text-[#202124]"
+          className="h-7 gap-1 rounded-md px-1.5 text-[#3c4043] hover:bg-[#e8eaed] hover:text-[#202124]"
           disabled={disabled}
           title="Más opciones de párrafo"
           aria-label="Más opciones de párrafo"
