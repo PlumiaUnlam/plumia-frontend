@@ -24,8 +24,10 @@ import {
   Undo2,
 } from "lucide-react"
 import { useEditorState } from "@tiptap/react"
+import { useState } from "react"
 
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,6 +35,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { SaveStatusIndicator } from "./save-status-indicator"
@@ -59,6 +62,14 @@ import {
   TEXT_FONT_SIZES,
   type TextFontSize,
 } from "./text-font-size"
+import {
+  applyTextFontFamily,
+  findTextFontFamilyByName,
+  getActiveTextFontFamily,
+  getFontFamilyCss,
+  getFontFamilyLabel,
+} from "./text-font-family"
+import { TextFontFamilyMenuOptions } from "./text-font-family-menu-options"
 
 const toolbarButtonClass =
   "h-8 rounded-md text-[#3c4043] hover:bg-[#e8eaed] hover:text-[#202124]"
@@ -117,6 +128,7 @@ export function EditorToolbar({
       isOrderedList: currentEditor.isActive("orderedList"),
       isTextColor: currentEditor.isActive("textColor"),
       textFontSize: getActiveTextFontSize(currentEditor),
+      textFontFamily: getActiveTextFontFamily(currentEditor),
       canLiftListItem: currentEditor.can().liftListItem("listItem"),
       canSinkListItem: currentEditor.can().sinkListItem("listItem"),
       attributes: currentEditor.getAttributes(
@@ -132,9 +144,13 @@ export function EditorToolbar({
   const paragraphEnabled = paragraphState.isParagraph
   const listEnabled = paragraphState.isBulletList || paragraphState.isOrderedList
   const displayedFontSize = paragraphState.textFontSize ?? "11pt"
+  const displayedFontFamily = paragraphState.textFontFamily ?? "Lora"
   const displayedFontSizeIndex = TEXT_FONT_SIZES.findIndex(
     ({ value }) => value === displayedFontSize,
   )
+  const [isFontFamilyEditing, setIsFontFamilyEditing] = useState(false)
+  const [fontFamilySearch, setFontFamilySearch] = useState("")
+  const [isFontFamilyMenuOpen, setIsFontFamilyMenuOpen] = useState(false)
 
   const updateParagraph = (attributes: Partial<ParagraphAttributes>) => {
     editor.chain().focus().updateAttributes("paragraph", attributes).run()
@@ -165,6 +181,14 @@ export function EditorToolbar({
   const changeFontSize = (direction: -1 | 1) => {
     const nextFontSize = TEXT_FONT_SIZES[displayedFontSizeIndex + direction]
     if (nextFontSize) applyTextFontSize(editor, nextFontSize.value)
+  }
+
+  const finishFontFamilySearch = () => {
+    const fontFamily = findTextFontFamilyByName(fontFamilySearch)
+    if (!fontFamily) return
+
+    applyTextFontFamily(editor, fontFamily)
+    setIsFontFamilyEditing(false)
   }
 
   const toolbar = (
@@ -199,31 +223,68 @@ export function EditorToolbar({
 
       <div className="mx-1 h-5 w-px bg-[#dadce0]" />
 
-      <Button
-        type="button"
-        size="icon-sm"
-        variant="ghost"
-        className={`${toolbarButtonClass} ${editor.isActive("bold") ? "bg-[#d3e3fd] text-[#174ea6] hover:bg-[#c2d7f8]" : ""}`}
-        title="Negrita"
-        aria-label="Negrita"
-        onMouseDown={(event) => event.preventDefault()}
-        onClick={() => editor.chain().focus().toggleBold().run()}
+      <DropdownMenu
+        open={isFontFamilyMenuOpen}
+        onOpenChange={setIsFontFamilyMenuOpen}
       >
-        <Bold className="h-4 w-4" />
-      </Button>
-
-      <Button
-        type="button"
-        size="icon-sm"
-        variant="ghost"
-        className={`${toolbarButtonClass} ${editor.isActive("italic") ? "bg-[#d3e3fd] text-[#174ea6] hover:bg-[#c2d7f8]" : ""}`}
-        title="Cursiva"
-        aria-label="Cursiva"
-        onMouseDown={(event) => event.preventDefault()}
-        onClick={() => editor.chain().focus().toggleItalic().run()}
-      >
-        <Italic className="h-4 w-4" />
-      </Button>
+        {isFontFamilyEditing ? (
+          <Input
+            autoFocus
+            value={fontFamilySearch}
+            onChange={(event) => setFontFamilySearch(event.currentTarget.value)}
+            onFocus={(event) => event.currentTarget.select()}
+            onBlur={() => setIsFontFamilyEditing(false)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault()
+                finishFontFamilySearch()
+              } else if (event.key === "Escape") {
+                event.preventDefault()
+                setIsFontFamilyEditing(false)
+              }
+            }}
+            className="h-8 w-36 rounded-md border-[#dadce0] bg-white px-2 text-sm text-[#3c4043] shadow-none focus-visible:ring-2 focus-visible:ring-[#a8c7fa]"
+            style={{ fontFamily: getFontFamilyCss(displayedFontFamily) }}
+            placeholder="Buscar fuente"
+            aria-label="Escribir y aplicar una familia tipográfica"
+            title="Escribe el nombre de una fuente y pulsa Enter"
+          />
+        ) : (
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-8 w-36 justify-between gap-2 border-[#dadce0] bg-white px-2 text-sm font-normal text-[#3c4043] shadow-none hover:bg-[#f8fafd] hover:text-[#202124]"
+              style={{ fontFamily: getFontFamilyCss(displayedFontFamily) }}
+              title={`Familia tipográfica: ${displayedFontFamily}. Doble clic para escribir una fuente.`}
+              aria-label={`Familia tipográfica: ${displayedFontFamily}`}
+              onMouseDown={(event) => event.preventDefault()}
+              onDoubleClick={(event) => {
+                event.preventDefault()
+                setFontFamilySearch(getFontFamilyLabel(displayedFontFamily))
+                setIsFontFamilyMenuOpen(false)
+                setIsFontFamilyEditing(true)
+              }}
+            >
+              <span className="truncate">
+                {getFontFamilyLabel(displayedFontFamily)}
+              </span>
+              <ChevronDown className="h-3 w-3 shrink-0" />
+            </Button>
+          </DropdownMenuTrigger>
+        )}
+        <DropdownMenuContent
+          align="start"
+          className={`w-72 overflow-hidden p-0 ${toolbarMenuClass}`}
+        >
+          <TextFontFamilyMenuOptions
+            value={displayedFontFamily}
+            onValueChange={(value) => applyTextFontFamily(editor, value)}
+            itemClassName={toolbarMenuItemClass}
+          />
+        </DropdownMenuContent>
+      </DropdownMenu>
 
       <div className="mx-1 flex h-8 items-center gap-0.5 border-x border-[#dadce0] px-1">
         <Button
@@ -301,6 +362,32 @@ export function EditorToolbar({
       </div>
 
       <div className="mx-1 h-5 w-px bg-[#dadce0]" />
+
+      <Button
+        type="button"
+        size="icon-sm"
+        variant="ghost"
+        className={`${toolbarButtonClass} ${editor.isActive("bold") ? "bg-[#d3e3fd] text-[#174ea6] hover:bg-[#c2d7f8]" : ""}`}
+        title="Negrita"
+        aria-label="Negrita"
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={() => editor.chain().focus().toggleBold().run()}
+      >
+        <Bold className="h-4 w-4" />
+      </Button>
+
+      <Button
+        type="button"
+        size="icon-sm"
+        variant="ghost"
+        className={`${toolbarButtonClass} ${editor.isActive("italic") ? "bg-[#d3e3fd] text-[#174ea6] hover:bg-[#c2d7f8]" : ""}`}
+        title="Cursiva"
+        aria-label="Cursiva"
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={() => editor.chain().focus().toggleItalic().run()}
+      >
+        <Italic className="h-4 w-4" />
+      </Button>
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>

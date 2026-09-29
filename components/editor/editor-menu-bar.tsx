@@ -62,6 +62,11 @@ import {
   TEXT_FONT_SIZES,
   type TextFontSize,
 } from "./text-font-size"
+import {
+  applyTextFontFamily,
+  getActiveTextFontFamily,
+} from "./text-font-family"
+import { TextFontFamilyMenuOptions } from "./text-font-family-menu-options"
 
 const menuButtonClass =
   "h-8 rounded-md px-3 text-sm font-medium text-[#3c4043] hover:bg-[#e8eaed] hover:text-[#202124] data-[state=open]:bg-[#d2e3fc] data-[state=open]:text-[#174ea6]"
@@ -116,6 +121,7 @@ export function EditorMenuBar({
       isBold: currentEditor.isActive("bold"),
       isItalic: currentEditor.isActive("italic"),
       textFontSize: getActiveTextFontSize(currentEditor),
+      textFontFamily: getActiveTextFontFamily(currentEditor),
       isBulletList: currentEditor.isActive("bulletList"),
       isOrderedList: currentEditor.isActive("orderedList"),
       canLiftListItem: currentEditor.can().liftListItem("listItem"),
@@ -367,6 +373,21 @@ export function EditorMenuBar({
           >
             <Italic className="mr-2 h-4 w-4" /> Cursiva
           </DropdownMenuCheckboxItem>
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger className={menuItemClass}>
+              <Type className="h-4 w-4" />
+              <span>Familia tipográfica</span>
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent
+              className={`w-72 overflow-hidden p-0 ${menuContentClass}`}
+            >
+              <TextFontFamilyMenuOptions
+                value={editorState.textFontFamily ?? "Lora"}
+                onValueChange={(value) => applyTextFontFamily(editor, value)}
+                itemClassName={menuItemClass}
+              />
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
           <DropdownMenuSub>
             <DropdownMenuSubTrigger className={menuItemClass}>
               <Type className="h-4 w-4" />

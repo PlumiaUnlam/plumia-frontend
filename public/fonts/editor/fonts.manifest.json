@@ -1,0 +1,786 @@
+[
+  {
+    "family": "ABeeZee",
+    "slug": "abeezee",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/abeezee/OFL.txt",
+    "asset": "/fonts/editor/abeezee.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Alegreya",
+    "slug": "alegreya",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/alegreya/OFL.txt",
+    "asset": "/fonts/editor/alegreya.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Allura",
+    "slug": "allura",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/allura/OFL.txt",
+    "asset": "/fonts/editor/allura.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Almendra",
+    "slug": "almendra",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/almendra/OFL.txt",
+    "asset": "/fonts/editor/almendra.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Amatic SC",
+    "slug": "amaticsc",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/amaticsc/OFL.txt",
+    "asset": "/fonts/editor/amaticsc.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Arapey",
+    "slug": "arapey",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/arapey/OFL.txt",
+    "asset": "/fonts/editor/arapey.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Atkinson Hyperlegible",
+    "slug": "atkinsonhyperlegible",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/atkinsonhyperlegible/OFL.txt",
+    "asset": "/fonts/editor/atkinsonhyperlegible.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Bangers",
+    "slug": "bangers",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/bangers/OFL.txt",
+    "asset": "/fonts/editor/bangers.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Barlow",
+    "slug": "barlow",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/barlow/OFL.txt",
+    "asset": "/fonts/editor/barlow.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Barlow Condensed",
+    "slug": "barlowcondensed",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/barlowcondensed/OFL.txt",
+    "asset": "/fonts/editor/barlowcondensed.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Bebas Neue",
+    "slug": "bebasneue",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/bebasneue/OFL.txt",
+    "asset": "/fonts/editor/bebasneue.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Bodoni Moda",
+    "slug": "bodonimoda",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/bodonimoda/OFL.txt",
+    "asset": "/fonts/editor/bodonimoda.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Bree Serif",
+    "slug": "breeserif",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/breeserif/OFL.txt",
+    "asset": "/fonts/editor/breeserif.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Bungee",
+    "slug": "bungee",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/bungee/OFL.txt",
+    "asset": "/fonts/editor/bungee.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Cabin",
+    "slug": "cabin",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/cabin/OFL.txt",
+    "asset": "/fonts/editor/cabin.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Cardo",
+    "slug": "cardo",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/cardo/OFL.txt",
+    "asset": "/fonts/editor/cardo.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Caveat",
+    "slug": "caveat",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/caveat/OFL.txt",
+    "asset": "/fonts/editor/caveat.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Cedarville Cursive",
+    "slug": "cedarvillecursive",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/cedarvillecursive/OFL.txt",
+    "asset": "/fonts/editor/cedarvillecursive.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Chakra Petch",
+    "slug": "chakrapetch",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/chakrapetch/OFL.txt",
+    "asset": "/fonts/editor/chakrapetch.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Cinzel",
+    "slug": "cinzel",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/cinzel/OFL.txt",
+    "asset": "/fonts/editor/cinzel.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Cinzel Decorative",
+    "slug": "cinzeldecorative",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/cinzeldecorative/OFL.txt",
+    "asset": "/fonts/editor/cinzeldecorative.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Comfortaa",
+    "slug": "comfortaa",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/comfortaa/OFL.txt",
+    "asset": "/fonts/editor/comfortaa.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Cormorant Garamond",
+    "slug": "cormorantgaramond",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/cormorantgaramond/OFL.txt",
+    "asset": "/fonts/editor/cormorantgaramond.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Cormorant Infant",
+    "slug": "cormorantinfant",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/cormorantinfant/OFL.txt",
+    "asset": "/fonts/editor/cormorantinfant.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Courier Prime",
+    "slug": "courierprime",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/courierprime/OFL.txt",
+    "asset": "/fonts/editor/courierprime.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Crimson Pro",
+    "slug": "crimsonpro",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/crimsonpro/OFL.txt",
+    "asset": "/fonts/editor/crimsonpro.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Crimson Text",
+    "slug": "crimsontext",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/crimsontext/OFL.txt",
+    "asset": "/fonts/editor/crimsontext.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Cutive Mono",
+    "slug": "cutivemono",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/cutivemono/OFL.txt",
+    "asset": "/fonts/editor/cutivemono.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Dancing Script",
+    "slug": "dancingscript",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/dancingscript/OFL.txt",
+    "asset": "/fonts/editor/dancingscript.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "DM Sans",
+    "slug": "dmsans",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/dmsans/OFL.txt",
+    "asset": "/fonts/editor/dmsans.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "DM Serif Display",
+    "slug": "dmserifdisplay",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/dmserifdisplay/OFL.txt",
+    "asset": "/fonts/editor/dmserifdisplay.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "EB Garamond",
+    "slug": "ebgaramond",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/ebgaramond/OFL.txt",
+    "asset": "/fonts/editor/ebgaramond.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Figtree",
+    "slug": "figtree",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/figtree/OFL.txt",
+    "asset": "/fonts/editor/figtree.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Fredoka",
+    "slug": "fredoka",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/fredoka/OFL.txt",
+    "asset": "/fonts/editor/fredoka.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "GFS Didot",
+    "slug": "gfsdidot",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/gfsdidot/OFL.txt",
+    "asset": "/fonts/editor/gfsdidot.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Great Vibes",
+    "slug": "greatvibes",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/greatvibes/OFL.txt",
+    "asset": "/fonts/editor/greatvibes.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Grenze Gotisch",
+    "slug": "grenzegotisch",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/grenzegotisch/OFL.txt",
+    "asset": "/fonts/editor/grenzegotisch.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Heebo",
+    "slug": "heebo",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/heebo/OFL.txt",
+    "asset": "/fonts/editor/heebo.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "IBM Plex Mono",
+    "slug": "ibmplexmono",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/ibmplexmono/OFL.txt",
+    "asset": "/fonts/editor/ibmplexmono.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "IBM Plex Sans",
+    "slug": "ibmplexsans",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/ibmplexsans/OFL.txt",
+    "asset": "/fonts/editor/ibmplexsans.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "IBM Plex Serif",
+    "slug": "ibmplexserif",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/ibmplexserif/OFL.txt",
+    "asset": "/fonts/editor/ibmplexserif.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "IM Fell English",
+    "slug": "imfellenglish",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/imfellenglish/OFL.txt",
+    "asset": "/fonts/editor/imfellenglish.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Inconsolata",
+    "slug": "inconsolata",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/inconsolata/OFL.txt",
+    "asset": "/fonts/editor/inconsolata.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Inter",
+    "slug": "inter",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/inter/OFL.txt",
+    "asset": "/fonts/editor/inter.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Italianno",
+    "slug": "italianno",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/italianno/OFL.txt",
+    "asset": "/fonts/editor/italianno.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "JetBrains Mono",
+    "slug": "jetbrainsmono",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/jetbrainsmono/OFL.txt",
+    "asset": "/fonts/editor/jetbrainsmono.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Josefin Sans",
+    "slug": "josefinsans",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/josefinsans/OFL.txt",
+    "asset": "/fonts/editor/josefinsans.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Kaushan Script",
+    "slug": "kaushanscript",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/kaushanscript/OFL.txt",
+    "asset": "/fonts/editor/kaushanscript.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Lato",
+    "slug": "lato",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/lato/OFL.txt",
+    "asset": "/fonts/editor/lato.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Lexend",
+    "slug": "lexend",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/lexend/OFL.txt",
+    "asset": "/fonts/editor/lexend.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Libre Baskerville",
+    "slug": "librebaskerville",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/librebaskerville/OFL.txt",
+    "asset": "/fonts/editor/librebaskerville.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Libre Caslon Text",
+    "slug": "librecaslontext",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/librecaslontext/OFL.txt",
+    "asset": "/fonts/editor/librecaslontext.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Lilita One",
+    "slug": "lilitaone",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/lilitaone/OFL.txt",
+    "asset": "/fonts/editor/lilitaone.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Literata",
+    "slug": "literata",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/literata/OFL.txt",
+    "asset": "/fonts/editor/literata.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Lora",
+    "slug": "lora",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/lora/OFL.txt",
+    "asset": "/fonts/editor/lora.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Manrope",
+    "slug": "manrope",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/manrope/OFL.txt",
+    "asset": "/fonts/editor/manrope.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Marck Script",
+    "slug": "marckscript",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/marckscript/OFL.txt",
+    "asset": "/fonts/editor/marckscript.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "MedievalSharp",
+    "slug": "medievalsharp",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/medievalsharp/OFL.txt",
+    "asset": "/fonts/editor/medievalsharp.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Merriweather",
+    "slug": "merriweather",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/merriweather/OFL.txt",
+    "asset": "/fonts/editor/merriweather.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Metal Mania",
+    "slug": "metalmania",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/metalmania/OFL.txt",
+    "asset": "/fonts/editor/metalmania.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Montserrat",
+    "slug": "montserrat",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/montserrat/OFL.txt",
+    "asset": "/fonts/editor/montserrat.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Mulish",
+    "slug": "mulish",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/mulish/OFL.txt",
+    "asset": "/fonts/editor/mulish.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Newsreader",
+    "slug": "newsreader",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/newsreader/OFL.txt",
+    "asset": "/fonts/editor/newsreader.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Noto Serif",
+    "slug": "notoserif",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/notoserif/OFL.txt",
+    "asset": "/fonts/editor/notoserif.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Nunito",
+    "slug": "nunito",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/nunito/OFL.txt",
+    "asset": "/fonts/editor/nunito.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Old Standard TT",
+    "slug": "oldstandardtt",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/oldstandardtt/OFL.txt",
+    "asset": "/fonts/editor/oldstandardtt.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Open Sans",
+    "slug": "opensans",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/opensans/OFL.txt",
+    "asset": "/fonts/editor/opensans.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Oswald",
+    "slug": "oswald",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/oswald/OFL.txt",
+    "asset": "/fonts/editor/oswald.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Outfit",
+    "slug": "outfit",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/outfit/OFL.txt",
+    "asset": "/fonts/editor/outfit.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Overpass",
+    "slug": "overpass",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/overpass/OFL.txt",
+    "asset": "/fonts/editor/overpass.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Pacifico",
+    "slug": "pacifico",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/pacifico/OFL.txt",
+    "asset": "/fonts/editor/pacifico.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Petit Formal Script",
+    "slug": "petitformalscript",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/petitformalscript/OFL.txt",
+    "asset": "/fonts/editor/petitformalscript.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Pinyon Script",
+    "slug": "pinyonscript",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/pinyonscript/OFL.txt",
+    "asset": "/fonts/editor/pinyonscript.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Pirata One",
+    "slug": "pirataone",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/pirataone/OFL.txt",
+    "asset": "/fonts/editor/pirataone.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Playfair Display",
+    "slug": "playfairdisplay",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/playfairdisplay/OFL.txt",
+    "asset": "/fonts/editor/playfairdisplay.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Plus Jakarta Sans",
+    "slug": "plusjakartasans",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/plusjakartasans/OFL.txt",
+    "asset": "/fonts/editor/plusjakartasans.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Poppins",
+    "slug": "poppins",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/poppins/OFL.txt",
+    "asset": "/fonts/editor/poppins.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Prata",
+    "slug": "prata",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/prata/OFL.txt",
+    "asset": "/fonts/editor/prata.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "PT Serif",
+    "slug": "ptserif",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/ptserif/OFL.txt",
+    "asset": "/fonts/editor/ptserif.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Quicksand",
+    "slug": "quicksand",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/quicksand/OFL.txt",
+    "asset": "/fonts/editor/quicksand.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Raleway",
+    "slug": "raleway",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/raleway/OFL.txt",
+    "asset": "/fonts/editor/raleway.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Righteous",
+    "slug": "righteous",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/righteous/OFL.txt",
+    "asset": "/fonts/editor/righteous.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Rouge Script",
+    "slug": "rougescript",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/rougescript/OFL.txt",
+    "asset": "/fonts/editor/rougescript.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Rubik",
+    "slug": "rubik",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/rubik/OFL.txt",
+    "asset": "/fonts/editor/rubik.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Shadows Into Light",
+    "slug": "shadowsintolight",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/shadowsintolight/OFL.txt",
+    "asset": "/fonts/editor/shadowsintolight.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Share Tech Mono",
+    "slug": "sharetechmono",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/sharetechmono/OFL.txt",
+    "asset": "/fonts/editor/sharetechmono.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Sorts Mill Goudy",
+    "slug": "sortsmillgoudy",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/sortsmillgoudy/OFL.txt",
+    "asset": "/fonts/editor/sortsmillgoudy.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Source Code Pro",
+    "slug": "sourcecodepro",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/sourcecodepro/OFL.txt",
+    "asset": "/fonts/editor/sourcecodepro.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Source Sans 3",
+    "slug": "sourcesans3",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/sourcesans3/OFL.txt",
+    "asset": "/fonts/editor/sourcesans3.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Source Serif 4",
+    "slug": "sourceserif4",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/sourceserif4/OFL.txt",
+    "asset": "/fonts/editor/sourceserif4.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Space Mono",
+    "slug": "spacemono",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/spacemono/OFL.txt",
+    "asset": "/fonts/editor/spacemono.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Spectral",
+    "slug": "spectral",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/spectral/OFL.txt",
+    "asset": "/fonts/editor/spectral.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Tangerine",
+    "slug": "tangerine",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/tangerine/OFL.txt",
+    "asset": "/fonts/editor/tangerine.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "UnifrakturMaguntia",
+    "slug": "unifrakturmaguntia",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/unifrakturmaguntia/OFL.txt",
+    "asset": "/fonts/editor/unifrakturmaguntia.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Vollkorn",
+    "slug": "vollkorn",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/vollkorn/OFL.txt",
+    "asset": "/fonts/editor/vollkorn.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "VT323",
+    "slug": "vt323",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/vt323/OFL.txt",
+    "asset": "/fonts/editor/vt323.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Work Sans",
+    "slug": "worksans",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/worksans/OFL.txt",
+    "asset": "/fonts/editor/worksans.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  },
+  {
+    "family": "Zilla Slab",
+    "slug": "zillaslab",
+    "license": "SIL Open Font License 1.1",
+    "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/zillaslab/OFL.txt",
+    "asset": "/fonts/editor/zillaslab.woff2",
+    "assetSource": "Google Fonts CSS API (Latin WOFF2)"
+  }
+]
