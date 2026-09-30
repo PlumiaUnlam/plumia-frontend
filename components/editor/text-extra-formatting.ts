@@ -84,12 +84,16 @@ export function clearTextFormatting(editor: Editor) {
     "subscript",
     "superscript",
     "textHighlight",
+    "editorTextStyle",
   ]) {
     chain.unsetMark(mark)
   }
 
   return chain
     .setParagraph()
-    .updateAttributes("paragraph", DEFAULT_PARAGRAPH_ATTRIBUTES)
+    .updateAttributes("paragraph", {
+      ...DEFAULT_PARAGRAPH_ATTRIBUTES,
+      editorStyleId: null,
+    })
     .run()
 }

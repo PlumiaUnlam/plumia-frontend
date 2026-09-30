@@ -74,6 +74,7 @@ import {
   getActiveTextFontFamily,
 } from "./text-font-family"
 import { TextFontFamilyMenuOptions } from "./text-font-family-menu-options"
+import { EditorTextStylesMenu } from "./editor-text-styles-menu"
 import {
   toggleFormatPainter,
   useFormatPainterState,
@@ -103,6 +104,7 @@ const alignmentOptions: ReadonlyArray<{
 
 type EditorMenuBarProps = {
   editor: Editor
+  projectId: string
   versionLabel: string
   onSave?: () => void
   onInsertImage?: () => void
@@ -117,6 +119,7 @@ type EditorMenuBarProps = {
 
 export function EditorMenuBar({
   editor,
+  projectId,
   versionLabel,
   onSave,
   onInsertImage,
@@ -162,7 +165,11 @@ export function EditorMenuBar({
   const listEnabled = editorState.isBulletList || editorState.isOrderedList
 
   const updateParagraph = (attributes: Partial<ParagraphAttributes>) => {
-    editor.chain().focus().updateAttributes("paragraph", attributes).run()
+    editor
+      .chain()
+      .focus()
+      .updateAttributes("paragraph", { ...attributes, editorStyleId: null })
+      .run()
   }
 
   const decreaseIndent = () => {
@@ -233,6 +240,12 @@ export function EditorMenuBar({
           )}
         </DropdownMenuContent>
       </DropdownMenu>
+
+      <EditorTextStylesMenu
+        editor={editor}
+        projectId={projectId}
+        onSave={onSave}
+      />
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>

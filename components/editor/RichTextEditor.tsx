@@ -1,5 +1,5 @@
 
-import { useEffect } from "react"
+import { useEffect, useMemo } from "react"
 import { EditorContent, useEditor } from "@tiptap/react"
 import StarterKit from "@tiptap/starter-kit"
 
@@ -35,6 +35,12 @@ import {
 import { TextFontSizeFormatting } from "./text-font-size"
 import { TextFontFamilyFormatting } from "./text-font-family"
 import { EditorMenuBar } from "./editor-menu-bar"
+import {
+  EditorTextStyleAttributes,
+  EditorTextStyleMark,
+  buildEditorTextStylesCss,
+} from "./editor-text-styles"
+import { useEditorTextStyles } from "@/hooks/use-editor-text-styles"
 import { ListNumberingMenu } from "./list-numbering-menu"
 import type {
   EditorPaneId,
@@ -117,6 +123,11 @@ export function RichTextEditor({
   const spellcheckLanguage = useEditorStore(
     (state) => state.spellcheckLanguage,
   )
+  const { styles: editorTextStyles } = useEditorTextStyles(projectId)
+  const editorTextStylesCss = useMemo(
+    () => buildEditorTextStylesCss(editorTextStyles),
+    [editorTextStyles],
+  )
 
   const editor = useEditor({
     immediatelyRender: true,
@@ -136,6 +147,8 @@ export function RichTextEditor({
       TextHighlightFormatting,
       TextFontSizeFormatting,
       TextFontFamilyFormatting,
+      EditorTextStyleMark,
+      EditorTextStyleAttributes,
       EditorImage.configure({
         inline: false,
         allowBase64: false,
@@ -304,9 +317,12 @@ export function RichTextEditor({
         onChange={handleFileSelected}
       />
 
+      {editorTextStylesCss && <style>{editorTextStylesCss}</style>}
+
       {showToolbar && !isZenMode && (
           <EditorMenuBar
             editor={editor}
+            projectId={projectId}
             versionLabel={versionLabel}
             onSave={onSave}
             onOpenSearch={onOpenSearch}

@@ -612,6 +612,7 @@ function EditorWorkspace({
       {effectiveIsSplit && focusedActions && !isZenMode && (
         <EditorMenuBar
           editor={focusedActions.editor}
+          projectId={projectId}
           versionLabel={focusedActions.versionLabel}
           onSave={() => void focusedActions.saveNow()}
           onInsertImage={focusedActions.onInsertImage}

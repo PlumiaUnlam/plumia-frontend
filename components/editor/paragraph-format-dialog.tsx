@@ -93,7 +93,11 @@ export function ParagraphFormatDialog({
   }
 
   const apply = () => {
-    editor.chain().focus().updateAttributes("paragraph", draft).run()
+    editor
+      .chain()
+      .focus()
+      .updateAttributes("paragraph", { ...draft, editorStyleId: null })
+      .run()
     setOpen(false)
   }
 

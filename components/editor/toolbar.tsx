@@ -177,7 +177,11 @@ export function EditorToolbar({
   const [isFontFamilyMenuOpen, setIsFontFamilyMenuOpen] = useState(false)
 
   const updateParagraph = (attributes: Partial<ParagraphAttributes>) => {
-    editor.chain().focus().updateAttributes("paragraph", attributes).run()
+    editor
+      .chain()
+      .focus()
+      .updateAttributes("paragraph", { ...attributes, editorStyleId: null })
+      .run()
   }
 
   const increaseIndent = () => {

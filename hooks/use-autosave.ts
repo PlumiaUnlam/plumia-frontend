@@ -169,5 +169,14 @@ export function useAutosave({
     }
   }, [flush])
 
+  useEffect(() => {
+    const retryWhenOnline = () => {
+      retriesRef.current = 0
+      void runSaveRef.current()
+    }
+    window.addEventListener("online", retryWhenOnline)
+    return () => window.removeEventListener("online", retryWhenOnline)
+  }, [])
+
   return { saveNow }
 }
