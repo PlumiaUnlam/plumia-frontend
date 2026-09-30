@@ -1,5 +1,6 @@
 "use client"
 
+import { useMemo } from "react"
 import useSWR from "swr"
 
 import {
@@ -7,6 +8,7 @@ import {
   getProjectEditorTextStyles,
   saveProjectEditorTextStyle,
 } from "@/services/editor-text-style.service"
+import { createDefaultEditorTextStyles } from "@/components/editor/default-editor-text-styles"
 import type {
   EditorTextStyle,
   SaveEditorTextStyleInput,
@@ -29,7 +31,15 @@ export function useEditorTextStyles(projectId: string) {
     key,
     () => getProjectEditorTextStyles(projectId),
   )
-  const styles = data ?? []
+  const customStyles = data ?? []
+  const defaultStyles = useMemo(
+    () => createDefaultEditorTextStyles(projectId),
+    [projectId],
+  )
+  const styles = useMemo(
+    () => [...defaultStyles, ...customStyles],
+    [customStyles, defaultStyles],
+  )
 
   const saveStyle = async (
     input: SaveEditorTextStyleInput,
@@ -46,7 +56,7 @@ export function useEditorTextStyles(projectId: string) {
       createdAt: existing?.createdAt ?? now,
       updatedAt: now,
     }
-    const previous = styles
+    const previous = customStyles
     await mutate(
       [...previous.filter((style) => style.id !== candidate.id), candidate],
       { revalidate: false },
@@ -73,7 +83,7 @@ export function useEditorTextStyles(projectId: string) {
   }
 
   const removeStyle = async (styleId: string) => {
-    const previous = styles
+    const previous = customStyles
     await mutate(
       previous.map((style) =>
         style.id === styleId ? { ...style, isActive: false } : style,

@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { useEditorTextStyles } from "@/hooks/use-editor-text-styles"
 import { hasPendingEditorTextStyleChanges } from "@/services/editor-text-style.service"
+import { isDefaultEditorTextStyle } from "./default-editor-text-styles"
 import {
   applyEditorTextStyle,
   getAppliedEditorStyleId,
@@ -125,6 +126,17 @@ export function EditorTextStylesMenu({
     setDialogOpen(true)
   }
 
+  const openCustomizeDialog = (style: EditorTextStyle) => {
+    setEditingStyle(null)
+    setDraft({
+      name: `${style.name} personalizado`,
+      kind: style.kind,
+      definition: { ...style.definition },
+    })
+    setErrorMessage(null)
+    setDialogOpen(true)
+  }
+
   const updateDefinitionFromSelection = async (style: EditorTextStyle) => {
     try {
       const result = await saveStyle(
@@ -202,16 +214,96 @@ export function EditorTextStylesMenu({
     }
   }
 
+  const customStyleCount = styles.filter(
+    (style) => !isDefaultEditorTextStyle(style) && style.isActive !== false,
+  ).length
+  const customNames = new Set(
+    styles
+      .filter(
+        (style) =>
+          !isDefaultEditorTextStyle(style) && style.isActive !== false,
+      )
+      .map((style) => `${style.kind}:${style.name.toLocaleLowerCase()}`),
+  )
+  const visibleStyles = styles.filter(
+    (style) =>
+      !isDefaultEditorTextStyle(style) ||
+      !customNames.has(`${style.kind}:${style.name.toLocaleLowerCase()}`),
+  )
   const groupedStyles = {
-    text: styles.filter(
+    text: visibleStyles.filter(
       (style) => style.isActive !== false && style.kind === "text",
     ),
-    paragraph: styles.filter(
+    paragraph: visibleStyles.filter(
       (style) => style.isActive !== false && style.kind === "paragraph",
     ),
   }
   const availableStyleCount =
     groupedStyles.text.length + groupedStyles.paragraph.length
+
+  const renderStyleItem = (style: EditorTextStyle) => {
+    const isDefault = isDefaultEditorTextStyle(style)
+    return (
+      <DropdownMenuSub key={style.id}>
+        <DropdownMenuSubTrigger className={`${itemClass} gap-2`}>
+          {currentStyleId === style.id ? (
+            <Check className="size-4 shrink-0" />
+          ) : (
+            <span className="size-4 shrink-0" />
+          )}
+          <span className="min-w-0 flex-1 truncate">{style.name}</span>
+          <ChevronRight className="size-3.5 opacity-60" />
+        </DropdownMenuSubTrigger>
+        <DropdownMenuSubContent className={dropdownContentClass}>
+          <DropdownMenuItem
+            className={itemClass}
+            onSelect={() => {
+              applyEditorTextStyle(editor, style)
+              saveAfterEditorUpdate()
+            }}
+          >
+            <Paintbrush className="mr-2 size-4" />
+            Aplicar estilo
+          </DropdownMenuItem>
+          {isDefault && (
+            <DropdownMenuItem
+              className={itemClass}
+              onSelect={() => openCustomizeDialog(style)}
+            >
+              <Pencil className="mr-2 size-4" />
+              Guardar una copia personalizada…
+            </DropdownMenuItem>
+          )}
+          {!isDefault && (
+            <>
+              <DropdownMenuItem
+                className={itemClass}
+                onSelect={() => openEditDialog(style)}
+              >
+                <Pencil className="mr-2 size-4" />
+                Editar definición…
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className={itemClass}
+                onSelect={() => void updateDefinitionFromSelection(style)}
+              >
+                <Paintbrush className="mr-2 size-4" />
+                Actualizar con la selección
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="gap-2 text-destructive focus:bg-destructive/10 focus:text-destructive"
+                onSelect={() => void handleDelete(style)}
+              >
+                <Trash2 className="size-4" />
+                Eliminar estilo
+              </DropdownMenuItem>
+            </>
+          )}
+        </DropdownMenuSubContent>
+      </DropdownMenuSub>
+    )
+  }
 
   useEffect(() => {
     const handleOffline = () => {
@@ -259,72 +351,45 @@ export function EditorTextStylesMenu({
             Guardar selección como estilo…
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          {isLoading && availableStyleCount === 0 && (
+          {isLoading && customStyleCount === 0 && (
             <p className="px-2.5 py-2 text-xs text-[#5f6368]">
-              Cargando estilos…
+              Cargando estilos personalizados…
             </p>
           )}
           {(["text", "paragraph"] as const).map((kind) => {
             const kindStyles = groupedStyles[kind]
             if (!kindStyles.length) return null
+            const defaultStyles = kindStyles.filter(isDefaultEditorTextStyle)
+            const customStyles = kindStyles.filter(
+              (style) => !isDefaultEditorTextStyle(style),
+            )
             return (
               <div key={kind}>
                 <DropdownMenuLabel className="px-2.5 pb-1 pt-2 text-xs font-medium text-[#5f6368]">
                   {kind === "text" ? "Texto seleccionado" : "Párrafos y títulos"}
                 </DropdownMenuLabel>
-                {kindStyles.map((style) => (
-                  <DropdownMenuSub key={style.id}>
-                    <DropdownMenuSubTrigger className={`${itemClass} gap-2`}>
-                      {currentStyleId === style.id ? (
-                        <Check className="size-4 shrink-0" />
-                      ) : (
-                        <span className="size-4 shrink-0" />
-                      )}
-                      <span className="min-w-0 flex-1 truncate">{style.name}</span>
-                      <ChevronRight className="size-3.5 opacity-60" />
-                    </DropdownMenuSubTrigger>
-                    <DropdownMenuSubContent className={dropdownContentClass}>
-                      <DropdownMenuItem
-                        className={itemClass}
-                        onSelect={() => {
-                          applyEditorTextStyle(editor, style)
-                          saveAfterEditorUpdate()
-                        }}
-                      >
-                        <Paintbrush className="mr-2 size-4" />
-                        Aplicar estilo
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        className={itemClass}
-                        onSelect={() => openEditDialog(style)}
-                      >
-                        <Pencil className="mr-2 size-4" />
-                        Editar definición…
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        className={itemClass}
-                        onSelect={() => void updateDefinitionFromSelection(style)}
-                      >
-                        <Paintbrush className="mr-2 size-4" />
-                        Actualizar con la selección
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        className="gap-2 text-destructive focus:bg-destructive/10 focus:text-destructive"
-                        onSelect={() => void handleDelete(style)}
-                      >
-                        <Trash2 className="size-4" />
-                        Eliminar estilo
-                      </DropdownMenuItem>
-                    </DropdownMenuSubContent>
-                  </DropdownMenuSub>
-                ))}
+                {defaultStyles.length > 0 && (
+                  <>
+                    <DropdownMenuLabel className="px-2.5 pb-1 pt-2 text-[11px] font-medium text-[#5f6368]">
+                      Predeterminados
+                    </DropdownMenuLabel>
+                    {defaultStyles.map(renderStyleItem)}
+                  </>
+                )}
+                {customStyles.length > 0 && (
+                  <>
+                    <DropdownMenuLabel className="px-2.5 pb-1 pt-2 text-[11px] font-medium text-[#5f6368]">
+                      Personalizados
+                    </DropdownMenuLabel>
+                    {customStyles.map(renderStyleItem)}
+                  </>
+                )}
               </div>
             )
           })}
-          {!isLoading && availableStyleCount === 0 && (
+          {!isLoading && customStyleCount === 0 && availableStyleCount > 0 && (
             <p className="px-2.5 py-2 text-xs text-[#5f6368]">
-              Todavía no hay estilos guardados.
+              Podés guardar una selección para crear estilos propios.
             </p>
           )}
     </>
