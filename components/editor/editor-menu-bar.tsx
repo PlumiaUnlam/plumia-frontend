@@ -81,8 +81,11 @@ import {
 } from "./format-painter"
 import {
   clearTextFormatting,
+  getTextHighlightColor,
   toggleSubscript,
   toggleSuperscript,
+  toggleTextHighlight,
+  toggleTextMark,
 } from "./text-extra-formatting"
 
 const menuButtonClass =
@@ -240,12 +243,6 @@ export function EditorMenuBar({
           )}
         </DropdownMenuContent>
       </DropdownMenu>
-
-      <EditorTextStylesMenu
-        editor={editor}
-        projectId={projectId}
-        onSave={onSave}
-      />
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -408,28 +405,28 @@ export function EditorMenuBar({
           <DropdownMenuCheckboxItem
             checked={editorState.isBold}
             className={menuItemClass}
-            onCheckedChange={() => editor.chain().focus().toggleBold().run()}
+            onCheckedChange={() => toggleTextMark(editor, "bold")}
           >
             <Bold className="mr-2 h-4 w-4" /> Negrita
           </DropdownMenuCheckboxItem>
           <DropdownMenuCheckboxItem
             checked={editorState.isItalic}
             className={menuItemClass}
-            onCheckedChange={() => editor.chain().focus().toggleItalic().run()}
+            onCheckedChange={() => toggleTextMark(editor, "italic")}
           >
             <Italic className="mr-2 h-4 w-4" /> Cursiva
           </DropdownMenuCheckboxItem>
           <DropdownMenuCheckboxItem
             checked={editorState.isUnderline}
             className={menuItemClass}
-            onCheckedChange={() => editor.chain().focus().toggleUnderline().run()}
+            onCheckedChange={() => toggleTextMark(editor, "underline")}
           >
             <Underline className="mr-2 h-4 w-4" /> Subrayado
           </DropdownMenuCheckboxItem>
           <DropdownMenuCheckboxItem
             checked={editorState.isStrike}
             className={menuItemClass}
-            onCheckedChange={() => editor.chain().focus().toggleStrike().run()}
+            onCheckedChange={() => toggleTextMark(editor, "strike")}
           >
             <Strikethrough className="mr-2 h-4 w-4" /> Tachado
           </DropdownMenuCheckboxItem>
@@ -450,10 +447,31 @@ export function EditorMenuBar({
           <DropdownMenuCheckboxItem
             checked={editorState.isTextHighlight}
             className={menuItemClass}
-            onCheckedChange={() => editor.chain().focus().toggleMark("textHighlight").run()}
+            onCheckedChange={() => toggleTextHighlight(editor)}
           >
-            <Highlighter className="mr-2 h-4 w-4" /> Resaltado amarillo
+            <Highlighter className="mr-2 h-4 w-4" /> Resaltado
           </DropdownMenuCheckboxItem>
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger className={menuItemClass}>
+              <Highlighter className="h-4 w-4" />
+              <span>Color de resaltado</span>
+              <span
+                aria-hidden="true"
+                className="ml-auto size-3 rounded-full border border-black/10"
+                style={{ backgroundColor: getTextHighlightColor(editor) }}
+              />
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent
+              className={`w-[min(24rem,calc(100vw-1rem))] max-w-[calc(100vw-1rem)] max-h-[min(70vh,28rem)] overflow-y-auto p-2 ${menuContentClass}`}
+            >
+              <DropdownMenuLabel>Color de resaltado</DropdownMenuLabel>
+              <ColorPalette
+                editor={editor}
+                kind="highlight"
+                menuItemClass={menuItemClass}
+              />
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
           {menuItem(
             <RemoveFormatting className="h-4 w-4" />,
             "Limpiar formato",
@@ -592,6 +610,12 @@ export function EditorMenuBar({
           </DropdownMenuRadioGroup>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      <EditorTextStylesMenu
+        editor={editor}
+        projectId={projectId}
+        onSave={onSave}
+      />
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>

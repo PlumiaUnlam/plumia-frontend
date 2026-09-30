@@ -83,8 +83,11 @@ import {
 } from "./format-painter"
 import {
   clearTextFormatting,
+  getTextHighlightColor,
   toggleSubscript,
   toggleSuperscript,
+  toggleTextHighlight,
+  toggleTextMark,
 } from "./text-extra-formatting"
 
 const toolbarButtonClass =
@@ -418,8 +421,9 @@ export function EditorToolbar({
         className={`${toolbarButtonClass} ${paragraphState.isBold ? "bg-[#d3e3fd] text-[#174ea6] hover:bg-[#c2d7f8]" : ""}`}
         title="Negrita"
         aria-label="Negrita"
+        aria-pressed={paragraphState.isBold}
         onMouseDown={(event) => event.preventDefault()}
-        onClick={() => editor.chain().focus().toggleBold().run()}
+        onClick={() => toggleTextMark(editor, "bold")}
       >
         <Bold className="h-4 w-4" />
       </Button>
@@ -431,8 +435,9 @@ export function EditorToolbar({
         className={`${toolbarButtonClass} ${paragraphState.isItalic ? "bg-[#d3e3fd] text-[#174ea6] hover:bg-[#c2d7f8]" : ""}`}
         title="Cursiva"
         aria-label="Cursiva"
+        aria-pressed={paragraphState.isItalic}
         onMouseDown={(event) => event.preventDefault()}
-        onClick={() => editor.chain().focus().toggleItalic().run()}
+        onClick={() => toggleTextMark(editor, "italic")}
       >
         <Italic className="h-4 w-4" />
       </Button>
@@ -446,7 +451,7 @@ export function EditorToolbar({
         aria-label="Subrayado"
         aria-pressed={paragraphState.isUnderline}
         onMouseDown={(event) => event.preventDefault()}
-        onClick={() => editor.chain().focus().toggleUnderline().run()}
+        onClick={() => toggleTextMark(editor, "underline")}
       >
         <Underline />
       </Button>
@@ -460,7 +465,7 @@ export function EditorToolbar({
         aria-label="Tachado"
         aria-pressed={paragraphState.isStrike}
         onMouseDown={(event) => event.preventDefault()}
-        onClick={() => editor.chain().focus().toggleStrike().run()}
+        onClick={() => toggleTextMark(editor, "strike")}
       >
         <Strikethrough />
       </Button>
@@ -493,19 +498,52 @@ export function EditorToolbar({
         <Superscript />
       </Button>
 
-      <Button
-        type="button"
-        size="icon-sm"
-        variant="ghost"
-        className={`${toolbarButtonClass} ${paragraphState.isTextHighlight ? "bg-[#fff3b0] text-[#3c4043] hover:bg-[#ffe680]" : ""}`}
-        title="Resaltar texto en amarillo"
-        aria-label="Resaltar texto en amarillo"
-        aria-pressed={paragraphState.isTextHighlight}
-        onMouseDown={(event) => event.preventDefault()}
-        onClick={() => editor.chain().focus().toggleMark("textHighlight").run()}
-      >
-        <Highlighter />
-      </Button>
+      <div className="flex items-center">
+        <Button
+          type="button"
+          size="icon-sm"
+          variant="ghost"
+          className={`${toolbarButtonClass} ${paragraphState.isTextHighlight ? "bg-[#fff3b0] text-[#3c4043] hover:bg-[#ffe680]" : ""}`}
+          title="Aplicar o quitar resaltado"
+          aria-label="Aplicar o quitar resaltado"
+          aria-pressed={paragraphState.isTextHighlight}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => toggleTextHighlight(editor)}
+        >
+          <Highlighter />
+        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              size="icon-sm"
+              variant="ghost"
+              className={`${toolbarButtonClass} relative h-6 w-4 px-0 [&_svg]:size-3`}
+              title="Elegir color de resaltado"
+              aria-label="Elegir color de resaltado"
+              onMouseDown={(event) => event.preventDefault()}
+            >
+              <ChevronDown />
+              <span
+                aria-hidden="true"
+                className="absolute bottom-0.5 h-0.5 w-2.5 rounded-full"
+                style={{ backgroundColor: getTextHighlightColor(editor) }}
+              />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="start"
+            className={`w-[min(24rem,calc(100vw-1rem))] max-w-[calc(100vw-1rem)] max-h-[min(70vh,28rem)] overflow-y-auto p-2 ${toolbarMenuClass}`}
+          >
+            <DropdownMenuLabel>Color de resaltado</DropdownMenuLabel>
+            <ColorPalette
+              editor={editor}
+              kind="highlight"
+              menuItemClass={toolbarMenuItemClass}
+            />
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>

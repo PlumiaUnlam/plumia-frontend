@@ -241,21 +241,8 @@ export function EditorTextStylesMenu({
     }
   }, [projectId, refresh])
 
-  return (
+  const menuContent = (
     <>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            className="h-8 rounded-md px-3 text-sm font-medium text-[#3c4043] hover:bg-[#e8eaed] hover:text-[#202124] data-[state=open]:bg-[#d2e3fc] data-[state=open]:text-[#174ea6]"
-            onMouseDown={(event) => event.preventDefault()}
-          >
-            Estilos
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className={dropdownContentClass}>
           <DropdownMenuLabel className="text-xs font-semibold uppercase tracking-wide text-[#5f6368]">
             Estilos reutilizables
           </DropdownMenuLabel>
@@ -340,6 +327,25 @@ export function EditorTextStylesMenu({
               Todavía no hay estilos guardados.
             </p>
           )}
+    </>
+  )
+
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="h-8 rounded-md px-3 text-sm font-medium text-[#3c4043] hover:bg-[#e8eaed] hover:text-[#202124] data-[state=open]:bg-[#d2e3fc] data-[state=open]:text-[#174ea6]"
+            onMouseDown={(event) => event.preventDefault()}
+          >
+            Estilos de texto
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className={dropdownContentClass}>
+          {menuContent}
         </DropdownMenuContent>
       </DropdownMenu>
 
@@ -576,21 +582,45 @@ export function EditorTextStylesMenu({
                   </button>
                 </div>
               </div>
-              <label className="flex items-center gap-2 self-end pb-2 text-sm text-[#3c4043]">
-                <input
-                  type="checkbox"
-                  checked={Boolean(draft.definition.highlightColor)}
-                  onChange={(event) =>
-                    setDraft((current) => ({
-                      ...current,
-                      definition: replaceStyleDefinition(current.definition, {
-                        highlightColor: event.target.checked ? "#ffff00" : null,
-                      }),
-                    }))
-                  }
-                />
-                Resaltado amarillo
-              </label>
+              <div className="grid gap-1.5">
+                <Label htmlFor="editor-style-highlight">Color de resaltado</Label>
+                <div className="flex items-center gap-2">
+                  <input
+                    id="editor-style-highlight-enabled"
+                    type="checkbox"
+                    aria-label="Aplicar resaltado"
+                    checked={Boolean(draft.definition.highlightColor)}
+                    onChange={(event) =>
+                      setDraft((current) => ({
+                        ...current,
+                        definition: replaceStyleDefinition(current.definition, {
+                          highlightColor: event.target.checked
+                            ? current.definition.highlightColor ?? "#ffff00"
+                            : null,
+                        }),
+                      }))
+                    }
+                  />
+                  <input
+                    id="editor-style-highlight"
+                    type="color"
+                    disabled={!draft.definition.highlightColor}
+                    value={draft.definition.highlightColor ?? "#ffff00"}
+                    onChange={(event) =>
+                      setDraft((current) => ({
+                        ...current,
+                        definition: replaceStyleDefinition(current.definition, {
+                          highlightColor: event.target.value,
+                        }),
+                      }))
+                    }
+                    className="h-9 w-12 cursor-pointer rounded-md border border-[#dadce0] bg-white p-1 disabled:cursor-not-allowed disabled:opacity-50"
+                  />
+                  <span className="text-sm text-[#3c4043]">
+                    {draft.definition.highlightColor ? "Activo" : "Desactivado"}
+                  </span>
+                </div>
+              </div>
             </div>
 
             {draft.kind === "paragraph" && (

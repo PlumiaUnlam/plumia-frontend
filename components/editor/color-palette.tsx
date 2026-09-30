@@ -20,10 +20,14 @@ import {
   getActiveTextColor,
   type TextColor,
 } from "./text-formatting"
+import {
+  applyTextHighlightColor,
+  getTextHighlightColor,
+} from "./text-extra-formatting"
 
 type ColorPaletteProps = {
   editor: Editor
-  kind: "text" | "bullet" | "ordered"
+  kind: "text" | "highlight" | "bullet" | "ordered"
   menuItemClass: string
 }
 
@@ -43,22 +47,32 @@ export function ColorPalette({ editor, kind, menuItemClass }: ColorPaletteProps)
     editor,
     selector: ({ editor: currentEditor }) => {
       if (kind === "text") return getActiveTextColor(currentEditor)
+      if (kind === "highlight") return getTextHighlightColor(currentEditor)
       if (kind === "bullet") return getActiveBulletListColor(currentEditor)
       return getActiveOrderedListColor(currentEditor)
     },
   })
   const customInputId = useId()
-  const colors = kind === "text" ? TEXT_COLORS : BULLET_LIST_COLORS
+  const colors =
+    kind === "highlight"
+      ? COLOR_GRID.flat().map((value) => ({ value, label: value }))
+      : kind === "text"
+        ? TEXT_COLORS
+        : BULLET_LIST_COLORS
   const title =
     kind === "text"
       ? "Color de texto"
-      : kind === "bullet"
-        ? "Color de viñeta"
-        : "Color de numeración"
+      : kind === "highlight"
+        ? "Color de resaltado"
+        : kind === "bullet"
+          ? "Color de viñeta"
+          : "Color de numeración"
 
   const applyColor = (color: string) => {
     if (kind === "text") {
       applyTextColor(editor, color as TextColor)
+    } else if (kind === "highlight") {
+      applyTextHighlightColor(editor, color)
     } else if (kind === "bullet") {
       applyBulletListColor(editor, color as BulletListColor)
     } else {
@@ -73,19 +87,21 @@ export function ColorPalette({ editor, kind, menuItemClass }: ColorPaletteProps)
 
   return (
     <div className="p-1">
-      <DropdownMenuItem
-        className={`mb-2 w-full gap-2 rounded-md border px-2 py-1.5 text-xs ${menuItemClass} ${activeColor === automaticColor.value ? "border-[#1a73e8] bg-[#e8f0fe] text-[#174ea6]" : "border-transparent"}`}
-        onSelect={() => applyColor(automaticColor.value)}
-        title={`${title}: ${automaticColor.label}`}
-      >
-        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-[#dadce0] bg-[#f8fafd] text-[11px] font-semibold text-[#5f6368]">
-          A
-        </span>
-        <span>{automaticColor.label}</span>
-        {activeColor === automaticColor.value && (
-          <Check className="ml-auto h-3.5 w-3.5" />
-        )}
-      </DropdownMenuItem>
+      {kind !== "highlight" && (
+        <DropdownMenuItem
+          className={`mb-2 w-full gap-2 rounded-md border px-2 py-1.5 text-xs ${menuItemClass} ${activeColor === automaticColor.value ? "border-[#1a73e8] bg-[#e8f0fe] text-[#174ea6]" : "border-transparent"}`}
+          onSelect={() => applyColor(automaticColor.value)}
+          title={`${title}: ${automaticColor.label}`}
+        >
+          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-[#dadce0] bg-[#f8fafd] text-[11px] font-semibold text-[#5f6368]">
+            A
+          </span>
+          <span>{automaticColor.label}</span>
+          {activeColor === automaticColor.value && (
+            <Check className="ml-auto h-3.5 w-3.5" />
+          )}
+        </DropdownMenuItem>
+      )}
 
       <div
         className="grid grid-cols-10 gap-1 max-[360px]:grid-cols-8"

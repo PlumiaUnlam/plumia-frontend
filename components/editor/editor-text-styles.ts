@@ -7,6 +7,7 @@ import type {
   EditorTextStyleKind,
 } from "@/types/editor-text-style"
 import { getFontFamilyCss, type TextFontFamily } from "./text-font-family"
+import { getTextHighlightColor } from "./text-extra-formatting"
 
 const EDITOR_STYLE_ATTRIBUTE = "data-editor-style-id"
 
@@ -157,7 +158,9 @@ export function readEditorTextStyleFromSelection(
     fontFamily: editor.getAttributes("textFontFamily").fontFamily ?? null,
     fontSize: editor.getAttributes("textFontSize").fontSize ?? null,
     color: editor.getAttributes("textColor").color ?? null,
-    highlightColor: editor.isActive("textHighlight") ? "#ffff00" : null,
+    highlightColor: editor.isActive("textHighlight")
+      ? getTextHighlightColor(editor)
+      : null,
     bold: editor.isActive("bold"),
     italic: editor.isActive("italic"),
     underline: editor.isActive("underline"),
