@@ -11,7 +11,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:spellcheck": "node --import tsx scripts/spellcheck.test.mts"
+    "test:spellcheck": "node --import tsx scripts/spellcheck.test.mts",
+    "test:editor-save": "node --import tsx scripts/editor-save-protection.test.mts"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",

@@ -19,6 +19,7 @@ import {
   type SavedSceneResult,
 } from "@/hooks/use-autosave"
 import { requestKnowledgeRefresh } from "@/hooks/use-knowledge-refresh"
+import { requireSuccessfulSave } from "@/lib/editor-save-protection"
 import { EditorMenuBar } from "./editor-menu-bar"
 import { EditorToolbar } from "./toolbar"
 import { RichTextEditor } from "./RichTextEditor"
@@ -463,6 +464,7 @@ function EditorWorkspace({
   const [secondaryActions, setSecondaryActions] =
     useState<EditorToolbarActions | null>(null)
   const [isSavingBeforeChange, setIsSavingBeforeChange] = useState(false)
+  const [saveChangeError, setSaveChangeError] = useState<string | null>(null)
 
   const canSplit = sections.length > 1
   const fallbackSecondarySceneId =
@@ -497,26 +499,16 @@ function EditorWorkspace({
   const saveBeforeChange = useCallback(
     async (actions: EditorToolbarActions | null) => {
       if (!actions) return
-      await actions.saveNow()
+      await requireSuccessfulSave(actions.saveNow)
     },
     [],
   )
 
   const saveBeforeExport = useCallback(async () => {
-    const results = await Promise.all([
-      primaryActions?.saveNow(),
-      ...(effectiveIsSplit ? [secondaryActions?.saveNow()] : []),
+    await Promise.all([
+      primaryActions ? requireSuccessfulSave(primaryActions.saveNow) : undefined,
+      ...(effectiveIsSplit && secondaryActions ? [requireSuccessfulSave(secondaryActions.saveNow)] : []),
     ])
-    const failed = results.some(
-      (result) =>
-        result &&
-        typeof result === "object" &&
-        "status" in result &&
-        result.status === "failed",
-    )
-    if (failed) {
-      throw new Error("No se pudieron guardar los cambios pendientes")
-    }
   }, [effectiveIsSplit, primaryActions, secondaryActions])
 
   useEffect(() => {
@@ -529,10 +521,13 @@ function EditorWorkspace({
       if (nextSceneId === sceneId || isSavingBeforeChange) return
 
       setIsSavingBeforeChange(true)
+      setSaveChangeError(null)
       try {
         await saveBeforeChange(primaryActions)
         setFocusedPane("primary")
         setActiveScene(nextSceneId)
+      } catch (error) {
+        setSaveChangeError(error instanceof Error ? error.message : "No se pudieron guardar los cambios.")
       } finally {
         setIsSavingBeforeChange(false)
       }
@@ -551,10 +546,13 @@ function EditorWorkspace({
       if (nextSceneId === activeSecondarySceneId || isSavingBeforeChange) return
 
       setIsSavingBeforeChange(true)
+      setSaveChangeError(null)
       try {
         await saveBeforeChange(secondaryActions)
         setFocusedPane("secondary")
         setSecondarySceneId(nextSceneId)
+      } catch (error) {
+        setSaveChangeError(error instanceof Error ? error.message : "No se pudieron guardar los cambios.")
       } finally {
         setIsSavingBeforeChange(false)
       }
@@ -587,12 +585,15 @@ function EditorWorkspace({
     }
 
     setIsSavingBeforeChange(true)
+    setSaveChangeError(null)
     try {
       await saveBeforeChange(secondaryActions)
       setIsSplit(false)
       setSecondarySceneId(null)
       setSecondaryActions(null)
       setFocusedPane("primary")
+    } catch (error) {
+      setSaveChangeError(error instanceof Error ? error.message : "No se pudieron guardar los cambios.")
     } finally {
       setIsSavingBeforeChange(false)
     }
@@ -621,6 +622,7 @@ function EditorWorkspace({
 
   return (
     <div className="relative flex h-full min-h-0 flex-col">
+      {saveChangeError && <p role="alert" className="mx-2 my-1 rounded-md border border-destructive/25 bg-destructive/5 px-3 py-2 text-sm text-destructive">{saveChangeError}</p>}
       {effectiveIsSplit && focusedActions && !isZenMode && (
         <EditorMenuBar
           editor={focusedActions.editor}

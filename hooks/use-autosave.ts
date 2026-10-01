@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from "react"
 
 import { saveScene, saveSceneVersion } from "@/services/scene.service"
 import { useEditorStore } from "@/stores/editor.store"
+import { protectPendingEditorChanges } from "@/lib/editor-save-protection"
 import type { EditorPaneId } from "@/components/editor/editor-types"
 import type {
   ProseMirrorJSON,
@@ -41,6 +42,7 @@ export function useAutosave({
   const setPaneSaveStatus = useEditorStore((state) => state.setPaneSaveStatus)
   const markPaneSaved = useEditorStore((state) => state.markPaneSaved)
   const setPaneError = useEditorStore((state) => state.setPaneError)
+  const saveStatus = useEditorStore((state) => state.saveStatusByPane[paneId])
 
   const latestRef = useRef<ProseMirrorJSON | null>(content)
   const lastSavedSerializedRef = useRef<string | null>(null)
@@ -162,12 +164,13 @@ export function useAutosave({
   }, [])
 
   useEffect(() => {
-    window.addEventListener("beforeunload", flush)
-    return () => {
-      window.removeEventListener("beforeunload", flush)
-      flush()
-    }
-  }, [flush])
+    if (saveStatus !== "dirty" && saveStatus !== "saving" && saveStatus !== "error") return
+    return protectPendingEditorChanges(window, document, () => (
+      latestRef.current !== null && JSON.stringify(latestRef.current) !== lastSavedSerializedRef.current
+    ), flush)
+  }, [flush, saveStatus])
+
+  useEffect(() => () => flush(), [flush])
 
   useEffect(() => {
     const retryWhenOnline = () => {

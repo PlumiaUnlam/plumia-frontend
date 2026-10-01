@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import {
@@ -9,6 +9,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   Tooltip,
   TooltipContent,
@@ -61,6 +62,7 @@ type LeftSidebarProps = {
   books: SidebarBook[];
   projectId: string;
   onRefresh: () => Promise<void>;
+  onBeforeDocumentChange?: () => Promise<void>;
 };
 
 function nextSortKey(items: Array<{ sortKey?: string }>) {
@@ -85,7 +87,23 @@ export function LeftSidebar({
   books,
   projectId,
   onRefresh,
+  onBeforeDocumentChange,
 }: LeftSidebarProps) {
+  const navigationPendingRef = useRef(false);
+  const [navigationError, setNavigationError] = useState<string | null>(null);
+  const changeDocument = async (change: () => void) => {
+    if (navigationPendingRef.current) return;
+    navigationPendingRef.current = true;
+    setNavigationError(null);
+    try {
+      await onBeforeDocumentChange?.();
+      change();
+    } catch (error) {
+      setNavigationError(error instanceof Error ? error.message : "No se pudieron guardar los cambios. Reintentá antes de continuar.");
+    } finally {
+      navigationPendingRef.current = false;
+    }
+  };
   const [modalType, setModalType] = useState<SidebarModalState | null>(null);
   const [editingItem, setEditingItem] = useState<EditableItem | null>(null);
   const [itemToDelete, setItemToDelete] = useState<EditableItem | null>(null);
@@ -361,7 +379,9 @@ export function LeftSidebar({
               order: nextOrder(chapter.scenes),
             })
           }
-          onSelectScene={setActiveScene}
+          onSelectScene={(id) => {
+            if (id !== activeSceneId) void changeDocument(() => setActiveScene(id));
+          }}
           onEditItem={openEditItem}
           onDeleteItem={setItemToDelete}
         />
@@ -473,6 +493,17 @@ export function LeftSidebar({
         </SidebarFooter>
         <SidebarRail />
       </Sidebar>
+      <Dialog open={navigationError !== null} onOpenChange={(open) => { if (!open) setNavigationError(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>No se pudo guardar</DialogTitle>
+            <DialogDescription>{navigationError}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={() => setNavigationError(null)}>Volver al documento</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <LeftSidebarHistory
         activeSceneId={activeSceneId}
         activeSceneTitle={activeScene?.title}
@@ -503,8 +534,12 @@ export function LeftSidebar({
         }}
         onCreateVersionNameChange={setNewVersionName}
         onCreateVersion={handleCreateVersion}
-        onSelectDraft={() => setSelectedSceneVersion(null)}
-        onSelectVersion={setSelectedSceneVersion}
+        onSelectDraft={() => {
+          if (selectedSceneVersionId !== null) void changeDocument(() => setSelectedSceneVersion(null));
+        }}
+        onSelectVersion={(id) => {
+          if (id !== selectedSceneVersionId) void changeDocument(() => setSelectedSceneVersion(id));
+        }}
         onOpenRestore={setRestoreTarget}
         onRestoreVersion={handleRestoreVersion}
         onOpenRename={(version) => {

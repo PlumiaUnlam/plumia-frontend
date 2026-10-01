@@ -210,6 +210,7 @@ export function EditorLayout({ projectId }: EditorLayoutProps) {
               books={books}
               projectId={projectId}
               onRefresh={loadProject}
+              onBeforeDocumentChange={saveBeforeExport}
             />
           )}
 
