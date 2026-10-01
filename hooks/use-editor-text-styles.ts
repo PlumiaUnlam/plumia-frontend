@@ -16,6 +16,7 @@ import type {
 
 const stylesKey = (projectId: string) =>
   `/projects/${encodeURIComponent(projectId)}/editor-styles`
+const EMPTY_CUSTOM_STYLES: EditorTextStyle[] = []
 
 function makeId() {
   if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID()
@@ -31,7 +32,7 @@ export function useEditorTextStyles(projectId: string) {
     key,
     () => getProjectEditorTextStyles(projectId),
   )
-  const customStyles = data ?? []
+  const customStyles = data ?? EMPTY_CUSTOM_STYLES
   const defaultStyles = useMemo(
     () => createDefaultEditorTextStyles(projectId),
     [projectId],

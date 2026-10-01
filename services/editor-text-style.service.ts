@@ -1,8 +1,5 @@
 import { api } from "@/services/api.service"
-import type {
-  EditorTextStyle,
-  SaveEditorTextStyleInput,
-} from "@/types/editor-text-style"
+import type { EditorTextStyle } from "@/types/editor-text-style"
 
 type PendingOperation =
   | { type: "create"; style: EditorTextStyle }
