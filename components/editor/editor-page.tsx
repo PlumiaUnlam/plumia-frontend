@@ -108,6 +108,22 @@ export function EditorLayout({ projectId }: EditorLayoutProps) {
     [books],
   )
 
+  const exportBooks = useMemo(
+    () => books.map(({ id, title }) => ({ id, title })),
+    [books],
+  )
+
+  const defaultExportBookId = useMemo(() => {
+    const activeBook = activeSceneId
+      ? books.find((book) =>
+          book.chapters.some((chapter) =>
+            chapter.scenes.some((scene) => scene.id === activeSceneId),
+          ),
+        )
+      : undefined
+    return activeBook?.id ?? books[0]?.id ?? null
+  }, [activeSceneId, books])
+
   const loadProject = useCallback(async () => {
     if (!projectId) {
       setProjectsError("No se selecciono un proyecto.")
@@ -246,6 +262,8 @@ export function EditorLayout({ projectId }: EditorLayoutProps) {
 
       <ExportDialog
         projectId={projectId}
+        books={exportBooks}
+        defaultBookId={defaultExportBookId}
         open={isExportDialogOpen}
         isHistoricalVersion={Boolean(selectedSceneVersionId)}
         onOpenChange={setIsExportDialogOpen}

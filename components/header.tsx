@@ -92,14 +92,14 @@ export function Header({ mode, onModeChange, onExportClick }: HeaderProps) {
                   type="button"
                   size="icon-sm"
                   variant="ghost"
-                  aria-label="Exportar obra"
+                  aria-label="Exportar libro"
                   onClick={onExportClick}
                   className="text-white hover:bg-white/10 hover:text-white"
                 >
                   <Download className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="bottom">Exportar obra</TooltipContent>
+              <TooltipContent side="bottom">Exportar libro</TooltipContent>
             </Tooltip>
           </TooltipProvider>
         )}
