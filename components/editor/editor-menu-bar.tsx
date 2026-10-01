@@ -36,7 +36,6 @@ import {
   MenubarCheckboxItem,
   MenubarContent,
   MenubarItem,
-  MenubarLabel,
   MenubarSeparator,
   MenubarShortcut,
   MenubarTrigger,
@@ -56,7 +55,7 @@ import {
 import { toggleFormatPainter, useFormatPainterState } from "./format-painter"
 
 const menuButtonClass =
-  "h-8 shrink-0 rounded-md px-2.5 text-sm font-medium text-[#3c4043] hover:bg-[#e8eaed] hover:text-[#202124] data-[state=open]:bg-[#e8eaed] data-[state=open]:text-[#174ea6] focus-visible:ring-2 focus-visible:ring-[#a8c7fa] max-[640px]:px-2"
+  "h-8 shrink-0 rounded-md px-2.5 text-sm font-medium text-[#3c4043] hover:bg-[#eee3f5] hover:text-[#70348c] data-[state=open]:bg-[#eee3f5] data-[state=open]:text-[#70348c] focus-visible:ring-2 focus-visible:ring-[#b98ad2] max-[640px]:px-2"
 const menuContentClass =
   "max-h-[min(80vh,42rem)] w-64 max-w-[calc(100vw-1rem)] overflow-y-auto border-[#dadce0] bg-white text-[#3c4043] shadow-[0_3px_8px_rgba(60,64,67,0.24)]"
 const menuItemClass = "min-h-9 gap-3 text-[#3c4043] focus:bg-[#f1f3f4] focus:text-[#202124]"
@@ -64,7 +63,6 @@ const menuItemClass = "min-h-9 gap-3 text-[#3c4043] focus:bg-[#f1f3f4] focus:tex
 type EditorMenuBarProps = {
   editor: Editor
   projectId: string
-  versionLabel: string
   onSave?: () => void
   onExportClick?: () => void
   onInsertImage?: () => void
@@ -84,7 +82,6 @@ type EditorMenuBarProps = {
 export function EditorMenuBar({
   editor,
   projectId,
-  versionLabel,
   onSave,
   onExportClick,
   onInsertImage,
@@ -168,7 +165,6 @@ export function EditorMenuBar({
       {menu(
         "Archivo",
         <>
-          <MenubarLabel className="truncate">{versionLabel}</MenubarLabel>
           {menuItem(
             <Save className="size-4" />,
             "Guardar cambios",

@@ -50,9 +50,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { getActiveTextColor } from "./text-formatting"
 import { SceneDividerMenuOptions } from "./scene-divider-menu"
-import { SaveStatusIndicator } from "./save-status-indicator"
 import { AnalysisButton } from "./analysis/analysis-button"
-import type { EditorPaneId } from "./editor-types"
 import {
   type SceneDividerVariant,
 } from "./scene-divider"
@@ -197,14 +195,12 @@ function getAlignmentIcon(alignment: ParagraphAlignment) {
 
 interface EditorToolbarProps {
   editor: Editor
-  versionLabel: string
   onInsertImage?: () => void
   isUploadingImage?: boolean
   onAnalyzeChanges?: () => void
   isAnalysisSaving?: boolean
   isZenMode?: boolean
   onInsertDivider?: (variant: SceneDividerVariant) => void
-  paneId?: EditorPaneId
   onToggleSplit?: () => void
   isSplit?: boolean
   canSplit?: boolean
@@ -214,14 +210,12 @@ interface EditorToolbarProps {
 
 export function EditorToolbar({
   editor,
-  versionLabel,
   onInsertImage,
   isUploadingImage = false,
   onAnalyzeChanges,
   isAnalysisSaving = false,
   isZenMode = false,
   onInsertDivider,
-  paneId = "primary",
   onToggleSplit,
   isSplit = false,
   canSplit = true,
@@ -862,9 +856,7 @@ export function EditorToolbar({
             ))}
 
           </fieldset>
-        </div>
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[#dadce0] pt-2">
-          <fieldset className="m-0 flex min-w-0 flex-wrap items-center gap-2 border-0 p-0">
+          <fieldset className="m-0 ml-auto flex shrink-0 flex-wrap items-center gap-2 border-0 p-0">
             <legend className="sr-only">Vista y revisión</legend>
             {renderWhen(onToggleSplit, (
               <Button type="button" size="sm" variant="outline"
@@ -878,10 +870,6 @@ export function EditorToolbar({
             ))}
             {renderWhen(onAnalyzeChanges, <AnalysisButton isSaving={isAnalysisSaving} onClick={onAnalyzeChanges!} />)}
           </fieldset>
-          <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-x-3 gap-y-1 text-xs text-[#5f6368]">
-            <span className="min-w-0 max-w-full truncate" title={versionLabel}>Versión: {versionLabel}</span>
-            <SaveStatusIndicator paneId={paneId} />
-          </div>
         </div>
         <ParagraphFormatDialog
           key={paragraphDialogOpen ? "open" : "closed"}

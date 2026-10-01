@@ -84,9 +84,11 @@ function SceneEditor({
   canSplit,
 }: Readonly<SceneEditorProps>) {
   const setCurrentContent = useEditorStore((s) => s.setCurrentContent)
+  const setEditorVersionLabel = useEditorStore((s) => s.setEditorVersionLabel)
   const saveStatus = useEditorStore(
     (s) => s.saveStatusByPane[paneId],
   )
+  const versionLabel = getEditorVersionLabel(document, selectedVersionId)
   const [content, setContent] = useState<ProseMirrorJSON | null>(
     document.content,
   )
@@ -146,6 +148,12 @@ function SceneEditor({
     }
   }, [content, paneId, setCurrentContent])
 
+  useEffect(() => {
+    if (paneId === "primary") {
+      setEditorVersionLabel(versionLabel)
+    }
+  }, [paneId, setEditorVersionLabel, versionLabel])
+
   return (
     <>
       <AnalysisToast
@@ -158,7 +166,6 @@ function SceneEditor({
         sceneId={sceneId}
         projectId={projectId}
         content={content}
-        versionLabel={getEditorVersionLabel(document, selectedVersionId)}
         onChange={handleContentChange}
         onSave={() => void saveNow()}
         onAnalyzeChanges={
@@ -170,7 +177,6 @@ function SceneEditor({
         onOpenSearch={onOpenSearch}
         onOpenSpellcheckSettings={onOpenSpellcheckSettings}
         onExportClick={onExportClick}
-        paneId={paneId}
         saveNow={saveNow}
         showToolbar={showToolbar}
         onEditorFocus={onEditorFocus}
@@ -643,7 +649,6 @@ function EditorWorkspace({
         <EditorMenuBar
           editor={focusedActions.editor}
           projectId={projectId}
-          versionLabel={focusedActions.versionLabel}
           onSave={() => void focusedActions.saveNow()}
           onExportClick={onExportClick}
           onInsertImage={focusedActions.onInsertImage}
@@ -665,13 +670,11 @@ function EditorWorkspace({
       {effectiveIsSplit && focusedActions && (
         <EditorToolbar
           editor={focusedActions.editor}
-          versionLabel={focusedActions.versionLabel}
           onInsertImage={focusedActions.onInsertImage}
           isUploadingImage={focusedActions.isUploadingImage}
           onAnalyzeChanges={focusedActions.onAnalyzeChanges}
           isAnalysisSaving={focusedActions.isAnalysisSaving}
           isZenMode={isZenMode}
-          paneId={focusedPane}
           onToggleSplit={() => void handleToggleSplit()}
           isSplit={effectiveIsSplit}
           canSplit={canSplit}

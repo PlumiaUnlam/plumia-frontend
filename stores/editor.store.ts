@@ -20,6 +20,7 @@ type EditorState = {
   /** Capítulo actualmente cargado en el editor (carga perezosa). */
   activeSceneId: string | null
   selectedSceneVersionId: string | null
+  editorVersionLabel: string
   currentContent: ProseMirrorJSON | null
   documentReloadToken: number
   /** Estado del autoguardado, reflejado en la UI. */
@@ -38,6 +39,7 @@ type EditorState = {
 
   setActiveScene: (id: string) => void
   setSelectedSceneVersion: (id: string | null) => void
+  setEditorVersionLabel: (label: string) => void
   setCurrentContent: (content: ProseMirrorJSON | null) => void
   refreshEditorDocument: () => void
   setSaveStatus: (status: SaveStatus) => void
@@ -57,6 +59,7 @@ type EditorState = {
 export const useEditorStore = create<EditorState>((set) => ({
   activeSceneId: null,
   selectedSceneVersionId: null,
+  editorVersionLabel: "Borrador principal",
   currentContent: null,
   documentReloadToken: 0,
   saveStatus: "idle",
@@ -74,6 +77,7 @@ export const useEditorStore = create<EditorState>((set) => ({
     set((state) => ({
       activeSceneId: id,
       selectedSceneVersionId: null,
+      editorVersionLabel: "Borrador principal",
       currentContent: null,
       saveStatus: "idle",
       error: null,
@@ -85,12 +89,14 @@ export const useEditorStore = create<EditorState>((set) => ({
   setSelectedSceneVersion: (id) =>
     set((state) => ({
       selectedSceneVersionId: id,
+      editorVersionLabel: id ? "Cargando versión…" : "Borrador principal",
       currentContent: null,
       saveStatus: "idle",
       error: null,
       saveStatusByPane: { ...state.saveStatusByPane, primary: "idle" },
       errorByPane: { ...state.errorByPane, primary: null },
     })),
+  setEditorVersionLabel: (editorVersionLabel) => set({ editorVersionLabel }),
   setCurrentContent: (content) => set({ currentContent: content }),
   refreshEditorDocument: () =>
     set((state) => ({

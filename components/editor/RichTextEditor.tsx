@@ -44,7 +44,6 @@ import { useEditorTextStyles } from "@/hooks/use-editor-text-styles"
 import { ListNumberingMenu } from "./list-numbering-menu"
 import { SpellcheckSuggestions } from "./spellcheck-suggestions"
 import type {
-  EditorPaneId,
   EditorToolbarActions,
 } from "./editor-types"
 import type { SceneDividerVariant } from "./scene-divider"
@@ -55,7 +54,6 @@ type RichTextEditorProps = {
   sceneId: string
   projectId: string
   content?: ProseMirrorJSON | null
-  versionLabel: string
   onChange?: (json: ProseMirrorJSON) => void
   onSave?: () => void
   onAnalyzeChanges?: () => void
@@ -65,7 +63,6 @@ type RichTextEditorProps = {
   onOpenSearch?: () => void
   onOpenSpellcheckSettings?: () => void
   onExportClick?: () => void
-  paneId?: EditorPaneId
   saveNow?: () => Promise<unknown>
   showToolbar?: boolean
   onEditorFocus?: () => void
@@ -83,7 +80,6 @@ export function RichTextEditor({
   sceneId,
   projectId,
   content,
-  versionLabel,
   onChange,
   onSave,
   onAnalyzeChanges,
@@ -93,7 +89,6 @@ export function RichTextEditor({
   onOpenSearch,
   onOpenSpellcheckSettings,
   onExportClick,
-  paneId = "primary",
   saveNow,
   showToolbar = true,
   onEditorFocus,
@@ -114,9 +109,6 @@ export function RichTextEditor({
   } = useEditorImage({ sceneId })
 
   const { goToEntity } = useEntityLink({ projectId })
-  const saveStatus = useEditorStore(
-    (state) => state.saveStatusByPane[paneId],
-  )
   const citationFocus = useEditorStore((state) => state.citationFocus)
   const clearCitationFocus = useEditorStore(
     (state) => state.clearCitationFocus,
@@ -197,8 +189,6 @@ export function RichTextEditor({
       isUploadingImage: isUploading,
       onAnalyzeChanges,
       isAnalysisSaving,
-      versionLabel,
-      saveStatus,
       saveNow: saveNow ?? (() => Promise.resolve()),
     })
 
@@ -211,8 +201,6 @@ export function RichTextEditor({
     onToolbarActionsChange,
     openImagePicker,
     saveNow,
-    saveStatus,
-    versionLabel,
   ])
 
   useEffect(() => {
@@ -328,7 +316,6 @@ export function RichTextEditor({
         <EditorMenuBar
           editor={editor}
           projectId={projectId}
-          versionLabel={versionLabel}
           onSave={onSave}
           onExportClick={onExportClick}
           onOpenSearch={onOpenSearch}
@@ -350,13 +337,11 @@ export function RichTextEditor({
       {showToolbar && (
         <EditorToolbar
           editor={editor}
-          versionLabel={versionLabel}
           onInsertImage={openImagePicker}
           isUploadingImage={isUploading}
           onAnalyzeChanges={onAnalyzeChanges}
           isAnalysisSaving={isAnalysisSaving}
           isZenMode={isZenMode}
-          paneId={paneId}
           onToggleSplit={onToggleSplit}
           isSplit={isSplit}
           canSplit={canSplit}

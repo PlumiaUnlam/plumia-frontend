@@ -8,12 +8,65 @@ import { SidebarProvider } from "@/components/ui/sidebar"
 import { EditorRightPanel } from "@/components/editor-right-panel"
 import { useEditorStore } from "@/stores/editor.store"
 import { EditorContainer } from "./editor-container"
+import { SaveStatusIndicator } from "./save-status-indicator"
 import { SearchReplacePanel } from "./search-replace-panel"
 import { SpellcheckSettingsDialog } from "./spellcheck-settings-dialog"
 import type { WritingMode } from "@/types/writing-mode"
 import type { EditorSectionOption } from "./editor-types"
 import type { EditorSearchMatch, SpellcheckLanguage } from "@/types/editor-search"
+import type { ProseMirrorJSON } from "@/types/scene"
 import { ExportDialog } from "@/components/export/export-dialog"
+
+const blockTypes = new Set([
+  "doc",
+  "bulletList",
+  "blockquote",
+  "listItem",
+  "orderedList",
+  "tableCell",
+  "tableHeader",
+])
+
+function getWordCount(content: ProseMirrorJSON | null) {
+  if (!content) return 0
+
+  const collectText = (node: ProseMirrorJSON): string => {
+    if (node.type === "text") return node.text ?? ""
+    if (node.type === "hardBreak") return "\n"
+
+    const childText = (node.content ?? []).map(collectText)
+    return childText.join(blockTypes.has(node.type ?? "") ? "\n" : "")
+  }
+
+  const text = collectText(content).trim()
+  return text ? text.split(/\s+/).length : 0
+}
+
+function getActiveSceneDetails(books: SidebarBook[], activeSceneId: string | null) {
+  if (!activeSceneId) return null
+
+  for (const book of books) {
+    for (const chapter of book.chapters) {
+      const scene = chapter.scenes.find((item) => item.id === activeSceneId)
+      if (!scene) continue
+
+      return {
+        bookTitle: book.title,
+        chapterTitle: chapter.title,
+        sceneTitle: scene.title,
+        sceneWordCount: scene.wordCount ?? 0,
+        chapterWordCount:
+          chapter.wordCount ??
+          chapter.scenes.reduce(
+            (total, chapterScene) => total + (chapterScene.wordCount ?? 0),
+            0,
+          ),
+      }
+    }
+  }
+
+  return null
+}
 
 type EditorLayoutProps = {
   projectId: string
@@ -41,6 +94,20 @@ export function EditorLayout({ projectId }: Readonly<EditorLayoutProps>) {
   const selectedSceneVersionId = useEditorStore(
     (s) => s.selectedSceneVersionId,
   )
+  const editorVersionLabel = useEditorStore((s) => s.editorVersionLabel)
+
+  const activeSceneDetails = getActiveSceneDetails(books, activeSceneId)
+  const currentSceneWordCount = currentContent
+    ? getWordCount(currentContent)
+    : (activeSceneDetails?.sceneWordCount ?? 0)
+  const statusWordCount = activeSceneDetails
+    ? Math.max(
+        0,
+        activeSceneDetails.chapterWordCount -
+          activeSceneDetails.sceneWordCount +
+          currentSceneWordCount,
+      )
+    : currentSceneWordCount
 
   const registerBeforeExport = useCallback(
     (handler: (() => Promise<void>) | null) => {
@@ -258,7 +325,36 @@ export function EditorLayout({ projectId }: Readonly<EditorLayoutProps>) {
         </div>
       </SidebarProvider>
 
-      <footer className="flex h-8 shrink-0 items-center border-t border-border bg-muted/50 px-5 text-[10px] text-muted-foreground">
+      <footer className="flex h-8 shrink-0 items-center justify-between gap-3 border-t border-[#e8dff0] bg-[#f6f0fa] px-3 text-[11px] text-[#725b85] dark:border-border dark:bg-background dark:text-muted-foreground sm:px-5">
+        <div className="flex min-w-0 flex-1 items-center gap-1.5">
+          <span
+            className="min-w-0 truncate"
+            title={
+              activeSceneDetails
+                ? `${activeSceneDetails.bookTitle} · ${activeSceneDetails.chapterTitle} · ${activeSceneDetails.sceneTitle}`
+                : undefined
+            }
+          >
+            {activeSceneDetails?.chapterTitle ?? "Seleccioná una escena"}
+          </span>
+          {activeSceneId && (
+            <span className="shrink-0">
+              · {new Intl.NumberFormat("es-AR").format(statusWordCount)} palabras
+            </span>
+          )}
+        </div>
+        <div className="flex shrink-0 items-center gap-2 sm:gap-4">
+          <span
+            className="max-w-[24vw] truncate text-[#76558e] dark:text-muted-foreground"
+            title={editorVersionLabel}
+          >
+            {editorVersionLabel}
+          </span>
+          <SaveStatusIndicator
+            paneId="primary"
+            className="min-h-0 text-[11px]"
+          />
+        </div>
       </footer>
 
       <ExportDialog
