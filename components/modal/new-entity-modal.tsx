@@ -299,32 +299,21 @@ export function NewEntityModal({
     setError(null);
 
     try {
-      const type = CATEGORY_TO_TYPE[category];
-      if (isEditing && entity) {
-        const input: UpdateEntityInput = {
-          canonicalName: name.trim(),
-          type,
-          description: description.trim() || null,
-          aliases: tags.length > 0 ? tags : [],
-          attributes,
-        };
-        if (imageRemoved && !selectedFile && !aiGeneratedUrl) {
-          input.imageUrl = null;
-        }
-        await onSubmit(input, selectedFile);
-      } else {
-        const input: CreateEntityInput = {
-          canonicalName: name.trim(),
-          type,
-          description: description.trim() || undefined,
-          aliases: tags.length > 0 ? tags : [],
-          attributes,
-          ...(isProposal && proposalImageUrl
-            ? { imageUrl: proposalImageUrl }
-            : {}),
-        };
-        await onSubmit(input, selectedFile);
-      }
+      const input = buildEntitySubmission({
+        name,
+        category,
+        description,
+        tags,
+        attributes,
+        isEditing,
+        entity,
+        imageRemoved,
+        selectedFile,
+        aiGeneratedUrl,
+        isProposal,
+        proposalImageUrl,
+      });
+      await onSubmit(input, selectedFile);
       onClose();
     } catch (err) {
       setError(
@@ -454,11 +443,7 @@ export function NewEntityModal({
         <DialogHeader className="p-6 py-4 border-b">
           <div className="flex items-center justify-between">
             <DialogTitle>
-              {isProposal
-                ? "Revisar propuesta de entidad"
-                : isEditing
-                  ? "Editar Entidad"
-                  : "Nueva Entidad"}
+              {getEntityModalTitle(isProposal, isEditing)}
             </DialogTitle>
           </div>
         </DialogHeader>
@@ -597,7 +582,7 @@ export function NewEntityModal({
                   activeJob={activeImageJob}
                   category={category}
                   onGenerate={onImageGenerate ?? (() => undefined)}
-                  onUpload={onImageUpload ?? (async () => undefined)}
+                  onUpload={onImageUpload ?? (() => Promise.resolve())}
                   onSetPrimary={onSetPrimaryImage ?? (() => undefined)}
                   onDelete={onDeleteImage ?? (() => undefined)}
                   actionError={imageActionError}
@@ -702,6 +687,64 @@ function getSubmitLabel(isProposal: boolean, isEditing: boolean): string {
   if (isProposal) return "Aceptar propuesta";
   if (isEditing) return "Guardar cambios";
   return "Crear entidad";
+}
+
+function getEntityModalTitle(isProposal: boolean, isEditing: boolean) {
+  if (isProposal) return "Revisar propuesta de entidad";
+  if (isEditing) return "Editar Entidad";
+  return "Nueva Entidad";
+}
+
+function buildEntitySubmission({
+  name,
+  category,
+  description,
+  tags,
+  attributes,
+  isEditing,
+  entity,
+  imageRemoved,
+  selectedFile,
+  aiGeneratedUrl,
+  isProposal,
+  proposalImageUrl,
+}: {
+  name: string;
+  category: EntityCategory;
+  description: string;
+  tags: string[];
+  attributes: Record<string, unknown>;
+  isEditing: boolean;
+  entity: Entity | null | undefined;
+  imageRemoved: boolean;
+  selectedFile: File | null;
+  aiGeneratedUrl: string | null;
+  isProposal: boolean;
+  proposalImageUrl: string | null;
+}): CreateEntityInput | UpdateEntityInput {
+  const commonInput = {
+    canonicalName: name.trim(),
+    type: CATEGORY_TO_TYPE[category],
+    aliases: tags.length > 0 ? tags : [],
+    attributes,
+  };
+
+  if (isEditing && entity) {
+    const input: UpdateEntityInput = {
+      ...commonInput,
+      description: description.trim() || null,
+    };
+    if (imageRemoved && !selectedFile && !aiGeneratedUrl) {
+      input.imageUrl = null;
+    }
+    return input;
+  }
+
+  return {
+    ...commonInput,
+    description: description.trim() || undefined,
+    ...(isProposal && proposalImageUrl ? { imageUrl: proposalImageUrl } : {}),
+  };
 }
 
 function ImageUploadActions({

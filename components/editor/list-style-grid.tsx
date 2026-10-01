@@ -29,7 +29,7 @@ export function ListStyleGrid({
   editor,
   kind,
   menuItemClass,
-}: ListStyleGridProps) {
+}: Readonly<ListStyleGridProps>) {
   const isBullet = kind === "bullet"
   const activeStyle = isBullet
     ? getActiveBulletListStyle(editor)
@@ -113,14 +113,14 @@ function BulletStyleItem({
   marker,
   activeStyle,
   menuItemClass,
-}: {
+}: Readonly<{
   editor: Editor
   style: BulletListStyle
   label: string
   marker: string
   activeStyle: BulletListStyle
   menuItemClass: string
-}) {
+}>) {
   return (
     <DropdownMenuItem
       className={`relative flex min-h-20 min-w-0 flex-col items-center justify-center gap-2 rounded-lg border p-2 text-xs ${menuItemClass} ${activeStyle === style ? "border-[#1a73e8] bg-[#e8f0fe] text-[#174ea6]" : "border-transparent"}`}
@@ -153,14 +153,14 @@ function OrderedStyleItem({
   preview,
   activeStyle,
   menuItemClass,
-}: {
+}: Readonly<{
   editor: Editor
   style: OrderedListStyle
   label: string
   preview: readonly string[]
   activeStyle: OrderedListStyle
   menuItemClass: string
-}) {
+}>) {
   return (
     <DropdownMenuItem
       className={`relative flex min-h-20 min-w-0 flex-col justify-center gap-1 rounded-lg border px-2.5 py-2 text-xs ${menuItemClass} ${activeStyle === style ? "border-[#1a73e8] bg-[#e8f0fe] text-[#174ea6]" : "border-transparent"}`}
@@ -186,14 +186,14 @@ function OrderedPresetItem({
   preview,
   activePreset,
   menuItemClass,
-}: {
+}: Readonly<{
   editor: Editor
   preset: OrderedListPreset
   label: string
   preview: readonly string[]
   activePreset: OrderedListPreset | "plain"
   menuItemClass: string
-}) {
+}>) {
   return (
     <DropdownMenuItem
       className={`relative flex min-h-24 min-w-0 flex-col justify-center gap-1.5 rounded-lg border px-2.5 py-2.5 text-xs ${menuItemClass} ${activePreset === preset ? "border-[#1a73e8] bg-[#e8f0fe] text-[#174ea6]" : "border-transparent"}`}

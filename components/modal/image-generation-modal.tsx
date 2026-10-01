@@ -305,10 +305,10 @@ export function ImageGenerationModal({
             <span className="block">
               La imagen de referencia y la identidad de la ficha se conservan.
               Solo definí qué querés cambiar en esta variante.
-              <span className="mt-1 block text-xs">
-                Todos los campos son opcionales: podés dejarlos en blanco y
-                generar la imagen con la configuración base.
-              </span>
+            </span>
+            <span className="mt-1 block text-xs">
+              Todos los campos son opcionales: podés dejarlos en blanco y
+              generar la imagen con la configuración base.
             </span>
           </DialogDescription>
 

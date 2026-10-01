@@ -12,9 +12,7 @@ export const TEXT_COLORS = [
   { value: "#db2777", label: "Rosa" },
 ] as const
 
-export type TextColor = string
-
-function isTextColor(value: string): value is TextColor {
+function isTextColor(value: string) {
   return value === "inherit" || /^#[0-9a-f]{6}$/i.test(value)
 }
 
@@ -32,7 +30,7 @@ export const TextFormatting = Mark.create({
             ? color
             : null
         },
-        renderHTML: (attributes: { color?: TextColor | null }) => {
+        renderHTML: (attributes: { color?: string | null }) => {
           const color = attributes.color
           if (!color || color === "inherit") return {}
 
@@ -54,12 +52,12 @@ export const TextFormatting = Mark.create({
   },
 })
 
-export function getActiveTextColor(editor: Editor): TextColor {
+export function getActiveTextColor(editor: Editor): string {
   const value = editor.getAttributes("textColor").color
   return typeof value === "string" && isTextColor(value) ? value : "inherit"
 }
 
-export function applyTextColor(editor: Editor, color: TextColor) {
+export function applyTextColor(editor: Editor, color: string) {
   const chain = editor.chain().focus()
 
   if (color === "inherit") {

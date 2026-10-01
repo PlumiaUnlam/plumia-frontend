@@ -24,20 +24,14 @@ function formatNumber(value: number) {
   return numberFormatter.format(value);
 }
 
-function ProgressBar({ value }: { value: number }) {
+function ProgressBar({ value }: Readonly<{ value: number }>) {
   return (
-    <div
-      className="h-1.5 overflow-hidden rounded-full bg-secondary"
-      role="progressbar"
-      aria-valuemin={0}
-      aria-valuemax={100}
-      aria-valuenow={Math.round(value)}
-    >
-      <div
-        className="h-full rounded-full bg-primary transition-[width] duration-500"
-        style={{ width: `${Math.min(100, Math.max(0, value))}%` }}
-      />
-    </div>
+    <progress
+      className="block h-1.5 w-full appearance-none overflow-hidden rounded-full bg-secondary [&::-moz-progress-bar]:rounded-full [&::-moz-progress-bar]:bg-primary [&::-webkit-progress-bar]:rounded-full [&::-webkit-progress-bar]:bg-secondary [&::-webkit-progress-value]:rounded-full [&::-webkit-progress-value]:bg-primary"
+      value={Math.min(100, Math.max(0, value))}
+      max={100}
+      aria-label="Progreso de escritura"
+    />
   );
 }
 
@@ -45,11 +39,11 @@ function Metric({
   icon: Icon,
   label,
   value,
-}: {
+}: Readonly<{
   icon: typeof Flame;
   label: string;
   value: string;
-}) {
+}>) {
   return (
     <div className="rounded-xl border bg-background p-3">
       <div className="flex items-center gap-2 text-muted-foreground">
@@ -64,10 +58,10 @@ function Metric({
 function GoalSummary({
   type,
   goal,
-}: {
+}: Readonly<{
   type: WritingGoalType;
   goal?: WritingGoal;
-}) {
+}>) {
   const label = type === "DAILY" ? "Meta diaria" : "Meta semanal";
 
   return (
@@ -108,7 +102,7 @@ function StatsSidebarSkeleton() {
   );
 }
 
-export function StatsSidebarPanel({ projectId }: { projectId: string }) {
+export function StatsSidebarPanel({ projectId }: Readonly<{ projectId: string }>) {
   const { data, error, isLoading, isValidating, mutate } = useSWR(
     projectId ? `analytics-sidebar:${projectId}` : null,
     () => getAnalyticsDashboard(projectId),

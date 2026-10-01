@@ -39,6 +39,17 @@ const selectClass =
   "h-9 w-full rounded-md border border-[#dadce0] bg-white px-3 text-sm text-[#3c4043] outline-none transition focus:border-[#1a73e8] focus:ring-2 focus:ring-[#d2e3fc]"
 const fieldLabelClass = "text-xs font-medium text-[#5f6368]"
 
+function getLineHeightLabel(lineHeight: ParagraphLineHeight) {
+  const labels: Record<ParagraphLineHeight, string> = {
+    "1": "Simple",
+    "1.15": "1,15",
+    "1.5": "1,5",
+    "1.8": "1,8",
+    "2": "Doble",
+  }
+  return labels[lineHeight]
+}
+
 const alignmentOptions: ReadonlyArray<{
   value: ParagraphAlignment
   label: string
@@ -69,7 +80,7 @@ export function ParagraphFormatDialog({
   attributes,
   open,
   onOpenChange,
-}: ParagraphFormatDialogProps) {
+}: Readonly<ParagraphFormatDialogProps>) {
   const [draft, setDraft] = useState<ParagraphAttributes>({
     ...DEFAULT_PARAGRAPH_ATTRIBUTES,
     ...attributes,
@@ -96,9 +107,17 @@ export function ParagraphFormatDialog({
   ) => {
     const parsed = Number(value)
     const spacing = attribute === "spacingBefore" || attribute === "spacingAfter"
+    let nextValue: number | null
+    if (spacing && value === "") {
+      nextValue = null
+    } else if (!Number.isFinite(parsed)) {
+      nextValue = 0
+    } else {
+      nextValue = Math.min(spacing ? 144 : 12, Math.max(0, parsed))
+    }
     setDraft((current) => ({
       ...current,
-      [attribute]: spacing && value === "" ? null : Number.isFinite(parsed) ? Math.min(spacing ? 144 : 12, Math.max(0, parsed)) : 0,
+      [attribute]: nextValue,
     }))
   }
 
@@ -198,15 +217,7 @@ export function ParagraphFormatDialog({
               >
                 {PARAGRAPH_LINE_HEIGHTS.map((lineHeight) => (
                   <EditorSelectOption key={lineHeight} value={lineHeight}>
-                    {lineHeight === "1"
-                      ? "Simple"
-                      : lineHeight === "1.15"
-                        ? "1,15"
-                        : lineHeight === "1.5"
-                          ? "1,5"
-                          : lineHeight === "1.8"
-                            ? "1,8"
-                            : "Doble"}
+                    {getLineHeightLabel(lineHeight)}
                   </EditorSelectOption>
                 ))}
               </EditorSelect>

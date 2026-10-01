@@ -1252,7 +1252,6 @@ function ThreadRenameButton({
     return (
       <span className="flex items-center gap-0.5">
         <input
-          autoFocus
           value={title}
           onChange={(event) => setTitle(event.target.value)}
           onKeyDown={(event) => {

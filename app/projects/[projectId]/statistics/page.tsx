@@ -8,7 +8,7 @@ type ProjectStatisticsPageProps = {
 
 export default async function ProjectStatisticsPage({
   params,
-}: ProjectStatisticsPageProps) {
+}: Readonly<ProjectStatisticsPageProps>) {
   const { projectId } = await params;
 
   return <StatisticsDashboard projectId={projectId} />;

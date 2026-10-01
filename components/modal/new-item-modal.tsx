@@ -31,7 +31,7 @@ export function NewItemModal({
   label,
   placeholder,
   submitText,
-}: NewItemModalProps) {
+}: Readonly<NewItemModalProps>) {
   const [name, setName] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
 

@@ -102,20 +102,45 @@ function formatLongDate(value: string | null) {
   }).format(new Date(value));
 }
 
-function ProgressBar({ value }: { value: number }) {
+function getRefreshIconClass(refreshing: boolean) {
+  if (refreshing) return "animate-spin"
+  return ""
+}
+
+function getWordTargetLabel(target: number | null) {
+  if (!target) return "palabras escritas"
+  return `de ${formatNumber(target)} palabras`
+}
+
+function ProjectProgress({
+  progressPercent,
+}: Readonly<{ progressPercent: number | null }>) {
+  if (progressPercent === null) return null
+
   return (
-    <div
-      className="h-2.5 overflow-hidden rounded-full bg-secondary"
-      role="progressbar"
-      aria-valuemin={0}
-      aria-valuemax={100}
-      aria-valuenow={Math.round(value)}
-    >
-      <div
-        className="h-full rounded-full bg-primary transition-[width] duration-500"
-        style={{ width: `${Math.min(100, Math.max(0, value))}%` }}
-      />
+    <div className="mt-5 max-w-2xl">
+      <div className="mb-2 flex justify-between text-xs text-white/70">
+        <span>Progreso</span>
+        <span>{progressPercent}%</span>
+      </div>
+      <div className="h-2.5 overflow-hidden rounded-full bg-white/15">
+        <div
+          className="h-full rounded-full bg-white"
+          style={{ width: `${progressPercent}%` }}
+        />
+      </div>
     </div>
+  )
+}
+
+function ProgressBar({ value }: Readonly<{ value: number }>) {
+  return (
+    <progress
+      className="block h-2.5 w-full appearance-none overflow-hidden rounded-full bg-secondary [&::-moz-progress-bar]:rounded-full [&::-moz-progress-bar]:bg-primary [&::-webkit-progress-bar]:rounded-full [&::-webkit-progress-bar]:bg-secondary [&::-webkit-progress-value]:rounded-full [&::-webkit-progress-value]:bg-primary"
+      value={Math.min(100, Math.max(0, value))}
+      max={100}
+      aria-label="Progreso de escritura"
+    />
   );
 }
 
@@ -124,12 +149,12 @@ function SummaryCard({
   label,
   value,
   detail,
-}: {
+}: Readonly<{
   icon: typeof Flame;
   label: string;
   value: string;
   detail: string;
-}) {
+}>) {
   return (
     <Card className="gap-3 p-5">
       <div className="flex items-start justify-between gap-3">
@@ -150,9 +175,9 @@ function SummaryCard({
 
 function ActivityChart({
   data,
-}: {
+}: Readonly<{
   data: AnalyticsDashboard["dailyActivity"];
-}) {
+}>) {
   const maximum = Math.max(1, ...data.map((item) => item.words));
 
   return (
@@ -189,10 +214,10 @@ function ActivityChart({
 function GoalCard({
   type,
   goal,
-}: {
+}: Readonly<{
   type: WritingGoalType;
   goal?: WritingGoal;
-}) {
+}>) {
   const label = type === "DAILY" ? "Meta diaria" : "Meta semanal";
   const period = type === "DAILY" ? "Cada día" : "Cada semana";
 
@@ -247,13 +272,13 @@ function GoalsDialog({
   dailyGoal,
   weeklyGoal,
   onSaved,
-}: {
+}: Readonly<{
   onOpenChange: (open: boolean) => void;
   projectId: string;
   dailyGoal?: WritingGoal;
   weeklyGoal?: WritingGoal;
   onSaved: () => Promise<void>;
-}) {
+}>) {
   const [dailyTarget, setDailyTarget] = useState(
     String(dailyGoal?.targetWords ?? ""),
   );
@@ -411,7 +436,7 @@ function GoalsDialog({
   );
 }
 
-function WordCountTree({ books }: { books: WordCountBook[] }) {
+function WordCountTree({ books }: Readonly<{ books: WordCountBook[] }>) {
   const [expanded, setExpanded] = useState<Set<string>>(
     () => new Set(books.slice(0, 1).map((book) => book.id)),
   );
@@ -504,7 +529,7 @@ function DashboardSkeleton() {
   );
 }
 
-export function StatisticsDashboard({ projectId }: { projectId: string }) {
+export function StatisticsDashboard({ projectId }: Readonly<{ projectId: string }>) {
   const [dashboard, setDashboard] = useState<AnalyticsDashboard | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -581,7 +606,7 @@ export function StatisticsDashboard({ projectId }: { projectId: string }) {
           <div className="flex items-center gap-2">
             <Badge variant="secondary" className="gap-1.5">
               <span className="size-1.5 rounded-full bg-emerald-500" />
-              Actualización automática
+              <span>Actualización automática</span>
             </Badge>
             <Button
               variant="outline"
@@ -590,7 +615,7 @@ export function StatisticsDashboard({ projectId }: { projectId: string }) {
               onClick={() => void loadDashboard(undefined, true)}
               disabled={refreshing}
             >
-              <RefreshCw className={refreshing ? "animate-spin" : ""} />
+              <RefreshCw className={getRefreshIconClass(refreshing)} />
             </Button>
           </div>
         </div>
@@ -617,27 +642,12 @@ export function StatisticsDashboard({ projectId }: { projectId: string }) {
                       {formatNumber(dashboard.project.wordCount)}
                     </p>
                     <p className="pb-1 text-sm text-white/65">
-                      {dashboard.project.wordCountTarget
-                        ? `de ${formatNumber(dashboard.project.wordCountTarget)} palabras`
-                        : "palabras escritas"}
+                      {getWordTargetLabel(dashboard.project.wordCountTarget)}
                     </p>
                   </div>
-                  {dashboard.project.progressPercent !== null ? (
-                    <div className="mt-5 max-w-2xl">
-                      <div className="mb-2 flex justify-between text-xs text-white/70">
-                        <span>Progreso</span>
-                        <span>{dashboard.project.progressPercent}%</span>
-                      </div>
-                      <div className="h-2.5 overflow-hidden rounded-full bg-white/15">
-                        <div
-                          className="h-full rounded-full bg-white"
-                          style={{
-                            width: `${dashboard.project.progressPercent}%`,
-                          }}
-                        />
-                      </div>
-                    </div>
-                  ) : null}
+                  <ProjectProgress
+                    progressPercent={dashboard.project.progressPercent}
+                  />
                 </div>
                 <div className="rounded-xl bg-white/10 px-5 py-4 backdrop-blur-sm">
                   <p className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-white/65">

@@ -1393,7 +1393,7 @@ function useWorldbuildingData({
   };
 }
 
-export function Worldbuilding({ projectId }: WorldbuildingProps) {
+export function Worldbuilding({ projectId }: Readonly<WorldbuildingProps>) {
   const { loading, firebaseUser } = useAuth();
   const shouldFetch = canFetchWorldbuildingData(
     projectId,

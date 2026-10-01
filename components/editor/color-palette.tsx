@@ -15,13 +15,11 @@ import {
   applyOrderedListColor,
   getActiveBulletListColor,
   getActiveOrderedListColor,
-  type BulletListColor,
 } from "./list-formatting"
 import {
   TEXT_COLORS,
   applyTextColor,
   getActiveTextColor,
-  type TextColor,
 } from "./text-formatting"
 import {
   applyTextHighlightColor,
@@ -46,47 +44,73 @@ const COLOR_GRID = [
   ["#5b0f00", "#660000", "#783f04", "#7f6000", "#274e13", "#0c343d", "#1c4587", "#073763", "#20124d", "#4c1130"],
 ] as const
 
-export function ColorPalette({ editor, kind, menuItemClass, menuType = "dropdown" }: ColorPaletteProps) {
+function getActivePaletteColor(editor: Editor, kind: ColorPaletteProps["kind"]) {
+  if (kind === "text") return getActiveTextColor(editor)
+  if (kind === "highlight") return getTextHighlightColor(editor)
+  if (kind === "bullet") return getActiveBulletListColor(editor)
+  if (kind === "sceneDivider") {
+    return getSceneDividerColor(editor) ?? "automatic"
+  }
+  return getActiveOrderedListColor(editor)
+}
+
+function getPaletteColors(kind: ColorPaletteProps["kind"]) {
+  if (kind === "highlight") {
+    return COLOR_GRID.flat().map((value) => ({ value, label: value }))
+  }
+  return kind === "text" ? TEXT_COLORS : BULLET_LIST_COLORS
+}
+
+function getPaletteTitle(kind: ColorPaletteProps["kind"]) {
+  switch (kind) {
+    case "text":
+      return "Color de texto"
+    case "highlight":
+      return "Color de resaltado"
+    case "bullet":
+      return "Color de viñeta"
+    case "sceneDivider":
+      return "Color del separador"
+    default:
+      return "Color de numeración"
+  }
+}
+
+function applyPaletteColor(
+  editor: Editor,
+  kind: ColorPaletteProps["kind"],
+  color: string,
+) {
+  switch (kind) {
+    case "text":
+      applyTextColor(editor, color)
+      break
+    case "highlight":
+      applyTextHighlightColor(editor, color)
+      break
+    case "bullet":
+      applyBulletListColor(editor, color)
+      break
+    case "sceneDivider":
+      chooseSceneDividerColor(editor, color)
+      break
+    case "ordered":
+      applyOrderedListColor(editor, color)
+      break
+  }
+}
+
+export function ColorPalette({ editor, kind, menuItemClass, menuType = "dropdown" }: Readonly<ColorPaletteProps>) {
   const Item = menuType === "menubar" ? MenubarItem : DropdownMenuItem
   const activeColor = useEditorState({
     editor,
-    selector: ({ editor: currentEditor }) => {
-      if (kind === "text") return getActiveTextColor(currentEditor)
-      if (kind === "highlight") return getTextHighlightColor(currentEditor)
-      if (kind === "bullet") return getActiveBulletListColor(currentEditor)
-      if (kind === "sceneDivider") return getSceneDividerColor(currentEditor) ?? "automatic"
-      return getActiveOrderedListColor(currentEditor)
-    },
+    selector: ({ editor: currentEditor }) =>
+      getActivePaletteColor(currentEditor, kind),
   })
   const customInputId = useId()
-  const colors =
-    kind === "highlight"
-      ? COLOR_GRID.flat().map((value) => ({ value, label: value }))
-      : kind === "text"
-        ? TEXT_COLORS
-        : BULLET_LIST_COLORS
-  const title =
-    kind === "text"
-      ? "Color de texto"
-      : kind === "highlight"
-        ? "Color de resaltado"
-        : kind === "bullet"
-          ? "Color de viñeta"
-          : kind === "sceneDivider" ? "Color del separador" : "Color de numeración"
-
-  const applyColor = (color: string) => {
-    if (kind === "text") {
-      applyTextColor(editor, color as TextColor)
-    } else if (kind === "highlight") {
-      applyTextHighlightColor(editor, color)
-    } else if (kind === "bullet") {
-      applyBulletListColor(editor, color as BulletListColor)
-    } else if (kind === "sceneDivider") {
-      chooseSceneDividerColor(editor, color)
-    } else {
-      applyOrderedListColor(editor, color as BulletListColor)
-    }
-  }
+  const colors = getPaletteColors(kind)
+  const title = getPaletteTitle(kind)
+  const applyColor = (color: string) => applyPaletteColor(editor, kind, color)
 
   const automaticColor = kind === "sceneDivider" ? { value: "automatic", label: "Color del tema" } : colors[0]
   const customColor = /^#[0-9a-f]{6}$/i.test(activeColor)
@@ -186,14 +210,14 @@ function ColorItem({
   menuItemClass,
   onSelect,
   menuType,
-}: {
+}: Readonly<{
   color: string
   title: string
   activeColor: string
   menuItemClass: string
   onSelect: () => void
   menuType: "dropdown" | "menubar"
-}) {
+}>) {
   const isActive = activeColor.toLowerCase() === color.toLowerCase()
   const Item = menuType === "menubar" ? MenubarItem : DropdownMenuItem
 

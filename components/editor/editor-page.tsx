@@ -19,7 +19,7 @@ type EditorLayoutProps = {
   projectId: string
 }
 
-export function EditorLayout({ projectId }: EditorLayoutProps) {
+export function EditorLayout({ projectId }: Readonly<EditorLayoutProps>) {
   const [projectTitle, setProjectTitle] = useState("Proyecto")
   const [books, setBooks] = useState<SidebarBook[]>([])
   const [projectsError, setProjectsError] = useState<string | null>(null)

@@ -88,7 +88,7 @@ export function LeftSidebar({
   projectId,
   onRefresh,
   onBeforeDocumentChange,
-}: LeftSidebarProps) {
+}: Readonly<LeftSidebarProps>) {
   const navigationPendingRef = useRef(false);
   const [navigationError, setNavigationError] = useState<string | null>(null);
   const changeDocument = async (change: () => void) => {

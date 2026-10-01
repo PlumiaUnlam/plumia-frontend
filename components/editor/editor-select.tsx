@@ -12,11 +12,11 @@ import { cn } from "@/lib/utils"
 type OptionProps = { value: string | number; children: ReactNode }
 type GroupProps = { label: string; children: ReactNode }
 
-export function EditorSelectOption({ value, children }: OptionProps) {
+export function EditorSelectOption({ value, children }: Readonly<OptionProps>) {
   return <DropdownMenuRadioItem value={String(value)} className="min-h-9 text-[#3c4043] focus:bg-[#f1f3f4]">{children}</DropdownMenuRadioItem>
 }
 
-export function EditorSelectGroup({ label, children }: GroupProps) {
+export function EditorSelectGroup({ label, children }: Readonly<GroupProps>) {
   return <><DropdownMenuLabel className="text-xs text-[#5f6368]">{label}</DropdownMenuLabel>{children}</>
 }
 
@@ -32,14 +32,14 @@ function selectedLabel(children: ReactNode, value: string): ReactNode {
   return undefined
 }
 
-export function EditorSelect({ id, value, onValueChange, disabled, className, children }: {
+export function EditorSelect({ id, value, onValueChange, disabled, className, children }: Readonly<{
   id: string
   value: string | number
   onValueChange: (value: string) => void
   disabled?: boolean
   className?: string
   children: ReactNode
-}) {
+}>) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>

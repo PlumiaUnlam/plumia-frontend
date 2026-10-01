@@ -99,7 +99,7 @@ export function EditorMenuBar({
   onToggleSplit,
   isSplit = false,
   canSplit = true,
-}: EditorMenuBarProps) {
+}: Readonly<EditorMenuBarProps>) {
   const formatPainterActive = useFormatPainterState(editor)
   const editorState = useEditorState({
     editor,

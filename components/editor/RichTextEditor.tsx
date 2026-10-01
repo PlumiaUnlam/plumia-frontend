@@ -101,7 +101,7 @@ export function RichTextEditor({
   onToggleSplit,
   isSplit = false,
   canSplit = true,
-}: RichTextEditorProps) {
+}: Readonly<RichTextEditorProps>) {
   const [paragraphDialogOpen, setParagraphDialogOpen] = useState(false)
   const {
     error,
@@ -199,7 +199,7 @@ export function RichTextEditor({
       isAnalysisSaving,
       versionLabel,
       saveStatus,
-      saveNow: saveNow ?? (async () => undefined),
+      saveNow: saveNow ?? (() => Promise.resolve()),
     })
 
     return () => onToolbarActionsChange(null)
@@ -311,7 +311,7 @@ export function RichTextEditor({
   return (
     <div
       className="relative flex h-full min-h-0 flex-col"
-      onMouseDown={() => onEditorFocus?.()}
+      onFocusCapture={() => onEditorFocus?.()}
     >
       <SpellcheckSuggestions key={sceneId} editor={editor} language={spellcheckLanguage} />
       <input
@@ -337,8 +337,8 @@ export function RichTextEditor({
           onInsertImage={openImagePicker}
           onAnalyzeChanges={onAnalyzeChanges}
           isAnalysisSaving={isAnalysisSaving}
-          onToggleZenMode={onToggleZenMode}
           isZenMode={isZenMode}
+          onToggleZenMode={onToggleZenMode}
           onToggleSplit={onToggleSplit}
           isSplit={isSplit}
           canSplit={canSplit}
@@ -355,7 +355,6 @@ export function RichTextEditor({
           isUploadingImage={isUploading}
           onAnalyzeChanges={onAnalyzeChanges}
           isAnalysisSaving={isAnalysisSaving}
-          onToggleZenMode={onToggleZenMode}
           isZenMode={isZenMode}
           paneId={paneId}
           onToggleSplit={onToggleSplit}

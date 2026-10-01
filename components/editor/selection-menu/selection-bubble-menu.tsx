@@ -13,7 +13,7 @@ type SelectionBubbleMenuProps = {
   projectId: string
 }
 
-export function SelectionBubbleMenu({ editor, projectId }: SelectionBubbleMenuProps) {
+export function SelectionBubbleMenu({ editor, projectId }: Readonly<SelectionBubbleMenuProps>) {
   const [open, setOpen] = useState(false)
 
   useEffect(() => {

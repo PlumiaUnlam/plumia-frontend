@@ -37,6 +37,86 @@ type Feedback = {
   message: string
 }
 
+type SearchResultsProps = {
+  loading: boolean
+  query: string
+  matches: EditorSearchMatch[]
+  canReplace: boolean
+  onNavigateToMatch: (match: EditorSearchMatch) => Promise<void>
+  onReplace: (matches: EditorSearchMatch[]) => Promise<void>
+}
+
+function SearchResults({
+  loading,
+  query,
+  matches,
+  canReplace,
+  onNavigateToMatch,
+  onReplace,
+}: Readonly<SearchResultsProps>) {
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center gap-2 py-10 text-xs text-muted-foreground">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        Cargando escenas…
+      </div>
+    )
+  }
+
+  if (!query.trim()) {
+    return (
+      <p className="py-8 text-center text-xs text-muted-foreground">
+        Escribí un texto para buscar en el manuscrito.
+      </p>
+    )
+  }
+
+  if (matches.length === 0) {
+    return (
+      <p className="py-8 text-center text-xs text-muted-foreground">
+        No se encontraron coincidencias.
+      </p>
+    )
+  }
+
+  return (
+    <div className="space-y-2">
+      {matches.map((match) => (
+        <div
+          key={match.id}
+          className="rounded-md border border-border bg-card p-2"
+        >
+          <button
+            type="button"
+            className="w-full text-left hover:text-primary"
+            onClick={() => void onNavigateToMatch(match)}
+          >
+            <span className="block truncate text-xs font-semibold">
+              {match.sceneTitle}
+            </span>
+            <span className="block truncate text-[10px] text-muted-foreground">
+              {match.bookTitle} · {match.chapterTitle} · ocurrencia #{match.occurrence + 1}
+            </span>
+            <span className="mt-1 block text-xs leading-5 text-foreground">
+              {match.context}
+            </span>
+          </button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="mt-1 h-7 px-2 text-[11px]"
+            disabled={!canReplace}
+            onClick={() => void onReplace([match])}
+          >
+            Reemplazar esta
+          </Button>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 type SearchReplacePanelProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -59,7 +139,7 @@ export function SearchReplacePanel({
   onNavigateToMatch,
   onPrepareWrite,
   onScenesUpdated,
-}: SearchReplacePanelProps) {
+}: Readonly<SearchReplacePanelProps>) {
   const [replacement, setReplacement] = useState("")
   const [documents, setDocuments] = useState<
     Record<string, ProseMirrorJSON | null>
@@ -371,8 +451,8 @@ export function SearchReplacePanel({
               )}
 
               {feedback && (
-                <p
-                  role="status"
+                <output
+                  aria-live="polite"
                   className={`rounded-md border px-3 py-2 text-xs ${
                     feedback.tone === "error"
                       ? "border-destructive/30 bg-destructive/10 text-destructive"
@@ -380,7 +460,7 @@ export function SearchReplacePanel({
                   }`}
                 >
                   {feedback.message}
-                </p>
+                </output>
               )}
 
               {loadError && (
@@ -398,55 +478,14 @@ export function SearchReplacePanel({
                 </span>
               </div>
 
-              {isLoading ? (
-                <div className="flex items-center justify-center gap-2 py-10 text-xs text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Cargando escenas…
-                </div>
-              ) : query.trim() && matches.length === 0 ? (
-                <p className="py-8 text-center text-xs text-muted-foreground">
-                  No se encontraron coincidencias.
-                </p>
-              ) : !query.trim() ? (
-                <p className="py-8 text-center text-xs text-muted-foreground">
-                  Escribí un texto para buscar en el manuscrito.
-                </p>
-              ) : (
-                <div className="space-y-2">
-                  {matches.map((match) => (
-                    <div
-                      key={match.id}
-                      className="rounded-md border border-border bg-card p-2"
-                    >
-                      <button
-                        type="button"
-                        className="w-full text-left hover:text-primary"
-                        onClick={() => void onNavigateToMatch(match)}
-                      >
-                        <span className="block truncate text-xs font-semibold">
-                          {match.sceneTitle}
-                        </span>
-                        <span className="block truncate text-[10px] text-muted-foreground">
-                          {match.bookTitle} · {match.chapterTitle} · ocurrencia #{match.occurrence + 1}
-                        </span>
-                        <span className="mt-1 block text-xs leading-5 text-foreground">
-                          {match.context}
-                        </span>
-                      </button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="mt-1 h-7 px-2 text-[11px]"
-                        disabled={!canReplace}
-                        onClick={() => void handleReplace([match])}
-                      >
-                        Reemplazar esta
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <SearchResults
+                loading={isLoading}
+                query={query}
+                matches={matches}
+                canReplace={canReplace}
+                onNavigateToMatch={onNavigateToMatch}
+                onReplace={handleReplace}
+              />
           </div>
         </div>
       </aside>

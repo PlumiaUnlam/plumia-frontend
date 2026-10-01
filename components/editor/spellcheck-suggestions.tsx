@@ -15,7 +15,45 @@ import { findSpellingWord, replaceSpellingWord, type SpellingWord } from "./spel
 
 type SpellingResult = { key: string; correct?: boolean; suggestions?: string[]; error?: string }
 
-export function SpellcheckSuggestions({ editor, language }: { editor: Editor; language: SpellcheckLanguage }) {
+function SpellcheckStatus({
+  result,
+  onRetry,
+}: Readonly<{
+  result: SpellingResult | null
+  onRetry: () => void
+}>) {
+  if (!result) {
+    return (
+      <span className="flex items-center gap-2">
+        <Loader2 className="size-4 animate-spin" />
+        Buscando sugerencias…
+      </span>
+    )
+  }
+
+  if (result.error) {
+    return (
+      <div className="space-y-2">
+        <p>{result.error}</p>
+        <Button type="button" variant="outline" size="sm" onClick={onRetry}>
+          Reintentar
+        </Button>
+      </div>
+    )
+  }
+
+  if (result.correct) {
+    return "El diccionario no detecta una falta en esta palabra."
+  }
+
+  if (!result.suggestions?.length) {
+    return "No encontramos sugerencias. Podés escribir la corrección."
+  }
+
+  return "Elegí una sugerencia para reemplazar la palabra:"
+}
+
+export function SpellcheckSuggestions({ editor, language }: Readonly<{ editor: Editor; language: SpellcheckLanguage }>) {
   const replacementId = useId()
   const [target, setTarget] = useState<SpellingWord | null>(null)
   const targetRef = useRef<SpellingWord | null>(null)
@@ -113,11 +151,10 @@ export function SpellcheckSuggestions({ editor, language }: { editor: Editor; la
         </DialogHeader>
         <div className="space-y-4 px-6 py-5">
           <div role="status" aria-live="polite" className="text-sm text-[#5f6368]">
-            {!currentResult ? <span className="flex items-center gap-2"><Loader2 className="size-4 animate-spin" /> Buscando sugerencias…</span>
-              : currentResult.error ? <div className="space-y-2"><p>{currentResult.error}</p><Button type="button" variant="outline" size="sm" onClick={() => setAttempt((value) => value + 1)}>Reintentar</Button></div>
-              : currentResult.correct ? "El diccionario no detecta una falta en esta palabra."
-              : !currentResult.suggestions?.length ? "No encontramos sugerencias. Podés escribir la corrección."
-              : "Elegí una sugerencia para reemplazar la palabra:"}
+            <SpellcheckStatus
+              result={currentResult}
+              onRetry={() => setAttempt((value) => value + 1)}
+            />
           </div>
           {!!currentResult?.suggestions?.length && (
             <div className="grid grid-cols-2 gap-2" role="group" aria-label="Correcciones sugeridas">

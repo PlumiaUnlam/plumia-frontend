@@ -145,32 +145,32 @@
 }
 
 .entity-link--character {
-  color: #2563eb;
+  color: #1d4ed8;
   background-color: #2563eb1a;
 }
 
 .entity-link--location {
-  color: #059669;
+  color: #047857;
   background-color: #0596691a;
 }
 
 .entity-link--object {
-  color: #d97706;
+  color: #b45309;
   background-color: #d977061a;
 }
 
 .entity-link--organization {
-  color: #7c3aed;
+  color: #6d28d9;
   background-color: #7c3aed1a;
 }
 
 .entity-link--event {
-  color: #dc2626;
+  color: #b91c1c;
   background-color: #dc26261a;
 }
 
 .entity-link--concept {
-  color: #0891b2;
+  color: #0e7490;
   background-color: #0891b21a;
 }
 

@@ -28,6 +28,40 @@ import type {
   ImageResponse,
 } from "@/services/image-generation.service";
 
+function SelectedEntityVisual({
+  entity,
+  category,
+  imageSrc,
+  hasImage,
+}: Readonly<{
+  entity: Entity;
+  category: EntityCategory;
+  imageSrc: string;
+  hasImage: boolean;
+}>) {
+  if (hasImage) {
+    return (
+      <EntityImage
+        src={imageSrc}
+        alt={entity.canonicalName}
+        width={112}
+        height={112}
+        className="size-28 shrink-0 rounded-lg border border-border bg-background object-cover"
+        category={category}
+        iconClassName="h-10 w-10"
+      />
+    );
+  }
+
+  return (
+    <EntityIconTile
+      category={category}
+      className="size-28 rounded-lg"
+      iconClassName="h-10 w-10"
+    />
+  );
+}
+
 interface WikiTabProps {
   readonly entities: readonly Entity[];
   readonly loading: boolean;
@@ -276,26 +310,18 @@ export function WikiTab({
           <>
             <header className="mb-8 flex-shrink-0 flex flex-wrap items-start gap-4 justify-between">
               <div className="flex min-w-0 items-start gap-4">
-                {(selectedEntity.imageUrl ||
-                  selectedEntityPrimaryImage ||
-                  primaryImageUrls[selectedEntity.id]) &&
-                selectedEntityCategory ? (
-                  <EntityImage
-                    src={selectedEntityImageSrc}
-                    alt={selectedEntity.canonicalName}
-                    width={112}
-                    height={112}
-                    className="size-28 shrink-0 rounded-lg border border-border bg-background object-cover"
+                {selectedEntityCategory && (
+                  <SelectedEntityVisual
+                    entity={selectedEntity}
                     category={selectedEntityCategory}
-                    iconClassName="h-10 w-10"
+                    imageSrc={selectedEntityImageSrc}
+                    hasImage={Boolean(
+                      selectedEntity.imageUrl ||
+                        selectedEntityPrimaryImage ||
+                        primaryImageUrls[selectedEntity.id],
+                    )}
                   />
-                ) : selectedEntityCategory ? (
-                  <EntityIconTile
-                    category={selectedEntityCategory}
-                    className="size-28 rounded-lg"
-                    iconClassName="h-10 w-10"
-                  />
-                ) : null}
+                )}
 
                 <div className="flex min-w-0 flex-col gap-2 pt-1">
                   {selectedEntityCategory && (

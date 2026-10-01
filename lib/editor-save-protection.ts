@@ -16,7 +16,6 @@ export function protectPendingEditorChanges(
   const beforeUnload = (event: BeforeUnloadEvent) => {
     if (!hasPendingChanges()) return
     event.preventDefault()
-    event.returnValue = "Hay cambios sin guardar."
   }
   const visibilityChange = () => {
     if (documentTarget.visibilityState === "hidden" && hasPendingChanges()) flush()

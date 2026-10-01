@@ -11,7 +11,7 @@ type AnalysisToastProps = {
   onDismiss: () => void
 }
 
-export function AnalysisToast({ feedback, onDismiss }: AnalysisToastProps) {
+export function AnalysisToast({ feedback, onDismiss }: Readonly<AnalysisToastProps>) {
   useEffect(() => {
     if (!feedback) return
 

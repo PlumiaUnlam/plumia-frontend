@@ -14,11 +14,11 @@ export function SaveStatusIndicator({
   className,
   paneId = "primary",
   status,
-}: {
+}: Readonly<{
   className?: string
   paneId?: EditorPaneId
   status?: SaveStatus
-}) {
+}>) {
   const storedStatus = useEditorStore((s) => s.saveStatusByPane[paneId])
   const saveStatus = status ?? storedStatus
 

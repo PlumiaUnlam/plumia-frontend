@@ -122,7 +122,7 @@ export function ExportDialog({
   isHistoricalVersion,
   onOpenChange,
   onBeforeExport,
-}: ExportDialogProps) {
+}: Readonly<ExportDialogProps>) {
   const [activeTab, setActiveTab] = useState<ExportTab>("format")
   const [selectedBookId, setSelectedBookId] = useState<string | null>(null)
   const [selectedFormat, setSelectedFormat] = useState<ExportFormat | null>(null)
