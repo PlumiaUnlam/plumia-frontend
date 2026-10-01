@@ -1,132 +1,104 @@
 import type { Editor } from "@tiptap/react"
+import { useEditorState } from "@tiptap/react"
 import type { ReactNode } from "react"
 import {
-  AlignCenter,
-  AlignJustify,
-  AlignLeft,
-  AlignRight,
   Bold,
-  Eye,
+  Columns2,
+  Download,
+  Maximize2,
   Highlighter,
   ImagePlus,
-  IndentDecrease,
-  IndentIncrease,
   Italic,
-  PaintRoller,
-  RemoveFormatting,
-  List as ListIcon,
-  ListOrdered,
-  ListX,
-  Palette,
   Languages,
+  PaintRoller,
+  Pilcrow,
+  RemoveFormatting,
   Redo2,
-  RotateCcw,
   Save,
   Search,
-  SeparatorHorizontal,
+  Sparkles,
   Strikethrough,
   Subscript,
   Superscript,
-  Sparkles,
   TextSelect,
-  Type,
   Underline,
   Undo2,
 } from "lucide-react"
-import { useEditorState } from "@tiptap/react"
 
 import { Button } from "@/components/ui/button"
 import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
-  DropdownMenuShortcut,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+  Menubar,
+  MenubarMenu,
+  MenubarSub,
+  MenubarSubContent,
+  MenubarPortal,
+  MenubarSubTrigger,
+  MenubarCheckboxItem,
+  MenubarContent,
+  MenubarItem,
+  MenubarLabel,
+  MenubarSeparator,
+  MenubarShortcut,
+  MenubarTrigger,
+} from "@/components/ui/menubar"
+import { SceneDividerMenuOptions } from "./scene-divider-menu"
+import { EditorTextStylesMenu } from "./editor-text-styles-menu"
 import {
-  SCENE_DIVIDER_OPTIONS,
   type SceneDividerVariant,
 } from "./scene-divider"
-import {
-  DEFAULT_PARAGRAPH_ATTRIBUTES,
-  type ParagraphAlignment,
-  type ParagraphAttributes,
-} from "./paragraph-formatting"
-import { ListStyleGrid } from "./list-style-grid"
-import { removeCurrentList } from "./list-formatting"
-import { ColorPalette } from "./color-palette"
-import {
-  applyTextFontSize,
-  getActiveTextFontSize,
-  TEXT_FONT_SIZES,
-  type TextFontSize,
-} from "./text-font-size"
-import {
-  applyTextFontFamily,
-  getActiveTextFontFamily,
-} from "./text-font-family"
-import { TextFontFamilyMenuOptions } from "./text-font-family-menu-options"
-import {
-  toggleFormatPainter,
-  useFormatPainterState,
-} from "./format-painter"
 import {
   clearTextFormatting,
   toggleSubscript,
   toggleSuperscript,
+  toggleTextHighlight,
+  toggleTextMark,
 } from "./text-extra-formatting"
+import { toggleFormatPainter, useFormatPainterState } from "./format-painter"
 
 const menuButtonClass =
-  "h-8 rounded-md px-3 text-sm font-medium text-[#3c4043] hover:bg-[#e8eaed] hover:text-[#202124] data-[state=open]:bg-[#d2e3fc] data-[state=open]:text-[#174ea6]"
+  "h-8 shrink-0 rounded-md px-2.5 text-sm font-medium text-[#3c4043] hover:bg-[#e8eaed] hover:text-[#202124] data-[state=open]:bg-[#e8eaed] data-[state=open]:text-[#174ea6] focus-visible:ring-2 focus-visible:ring-[#a8c7fa] max-[640px]:px-2"
 const menuContentClass =
-  "border-[#dadce0] bg-white text-[#3c4043] shadow-[0_3px_8px_rgba(60,64,67,0.24)]"
-const menuItemClass = "text-[#3c4043] focus:bg-[#f1f3f4] focus:text-[#202124]"
-
-const alignmentOptions: ReadonlyArray<{
-  value: ParagraphAlignment
-  label: string
-  icon: typeof AlignLeft
-}> = [
-  { value: "left", label: "Izquierda", icon: AlignLeft },
-  { value: "center", label: "Centrada", icon: AlignCenter },
-  { value: "right", label: "Derecha", icon: AlignRight },
-  { value: "justify", label: "Justificada", icon: AlignJustify },
-]
+  "max-h-[min(80vh,42rem)] w-64 max-w-[calc(100vw-1rem)] overflow-y-auto border-[#dadce0] bg-white text-[#3c4043] shadow-[0_3px_8px_rgba(60,64,67,0.24)]"
+const menuItemClass = "min-h-9 gap-3 text-[#3c4043] focus:bg-[#f1f3f4] focus:text-[#202124]"
 
 type EditorMenuBarProps = {
   editor: Editor
+  projectId: string
   versionLabel: string
   onSave?: () => void
+  onExportClick?: () => void
   onInsertImage?: () => void
   onInsertDivider?: (variant: SceneDividerVariant) => void
   onAnalyzeChanges?: () => void
+  isAnalysisSaving?: boolean
+  isZenMode?: boolean
   onToggleZenMode?: () => void
   onOpenSearch?: () => void
   onOpenSpellcheckSettings?: () => void
-  isAnalysisSaving?: boolean
-  isZenMode?: boolean
+  onOpenParagraphFormat?: () => void
+  onToggleSplit?: () => void
+  isSplit?: boolean
+  canSplit?: boolean
 }
 
 export function EditorMenuBar({
   editor,
+  projectId,
   versionLabel,
   onSave,
+  onExportClick,
   onInsertImage,
   onInsertDivider,
   onAnalyzeChanges,
+  isAnalysisSaving = false,
+  isZenMode = false,
   onToggleZenMode,
   onOpenSearch,
   onOpenSpellcheckSettings,
-  isAnalysisSaving = false,
-  isZenMode = false,
+  onOpenParagraphFormat,
+  onToggleSplit,
+  isSplit = false,
+  canSplit = true,
 }: EditorMenuBarProps) {
   const formatPainterActive = useFormatPainterState(editor)
   const editorState = useEditorState({
@@ -134,7 +106,6 @@ export function EditorMenuBar({
     selector: ({ editor: currentEditor }) => ({
       canUndo: currentEditor.can().undo(),
       canRedo: currentEditor.can().redo(),
-      isParagraph: currentEditor.isActive("paragraph"),
       isBold: currentEditor.isActive("bold"),
       isItalic: currentEditor.isActive("italic"),
       isUnderline: currentEditor.isActive("underline"),
@@ -142,50 +113,9 @@ export function EditorMenuBar({
       isSubscript: currentEditor.isActive("subscript"),
       isSuperscript: currentEditor.isActive("superscript"),
       isTextHighlight: currentEditor.isActive("textHighlight"),
-      textFontSize: getActiveTextFontSize(currentEditor),
-      textFontFamily: getActiveTextFontFamily(currentEditor),
-      isBulletList: currentEditor.isActive("bulletList"),
-      isOrderedList: currentEditor.isActive("orderedList"),
-      canLiftListItem: currentEditor.can().liftListItem("listItem"),
-      canSinkListItem: currentEditor.can().sinkListItem("listItem"),
-      paragraphAttributes: currentEditor.getAttributes(
-        "paragraph",
-      ) as Partial<ParagraphAttributes>,
+      isParagraph: currentEditor.isActive("paragraph"),
     }),
   })
-
-  const paragraphAttributes: ParagraphAttributes = {
-    ...DEFAULT_PARAGRAPH_ATTRIBUTES,
-    ...editorState.paragraphAttributes,
-  }
-  const paragraphEnabled = editorState.isParagraph
-  const listEnabled = editorState.isBulletList || editorState.isOrderedList
-
-  const updateParagraph = (attributes: Partial<ParagraphAttributes>) => {
-    editor.chain().focus().updateAttributes("paragraph", attributes).run()
-  }
-
-  const decreaseIndent = () => {
-    if (listEnabled) {
-      editor.chain().focus().liftListItem("listItem").run()
-      return
-    }
-
-    updateParagraph({
-      indentLeft: Math.max(0, paragraphAttributes.indentLeft - 1),
-    })
-  }
-
-  const increaseIndent = () => {
-    if (listEnabled) {
-      editor.chain().focus().sinkListItem("listItem").run()
-      return
-    }
-
-    updateParagraph({
-      indentLeft: Math.min(8, paragraphAttributes.indentLeft + 1),
-    })
-  }
 
   const menuItem = (
     icon: ReactNode,
@@ -194,444 +124,256 @@ export function EditorMenuBar({
     shortcut?: string,
     disabled = false,
   ) => (
-    <DropdownMenuItem
-      className={`gap-3 ${menuItemClass}`}
+    <MenubarItem
+      className={menuItemClass}
       disabled={disabled}
       onSelect={action}
     >
       {icon}
       <span>{label}</span>
-      {shortcut && <DropdownMenuShortcut>{shortcut}</DropdownMenuShortcut>}
-    </DropdownMenuItem>
+      {shortcut && <MenubarShortcut>{shortcut}</MenubarShortcut>}
+    </MenubarItem>
+  )
+
+  const menu = (label: string, content: ReactNode) => (
+    <MenubarMenu>
+      <MenubarTrigger asChild>
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          className={menuButtonClass}
+          onMouseDown={(event) => event.preventDefault()}
+        >
+          {label}
+        </Button>
+      </MenubarTrigger>
+      <MenubarContent
+        align="start"
+        className={menuContentClass}
+        onCloseAutoFocus={(event) => {
+          if (editor.isFocused) event.preventDefault()
+        }}
+      >
+        {content}
+      </MenubarContent>
+    </MenubarMenu>
   )
 
   return (
-    <nav
-      aria-label="Menú del editor"
-      className="editor-menu-bar mx-2 mt-1 flex min-h-10 flex-nowrap items-center gap-0.5 rounded-t-md border border-b-0 border-[#dadce0] bg-[#f8fafd] px-1 max-[680px]:flex-wrap"
+    <Menubar
+      aria-label="Menús del editor"
+      className="editor-menu-bar mx-2 mt-1 flex h-auto min-h-10 min-w-0 flex-wrap items-center gap-0.5 rounded-t-lg border border-b-0 border-[#dadce0] bg-[#f8fafd] px-1 py-1 text-[#3c4043]"
     >
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            className={menuButtonClass}
-            onMouseDown={(event) => event.preventDefault()}
-          >
-            Archivo
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className={`w-56 ${menuContentClass}`}>
-          <DropdownMenuLabel>{versionLabel}</DropdownMenuLabel>
+      {menu(
+        "Archivo",
+        <>
+          <MenubarLabel className="truncate">{versionLabel}</MenubarLabel>
           {menuItem(
-            <Save className="h-4 w-4" />,
+            <Save className="size-4" />,
             "Guardar cambios",
             () => onSave?.(),
             "Ctrl/Cmd+S",
             !onSave,
           )}
-        </DropdownMenuContent>
-      </DropdownMenu>
-
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            className={menuButtonClass}
-            onMouseDown={(event) => event.preventDefault()}
-          >
-            Editar
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className={`w-56 ${menuContentClass}`}>
+          <MenubarSeparator />
           {menuItem(
-            <Undo2 className="h-4 w-4" />,
+            <Download className="size-4" />,
+            "Exportar libro",
+            () => onExportClick?.(),
+            undefined,
+            !onExportClick,
+          )}
+        </>,
+      )}
+
+      {menu(
+        "Editar",
+        <>
+          {menuItem(
+            <Undo2 className="size-4" />,
             "Deshacer",
             () => editor.chain().focus().undo().run(),
             "Ctrl/Cmd+Z",
             !editorState.canUndo,
           )}
           {menuItem(
-            <Redo2 className="h-4 w-4" />,
+            <Redo2 className="size-4" />,
             "Rehacer",
             () => editor.chain().focus().redo().run(),
             "Ctrl/Cmd+Y",
             !editorState.canRedo,
           )}
-          <DropdownMenuSeparator />
+          <MenubarSeparator />
           {menuItem(
-            <TextSelect className="h-4 w-4" />,
+            <TextSelect className="size-4" />,
             "Seleccionar todo",
             () => editor.chain().focus().selectAll().run(),
             "Ctrl/Cmd+A",
           )}
-          <DropdownMenuSeparator />
           {menuItem(
-            <Search className="h-4 w-4" />,
+            <Search className="size-4" />,
             "Buscar y reemplazar",
             () => onOpenSearch?.(),
             "Ctrl/Cmd+Shift+F",
             !onOpenSearch,
           )}
-        </DropdownMenuContent>
-      </DropdownMenu>
+        </>,
+      )}
 
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            className={menuButtonClass}
-            onMouseDown={(event) => event.preventDefault()}
-          >
-            Insertar
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className={`w-64 ${menuContentClass}`}>
+      {menu(
+        "Insertar",
+        <>
           {menuItem(
-            <ImagePlus className="h-4 w-4" />,
+            <ImagePlus className="size-4" />,
             "Imagen",
             () => onInsertImage?.(),
             undefined,
             !onInsertImage,
           )}
           {onInsertDivider && (
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger className={menuItemClass}>
-                <SeparatorHorizontal className="h-4 w-4" />
-                <span>Separador de escena</span>
-              </DropdownMenuSubTrigger>
-              <DropdownMenuSubContent className={`w-56 ${menuContentClass}`}>
-                {SCENE_DIVIDER_OPTIONS.map((option) => (
-                  <DropdownMenuItem
-                    key={option.value}
-                    className={menuItemClass}
-                    onSelect={() => onInsertDivider(option.value)}
-                  >
-                    {option.label}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuSubContent>
-            </DropdownMenuSub>
+            <MenubarSub>
+              <MenubarSubTrigger className={menuItemClass}>Separador de escena</MenubarSubTrigger>
+              <MenubarPortal>
+                <MenubarSubContent className={menuContentClass}>
+                  <SceneDividerMenuOptions editor={editor} onInsert={onInsertDivider} menuType="menubar" />
+                </MenubarSubContent>
+              </MenubarPortal>
+            </MenubarSub>
           )}
-        </DropdownMenuContent>
-      </DropdownMenu>
+        </>,
+      )}
 
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            className={menuButtonClass}
-            onMouseDown={(event) => event.preventDefault()}
-          >
-            Diseño
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className={`w-60 ${menuContentClass}`}>
-          {menuItem(
-            <IndentDecrease className="h-4 w-4" />,
-            "Disminuir sangría",
-            decreaseIndent,
-            undefined,
-            listEnabled
-              ? !editorState.canLiftListItem
-              : !paragraphEnabled || paragraphAttributes.indentLeft <= 0,
-          )}
-          {menuItem(
-            <IndentIncrease className="h-4 w-4" />,
-            "Aumentar sangría",
-            increaseIndent,
-            undefined,
-            listEnabled
-              ? !editorState.canSinkListItem
-              : !paragraphEnabled || paragraphAttributes.indentLeft >= 8,
-          )}
-          <DropdownMenuSeparator />
-          {menuItem(
-            <RotateCcw className="h-4 w-4" />,
-            "Restablecer sangrías",
-            () =>
-              updateParagraph({
-                indentLeft: 0,
-                indentRight: 0,
-                firstLineIndent: 0,
-              }),
-            undefined,
-            !paragraphEnabled,
-          )}
-        </DropdownMenuContent>
-      </DropdownMenu>
-
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            className={menuButtonClass}
-            onMouseDown={(event) => event.preventDefault()}
-          >
-            Formato
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent
-          align="start"
-          className={`max-h-[min(80vh,42rem)] w-56 overflow-y-auto ${menuContentClass}`}
-        >
-          <DropdownMenuItem
-            disabled={!editor.isEditable}
-            className={menuItemClass}
-            onSelect={() => toggleFormatPainter(editor)}
-          >
-            <PaintRoller className="mr-2 h-4 w-4" />
-            {formatPainterActive ? "Cancelar o aplicar formato" : "Copiar formato"}
-          </DropdownMenuItem>
-          <DropdownMenuCheckboxItem
-            checked={editorState.isBold}
-            className={menuItemClass}
-            onCheckedChange={() => editor.chain().focus().toggleBold().run()}
-          >
-            <Bold className="mr-2 h-4 w-4" /> Negrita
-          </DropdownMenuCheckboxItem>
-          <DropdownMenuCheckboxItem
-            checked={editorState.isItalic}
-            className={menuItemClass}
-            onCheckedChange={() => editor.chain().focus().toggleItalic().run()}
-          >
-            <Italic className="mr-2 h-4 w-4" /> Cursiva
-          </DropdownMenuCheckboxItem>
-          <DropdownMenuCheckboxItem
-            checked={editorState.isUnderline}
-            className={menuItemClass}
-            onCheckedChange={() => editor.chain().focus().toggleUnderline().run()}
-          >
-            <Underline className="mr-2 h-4 w-4" /> Subrayado
-          </DropdownMenuCheckboxItem>
-          <DropdownMenuCheckboxItem
-            checked={editorState.isStrike}
-            className={menuItemClass}
-            onCheckedChange={() => editor.chain().focus().toggleStrike().run()}
-          >
-            <Strikethrough className="mr-2 h-4 w-4" /> Tachado
-          </DropdownMenuCheckboxItem>
-          <DropdownMenuCheckboxItem
-            checked={editorState.isSubscript}
-            className={menuItemClass}
-            onCheckedChange={() => toggleSubscript(editor)}
-          >
-            <Subscript className="mr-2 h-4 w-4" /> Subíndice
-          </DropdownMenuCheckboxItem>
-          <DropdownMenuCheckboxItem
-            checked={editorState.isSuperscript}
-            className={menuItemClass}
-            onCheckedChange={() => toggleSuperscript(editor)}
-          >
-            <Superscript className="mr-2 h-4 w-4" /> Superíndice
-          </DropdownMenuCheckboxItem>
-          <DropdownMenuCheckboxItem
-            checked={editorState.isTextHighlight}
-            className={menuItemClass}
-            onCheckedChange={() => editor.chain().focus().toggleMark("textHighlight").run()}
-          >
-            <Highlighter className="mr-2 h-4 w-4" /> Resaltado amarillo
-          </DropdownMenuCheckboxItem>
-          {menuItem(
-            <RemoveFormatting className="h-4 w-4" />,
-            "Limpiar formato",
-            () => clearTextFormatting(editor),
-          )}
-          <DropdownMenuSeparator />
-          <DropdownMenuSub>
-            <DropdownMenuSubTrigger className={menuItemClass}>
-              <Type className="h-4 w-4" />
-              <span>Familia tipográfica</span>
-            </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent
-              className={`w-72 overflow-hidden p-0 ${menuContentClass}`}
-            >
-              <TextFontFamilyMenuOptions
-                value={editorState.textFontFamily ?? "Lora"}
-                onValueChange={(value) => applyTextFontFamily(editor, value)}
-                itemClassName={menuItemClass}
-              />
-            </DropdownMenuSubContent>
-          </DropdownMenuSub>
-          <DropdownMenuSub>
-            <DropdownMenuSubTrigger className={menuItemClass}>
-              <Type className="h-4 w-4" />
-              <span>Tamaño de fuente</span>
-            </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent
-              className={`w-40 max-h-[min(70vh,28rem)] overflow-y-auto ${menuContentClass}`}
-            >
-              <DropdownMenuLabel>Tamaño de fuente</DropdownMenuLabel>
-              <DropdownMenuRadioGroup
-                value={editorState.textFontSize ?? "normal"}
-                onValueChange={(value) =>
-                  applyTextFontSize(
-                    editor,
-                    value === "normal"
-                      ? null
-                      : (value as TextFontSize),
-                  )
-                }
+      <EditorTextStylesMenu
+        editor={editor}
+        projectId={projectId}
+        onSave={onSave}
+        renderMenu={(stylesMenu) => menu(
+          "Formato",
+          <>
+          <MenubarSub>
+            <MenubarSubTrigger className={menuItemClass}>Texto</MenubarSubTrigger>
+            <MenubarPortal>
+              <MenubarSubContent className={menuContentClass}>
+              <MenubarCheckboxItem
+                checked={editorState.isBold}
+                className={menuItemClass}
+                onCheckedChange={() => toggleTextMark(editor, "bold")}
               >
-                <DropdownMenuRadioItem
-                  value="normal"
-                  className={`gap-3 ${menuItemClass}`}
-                >
-                  Normal
-                </DropdownMenuRadioItem>
-                {TEXT_FONT_SIZES.map(({ value, label }) => (
-                  <DropdownMenuRadioItem
-                    key={value}
-                    value={value}
-                    className={`gap-3 ${menuItemClass}`}
-                  >
-                    {label}
-                  </DropdownMenuRadioItem>
-                ))}
-              </DropdownMenuRadioGroup>
-            </DropdownMenuSubContent>
-          </DropdownMenuSub>
-          <DropdownMenuSub>
-            <DropdownMenuSubTrigger className={menuItemClass}>
-              <Palette className="h-4 w-4" />
-              <span>Color de texto</span>
-            </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent
-              className={`w-[min(24rem,calc(100vw-1rem))] max-w-[calc(100vw-1rem)] max-h-[min(70vh,28rem)] overflow-y-auto p-2 ${menuContentClass}`}
-            >
-              <DropdownMenuLabel>Color de texto</DropdownMenuLabel>
-              <ColorPalette
-                editor={editor}
-                kind="text"
-                menuItemClass={menuItemClass}
-              />
-            </DropdownMenuSubContent>
-          </DropdownMenuSub>
-          <DropdownMenuSeparator />
-          <DropdownMenuLabel>Listas</DropdownMenuLabel>
-          <DropdownMenuSub>
-            <DropdownMenuSubTrigger className={menuItemClass}>
-              <ListIcon className="h-4 w-4" />
-              <span>Viñetas</span>
-            </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent
-              className={`w-[min(34rem,calc(100vw-1rem))] max-w-[calc(100vw-1rem)] max-h-[min(75vh,38rem)] overflow-x-hidden overflow-y-auto p-2 ${menuContentClass}`}
-            >
-              <DropdownMenuLabel>Biblioteca de viñetas</DropdownMenuLabel>
-              <ListStyleGrid
-                editor={editor}
-                kind="bullet"
-                menuItemClass={menuItemClass}
-              />
-            </DropdownMenuSubContent>
-          </DropdownMenuSub>
-          <DropdownMenuSub>
-            <DropdownMenuSubTrigger className={menuItemClass}>
-              <ListOrdered className="h-4 w-4" />
-              <span>Numeración</span>
-            </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent
-              className={`w-[min(34rem,calc(100vw-1rem))] max-w-[calc(100vw-1rem)] max-h-[min(75vh,38rem)] overflow-x-hidden overflow-y-auto p-2 ${menuContentClass}`}
-            >
-              <DropdownMenuLabel>Biblioteca de numeración</DropdownMenuLabel>
-              <ListStyleGrid
-                editor={editor}
-                kind="ordered"
-                menuItemClass={menuItemClass}
-              />
-            </DropdownMenuSubContent>
-          </DropdownMenuSub>
-          {menuItem(
-            <ListX className="h-4 w-4" />,
-            "Quitar formato de lista",
-            () => removeCurrentList(editor),
-            undefined,
-            !editorState.isBulletList && !editorState.isOrderedList,
-          )}
-          <DropdownMenuSeparator />
-          <DropdownMenuLabel>Alineación</DropdownMenuLabel>
-          <DropdownMenuRadioGroup
-            value={paragraphAttributes.textAlign}
-            onValueChange={(value) =>
-              updateParagraph({ textAlign: value as ParagraphAlignment })
-            }
-          >
-            {alignmentOptions.map(({ value, label, icon: Icon }) => (
-              <DropdownMenuRadioItem
-                key={value}
-                value={value}
-                className={`gap-3 ${menuItemClass}`}
-                disabled={!paragraphEnabled}
+                <Bold className="mr-2 size-4" /> Negrita
+              </MenubarCheckboxItem>
+              <MenubarCheckboxItem
+                checked={editorState.isItalic}
+                className={menuItemClass}
+                onCheckedChange={() => toggleTextMark(editor, "italic")}
               >
-                <Icon className="h-4 w-4" />
-                {label}
-              </DropdownMenuRadioItem>
-            ))}
-          </DropdownMenuRadioGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
-
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            className={menuButtonClass}
-            onMouseDown={(event) => event.preventDefault()}
-          >
-            Revisar
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className={`w-60 ${menuContentClass}`}>
+                <Italic className="mr-2 size-4" /> Cursiva
+              </MenubarCheckboxItem>
+              <MenubarCheckboxItem
+                checked={editorState.isUnderline}
+                className={menuItemClass}
+                onCheckedChange={() => toggleTextMark(editor, "underline")}
+              >
+                <Underline className="mr-2 size-4" /> Subrayado
+              </MenubarCheckboxItem>
+              <MenubarCheckboxItem
+                checked={editorState.isStrike}
+                className={menuItemClass}
+                onCheckedChange={() => toggleTextMark(editor, "strike")}
+              >
+                <Strikethrough className="mr-2 size-4" /> Tachado
+              </MenubarCheckboxItem>
+              <MenubarSeparator />
+              <MenubarCheckboxItem
+                checked={editorState.isSubscript}
+                className={menuItemClass}
+                onCheckedChange={() => toggleSubscript(editor)}
+              >
+                <Subscript className="mr-2 size-4" /> Subíndice
+              </MenubarCheckboxItem>
+              <MenubarCheckboxItem
+                checked={editorState.isSuperscript}
+                className={menuItemClass}
+                onCheckedChange={() => toggleSuperscript(editor)}
+              >
+                <Superscript className="mr-2 size-4" /> Superíndice
+              </MenubarCheckboxItem>
+              <MenubarCheckboxItem
+                checked={editorState.isTextHighlight}
+                className={menuItemClass}
+                onCheckedChange={() => toggleTextHighlight(editor)}
+              >
+                <Highlighter className="mr-2 size-4" /> Resaltado
+              </MenubarCheckboxItem>
+              <MenubarSeparator />
+              {menuItem(
+                <PaintRoller className="size-4" />,
+                formatPainterActive ? "Cancelar copia de formato" : "Copiar formato",
+                () => toggleFormatPainter(editor),
+              )}
+              {menuItem(
+                <RemoveFormatting className="size-4" />,
+                "Limpiar formato",
+                () => clearTextFormatting(editor),
+              )}
+              </MenubarSubContent>
+            </MenubarPortal>
+          </MenubarSub>
+          {stylesMenu}
+          <MenubarSeparator />
           {menuItem(
-            <Sparkles className="h-4 w-4" />,
-            isAnalysisSaving ? "Analizando cambios…" : "Analizar cambios",
+            <Pilcrow className="size-4" />,
+            "Opciones de párrafo…",
+            () => onOpenParagraphFormat?.(),
+            undefined,
+            !onOpenParagraphFormat || !editorState.isParagraph,
+          )}
+          </>,
+        )}
+      />
+
+      {menu(
+        "Revisar",
+        <>
+          {menuItem(
+            <Sparkles className="size-4" />,
+            isAnalysisSaving ? "Programando análisis…" : "Analizar cambios",
             () => onAnalyzeChanges?.(),
             undefined,
             !onAnalyzeChanges || isAnalysisSaving,
           )}
           {menuItem(
-            <Languages className="h-4 w-4" />,
+            <Languages className="size-4" />,
             "Configuración del corrector",
             () => onOpenSpellcheckSettings?.(),
             undefined,
             !onOpenSpellcheckSettings,
           )}
-        </DropdownMenuContent>
-      </DropdownMenu>
+        </>,
+      )}
 
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            className={menuButtonClass}
-            onMouseDown={(event) => event.preventDefault()}
-          >
-            Ver
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className={`w-52 ${menuContentClass}`}>
+      {menu(
+        "Ver",
+        <>
           {menuItem(
-            <Eye className="h-4 w-4" />,
-            isZenMode ? "Salir de modo Zen" : "Entrar en modo Zen",
+            <Maximize2 className="size-4" />,
+            isZenMode ? "Salir del modo sin distracciones" : "Sin distracciones",
             () => onToggleZenMode?.(),
             undefined,
             !onToggleZenMode,
           )}
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </nav>
+          {onToggleSplit && (
+            <MenubarItem
+              className={menuItemClass}
+              disabled={!canSplit && !isSplit}
+              onSelect={onToggleSplit}
+            >
+              <Columns2 className="size-4" />
+              <span>{isSplit ? "Cerrar pantalla dividida" : "Pantalla dividida"}</span>
+            </MenubarItem>
+          )}
+        </>,
+      )}
+    </Menubar>
   )
 }

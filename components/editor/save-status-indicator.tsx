@@ -9,7 +9,7 @@ import {
 } from "@/stores/editor.store"
 import type { EditorPaneId } from "./editor-types"
 
-/** Indicador minimalista del estado de autoguardado. Lee el editorStore. */
+/** Estado visible y accesible del autoguardado de cada panel. */
 export function SaveStatusIndicator({
   className,
   paneId = "primary",
@@ -35,15 +35,17 @@ export function SaveStatusIndicator({
   return (
     <div
       className={cn(
-        "flex size-8 items-center justify-center text-xs text-muted-foreground",
+        "flex min-h-6 items-center gap-1.5 text-xs text-muted-foreground",
         saveStatus === "error" && "text-destructive",
         className,
       )}
       title={config.label}
-      aria-label={config.label}
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
     >
       <Icon className={cn("size-3.5", config.spin && "animate-spin")} />
-      <span className="sr-only">{config.label}</span>
+      <span>{config.label}</span>
     </div>
   )
 }

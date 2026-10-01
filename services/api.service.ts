@@ -97,16 +97,6 @@ export const api = {
       body: JSON.stringify(body),
       ...options,
     }),
-  put: <T>(
-    path: string,
-    body: unknown,
-    options: Pick<RequestInit, "signal"> = {},
-  ) =>
-    request<T>(path, {
-      method: "PUT",
-      body: JSON.stringify(body),
-      ...options,
-    }),
   delete: <T>(path: string, options: Pick<RequestInit, "signal"> = {}) =>
     request<T>(path, { method: "DELETE", ...options }),
 }

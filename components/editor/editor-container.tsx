@@ -19,6 +19,8 @@ import {
   type SavedSceneResult,
 } from "@/hooks/use-autosave"
 import { requestKnowledgeRefresh } from "@/hooks/use-knowledge-refresh"
+import { requireSuccessfulSave } from "@/lib/editor-save-protection"
+import { registerEditorSaveShortcut } from "@/lib/editor-save-shortcut"
 import { EditorMenuBar } from "./editor-menu-bar"
 import { EditorToolbar } from "./toolbar"
 import { RichTextEditor } from "./RichTextEditor"
@@ -40,6 +42,7 @@ type SceneEditorProps = {
   onToggleZenMode: () => void
   onOpenSearch?: () => void
   onOpenSpellcheckSettings?: () => void
+  onExportClick?: () => void
   paneId: EditorPaneId
   showToolbar: boolean
   onEditorFocus?: () => void
@@ -62,6 +65,7 @@ function SceneEditor({
   onToggleZenMode,
   onOpenSearch,
   onOpenSpellcheckSettings,
+  onExportClick,
   paneId,
   showToolbar,
   onEditorFocus,
@@ -162,6 +166,7 @@ function SceneEditor({
         onToggleZenMode={onToggleZenMode}
         onOpenSearch={onOpenSearch}
         onOpenSpellcheckSettings={onOpenSpellcheckSettings}
+        onExportClick={onExportClick}
         paneId={paneId}
         saveNow={saveNow}
         showToolbar={showToolbar}
@@ -186,6 +191,7 @@ function SceneDocumentLoader({
   onToggleZenMode,
   onOpenSearch,
   onOpenSpellcheckSettings,
+  onExportClick,
   showToolbar,
   onEditorFocus,
   onToolbarActionsChange,
@@ -203,6 +209,7 @@ function SceneDocumentLoader({
   onToggleZenMode: () => void
   onOpenSearch?: () => void
   onOpenSpellcheckSettings?: () => void
+  onExportClick?: () => void
   showToolbar: boolean
   onEditorFocus?: () => void
   onToolbarActionsChange?: (
@@ -282,6 +289,7 @@ function SceneDocumentLoader({
       onToggleZenMode={onToggleZenMode}
       onOpenSearch={onOpenSearch}
       onOpenSpellcheckSettings={onOpenSpellcheckSettings}
+      onExportClick={onExportClick}
       paneId={paneId}
       showToolbar={showToolbar}
       onEditorFocus={onEditorFocus}
@@ -372,6 +380,7 @@ function EditorPanel({
   onToggleZenMode,
   onOpenSearch,
   onOpenSpellcheckSettings,
+  onExportClick,
   showToolbar,
   onEditorFocus,
   onToolbarActionsChange,
@@ -388,6 +397,7 @@ function EditorPanel({
   onToggleZenMode: () => void
   onOpenSearch?: () => void
   onOpenSpellcheckSettings?: () => void
+  onExportClick?: () => void
   showToolbar: boolean
   onEditorFocus?: () => void
   onToolbarActionsChange?: (
@@ -409,6 +419,7 @@ function EditorPanel({
       onToggleZenMode={onToggleZenMode}
       onOpenSearch={onOpenSearch}
       onOpenSpellcheckSettings={onOpenSpellcheckSettings}
+      onExportClick={onExportClick}
       showToolbar={showToolbar}
       onEditorFocus={onEditorFocus}
       onToolbarActionsChange={onToolbarActionsChange}
@@ -428,6 +439,7 @@ function EditorWorkspace({
   onToggleZenMode,
   onOpenSearch,
   onOpenSpellcheckSettings,
+  onExportClick,
   onBeforeExportChange,
 }: {
   sceneId: string
@@ -438,6 +450,7 @@ function EditorWorkspace({
   onToggleZenMode: () => void
   onOpenSearch?: () => void
   onOpenSpellcheckSettings?: () => void
+  onExportClick?: () => void
   onBeforeExportChange?: (handler: (() => Promise<void>) | null) => void
 }) {
   const setActiveScene = useEditorStore((s) => s.setActiveScene)
@@ -446,11 +459,13 @@ function EditorWorkspace({
     null,
   )
   const [focusedPane, setFocusedPane] = useState<EditorPaneId>("primary")
+  const [paragraphDialogOpen, setParagraphDialogOpen] = useState(false)
   const [primaryActions, setPrimaryActions] =
     useState<EditorToolbarActions | null>(null)
   const [secondaryActions, setSecondaryActions] =
     useState<EditorToolbarActions | null>(null)
   const [isSavingBeforeChange, setIsSavingBeforeChange] = useState(false)
+  const [saveChangeError, setSaveChangeError] = useState<string | null>(null)
 
   const canSplit = sections.length > 1
   const fallbackSecondarySceneId =
@@ -485,26 +500,16 @@ function EditorWorkspace({
   const saveBeforeChange = useCallback(
     async (actions: EditorToolbarActions | null) => {
       if (!actions) return
-      await actions.saveNow()
+      await requireSuccessfulSave(actions.saveNow)
     },
     [],
   )
 
   const saveBeforeExport = useCallback(async () => {
-    const results = await Promise.all([
-      primaryActions?.saveNow(),
-      ...(effectiveIsSplit ? [secondaryActions?.saveNow()] : []),
+    await Promise.all([
+      primaryActions ? requireSuccessfulSave(primaryActions.saveNow) : undefined,
+      ...(effectiveIsSplit && secondaryActions ? [requireSuccessfulSave(secondaryActions.saveNow)] : []),
     ])
-    const failed = results.some(
-      (result) =>
-        result &&
-        typeof result === "object" &&
-        "status" in result &&
-        result.status === "failed",
-    )
-    if (failed) {
-      throw new Error("No se pudieron guardar los cambios pendientes")
-    }
   }, [effectiveIsSplit, primaryActions, secondaryActions])
 
   useEffect(() => {
@@ -517,10 +522,13 @@ function EditorWorkspace({
       if (nextSceneId === sceneId || isSavingBeforeChange) return
 
       setIsSavingBeforeChange(true)
+      setSaveChangeError(null)
       try {
         await saveBeforeChange(primaryActions)
         setFocusedPane("primary")
         setActiveScene(nextSceneId)
+      } catch (error) {
+        setSaveChangeError(error instanceof Error ? error.message : "No se pudieron guardar los cambios.")
       } finally {
         setIsSavingBeforeChange(false)
       }
@@ -539,10 +547,13 @@ function EditorWorkspace({
       if (nextSceneId === activeSecondarySceneId || isSavingBeforeChange) return
 
       setIsSavingBeforeChange(true)
+      setSaveChangeError(null)
       try {
         await saveBeforeChange(secondaryActions)
         setFocusedPane("secondary")
         setSecondarySceneId(nextSceneId)
+      } catch (error) {
+        setSaveChangeError(error instanceof Error ? error.message : "No se pudieron guardar los cambios.")
       } finally {
         setIsSavingBeforeChange(false)
       }
@@ -575,12 +586,15 @@ function EditorWorkspace({
     }
 
     setIsSavingBeforeChange(true)
+    setSaveChangeError(null)
     try {
       await saveBeforeChange(secondaryActions)
       setIsSplit(false)
       setSecondarySceneId(null)
       setSecondaryActions(null)
       setFocusedPane("primary")
+    } catch (error) {
+      setSaveChangeError(error instanceof Error ? error.message : "No se pudieron guardar los cambios.")
     } finally {
       setIsSavingBeforeChange(false)
     }
@@ -599,6 +613,16 @@ function EditorWorkspace({
       ? secondaryActions
       : primaryActions
 
+  useEffect(() => {
+    if (!focusedActions) return
+    return registerEditorSaveShortcut(window, () => {
+      setSaveChangeError(null)
+      return requireSuccessfulSave(focusedActions.saveNow)
+    }, (error) => {
+      setSaveChangeError(error instanceof Error ? error.message : "No se pudieron guardar los cambios.")
+    })
+  }, [focusedActions])
+
   const primarySectionFallback: EditorSectionOption = {
     id: sceneId,
     title: "Sección actual",
@@ -609,24 +633,27 @@ function EditorWorkspace({
 
   return (
     <div className="relative flex h-full min-h-0 flex-col">
+      {saveChangeError && <p role="alert" className="mx-2 my-1 rounded-md border border-destructive/25 bg-destructive/5 px-3 py-2 text-sm text-destructive">{saveChangeError}</p>}
       {effectiveIsSplit && focusedActions && !isZenMode && (
         <EditorMenuBar
           editor={focusedActions.editor}
+          projectId={projectId}
           versionLabel={focusedActions.versionLabel}
           onSave={() => void focusedActions.saveNow()}
+          onExportClick={onExportClick}
           onInsertImage={focusedActions.onInsertImage}
           onAnalyzeChanges={focusedActions.onAnalyzeChanges}
           isAnalysisSaving={focusedActions.isAnalysisSaving}
           onToggleZenMode={onToggleZenMode}
           onOpenSearch={onOpenSearch}
           onOpenSpellcheckSettings={onOpenSpellcheckSettings}
+          onOpenParagraphFormat={() => setParagraphDialogOpen(true)}
+          onToggleSplit={() => void handleToggleSplit()}
+          isSplit={effectiveIsSplit}
+          canSplit={canSplit}
           isZenMode={isZenMode}
           onInsertDivider={(variant) =>
-            focusedActions.editor
-              .chain()
-              .focus()
-              .setSceneDivider(variant)
-              .run()
+            focusedActions.editor.chain().focus().setSceneDivider(variant).run()
           }
         />
       )}
@@ -638,11 +665,14 @@ function EditorWorkspace({
           isUploadingImage={focusedActions.isUploadingImage}
           onAnalyzeChanges={focusedActions.onAnalyzeChanges}
           isAnalysisSaving={focusedActions.isAnalysisSaving}
+          onToggleZenMode={onToggleZenMode}
           isZenMode={isZenMode}
           paneId={focusedPane}
           onToggleSplit={() => void handleToggleSplit()}
           isSplit={effectiveIsSplit}
           canSplit={canSplit}
+          paragraphDialogOpen={paragraphDialogOpen}
+          onParagraphDialogOpenChange={setParagraphDialogOpen}
           onInsertDivider={
             focusedActions
               ? (variant) =>
@@ -689,6 +719,7 @@ function EditorWorkspace({
               onToggleZenMode={onToggleZenMode}
               onOpenSearch={onOpenSearch}
               onOpenSpellcheckSettings={onOpenSpellcheckSettings}
+              onExportClick={onExportClick}
               showToolbar={!effectiveIsSplit}
               onEditorFocus={() => setFocusedPane("primary")}
               onToolbarActionsChange={registerPrimaryActions}
@@ -745,6 +776,7 @@ export function EditorContainer({
   onToggleZenMode,
   onOpenSearch,
   onOpenSpellcheckSettings,
+  onExportClick,
   onBeforeExportChange,
 }: {
   sceneId: string
@@ -754,6 +786,7 @@ export function EditorContainer({
   onToggleZenMode: () => void
   onOpenSearch?: () => void
   onOpenSpellcheckSettings?: () => void
+  onExportClick?: () => void
   onBeforeExportChange?: (handler: (() => Promise<void>) | null) => void
 }) {
   const selectedVersionId = useEditorStore((s) => s.selectedSceneVersionId)
@@ -768,6 +801,7 @@ export function EditorContainer({
       onToggleZenMode={onToggleZenMode}
       onOpenSearch={onOpenSearch}
       onOpenSpellcheckSettings={onOpenSpellcheckSettings}
+      onExportClick={onExportClick}
       onBeforeExportChange={onBeforeExportChange}
     />
   )

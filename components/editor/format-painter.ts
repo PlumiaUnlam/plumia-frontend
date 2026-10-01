@@ -18,6 +18,7 @@ type FormatSnapshot = {
   blockType: PainterBlockType | null
   headingLevel: number
   paragraphAttributes: ParagraphAttributes
+  editorStyleId: string | null
 }
 
 type PainterSession = {
@@ -72,6 +73,9 @@ function captureFormat(editor: Editor): FormatSnapshot {
       sourceBlock.attrs.firstLineIndent ??
       DEFAULT_PARAGRAPH_ATTRIBUTES.firstLineIndent,
     tabSize: sourceBlock.attrs.tabSize ?? DEFAULT_PARAGRAPH_ATTRIBUTES.tabSize,
+    spacingBefore: sourceBlock.attrs.spacingBefore ?? DEFAULT_PARAGRAPH_ATTRIBUTES.spacingBefore,
+    spacingAfter: sourceBlock.attrs.spacingAfter ?? DEFAULT_PARAGRAPH_ATTRIBUTES.spacingAfter,
+    tabStops: [...(sourceBlock.attrs.tabStops ?? DEFAULT_PARAGRAPH_ATTRIBUTES.tabStops)],
   }
 
   const blockType: PainterBlockType | null =
@@ -95,6 +99,10 @@ function captureFormat(editor: Editor): FormatSnapshot {
     blockType,
     headingLevel,
     paragraphAttributes,
+    editorStyleId:
+      typeof sourceBlock.attrs.editorStyleId === "string"
+        ? sourceBlock.attrs.editorStyleId
+        : null,
   }
 }
 
@@ -148,8 +156,14 @@ function applyFormat(editor: Editor, snapshot: FormatSnapshot) {
 
         const attributes =
           snapshot.blockType === "heading"
-            ? { level: snapshot.headingLevel }
-            : snapshot.paragraphAttributes
+            ? {
+                level: snapshot.headingLevel,
+                editorStyleId: snapshot.editorStyleId,
+              }
+            : {
+                ...snapshot.paragraphAttributes,
+                editorStyleId: snapshot.editorStyleId,
+              }
         transaction.setNodeMarkup(pos, targetType, attributes, node.marks)
       }
     }

@@ -1,5 +1,5 @@
 
-import { useEffect } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { EditorContent, useEditor } from "@tiptap/react"
 import StarterKit from "@tiptap/starter-kit"
 
@@ -35,7 +35,14 @@ import {
 import { TextFontSizeFormatting } from "./text-font-size"
 import { TextFontFamilyFormatting } from "./text-font-family"
 import { EditorMenuBar } from "./editor-menu-bar"
+import {
+  EditorTextStyleAttributes,
+  EditorTextStyleMark,
+  buildEditorTextStylesCss,
+} from "./editor-text-styles"
+import { useEditorTextStyles } from "@/hooks/use-editor-text-styles"
 import { ListNumberingMenu } from "./list-numbering-menu"
+import { SpellcheckSuggestions } from "./spellcheck-suggestions"
 import type {
   EditorPaneId,
   EditorToolbarActions,
@@ -57,6 +64,7 @@ type RichTextEditorProps = {
   onToggleZenMode?: () => void
   onOpenSearch?: () => void
   onOpenSpellcheckSettings?: () => void
+  onExportClick?: () => void
   paneId?: EditorPaneId
   saveNow?: () => Promise<unknown>
   showToolbar?: boolean
@@ -84,6 +92,7 @@ export function RichTextEditor({
   onToggleZenMode,
   onOpenSearch,
   onOpenSpellcheckSettings,
+  onExportClick,
   paneId = "primary",
   saveNow,
   showToolbar = true,
@@ -93,6 +102,7 @@ export function RichTextEditor({
   isSplit = false,
   canSplit = true,
 }: RichTextEditorProps) {
+  const [paragraphDialogOpen, setParagraphDialogOpen] = useState(false)
   const {
     error,
     isUploading,
@@ -117,6 +127,11 @@ export function RichTextEditor({
   const spellcheckLanguage = useEditorStore(
     (state) => state.spellcheckLanguage,
   )
+  const { styles: editorTextStyles } = useEditorTextStyles(projectId)
+  const editorTextStylesCss = useMemo(
+    () => buildEditorTextStylesCss(editorTextStyles),
+    [editorTextStyles],
+  )
 
   const editor = useEditor({
     immediatelyRender: true,
@@ -136,6 +151,8 @@ export function RichTextEditor({
       TextHighlightFormatting,
       TextFontSizeFormatting,
       TextFontFamilyFormatting,
+      EditorTextStyleMark,
+      EditorTextStyleAttributes,
       EditorImage.configure({
         inline: false,
         allowBase64: false,
@@ -296,6 +313,7 @@ export function RichTextEditor({
       className="relative flex h-full min-h-0 flex-col"
       onMouseDown={() => onEditorFocus?.()}
     >
+      <SpellcheckSuggestions key={sceneId} editor={editor} language={spellcheckLanguage} />
       <input
         ref={registerFileInput}
         className="hidden"
@@ -304,18 +322,26 @@ export function RichTextEditor({
         onChange={handleFileSelected}
       />
 
+      {editorTextStylesCss && <style>{editorTextStylesCss}</style>}
+
       {showToolbar && !isZenMode && (
-          <EditorMenuBar
-            editor={editor}
-            versionLabel={versionLabel}
-            onSave={onSave}
-            onOpenSearch={onOpenSearch}
-            onOpenSpellcheckSettings={onOpenSpellcheckSettings}
-            onInsertImage={openImagePicker}
+        <EditorMenuBar
+          editor={editor}
+          projectId={projectId}
+          versionLabel={versionLabel}
+          onSave={onSave}
+          onExportClick={onExportClick}
+          onOpenSearch={onOpenSearch}
+          onOpenSpellcheckSettings={onOpenSpellcheckSettings}
+          onOpenParagraphFormat={() => setParagraphDialogOpen(true)}
+          onInsertImage={openImagePicker}
           onAnalyzeChanges={onAnalyzeChanges}
           isAnalysisSaving={isAnalysisSaving}
           onToggleZenMode={onToggleZenMode}
           isZenMode={isZenMode}
+          onToggleSplit={onToggleSplit}
+          isSplit={isSplit}
+          canSplit={canSplit}
           onInsertDivider={(variant) =>
             editor.chain().focus().setSceneDivider(variant).run()
           }
@@ -329,11 +355,14 @@ export function RichTextEditor({
           isUploadingImage={isUploading}
           onAnalyzeChanges={onAnalyzeChanges}
           isAnalysisSaving={isAnalysisSaving}
+          onToggleZenMode={onToggleZenMode}
           isZenMode={isZenMode}
           paneId={paneId}
           onToggleSplit={onToggleSplit}
           isSplit={isSplit}
           canSplit={canSplit}
+          paragraphDialogOpen={paragraphDialogOpen}
+          onParagraphDialogOpenChange={setParagraphDialogOpen}
           onInsertDivider={(variant: SceneDividerVariant) =>
             editor.chain().focus().setSceneDivider(variant).run()
           }

@@ -287,7 +287,7 @@ export function ExportDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
         showCloseButton={false}
-        className="max-h-[calc(100vh-2rem)] max-w-[calc(100%-2rem)] gap-0 overflow-y-auto rounded-[10px] border-[#e8dff0] bg-white p-0 text-[#2f1d40] shadow-xl sm:max-w-[480px]"
+        className="max-h-[calc(100dvh-1rem)] w-[min(40rem,calc(100vw-1.5rem))] max-w-none gap-0 overflow-x-hidden overflow-y-auto rounded-[10px] border-[#e8dff0] bg-white p-0 text-[#2f1d40] shadow-xl sm:max-h-[min(90dvh,52rem)] sm:max-w-none"
       >
         <DialogHeader className="relative gap-0 border-b border-[#eee4f5] px-3.5 py-3">
           <DialogTitle className="text-[16px] font-semibold leading-5 text-[#2f1d40]">

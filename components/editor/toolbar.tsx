@@ -11,7 +11,6 @@ import {
   IndentDecrease,
   IndentIncrease,
   Columns2,
-  FileText,
   ImagePlus,
   Italic,
   Loader2,
@@ -22,6 +21,8 @@ import {
   Plus,
   PaintRoller,
   RemoveFormatting,
+  Pilcrow,
+  RotateCcw,
   SeparatorHorizontal,
   Redo2,
   Strikethrough,
@@ -33,24 +34,26 @@ import {
 import { useEditorState } from "@tiptap/react"
 import { useState } from "react"
 
-import { Button } from "@/components/ui/button"
+import { ToolbarButton as Button } from "./toolbar-button"
+import { TooltipProvider } from "@/components/ui/tooltip"
 import { Input } from "@/components/ui/input"
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuCheckboxItem,
+  DropdownMenuSeparator,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { getActiveTextColor } from "./text-formatting"
+import { SceneDividerMenuOptions } from "./scene-divider-menu"
 import { SaveStatusIndicator } from "./save-status-indicator"
 import { AnalysisButton } from "./analysis/analysis-button"
 import type { EditorPaneId } from "./editor-types"
 import {
-  SCENE_DIVIDER_OPTIONS,
-  SceneDividerPreview,
   type SceneDividerVariant,
 } from "./scene-divider"
 import {
@@ -83,12 +86,17 @@ import {
 } from "./format-painter"
 import {
   clearTextFormatting,
+  getTextHighlightColor,
   toggleSubscript,
   toggleSuperscript,
+  toggleTextHighlight,
+  toggleTextMark,
 } from "./text-extra-formatting"
 
 const toolbarButtonClass =
-  "h-7 w-7 rounded-md p-1 text-[#3c4043] hover:bg-[#e8eaed] hover:text-[#202124] [&_svg]:size-3.5"
+  "h-8 w-8 rounded-md p-1 text-[#3c4043] hover:bg-[#e8eaed] hover:text-[#202124] focus-visible:ring-2 focus-visible:ring-[#a8c7fa] [&_svg]:size-3.5 max-[640px]:h-9 max-[640px]:w-9"
+const toolbarGroupClass = "flex min-w-0 max-w-full shrink-0 flex-wrap items-center gap-0.5"
+const toolbarLabelButtonClass = "h-8 gap-1.5 rounded-md px-2 text-xs text-[#3c4043] hover:bg-[#e8eaed] focus-visible:ring-2 focus-visible:ring-[#a8c7fa]"
 const toolbarMenuClass =
   "border-[#dadce0] bg-white text-[#3c4043] shadow-[0_3px_8px_rgba(60,64,67,0.24)]"
 const toolbarMenuItemClass =
@@ -113,11 +121,14 @@ interface EditorToolbarProps {
   onAnalyzeChanges?: () => void
   isAnalysisSaving?: boolean
   isZenMode?: boolean
+  onToggleZenMode?: () => void
   onInsertDivider?: (variant: SceneDividerVariant) => void
   paneId?: EditorPaneId
   onToggleSplit?: () => void
   isSplit?: boolean
   canSplit?: boolean
+  paragraphDialogOpen: boolean
+  onParagraphDialogOpenChange: (open: boolean) => void
 }
 
 export function EditorToolbar({
@@ -133,6 +144,8 @@ export function EditorToolbar({
   onToggleSplit,
   isSplit = false,
   canSplit = true,
+  paragraphDialogOpen,
+  onParagraphDialogOpenChange,
 }: EditorToolbarProps) {
   const paragraphState = useEditorState({
     editor,
@@ -143,6 +156,8 @@ export function EditorToolbar({
       isBulletList: currentEditor.isActive("bulletList"),
       isOrderedList: currentEditor.isActive("orderedList"),
       isTextColor: currentEditor.isActive("textColor"),
+      textColor: getActiveTextColor(currentEditor),
+      highlightColor: getTextHighlightColor(currentEditor),
       isBold: currentEditor.isActive("bold"),
       isItalic: currentEditor.isActive("italic"),
       isUnderline: currentEditor.isActive("underline"),
@@ -177,7 +192,11 @@ export function EditorToolbar({
   const [isFontFamilyMenuOpen, setIsFontFamilyMenuOpen] = useState(false)
 
   const updateParagraph = (attributes: Partial<ParagraphAttributes>) => {
-    editor.chain().focus().updateAttributes("paragraph", attributes).run()
+    editor
+      .chain()
+      .focus()
+      .updateAttributes("paragraph", { ...attributes, editorStyleId: null })
+      .run()
   }
 
   const increaseIndent = () => {
@@ -216,609 +235,590 @@ export function EditorToolbar({
   }
 
   const toolbar = (
-    <div className="editor-toolbar mx-2 mb-1 flex flex-col gap-1 rounded-b-md border border-[#dadce0] bg-[#f1f3f4] px-2 py-1 text-[#3c4043] shadow-sm">
-      <div className="flex w-full flex-wrap items-center gap-0.5">
-      <Button
-        type="button"
-        size="icon-sm"
-        variant="ghost"
-        className={toolbarButtonClass}
-        disabled={!paragraphState.canUndo}
-        title="Deshacer (Ctrl/Cmd+Z)"
-        aria-label="Deshacer"
-        onMouseDown={(event) => event.preventDefault()}
-        onClick={() => editor.chain().focus().undo().run()}
-      >
-        <Undo2 className="h-4 w-4" />
-      </Button>
-
-      <Button
-        type="button"
-        size="icon-sm"
-        variant="ghost"
-        className={toolbarButtonClass}
-        disabled={!paragraphState.canRedo}
-        title="Rehacer (Ctrl/Cmd+Y)"
-        aria-label="Rehacer"
-        onMouseDown={(event) => event.preventDefault()}
-        onClick={() => editor.chain().focus().redo().run()}
-      >
-        <Redo2 className="h-4 w-4" />
-      </Button>
-
-      <div className="mx-1 h-5 w-px bg-[#dadce0]" />
-
-      <Button
-        type="button"
-        size="icon-sm"
-        variant="ghost"
-        className={`${toolbarButtonClass} ${formatPainterActive ? "bg-[#d3e3fd] text-[#174ea6] hover:bg-[#c2d7f8]" : ""}`}
-        disabled={!editor.isEditable}
-        title={
-          formatPainterActive
-            ? "Formato copiado. Seleccioná el texto destino o Esc para cancelar."
-            : "Copiar formato"
-        }
-        aria-label={formatPainterActive ? "Cancelar o aplicar formato" : "Copiar formato"}
-        aria-pressed={formatPainterActive}
-        onMouseDown={(event) => event.preventDefault()}
-        onClick={() => toggleFormatPainter(editor)}
-      >
-        <PaintRoller className="h-3.5 w-3.5" />
-      </Button>
-
-      <DropdownMenu
-        open={isFontFamilyMenuOpen}
-        onOpenChange={setIsFontFamilyMenuOpen}
-      >
-        {isFontFamilyEditing ? (
-          <Input
-            autoFocus
-            value={fontFamilySearch}
-            onChange={(event) => setFontFamilySearch(event.currentTarget.value)}
-            onFocus={(event) => event.currentTarget.select()}
-            onBlur={() => setIsFontFamilyEditing(false)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.preventDefault()
-                finishFontFamilySearch()
-              } else if (event.key === "Escape") {
-                event.preventDefault()
-                setIsFontFamilyEditing(false)
-              }
-            }}
-            className="h-7 w-32 rounded-md border-[#dadce0] bg-white px-2 text-sm text-[#3c4043] shadow-none focus-visible:ring-2 focus-visible:ring-[#a8c7fa]"
-            style={{ fontFamily: getFontFamilyCss(displayedFontFamily) }}
-            placeholder="Buscar fuente"
-            aria-label="Escribir y aplicar una familia tipográfica"
-            title="Escribe el nombre de una fuente y pulsa Enter"
-          />
-        ) : (
-          <DropdownMenuTrigger asChild>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className="h-7 w-32 justify-between gap-2 border-[#dadce0] bg-white px-2 text-sm font-normal text-[#3c4043] shadow-none hover:bg-[#f8fafd] hover:text-[#202124]"
-              style={{ fontFamily: getFontFamilyCss(displayedFontFamily) }}
-              title={`Familia tipográfica: ${displayedFontFamily}. Doble clic para escribir una fuente.`}
-              aria-label={`Familia tipográfica: ${displayedFontFamily}`}
-              onMouseDown={(event) => event.preventDefault()}
-              onDoubleClick={(event) => {
-                event.preventDefault()
-                setFontFamilySearch(getFontFamilyLabel(displayedFontFamily))
-                setIsFontFamilyMenuOpen(false)
-                setIsFontFamilyEditing(true)
-              }}
-            >
-              <span className="truncate">
-                {getFontFamilyLabel(displayedFontFamily)}
-              </span>
-              <ChevronDown className="h-3 w-3 shrink-0" />
-            </Button>
-          </DropdownMenuTrigger>
-        )}
-        <DropdownMenuContent
-          align="start"
-          className={`w-72 overflow-hidden p-0 ${toolbarMenuClass}`}
-        >
-          <TextFontFamilyMenuOptions
-            value={displayedFontFamily}
-            onValueChange={(value) => applyTextFontFamily(editor, value)}
-            itemClassName={toolbarMenuItemClass}
-          />
-        </DropdownMenuContent>
-      </DropdownMenu>
-
-      <div className="mx-1 flex h-7 items-center gap-0.5 border-x border-[#dadce0] px-1">
-        <Button
-          type="button"
-          size="icon-sm"
-          variant="ghost"
-          className={toolbarButtonClass}
-          title="Disminuir tamaño de fuente"
-          aria-label="Disminuir tamaño de fuente"
-          disabled={displayedFontSizeIndex <= 0}
-          onMouseDown={(event) => event.preventDefault()}
-          onClick={() => changeFontSize(-1)}
-        >
-          <Minus className="h-4 w-4" />
-        </Button>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className="h-7 min-w-10 border-[#80868b] bg-white px-1.5 text-sm font-normal text-[#3c4043] shadow-none hover:bg-[#f8fafd] hover:text-[#202124]"
-              title={`Tamaño de fuente: ${displayedFontSize.replace("pt", "")} pt`}
-              aria-label={`Tamaño de fuente: ${displayedFontSize.replace("pt", "")} pt`}
-              onMouseDown={(event) => event.preventDefault()}
-            >
-              {displayedFontSize.replace("pt", "")}
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            align="start"
-            className={`w-40 max-h-[min(70vh,28rem)] overflow-y-auto ${toolbarMenuClass}`}
-          >
-            <DropdownMenuLabel>Tamaño de fuente</DropdownMenuLabel>
-            <DropdownMenuRadioGroup
-              value={paragraphState.textFontSize ?? "normal"}
-              onValueChange={(value) =>
-                applyTextFontSize(
-                  editor,
-                  value === "normal" ? null : (value as TextFontSize),
-                )
-              }
-            >
-              <DropdownMenuRadioItem
-                value="normal"
-                className={toolbarMenuItemClass}
-              >
-                Normal
-              </DropdownMenuRadioItem>
-              {TEXT_FONT_SIZES.map(({ value, label }) => (
-                <DropdownMenuRadioItem
-                  key={value}
-                  value={value}
-                  className={toolbarMenuItemClass}
-                >
-                  {label}
-                </DropdownMenuRadioItem>
-              ))}
-            </DropdownMenuRadioGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
-        <Button
-          type="button"
-          size="icon-sm"
-          variant="ghost"
-          className={toolbarButtonClass}
-          title="Aumentar tamaño de fuente"
-          aria-label="Aumentar tamaño de fuente"
-          disabled={displayedFontSizeIndex >= TEXT_FONT_SIZES.length - 1}
-          onMouseDown={(event) => event.preventDefault()}
-          onClick={() => changeFontSize(1)}
-        >
-          <Plus className="h-4 w-4" />
-        </Button>
-      </div>
-
-      <div className="mx-1 h-5 w-px bg-[#dadce0]" />
-
-      <Button
-        type="button"
-        size="icon-sm"
-        variant="ghost"
-        className={`${toolbarButtonClass} ${paragraphState.isBold ? "bg-[#d3e3fd] text-[#174ea6] hover:bg-[#c2d7f8]" : ""}`}
-        title="Negrita"
-        aria-label="Negrita"
-        onMouseDown={(event) => event.preventDefault()}
-        onClick={() => editor.chain().focus().toggleBold().run()}
-      >
-        <Bold className="h-4 w-4" />
-      </Button>
-
-      <Button
-        type="button"
-        size="icon-sm"
-        variant="ghost"
-        className={`${toolbarButtonClass} ${paragraphState.isItalic ? "bg-[#d3e3fd] text-[#174ea6] hover:bg-[#c2d7f8]" : ""}`}
-        title="Cursiva"
-        aria-label="Cursiva"
-        onMouseDown={(event) => event.preventDefault()}
-        onClick={() => editor.chain().focus().toggleItalic().run()}
-      >
-        <Italic className="h-4 w-4" />
-      </Button>
-
-      <Button
-        type="button"
-        size="icon-sm"
-        variant="ghost"
-        className={`${toolbarButtonClass} ${paragraphState.isUnderline ? "bg-[#d3e3fd] text-[#174ea6] hover:bg-[#c2d7f8]" : ""}`}
-        title="Subrayado"
-        aria-label="Subrayado"
-        aria-pressed={paragraphState.isUnderline}
-        onMouseDown={(event) => event.preventDefault()}
-        onClick={() => editor.chain().focus().toggleUnderline().run()}
-      >
-        <Underline />
-      </Button>
-
-      <Button
-        type="button"
-        size="icon-sm"
-        variant="ghost"
-        className={`${toolbarButtonClass} ${paragraphState.isStrike ? "bg-[#d3e3fd] text-[#174ea6] hover:bg-[#c2d7f8]" : ""}`}
-        title="Tachado"
-        aria-label="Tachado"
-        aria-pressed={paragraphState.isStrike}
-        onMouseDown={(event) => event.preventDefault()}
-        onClick={() => editor.chain().focus().toggleStrike().run()}
-      >
-        <Strikethrough />
-      </Button>
-
-      <Button
-        type="button"
-        size="icon-sm"
-        variant="ghost"
-        className={`${toolbarButtonClass} ${paragraphState.isSubscript ? "bg-[#d3e3fd] text-[#174ea6] hover:bg-[#c2d7f8]" : ""}`}
-        title="Subíndice"
-        aria-label="Subíndice"
-        aria-pressed={paragraphState.isSubscript}
-        onMouseDown={(event) => event.preventDefault()}
-        onClick={() => toggleSubscript(editor)}
-      >
-        <Subscript />
-      </Button>
-
-      <Button
-        type="button"
-        size="icon-sm"
-        variant="ghost"
-        className={`${toolbarButtonClass} ${paragraphState.isSuperscript ? "bg-[#d3e3fd] text-[#174ea6] hover:bg-[#c2d7f8]" : ""}`}
-        title="Superíndice"
-        aria-label="Superíndice"
-        aria-pressed={paragraphState.isSuperscript}
-        onMouseDown={(event) => event.preventDefault()}
-        onClick={() => toggleSuperscript(editor)}
-      >
-        <Superscript />
-      </Button>
-
-      <Button
-        type="button"
-        size="icon-sm"
-        variant="ghost"
-        className={`${toolbarButtonClass} ${paragraphState.isTextHighlight ? "bg-[#fff3b0] text-[#3c4043] hover:bg-[#ffe680]" : ""}`}
-        title="Resaltar texto en amarillo"
-        aria-label="Resaltar texto en amarillo"
-        aria-pressed={paragraphState.isTextHighlight}
-        onMouseDown={(event) => event.preventDefault()}
-        onClick={() => editor.chain().focus().toggleMark("textHighlight").run()}
-      >
-        <Highlighter />
-      </Button>
-
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            type="button"
-            size="icon-sm"
-            variant="ghost"
-            className={`${toolbarButtonClass} ${paragraphState.isTextColor ? "bg-[#d3e3fd] text-[#174ea6] hover:bg-[#c2d7f8]" : ""}`}
-            title="Color de texto"
-            aria-label="Cambiar color de texto"
-            onMouseDown={(event) => event.preventDefault()}
-          >
-            <Baseline className="h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent
-          align="start"
-            className={`w-[min(24rem,calc(100vw-1rem))] max-w-[calc(100vw-1rem)] max-h-[min(70vh,28rem)] overflow-y-auto p-2 ${toolbarMenuClass}`}
-        >
-          <DropdownMenuLabel>Color de texto</DropdownMenuLabel>
-          <ColorPalette
-            editor={editor}
-            kind="text"
-            menuItemClass={toolbarMenuItemClass}
-          />
-        </DropdownMenuContent>
-      </DropdownMenu>
-
-      <Button
-        type="button"
-        size="icon-sm"
-        variant="ghost"
-        className={toolbarButtonClass}
-        title="Limpiar formato"
-        aria-label="Limpiar formato"
-        onMouseDown={(event) => event.preventDefault()}
-        onClick={() => clearTextFormatting(editor)}
-      >
-        <RemoveFormatting />
-      </Button>
-
-      </div>
-
-      <div className="flex w-full flex-wrap items-center gap-0.5">
-
-      <div className="flex items-center">
-        <Button
-          type="button"
-          size="icon-sm"
-          variant="ghost"
-          className={`${toolbarButtonClass} rounded-r-none pr-1 ${paragraphState.isBulletList ? "bg-[#d3e3fd] text-[#174ea6] hover:bg-[#c2d7f8]" : ""}`}
-          title="Lista con viñetas"
-          aria-label="Lista con viñetas"
-          aria-pressed={paragraphState.isBulletList}
-          onMouseDown={(event) => event.preventDefault()}
-          onClick={() => editor.chain().focus().toggleBulletList().run()}
-        >
-          <ListIcon className="h-4 w-4" />
-        </Button>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              type="button"
-              size="icon-sm"
-              variant="ghost"
-              className={`${toolbarButtonClass} -ml-px rounded-l-none px-0.5 ${paragraphState.isBulletList ? "bg-[#d3e3fd] text-[#174ea6] hover:bg-[#c2d7f8]" : ""}`}
-              title="Biblioteca de viñetas"
-              aria-label="Abrir biblioteca de viñetas"
-              onMouseDown={(event) => event.preventDefault()}
-            >
-              <ChevronDown className="h-3 w-3" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            align="start"
-            className={`w-[min(34rem,calc(100vw-1rem))] max-w-[calc(100vw-1rem)] max-h-[min(75vh,38rem)] overflow-x-hidden overflow-y-auto p-2 ${toolbarMenuClass}`}
-          >
-            <DropdownMenuLabel>Biblioteca de viñetas</DropdownMenuLabel>
-            <ListStyleGrid
-              editor={editor}
-              kind="bullet"
-              menuItemClass={toolbarMenuItemClass}
-            />
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-
-      <div className="flex items-center">
-        <Button
-          type="button"
-          size="icon-sm"
-          variant="ghost"
-          className={`${toolbarButtonClass} rounded-r-none pr-1 ${paragraphState.isOrderedList ? "bg-[#d3e3fd] text-[#174ea6] hover:bg-[#c2d7f8]" : ""}`}
-          title="Lista numerada"
-          aria-label="Lista numerada"
-          aria-pressed={paragraphState.isOrderedList}
-          onMouseDown={(event) => event.preventDefault()}
-          onClick={() => editor.chain().focus().toggleOrderedList().run()}
-        >
-          <ListOrdered className="h-4 w-4" />
-        </Button>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              type="button"
-              size="icon-sm"
-              variant="ghost"
-              className={`${toolbarButtonClass} -ml-px rounded-l-none px-0.5 ${paragraphState.isOrderedList ? "bg-[#d3e3fd] text-[#174ea6] hover:bg-[#c2d7f8]" : ""}`}
-              title="Biblioteca de numeración"
-              aria-label="Abrir biblioteca de numeración"
-              onMouseDown={(event) => event.preventDefault()}
-            >
-              <ChevronDown className="h-3 w-3" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            align="start"
-            className={`w-[min(34rem,calc(100vw-1rem))] max-w-[calc(100vw-1rem)] max-h-[min(75vh,38rem)] overflow-x-hidden overflow-y-auto p-2 ${toolbarMenuClass}`}
-          >
-            <DropdownMenuLabel>Biblioteca de numeración</DropdownMenuLabel>
-            <ListStyleGrid
-              editor={editor}
-              kind="ordered"
-              menuItemClass={toolbarMenuItemClass}
-            />
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-
-      <ListNumberingActionsButton editor={editor} />
-
-      <Button
-        type="button"
-        size="icon-sm"
-        variant="ghost"
-        className={toolbarButtonClass}
-        disabled={!paragraphState.isBulletList && !paragraphState.isOrderedList}
-        title="Quitar formato de lista"
-        aria-label="Quitar formato de lista"
-        onMouseDown={(event) => event.preventDefault()}
-        onClick={() => removeCurrentList(editor)}
-      >
-        <ListX className="h-4 w-4" />
-      </Button>
-
-      <div className="mx-1 h-5 w-px bg-[#dadce0]" />
-
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            type="button"
-            size="icon-sm"
-            variant="ghost"
-            className={toolbarButtonClass}
-            disabled={!paragraphEnabled}
-            title="Alineación del párrafo"
-            aria-label="Alineación del párrafo"
-            onMouseDown={(event) => event.preventDefault()}
-          >
-            {paragraphAttributes.textAlign === "center" ? (
-              <AlignCenter className="h-4 w-4" />
-            ) : paragraphAttributes.textAlign === "right" ? (
-              <AlignRight className="h-4 w-4" />
-            ) : paragraphAttributes.textAlign === "justify" ? (
-              <AlignJustify className="h-4 w-4" />
-            ) : (
-              <AlignLeft className="h-4 w-4" />
-            )}
-            <ChevronDown className="h-3 w-3" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className={`w-44 ${toolbarMenuClass}`}>
-          <DropdownMenuLabel>Alineación</DropdownMenuLabel>
-          <DropdownMenuRadioGroup
-            value={paragraphAttributes.textAlign}
-            onValueChange={(value) =>
-              updateParagraph({ textAlign: value as ParagraphAlignment })
-            }
-          >
-            {alignmentOptions.map(({ value, label, icon: Icon }) => (
-              <DropdownMenuRadioItem
-                key={value}
-                value={value}
-                className={`gap-3 ${toolbarMenuItemClass}`}
-              >
-                <Icon className="h-4 w-4" />
-                <span>{label}</span>
-              </DropdownMenuRadioItem>
-            ))}
-          </DropdownMenuRadioGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
-
-      <Button
-        type="button"
-        size="icon-sm"
-        variant="ghost"
-        className={toolbarButtonClass}
-        disabled={listEnabled ? !paragraphState.canLiftListItem : !paragraphEnabled || paragraphAttributes.indentLeft <= 0}
-        title="Disminuir sangría izquierda"
-        aria-label="Disminuir sangría izquierda"
-        onMouseDown={(event) => event.preventDefault()}
-        onClick={decreaseIndent}
-      >
-        <IndentDecrease className="h-4 w-4" />
-      </Button>
-
-      <Button
-        type="button"
-        size="icon-sm"
-        variant="ghost"
-        className={toolbarButtonClass}
-        disabled={listEnabled ? !paragraphState.canSinkListItem : !paragraphEnabled || paragraphAttributes.indentLeft >= 8}
-        title="Aumentar sangría izquierda"
-        aria-label="Aumentar sangría izquierda"
-        onMouseDown={(event) => event.preventDefault()}
-        onClick={increaseIndent}
-      >
-        <IndentIncrease className="h-4 w-4" />
-      </Button>
-
-      <ParagraphFormatDialog
-        editor={editor}
-        attributes={paragraphAttributes}
-        disabled={!paragraphEnabled}
-      />
-
-      {onInsertDivider && (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
+    <TooltipProvider delayDuration={350}>
+      <div className="editor-toolbar mx-2 mb-1 flex min-w-0 flex-col gap-1 rounded-b-lg border border-[#dadce0] bg-[#f8f9fa] px-2 py-2 text-[#3c4043] shadow-sm">
+        <div className="flex min-h-8 w-full flex-wrap items-center gap-1">
+          <div role="group" aria-label="Historial" className={toolbarGroupClass}>
             <Button
               type="button"
               size="icon-sm"
               variant="ghost"
               className={toolbarButtonClass}
-              title="Insertar separador"
-              aria-label="Insertar separador ornamental"
+              disabled={!paragraphState.canUndo}
+              title="Deshacer (Ctrl/Cmd+Z)"
+              aria-label="Deshacer"
               onMouseDown={(event) => event.preventDefault()}
+              onClick={() => editor.chain().focus().undo().run()}
             >
-              <SeparatorHorizontal className="h-4 w-4" />
+              <Undo2 className="h-4 w-4" />
             </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className={`w-64 ${toolbarMenuClass}`}>
-            <DropdownMenuLabel>Separador de escena</DropdownMenuLabel>
-            {SCENE_DIVIDER_OPTIONS.map((option) => (
-              <DropdownMenuItem
-                key={option.value}
-                className={`gap-3 py-2 ${toolbarMenuItemClass}`}
-                onSelect={() => onInsertDivider(option.value)}
-              >
-                <SceneDividerPreview
-                  variant={option.value}
-                  className="w-24 shrink-0"
+
+            <Button
+              type="button"
+              size="icon-sm"
+              variant="ghost"
+              className={toolbarButtonClass}
+              disabled={!paragraphState.canRedo}
+              title="Rehacer (Ctrl/Cmd+Y)"
+              aria-label="Rehacer"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => editor.chain().focus().redo().run()}
+            >
+              <Redo2 className="h-4 w-4" />
+            </Button>
+
+          </div>
+          <div role="group" aria-label="Fuente y tamaño" className={`${toolbarGroupClass} border-l border-[#dadce0] pl-2`}>
+
+            <Button
+              type="button"
+              size="icon-sm"
+              variant="ghost"
+              className={`${toolbarButtonClass} ${formatPainterActive ? "bg-[#d3e3fd] text-[#174ea6] hover:bg-[#c2d7f8]" : ""}`}
+              disabled={!editor.isEditable}
+              title={
+                formatPainterActive
+                  ? "Formato copiado. Seleccioná el texto destino o Esc para cancelar."
+                  : "Copiar formato"
+              }
+              aria-label={formatPainterActive ? "Cancelar o aplicar formato" : "Copiar formato"}
+              aria-pressed={formatPainterActive}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => toggleFormatPainter(editor)}
+            >
+              <PaintRoller className="h-3.5 w-3.5" />
+            </Button>
+
+            <DropdownMenu
+              open={isFontFamilyMenuOpen}
+              onOpenChange={setIsFontFamilyMenuOpen}
+            >
+              {isFontFamilyEditing ? (
+                <Input
+                  autoFocus
+                  value={fontFamilySearch}
+                  onChange={(event) => setFontFamilySearch(event.currentTarget.value)}
+                  onFocus={(event) => event.currentTarget.select()}
+                  onBlur={() => setIsFontFamilyEditing(false)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault()
+                      finishFontFamilySearch()
+                    } else if (event.key === "Escape") {
+                      event.preventDefault()
+                      setIsFontFamilyEditing(false)
+                    }
+                  }}
+                  className="h-7 w-32 rounded-md border-[#dadce0] bg-white px-2 text-sm text-[#3c4043] shadow-none focus-visible:ring-2 focus-visible:ring-[#a8c7fa]"
+                  style={{ fontFamily: getFontFamilyCss(displayedFontFamily) }}
+                  placeholder="Buscar fuente"
+                  aria-label="Escribir y aplicar una familia tipográfica"
+                  title="Escribe el nombre de una fuente y pulsa Enter"
                 />
-                <span>{option.label}</span>
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )}
+              ) : (
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-7 w-32 justify-between gap-2 border-[#dadce0] bg-white px-2 text-sm font-normal text-[#3c4043] shadow-none hover:bg-[#f8fafd] hover:text-[#202124]"
+                    style={{ fontFamily: getFontFamilyCss(displayedFontFamily) }}
+                    title={`Familia tipográfica: ${displayedFontFamily}. Doble clic para escribir una fuente.`}
+                    aria-label={`Familia tipográfica: ${displayedFontFamily}`}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onDoubleClick={(event) => {
+                      event.preventDefault()
+                      setFontFamilySearch(getFontFamilyLabel(displayedFontFamily))
+                      setIsFontFamilyMenuOpen(false)
+                      setIsFontFamilyEditing(true)
+                    }}
+                  >
+                    <span className="truncate">
+                      {getFontFamilyLabel(displayedFontFamily)}
+                    </span>
+                    <ChevronDown className="h-3 w-3 shrink-0" />
+                  </Button>
+                </DropdownMenuTrigger>
+              )}
+              <DropdownMenuContent
+                align="start"
+                className={`w-72 overflow-hidden p-0 ${toolbarMenuClass}`}
+              >
+                <TextFontFamilyMenuOptions
+                  value={displayedFontFamily}
+                  onValueChange={(value) => applyTextFontFamily(editor, value)}
+                  itemClassName={toolbarMenuItemClass}
+                />
+              </DropdownMenuContent>
+            </DropdownMenu>
 
-      {onToggleSplit && (
-        <Button
-          type="button"
-          size="icon"
-          variant={isSplit ? "default" : "ghost"}
-          className={toolbarButtonClass}
-          disabled={!canSplit && !isSplit}
-          onMouseDown={(event) => event.preventDefault()}
-          onClick={onToggleSplit}
-          title={isSplit ? "Cerrar pantalla dividida" : "Pantalla dividida"}
-          aria-label={
-            isSplit ? "Cerrar pantalla dividida" : "Abrir pantalla dividida"
-          }
-          aria-pressed={isSplit}
-        >
-          <Columns2 className="h-4 w-4" />
-        </Button>
-      )}
+            <div className="mx-1 flex h-7 items-center gap-0.5 border-x border-[#dadce0] px-1">
+              <Button
+                type="button"
+                size="icon-sm"
+                variant="ghost"
+                className={toolbarButtonClass}
+                title="Disminuir tamaño de fuente"
+                aria-label="Disminuir tamaño de fuente"
+                disabled={displayedFontSizeIndex <= 0}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => changeFontSize(-1)}
+              >
+                <Minus className="h-4 w-4" />
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-7 min-w-10 border-[#80868b] bg-white px-1.5 text-sm font-normal text-[#3c4043] shadow-none hover:bg-[#f8fafd] hover:text-[#202124]"
+                    title={`Tamaño de fuente: ${displayedFontSize.replace("pt", "")} pt`}
+                    aria-label={`Tamaño de fuente: ${displayedFontSize.replace("pt", "")} pt`}
+                    onMouseDown={(event) => event.preventDefault()}
+                  >
+                    {displayedFontSize.replace("pt", "")}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="start"
+                  className={`w-40 max-h-[min(70vh,28rem)] overflow-y-auto ${toolbarMenuClass}`}
+                >
+                  <DropdownMenuLabel>Tamaño de fuente</DropdownMenuLabel>
+                  <DropdownMenuRadioGroup
+                    value={paragraphState.textFontSize ?? "normal"}
+                    onValueChange={(value) =>
+                      applyTextFontSize(
+                        editor,
+                        value === "normal" ? null : (value as TextFontSize),
+                      )
+                    }
+                  >
+                    <DropdownMenuRadioItem
+                      value="normal"
+                      className={toolbarMenuItemClass}
+                    >
+                      Normal
+                    </DropdownMenuRadioItem>
+                    {TEXT_FONT_SIZES.map(({ value, label }) => (
+                      <DropdownMenuRadioItem
+                        key={value}
+                        value={value}
+                        className={toolbarMenuItemClass}
+                      >
+                        {label}
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <Button
+                type="button"
+                size="icon-sm"
+                variant="ghost"
+                className={toolbarButtonClass}
+                title="Aumentar tamaño de fuente"
+                aria-label="Aumentar tamaño de fuente"
+                disabled={displayedFontSizeIndex >= TEXT_FONT_SIZES.length - 1}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => changeFontSize(1)}
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
 
-      <div className="ml-auto flex shrink-0 items-center gap-0.5 border-l border-[#dadce0] pl-2">
-        <span
-          className="flex size-7 items-center justify-center rounded-md border border-[#dadce0] bg-white text-[#5f6368] [&_svg]:size-3.5"
-          title={versionLabel}
-          aria-label={versionLabel}
-        >
-          <FileText className="size-4" />
-          <span className="sr-only">{versionLabel}</span>
-        </span>
-        {onInsertImage && (
-          <Button
-            type="button"
-            size="icon-sm"
-            variant="ghost"
-            className={toolbarButtonClass}
-            disabled={isUploadingImage}
-            onMouseDown={(event) => event.preventDefault()}
-            onClick={onInsertImage}
-            title="Insertar imagen"
-          >
-            {isUploadingImage ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <ImagePlus className="h-4 w-4" />
+          </div>
+          <div role="group" aria-label="Formato de texto" className={`${toolbarGroupClass} flex-wrap border-l border-[#dadce0] pl-2`}>
+
+            <Button
+              type="button"
+              size="icon-sm"
+              variant="ghost"
+              className={`${toolbarButtonClass} ${paragraphState.isBold ? "bg-[#d3e3fd] text-[#174ea6] hover:bg-[#c2d7f8]" : ""}`}
+              title="Negrita"
+              aria-label="Negrita"
+              aria-pressed={paragraphState.isBold}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => toggleTextMark(editor, "bold")}
+            >
+              <Bold className="h-4 w-4" />
+            </Button>
+
+            <Button
+              type="button"
+              size="icon-sm"
+              variant="ghost"
+              className={`${toolbarButtonClass} ${paragraphState.isItalic ? "bg-[#d3e3fd] text-[#174ea6] hover:bg-[#c2d7f8]" : ""}`}
+              title="Cursiva"
+              aria-label="Cursiva"
+              aria-pressed={paragraphState.isItalic}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => toggleTextMark(editor, "italic")}
+            >
+              <Italic className="h-4 w-4" />
+            </Button>
+
+            <Button
+              type="button"
+              size="icon-sm"
+              variant="ghost"
+              className={`${toolbarButtonClass} ${paragraphState.isUnderline ? "bg-[#d3e3fd] text-[#174ea6] hover:bg-[#c2d7f8]" : ""}`}
+              title="Subrayado"
+              aria-label="Subrayado"
+              aria-pressed={paragraphState.isUnderline}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => toggleTextMark(editor, "underline")}
+            >
+              <Underline />
+            </Button>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button type="button" size="sm" variant="ghost"
+                  className={`${toolbarLabelButtonClass} relative ${paragraphState.isTextHighlight ? "bg-[#fff3b0] hover:bg-[#ffe680]" : ""}`}
+                  title="Resaltado y color" aria-label="Resaltado y color"
+                  onMouseDown={(event) => event.preventDefault()}>
+                  <Highlighter className="size-4" />
+                  <ChevronDown className="size-3" />
+                  <span aria-hidden="true" className="absolute bottom-0.5 left-2 h-0.5 w-4 rounded-full"
+                    style={{ backgroundColor: paragraphState.highlightColor }} />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className={`w-[min(24rem,calc(100vw-1rem))] max-h-[min(70vh,28rem)] overflow-y-auto p-2 ${toolbarMenuClass}`}>
+                <DropdownMenuLabel>Resaltado</DropdownMenuLabel>
+                <DropdownMenuItem className={toolbarMenuItemClass} onSelect={() => toggleTextHighlight(editor)}>
+                  <Highlighter className="size-4" /> {paragraphState.isTextHighlight ? "Quitar resaltado" : "Aplicar color actual"}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <ColorPalette editor={editor} kind="highlight" menuItemClass={toolbarMenuItemClass} />
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  size="icon-sm"
+                  variant="ghost"
+                  className={`${toolbarButtonClass} ${paragraphState.isTextColor ? "bg-[#d3e3fd] text-[#174ea6] hover:bg-[#c2d7f8]" : ""}`}
+                  title="Color de texto"
+                  aria-label="Cambiar color de texto"
+                  onMouseDown={(event) => event.preventDefault()}
+                >
+                  <Baseline className="h-4 w-4" style={{ color: paragraphState.textColor === "inherit" ? "currentColor" : paragraphState.textColor }} />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="start"
+                  className={`w-[min(24rem,calc(100vw-1rem))] max-w-[calc(100vw-1rem)] max-h-[min(70vh,28rem)] overflow-y-auto p-2 ${toolbarMenuClass}`}
+              >
+                <DropdownMenuLabel>Color de texto</DropdownMenuLabel>
+                <ColorPalette
+                  editor={editor}
+                  kind="text"
+                  menuItemClass={toolbarMenuItemClass}
+                />
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button type="button" variant="ghost" className={toolbarLabelButtonClass}
+                  onMouseDown={(event) => event.preventDefault()}>
+                  Más formato <ChevronDown className="size-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className={`w-56 ${toolbarMenuClass}`}>
+                <DropdownMenuCheckboxItem checked={paragraphState.isStrike} className={toolbarMenuItemClass}
+                  onCheckedChange={() => toggleTextMark(editor, "strike")}>
+                  <Strikethrough className="mr-2 size-4" /> Tachado
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem checked={paragraphState.isSubscript} className={toolbarMenuItemClass}
+                  onCheckedChange={() => toggleSubscript(editor)}>
+                  <Subscript className="mr-2 size-4" /> Subíndice
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem checked={paragraphState.isSuperscript} className={toolbarMenuItemClass}
+                  onCheckedChange={() => toggleSuperscript(editor)}>
+                  <Superscript className="mr-2 size-4" /> Superíndice
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className={toolbarMenuItemClass} onSelect={() => clearTextFormatting(editor)}>
+                  <RemoveFormatting className="size-4" /> Limpiar formato
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+          </div>
+        </div>
+
+        <div className="flex w-full flex-wrap items-center gap-1">
+          <div role="group" aria-label="Listas" className={toolbarGroupClass}>
+
+            <div className="flex items-center">
+              <Button
+                type="button"
+                size="icon-sm"
+                variant="ghost"
+                className={`${toolbarButtonClass} rounded-r-none pr-1 ${paragraphState.isBulletList ? "bg-[#d3e3fd] text-[#174ea6] hover:bg-[#c2d7f8]" : ""}`}
+                title="Lista con viñetas"
+                aria-label="Lista con viñetas"
+                aria-pressed={paragraphState.isBulletList}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => editor.chain().focus().toggleBulletList().run()}
+              >
+                <ListIcon className="h-4 w-4" />
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    size="icon-sm"
+                    variant="ghost"
+                    className={`${toolbarButtonClass} -ml-px rounded-l-none px-0.5 ${paragraphState.isBulletList ? "bg-[#d3e3fd] text-[#174ea6] hover:bg-[#c2d7f8]" : ""}`}
+                    title="Biblioteca de viñetas"
+                    aria-label="Abrir biblioteca de viñetas"
+                    onMouseDown={(event) => event.preventDefault()}
+                  >
+                    <ChevronDown className="h-3 w-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="start"
+                  className={`w-[min(34rem,calc(100vw-1rem))] max-w-[calc(100vw-1rem)] max-h-[min(75vh,38rem)] overflow-x-hidden overflow-y-auto p-2 ${toolbarMenuClass}`}
+                >
+                  <DropdownMenuLabel>Biblioteca de viñetas</DropdownMenuLabel>
+                  <ListStyleGrid
+                    editor={editor}
+                    kind="bullet"
+                    menuItemClass={toolbarMenuItemClass}
+                  />
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem className={toolbarMenuItemClass} disabled={!listEnabled}
+                    onSelect={() => removeCurrentList(editor)}>
+                    <ListX className="size-4" /> Quitar formato de lista
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+
+            <div className="flex items-center">
+              <Button
+                type="button"
+                size="icon-sm"
+                variant="ghost"
+                className={`${toolbarButtonClass} rounded-r-none pr-1 ${paragraphState.isOrderedList ? "bg-[#d3e3fd] text-[#174ea6] hover:bg-[#c2d7f8]" : ""}`}
+                title="Lista numerada"
+                aria-label="Lista numerada"
+                aria-pressed={paragraphState.isOrderedList}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => editor.chain().focus().toggleOrderedList().run()}
+              >
+                <ListOrdered className="h-4 w-4" />
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    size="icon-sm"
+                    variant="ghost"
+                    className={`${toolbarButtonClass} -ml-px rounded-l-none px-0.5 ${paragraphState.isOrderedList ? "bg-[#d3e3fd] text-[#174ea6] hover:bg-[#c2d7f8]" : ""}`}
+                    title="Biblioteca de numeración"
+                    aria-label="Abrir biblioteca de numeración"
+                    onMouseDown={(event) => event.preventDefault()}
+                  >
+                    <ChevronDown className="h-3 w-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="start"
+                  className={`w-[min(34rem,calc(100vw-1rem))] max-w-[calc(100vw-1rem)] max-h-[min(75vh,38rem)] overflow-x-hidden overflow-y-auto p-2 ${toolbarMenuClass}`}
+                >
+                  <DropdownMenuLabel>Biblioteca de numeración</DropdownMenuLabel>
+                  <ListStyleGrid
+                    editor={editor}
+                    kind="ordered"
+                    menuItemClass={toolbarMenuItemClass}
+                  />
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem className={toolbarMenuItemClass} disabled={!listEnabled}
+                    onSelect={() => removeCurrentList(editor)}>
+                    <ListX className="size-4" /> Quitar formato de lista
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+
+            <ListNumberingActionsButton editor={editor} />
+
+          </div>
+          <div role="group" aria-label="Párrafo" className={`${toolbarGroupClass} border-l border-[#dadce0] pl-2`}>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className={toolbarLabelButtonClass}
+                  disabled={!paragraphEnabled}
+                  title="Alineación del párrafo"
+                  aria-label="Alineación del párrafo"
+                  onMouseDown={(event) => event.preventDefault()}
+                >
+                  {paragraphAttributes.textAlign === "center" ? (
+                    <AlignCenter className="h-4 w-4" />
+                  ) : paragraphAttributes.textAlign === "right" ? (
+                    <AlignRight className="h-4 w-4" />
+                  ) : paragraphAttributes.textAlign === "justify" ? (
+                    <AlignJustify className="h-4 w-4" />
+                  ) : (
+                    <AlignLeft className="h-4 w-4" />
+                  )}
+                  Alineación <ChevronDown className="h-3 w-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className={`w-44 ${toolbarMenuClass}`}>
+                <DropdownMenuLabel>Alineación</DropdownMenuLabel>
+                <DropdownMenuRadioGroup
+                  value={paragraphAttributes.textAlign}
+                  onValueChange={(value) =>
+                    updateParagraph({ textAlign: value as ParagraphAlignment })
+                  }
+                >
+                  {alignmentOptions.map(({ value, label, icon: Icon }) => (
+                    <DropdownMenuRadioItem
+                      key={value}
+                      value={value}
+                      className={`gap-3 ${toolbarMenuItemClass}`}
+                    >
+                      <Icon className="h-4 w-4" />
+                      <span>{label}</span>
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <Button
+              type="button"
+              size="icon-sm"
+              variant="ghost"
+              className={toolbarButtonClass}
+              disabled={listEnabled ? !paragraphState.canLiftListItem : !paragraphEnabled || paragraphAttributes.indentLeft <= 0}
+              title="Disminuir sangría izquierda"
+              aria-label="Disminuir sangría izquierda"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={decreaseIndent}
+            >
+              <IndentDecrease className="h-4 w-4" />
+            </Button>
+
+            <Button
+              type="button"
+              size="icon-sm"
+              variant="ghost"
+              className={toolbarButtonClass}
+              disabled={listEnabled ? !paragraphState.canSinkListItem : !paragraphEnabled || paragraphAttributes.indentLeft >= 8}
+              title="Aumentar sangría izquierda"
+              aria-label="Aumentar sangría izquierda"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={increaseIndent}
+            >
+              <IndentIncrease className="h-4 w-4" />
+            </Button>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button type="button" variant="ghost" className={toolbarLabelButtonClass}
+                  disabled={!paragraphEnabled} onMouseDown={(event) => event.preventDefault()}>
+                  <Pilcrow className="size-4" /> Párrafo <ChevronDown className="size-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className={`w-56 ${toolbarMenuClass}`}>
+                <DropdownMenuItem className={toolbarMenuItemClass} onSelect={() => onParagraphDialogOpenChange(true)}>
+                  <Pilcrow className="size-4" /> Opciones de párrafo…
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className={toolbarMenuItemClass}
+                  onSelect={() => updateParagraph({ indentLeft: 0, indentRight: 0, firstLineIndent: 0 })}>
+                  <RotateCcw className="size-4" /> Restablecer sangrías
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+          </div>
+          <div role="group" aria-label="Insertar" className={`${toolbarGroupClass} border-l border-[#dadce0] pl-2`}>
+              {onInsertImage && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className={toolbarLabelButtonClass}
+                  disabled={isUploadingImage}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={onInsertImage}
+                  title="Insertar imagen"
+                  aria-label="Insertar imagen"
+                >
+                  {isUploadingImage ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <ImagePlus className="size-4" />
+                  )}
+                  Imagen
+                </Button>
+              )}
+            {onInsertDivider && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className={toolbarLabelButtonClass}
+                    title="Insertar separador de escena"
+                    aria-label="Insertar separador de escena"
+                    onMouseDown={(event) => event.preventDefault()}
+                  >
+                    <SeparatorHorizontal className="size-4" /> Escena <ChevronDown className="size-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className={`w-64 ${toolbarMenuClass}`}>
+                  <SceneDividerMenuOptions editor={editor} onInsert={onInsertDivider} />
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
-          </Button>
-        )}
-        {onAnalyzeChanges && (
-          <AnalysisButton
-            isSaving={isAnalysisSaving}
-            onClick={onAnalyzeChanges}
-          />
-        )}
-        <SaveStatusIndicator paneId={paneId} className="pr-1" />
+
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[#dadce0] pt-2">
+          <div role="group" aria-label="Vista y revisión" className="flex flex-wrap items-center gap-2">
+            {onToggleSplit && (
+              <Button type="button" size="sm" variant="outline"
+                className="h-8 gap-2 border-[#dadce0] bg-transparent px-3 text-xs text-[#3c4043] hover:bg-[#e8eaed] hover:text-[#202124]"
+                disabled={!canSplit && !isSplit} onMouseDown={(event) => event.preventDefault()}
+                onClick={onToggleSplit} aria-pressed={isSplit}
+                title={!canSplit && !isSplit ? "Necesitás al menos dos secciones para dividir la pantalla" : undefined}>
+                <Columns2 className="size-4" />
+                {isSplit ? "Cerrar pantalla dividida" : "Pantalla dividida"}
+              </Button>
+            )}
+            {onAnalyzeChanges && <AnalysisButton isSaving={isAnalysisSaving} onClick={onAnalyzeChanges} />}
+          </div>
+          <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-x-3 gap-y-1 text-xs text-[#5f6368]">
+            <span className="min-w-0 max-w-full truncate" title={versionLabel}>Versión: {versionLabel}</span>
+            <SaveStatusIndicator paneId={paneId} />
+          </div>
+        </div>
+        <ParagraphFormatDialog
+          key={paragraphDialogOpen ? "open" : "closed"}
+          editor={editor}
+          attributes={paragraphAttributes}
+          open={paragraphDialogOpen}
+          onOpenChange={onParagraphDialogOpenChange}
+        />
       </div>
-      </div>
-    </div>
+    </TooltipProvider>
   )
 
   if (isZenMode) {

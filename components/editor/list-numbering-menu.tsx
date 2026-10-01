@@ -67,8 +67,8 @@ function StartNumberDialog({
 }: StartNumberDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[min(22rem,calc(100vw-1.5rem))] max-w-none gap-0 overflow-hidden p-0">
-        <DialogHeader className="border-b border-[#dadce0] px-5 py-4">
+      <DialogContent className="max-h-[calc(100dvh-1rem)] w-[min(22rem,calc(100vw-1.5rem))] max-w-none gap-0 overflow-x-hidden overflow-y-auto border-[#dadce0] bg-white p-0 sm:max-w-none">
+        <DialogHeader className="border-b border-[#dadce0] px-5 py-4 pr-12">
           <DialogTitle className="text-[#202124]">
             Comenzar numeración desde
           </DialogTitle>
@@ -90,7 +90,7 @@ function StartNumberDialog({
             onKeyDown={(event) => {
               if (event.key === "Enter") onApply()
             }}
-            className="h-9"
+            className="h-9 py-0"
           />
         </div>
         <DialogFooter className="mx-0 mb-0 border-t border-[#dadce0] bg-[#f8fafd] px-5 py-3 sm:flex-row sm:justify-end">

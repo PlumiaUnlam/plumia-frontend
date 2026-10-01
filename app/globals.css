@@ -179,6 +179,12 @@
   white-space: pre-wrap;
 }
 
+.ProseMirror .editor-tab-stop {
+  display: inline-block;
+  white-space: pre;
+  vertical-align: baseline;
+}
+
 /* Listas del editor: marcadores visibles y alineación cómoda, como en un procesador de texto. */
 .ProseMirror ul,
 .ProseMirror ol {
