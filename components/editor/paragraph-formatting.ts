@@ -1,4 +1,5 @@
 import { Extension } from "@tiptap/core"
+import { normalizeTabStops, paragraphTabStopsPlugin } from "./paragraph-tab-stops"
 
 export const PARAGRAPH_ALIGNMENTS = [
   "left",
@@ -24,6 +25,9 @@ export type ParagraphAttributes = {
   indentRight: number
   firstLineIndent: number
   tabSize: ParagraphTabSize
+  spacingBefore: number | null
+  spacingAfter: number | null
+  tabStops: number[]
 }
 
 export const DEFAULT_PARAGRAPH_ATTRIBUTES: ParagraphAttributes = {
@@ -33,6 +37,9 @@ export const DEFAULT_PARAGRAPH_ATTRIBUTES: ParagraphAttributes = {
   indentRight: 0,
   firstLineIndent: 0,
   tabSize: 4,
+  spacingBefore: null,
+  spacingAfter: null,
+  tabStops: [],
 }
 
 function parseAlignment(element: HTMLElement): ParagraphAlignment {
@@ -74,6 +81,15 @@ function parseTabSize(element: HTMLElement): ParagraphTabSize {
   return PARAGRAPH_TAB_SIZES.includes(value as ParagraphTabSize)
     ? (value as ParagraphTabSize)
     : DEFAULT_PARAGRAPH_ATTRIBUTES.tabSize
+}
+
+function parseSpacing(element: HTMLElement, property: string): number | null {
+  const value = element.style.getPropertyValue(property).trim()
+  if (!value) return null
+  const parsed = Number.parseFloat(value)
+  if (!Number.isFinite(parsed) || parsed < 0) return null
+  const points = value.endsWith("px") ? parsed * 0.75 : value.endsWith("pt") || parsed === 0 ? parsed : null
+  return points === null ? null : Math.min(144, Math.round(points * 100) / 100)
 }
 
 /**
@@ -131,9 +147,28 @@ export const ParagraphFormatting = Extension.create({
               style: `tab-size: ${attributes.tabSize}; -moz-tab-size: ${attributes.tabSize}`,
             }),
           },
+          spacingBefore: {
+            default: null,
+            parseHTML: (element: HTMLElement) => parseSpacing(element, "margin-top"),
+            renderHTML: (attributes: Partial<ParagraphAttributes>) => attributes.spacingBefore == null ? {} : { style: `margin-top: ${attributes.spacingBefore}pt` },
+          },
+          spacingAfter: {
+            default: null,
+            parseHTML: (element: HTMLElement) => parseSpacing(element, "margin-bottom"),
+            renderHTML: (attributes: Partial<ParagraphAttributes>) => attributes.spacingAfter == null ? {} : { style: `margin-bottom: ${attributes.spacingAfter}pt` },
+          },
+          tabStops: {
+            default: [],
+            parseHTML: (element: HTMLElement) => normalizeTabStops((element.dataset.tabStops ?? "").split(",").map(Number)),
+            renderHTML: (attributes: Partial<ParagraphAttributes>) => ({ "data-tab-stops": normalizeTabStops(attributes.tabStops).join(",") }),
+          },
         },
       },
     ]
+  },
+
+  addProseMirrorPlugins() {
+    return [paragraphTabStopsPlugin()]
   },
 
   addKeyboardShortcuts() {

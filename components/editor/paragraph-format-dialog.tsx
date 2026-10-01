@@ -9,7 +9,9 @@ import {
   AlignJustify,
   AlignLeft,
   AlignRight,
+  X,
 } from "lucide-react"
+import { normalizeTabStops } from "./paragraph-tab-stops"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -52,6 +54,8 @@ type NumericParagraphAttribute =
   | "indentLeft"
   | "indentRight"
   | "firstLineIndent"
+  | "spacingBefore"
+  | "spacingAfter"
 
 type ParagraphFormatDialogProps = {
   editor: Editor
@@ -70,9 +74,13 @@ export function ParagraphFormatDialog({
     ...DEFAULT_PARAGRAPH_ATTRIBUTES,
     ...attributes,
   })
+  const [tabStopInput, setTabStopInput] = useState("")
+  const [tabStopError, setTabStopError] = useState<string | null>(null)
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (nextOpen) {
+      setTabStopInput("")
+      setTabStopError(null)
       setDraft({
         ...DEFAULT_PARAGRAPH_ATTRIBUTES,
         ...attributes,
@@ -87,17 +95,38 @@ export function ParagraphFormatDialog({
     value: string,
   ) => {
     const parsed = Number(value)
+    const spacing = attribute === "spacingBefore" || attribute === "spacingAfter"
     setDraft((current) => ({
       ...current,
-      [attribute]: Number.isFinite(parsed) ? Math.max(0, parsed) : 0,
+      [attribute]: spacing && value === "" ? null : Number.isFinite(parsed) ? Math.min(spacing ? 144 : 12, Math.max(0, parsed)) : 0,
     }))
   }
 
+  const readTabStop = () => {
+    const value = Math.round(Number(tabStopInput.trim().replace(",", ".")) * 100) / 100
+    if (!tabStopInput.trim() || !Number.isFinite(value) || value <= 0 || value > 30) {
+      setTabStopError("Ingresá una posición mayor que 0 y hasta 30 cm.")
+      return null
+    }
+    setTabStopError(null)
+    return value
+  }
+
+  const addTabStop = () => {
+    const value = readTabStop()
+    if (value === null) return
+    setDraft((current) => ({ ...current, tabStops: normalizeTabStops([...current.tabStops, value]) }))
+    setTabStopInput("")
+  }
+
   const apply = () => {
+    const pendingStop = tabStopInput.trim() ? readTabStop() : undefined
+    if (pendingStop === null) return
+    const tabStops = normalizeTabStops([...draft.tabStops, ...(pendingStop === undefined ? [] : [pendingStop])])
     editor
       .chain()
       .focus()
-      .updateAttributes("paragraph", { ...draft, editorStyleId: null })
+      .updateAttributes("paragraph", { ...draft, tabStops, editorStyleId: null })
       .run()
     onOpenChange(false)
   }
@@ -184,6 +213,24 @@ export function ParagraphFormatDialog({
             </section>
 
             <section className="space-y-2">
+              <Label className={fieldLabelClass}>Espacio entre párrafos</Label>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {([["spacingBefore", "Antes"], ["spacingAfter", "Después"]] as const).map(([attribute, label]) => (
+                  <div key={attribute} className="space-y-1.5">
+                    <Label htmlFor={`paragraph-${attribute}`} className="text-xs text-[#5f6368]">{label}</Label>
+                    <div className="relative">
+                      <Input id={`paragraph-${attribute}`} type="number" min="0" max="144" step="1"
+                        value={draft[attribute] ?? ""} placeholder="Automático"
+                        onChange={(event) => updateNumber(attribute, event.target.value)} className="h-9 py-0 pr-12 text-sm" />
+                      <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-[#5f6368]">pt</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs leading-5 text-[#5f6368]">Dejá el campo vacío para mantener el espaciado automático.</p>
+            </section>
+
+            <section className="space-y-2">
               <Label className={fieldLabelClass}>Sangría</Label>
               <div className="mt-2 grid gap-3 sm:grid-cols-3">
                 {(
@@ -241,8 +288,36 @@ export function ParagraphFormatDialog({
                 ))}
               </EditorSelect>
               <p className="mt-2 text-xs leading-5 text-[#5f6368]">
-                La tecla Tab inserta una tabulación en el párrafo y respeta este tamaño.
+                Este tamaño se usa cuando no hay posiciones definidas o después de la última posición.
               </p>
+            </section>
+            <section className="space-y-3">
+              <Label htmlFor="paragraph-tab-stop" className={fieldLabelClass}>Posiciones de tabulación</Label>
+              <p id="paragraph-tab-stop-help" className="text-xs leading-5 text-[#5f6368]">Alineadas a la izquierda y medidas desde el inicio del área de texto del párrafo. Tab avanza a la próxima posición.</p>
+              <div className="flex items-center gap-2">
+                <div className="relative min-w-0 flex-1">
+                  <Input id="paragraph-tab-stop" inputMode="decimal" value={tabStopInput} placeholder="Por ejemplo, 2,5"
+                    aria-describedby={`paragraph-tab-stop-help${tabStopError ? " paragraph-tab-stop-error" : ""}`}
+                    aria-invalid={!!tabStopError}
+                    onChange={(event) => { setTabStopInput(event.target.value); setTabStopError(null) }}
+                    onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addTabStop() } }}
+                    className="h-9 pr-12" />
+                  <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-[#5f6368]">cm</span>
+                </div>
+                <Button type="button" variant="outline" onClick={addTabStop}>Agregar</Button>
+              </div>
+              {tabStopError && <p id="paragraph-tab-stop-error" role="alert" className="text-xs text-destructive">{tabStopError}</p>}
+              {draft.tabStops.length ? (
+                <div className="flex flex-wrap gap-2" role="group" aria-label="Posiciones configuradas">
+                  {draft.tabStops.map((stop) => (
+                    <Button key={stop} type="button" variant="outline" size="sm" aria-label={`Eliminar tabulación en ${stop} cm`}
+                      onClick={() => setDraft((current) => ({ ...current, tabStops: current.tabStops.filter((position) => position !== stop) }))}>
+                      {stop.toLocaleString("es-AR")} cm <X className="size-3" />
+                    </Button>
+                  ))}
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setDraft((current) => ({ ...current, tabStops: [] }))}>Quitar todas</Button>
+                </div>
+              ) : <p className="text-xs text-[#5f6368]">Sin posiciones personalizadas; se usa la tabulación predeterminada.</p>}
             </section>
           </TabsContent>
         </Tabs>
@@ -252,7 +327,7 @@ export function ParagraphFormatDialog({
             type="button"
             variant="ghost"
             className="text-[#1a73e8] hover:bg-[#e8f0fe] hover:text-[#174ea6]"
-            onClick={() => setDraft({ ...DEFAULT_PARAGRAPH_ATTRIBUTES })}
+            onClick={() => { setDraft({ ...DEFAULT_PARAGRAPH_ATTRIBUTES }); setTabStopInput(""); setTabStopError(null) }}
           >
             Restablecer
           </Button>

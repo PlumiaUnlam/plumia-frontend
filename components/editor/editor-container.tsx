@@ -20,6 +20,7 @@ import {
 } from "@/hooks/use-autosave"
 import { requestKnowledgeRefresh } from "@/hooks/use-knowledge-refresh"
 import { requireSuccessfulSave } from "@/lib/editor-save-protection"
+import { registerEditorSaveShortcut } from "@/lib/editor-save-shortcut"
 import { EditorMenuBar } from "./editor-menu-bar"
 import { EditorToolbar } from "./toolbar"
 import { RichTextEditor } from "./RichTextEditor"
@@ -611,6 +612,16 @@ function EditorWorkspace({
     focusedPane === "secondary" && secondaryActions
       ? secondaryActions
       : primaryActions
+
+  useEffect(() => {
+    if (!focusedActions) return
+    return registerEditorSaveShortcut(window, () => {
+      setSaveChangeError(null)
+      return requireSuccessfulSave(focusedActions.saveNow)
+    }, (error) => {
+      setSaveChangeError(error instanceof Error ? error.message : "No se pudieron guardar los cambios.")
+    })
+  }, [focusedActions])
 
   const primarySectionFallback: EditorSectionOption = {
     id: sceneId,

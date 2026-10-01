@@ -73,6 +73,9 @@ function captureFormat(editor: Editor): FormatSnapshot {
       sourceBlock.attrs.firstLineIndent ??
       DEFAULT_PARAGRAPH_ATTRIBUTES.firstLineIndent,
     tabSize: sourceBlock.attrs.tabSize ?? DEFAULT_PARAGRAPH_ATTRIBUTES.tabSize,
+    spacingBefore: sourceBlock.attrs.spacingBefore ?? DEFAULT_PARAGRAPH_ATTRIBUTES.spacingBefore,
+    spacingAfter: sourceBlock.attrs.spacingAfter ?? DEFAULT_PARAGRAPH_ATTRIBUTES.spacingAfter,
+    tabStops: [...(sourceBlock.attrs.tabStops ?? DEFAULT_PARAGRAPH_ATTRIBUTES.tabStops)],
   }
 
   const blockType: PainterBlockType | null =
