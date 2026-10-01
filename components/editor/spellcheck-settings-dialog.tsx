@@ -1,5 +1,7 @@
 "use client"
 
+import { EditorSelect, EditorSelectOption } from "./editor-select"
+
 import {
   Dialog,
   DialogContent,
@@ -27,6 +29,8 @@ const languageOptions: ReadonlyArray<{
   { value: "en-US", label: "English (United States)" },
 ]
 
+// Mantener esta configuración en nuestro Dialog; no abrir avisos o ajustes nativos del navegador.
+// Los subrayados son del navegador; SpellcheckSuggestions muestra sugerencias locales en nuestro Dialog.
 export function SpellcheckSettingsDialog({
   open,
   language,
@@ -40,7 +44,7 @@ export function SpellcheckSettingsDialog({
         <DialogHeader className="border-b border-[#dadce0] px-6 py-5 pr-12">
           <DialogTitle className="text-[#202124]">Configuración del corrector</DialogTitle>
           <DialogDescription className="text-[#5f6368]">
-            Elegí el idioma que utilizará el corrector ortográfico nativo del navegador.
+            Elegí el idioma del corrector y las sugerencias. Hacé clic derecho sobre una palabra para revisarla.
           </DialogDescription>
         </DialogHeader>
 
@@ -51,20 +55,20 @@ export function SpellcheckSettingsDialog({
           >
             Idioma
           </label>
-          <select
+          <EditorSelect
             id="spellcheck-settings-language"
             value={language}
-            onChange={(event) =>
-              onLanguageChange(event.target.value as SpellcheckLanguage)
+            onValueChange={(value) =>
+              onLanguageChange(value as SpellcheckLanguage)
             }
             className="h-10 w-full rounded-lg border border-[#dadce0] bg-white px-3 text-sm text-[#3c4043] outline-none focus-visible:border-[#1a73e8] focus-visible:ring-2 focus-visible:ring-[#d2e3fc]"
           >
             {languageOptions.map((option) => (
-              <option key={option.value} value={option.value}>
+              <EditorSelectOption key={option.value} value={option.value}>
                 {option.label}
-              </option>
+              </EditorSelectOption>
             ))}
-          </select>
+          </EditorSelect>
         </div>
 
         <DialogFooter className="mx-0 mt-0 border-t border-[#dadce0] bg-[#f8fafd] px-6 py-4 sm:flex-row sm:justify-end">

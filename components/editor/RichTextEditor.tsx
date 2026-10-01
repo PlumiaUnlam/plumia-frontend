@@ -42,6 +42,7 @@ import {
 } from "./editor-text-styles"
 import { useEditorTextStyles } from "@/hooks/use-editor-text-styles"
 import { ListNumberingMenu } from "./list-numbering-menu"
+import { SpellcheckSuggestions } from "./spellcheck-suggestions"
 import type {
   EditorPaneId,
   EditorToolbarActions,
@@ -312,6 +313,7 @@ export function RichTextEditor({
       className="relative flex h-full min-h-0 flex-col"
       onMouseDown={() => onEditorFocus?.()}
     >
+      <SpellcheckSuggestions key={sceneId} editor={editor} language={spellcheckLanguage} />
       <input
         ref={registerFileInput}
         className="hidden"

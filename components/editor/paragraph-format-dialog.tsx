@@ -1,5 +1,7 @@
 "use client"
 
+import { EditorSelect, EditorSelectOption } from "./editor-select"
+
 import { useState } from "react"
 import type { Editor } from "@tiptap/react"
 import {
@@ -140,6 +142,7 @@ export function ParagraphFormatDialog({
                     }
                     title={label}
                     aria-label={label}
+                    aria-pressed={draft.textAlign === value}
                     onClick={() => setDraft((current) => ({ ...current, textAlign: value }))}
                   >
                     <Icon className="h-4 w-4" />
@@ -153,19 +156,19 @@ export function ParagraphFormatDialog({
               <Label htmlFor="paragraph-line-height" className={fieldLabelClass}>
                 Espaciado entre líneas
               </Label>
-              <select
+              <EditorSelect
                 id="paragraph-line-height"
                 className={`${selectClass} mt-2`}
                 value={draft.lineHeight}
-                onChange={(event) =>
+                onValueChange={(value) =>
                   setDraft((current) => ({
                     ...current,
-                    lineHeight: event.target.value as ParagraphLineHeight,
+                    lineHeight: value as ParagraphLineHeight,
                   }))
                 }
               >
                 {PARAGRAPH_LINE_HEIGHTS.map((lineHeight) => (
-                  <option key={lineHeight} value={lineHeight}>
+                  <EditorSelectOption key={lineHeight} value={lineHeight}>
                     {lineHeight === "1"
                       ? "Simple"
                       : lineHeight === "1.15"
@@ -175,9 +178,9 @@ export function ParagraphFormatDialog({
                           : lineHeight === "1.8"
                             ? "1,8"
                             : "Doble"}
-                  </option>
+                  </EditorSelectOption>
                 ))}
-              </select>
+              </EditorSelect>
             </section>
 
             <section className="space-y-2">
@@ -203,7 +206,7 @@ export function ParagraphFormatDialog({
                         step="0.1"
                         value={draft[attribute]}
                         onChange={(event) => updateNumber(attribute, event.target.value)}
-                        className="h-9 pr-9 text-sm"
+                        className="h-9 py-0 pr-12 text-sm"
                       />
                       <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-[#5f6368]">
                         cm
@@ -220,23 +223,23 @@ export function ParagraphFormatDialog({
               <Label htmlFor="paragraph-tab-size" className={fieldLabelClass}>
                 Tabulación predeterminada
               </Label>
-              <select
+              <EditorSelect
                 id="paragraph-tab-size"
                 className={`${selectClass} mt-2`}
                 value={draft.tabSize}
-                onChange={(event) =>
+                onValueChange={(value) =>
                   setDraft((current) => ({
                     ...current,
-                    tabSize: Number(event.target.value) as ParagraphTabSize,
+                    tabSize: Number(value) as ParagraphTabSize,
                   }))
                 }
               >
                 {PARAGRAPH_TAB_SIZES.map((tabSize) => (
-                  <option key={tabSize} value={tabSize}>
+                  <EditorSelectOption key={tabSize} value={tabSize}>
                     Cada tabulación equivale a {tabSize} espacios
-                  </option>
+                  </EditorSelectOption>
                 ))}
-              </select>
+              </EditorSelect>
               <p className="mt-2 text-xs leading-5 text-[#5f6368]">
                 La tecla Tab inserta una tabulación en el párrafo y respeta este tamaño.
               </p>

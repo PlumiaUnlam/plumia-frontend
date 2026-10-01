@@ -90,7 +90,7 @@ function StartNumberDialog({
             onKeyDown={(event) => {
               if (event.key === "Enter") onApply()
             }}
-            className="h-9"
+            className="h-9 py-0"
           />
         </div>
         <DialogFooter className="mx-0 mb-0 border-t border-[#dadce0] bg-[#f8fafd] px-5 py-3 sm:flex-row sm:justify-end">

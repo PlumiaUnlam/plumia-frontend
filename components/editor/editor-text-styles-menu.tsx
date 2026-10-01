@@ -1,11 +1,13 @@
 "use client"
 
+import { EditorSelect, EditorSelectOption, EditorSelectGroup } from "./editor-select"
+
 import { useEffect, useState } from "react"
-import type { CSSProperties } from "react"
+import type { CSSProperties, ReactNode } from "react"
 import type { Editor } from "@tiptap/react"
+import { useEditorState } from "@tiptap/react"
 import {
   Check,
-  ChevronRight,
   Plus,
   Paintbrush,
   Pencil,
@@ -24,16 +26,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+  MenubarItem,
+  MenubarLabel,
+  MenubarSeparator,
+  MenubarSub,
+  MenubarSubContent,
+  MenubarPortal,
+  MenubarSubTrigger,
+} from "@/components/ui/menubar"
 import { useEditorTextStyles } from "@/hooks/use-editor-text-styles"
 import { hasPendingEditorTextStyleChanges } from "@/services/editor-text-style.service"
 import { isDefaultEditorTextStyle } from "./default-editor-text-styles"
@@ -59,6 +59,8 @@ type EditorTextStylesMenuProps = {
   editor: Editor
   projectId: string
   onSave?: () => void
+  /** Mantiene los diálogos montados fuera del contenido que se cierra al elegir una opción. */
+  renderMenu: (stylesMenu: ReactNode) => ReactNode
 }
 
 type StyleDraft = {
@@ -69,9 +71,9 @@ type StyleDraft = {
 
 const dropdownContentClass =
   "max-h-[min(75dvh,34rem)] w-72 overflow-x-hidden overflow-y-auto border-[#dadce0] bg-white text-[#3c4043] shadow-[0_3px_8px_rgba(60,64,67,0.24)]"
-const itemClass = "text-[#3c4043] focus:bg-[#f1f3f4] focus:text-[#202124]"
+const itemClass = "min-h-9 text-[#3c4043] focus:bg-[#f1f3f4] focus:text-[#202124]"
 const fieldClass =
-  "h-9 rounded-md border-[#dadce0] bg-white px-2.5 text-sm text-[#3c4043]"
+  "h-9 py-0 rounded-md border-[#dadce0] bg-white px-2.5 text-sm text-[#3c4043]"
 
 function readDraft(
   editor: Editor,
@@ -126,6 +128,7 @@ export function EditorTextStylesMenu({
   editor,
   projectId,
   onSave,
+  renderMenu,
 }: EditorTextStylesMenuProps) {
   const { styles, isLoading, saveStyle, removeStyle, refresh } =
     useEditorTextStyles(projectId)
@@ -135,7 +138,10 @@ export function EditorTextStylesMenu({
   const [saving, setSaving] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
-  const currentStyleId = getAppliedEditorStyleId(editor)
+  const currentStyleId = useEditorState({
+    editor,
+    selector: ({ editor: currentEditor }) => getAppliedEditorStyleId(currentEditor),
+  })
   const saveAfterEditorUpdate = () => {
     if (onSave) window.setTimeout(onSave, 0)
   }
@@ -276,8 +282,8 @@ export function EditorTextStylesMenu({
   const renderStyleItem = (style: EditorTextStyle) => {
     const isDefault = isDefaultEditorTextStyle(style)
     return (
-      <DropdownMenuSub key={style.id}>
-        <DropdownMenuSubTrigger
+      <MenubarSub key={style.id}>
+        <MenubarSubTrigger
           className={`${itemClass} min-h-12 gap-2 whitespace-normal py-2`}
         >
           {currentStyleId === style.id ? (
@@ -292,10 +298,10 @@ export function EditorTextStylesMenu({
           >
             {style.name}
           </span>
-          <ChevronRight className="size-3.5 opacity-60" />
-        </DropdownMenuSubTrigger>
-        <DropdownMenuSubContent className={dropdownContentClass}>
-          <DropdownMenuItem
+        </MenubarSubTrigger>
+        <MenubarPortal>
+        <MenubarSubContent className={dropdownContentClass}>
+          <MenubarItem
             className={itemClass}
             onSelect={() => {
               applyEditorTextStyle(editor, style)
@@ -304,44 +310,45 @@ export function EditorTextStylesMenu({
           >
             <Paintbrush className="mr-2 size-4" />
             Aplicar estilo
-          </DropdownMenuItem>
+          </MenubarItem>
           {isDefault && (
-            <DropdownMenuItem
+            <MenubarItem
               className={itemClass}
               onSelect={() => openCustomizeDialog(style)}
             >
               <Pencil className="mr-2 size-4" />
               Guardar una copia personalizada…
-            </DropdownMenuItem>
+            </MenubarItem>
           )}
           {!isDefault && (
             <>
-              <DropdownMenuItem
+              <MenubarItem
                 className={itemClass}
                 onSelect={() => openEditDialog(style)}
               >
                 <Pencil className="mr-2 size-4" />
                 Editar definición…
-              </DropdownMenuItem>
-              <DropdownMenuItem
+              </MenubarItem>
+              <MenubarItem
                 className={itemClass}
                 onSelect={() => void updateDefinitionFromSelection(style)}
               >
                 <Paintbrush className="mr-2 size-4" />
                 Actualizar con la selección
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
+              </MenubarItem>
+              <MenubarSeparator />
+              <MenubarItem
                 className="gap-2 text-destructive focus:bg-destructive/10 focus:text-destructive"
                 onSelect={() => void handleDelete(style)}
               >
                 <Trash2 className="size-4" />
                 Eliminar estilo
-              </DropdownMenuItem>
+              </MenubarItem>
             </>
           )}
-        </DropdownMenuSubContent>
-      </DropdownMenuSub>
+        </MenubarSubContent>
+        </MenubarPortal>
+      </MenubarSub>
     )
   }
 
@@ -375,9 +382,9 @@ export function EditorTextStylesMenu({
 
   const menuContent = (
     <>
-          <DropdownMenuLabel className="text-xs font-semibold uppercase tracking-wide text-[#5f6368]">
+          <MenubarLabel className="text-xs font-semibold uppercase tracking-wide text-[#5f6368]">
             Estilos reutilizables
-          </DropdownMenuLabel>
+          </MenubarLabel>
           {statusMessage && (
             <div
               role="status"
@@ -386,11 +393,11 @@ export function EditorTextStylesMenu({
               {statusMessage}
             </div>
           )}
-          <DropdownMenuItem className={itemClass} onSelect={openCreateDialog}>
+          <MenubarItem className={itemClass} onSelect={openCreateDialog}>
             <Plus className="mr-2 size-4" />
             Guardar selección como estilo…
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
+          </MenubarItem>
+          <MenubarSeparator />
           {isLoading && customStyleCount === 0 && (
             <p className="px-2.5 py-2 text-xs text-[#5f6368]">
               Cargando estilos personalizados…
@@ -405,22 +412,22 @@ export function EditorTextStylesMenu({
             )
             return (
               <div key={kind}>
-                <DropdownMenuLabel className="px-2.5 pb-1 pt-2 text-xs font-medium text-[#5f6368]">
+                <MenubarLabel className="px-2.5 pb-1 pt-2 text-xs font-medium text-[#5f6368]">
                   {kind === "text" ? "Texto seleccionado" : "Párrafos y títulos"}
-                </DropdownMenuLabel>
+                </MenubarLabel>
                 {defaultStyles.length > 0 && (
                   <>
-                    <DropdownMenuLabel className="px-2.5 pb-1 pt-2 text-[11px] font-medium text-[#5f6368]">
+                    <MenubarLabel className="px-2.5 pb-1 pt-2 text-[11px] font-medium text-[#5f6368]">
                       Predeterminados
-                    </DropdownMenuLabel>
+                    </MenubarLabel>
                     {defaultStyles.map(renderStyleItem)}
                   </>
                 )}
                 {customStyles.length > 0 && (
                   <>
-                    <DropdownMenuLabel className="px-2.5 pb-1 pt-2 text-[11px] font-medium text-[#5f6368]">
+                    <MenubarLabel className="px-2.5 pb-1 pt-2 text-[11px] font-medium text-[#5f6368]">
                       Personalizados
-                    </DropdownMenuLabel>
+                    </MenubarLabel>
                     {customStyles.map(renderStyleItem)}
                   </>
                 )}
@@ -437,22 +444,18 @@ export function EditorTextStylesMenu({
 
   return (
     <>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            className="h-8 rounded-md px-3 text-sm font-medium text-[#3c4043] hover:bg-[#e8eaed] hover:text-[#202124] data-[state=open]:bg-[#d2e3fc] data-[state=open]:text-[#174ea6]"
-            onMouseDown={(event) => event.preventDefault()}
-          >
-            Estilos de texto
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className={dropdownContentClass}>
+      {renderMenu(
+      <MenubarSub>
+        <MenubarSubTrigger className="min-h-9 gap-3 text-[#3c4043] focus:bg-[#f1f3f4] focus:text-[#202124]">
+          Estilos de texto
+        </MenubarSubTrigger>
+        <MenubarPortal>
+        <MenubarSubContent className={dropdownContentClass}>
           {menuContent}
-        </DropdownMenuContent>
-      </DropdownMenu>
+        </MenubarSubContent>
+        </MenubarPortal>
+      </MenubarSub>
+      )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="w-[min(48rem,calc(100vw-1.5rem))] max-w-none max-h-[min(90dvh,52rem)] overflow-x-hidden overflow-y-auto border-[#dadce0] bg-white p-5 sm:max-w-none sm:p-6">
@@ -484,73 +487,73 @@ export function EditorTextStylesMenu({
 
             <div className="grid gap-1.5">
               <Label htmlFor="editor-style-kind">Aplicar a</Label>
-              <select
+              <EditorSelect
                 id="editor-style-kind"
                 value={draft.kind}
                 disabled={Boolean(editingStyle)}
                 className={fieldClass}
-                onChange={(event) =>
+                onValueChange={(value) =>
                   setDraft((current) => ({
                     ...current,
-                    kind: event.target.value as EditorTextStyleKind,
+                    kind: value as EditorTextStyleKind,
                   }))
                 }
               >
-                <option value="text">Texto seleccionado</option>
-                <option value="paragraph">Párrafo o párrafos</option>
-              </select>
+                <EditorSelectOption value="text">Texto seleccionado</EditorSelectOption>
+                <EditorSelectOption value="paragraph">Párrafo o párrafos</EditorSelectOption>
+              </EditorSelect>
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="grid gap-1.5">
                 <Label htmlFor="editor-style-font">Familia tipográfica</Label>
-                <select
+                <EditorSelect
                   id="editor-style-font"
                   value={draft.definition.fontFamily ?? ""}
                   className={fieldClass}
-                  onChange={(event) =>
+                  onValueChange={(value) =>
                     setDraft((current) => ({
                       ...current,
                       definition: replaceStyleDefinition(current.definition, {
-                        fontFamily: (event.target.value || null) as TextFontFamily | null,
+                        fontFamily: (value || null) as TextFontFamily | null,
                       }),
                     }))
                   }
                 >
-                  <option value="">Heredar del documento</option>
+                  <EditorSelectOption value="">Heredar del documento</EditorSelectOption>
                   {TEXT_FONT_FAMILY_GROUPS.map((group) => (
-                    <optgroup key={group.label} label={group.label}>
+                    <EditorSelectGroup key={group.label} label={group.label}>
                       {group.options.map((font) => (
-                        <option key={font.value} value={font.value}>
+                        <EditorSelectOption key={font.value} value={font.value}>
                           {font.label}
-                        </option>
+                        </EditorSelectOption>
                       ))}
-                    </optgroup>
+                    </EditorSelectGroup>
                   ))}
-                </select>
+                </EditorSelect>
               </div>
               <div className="grid gap-1.5">
                 <Label htmlFor="editor-style-size">Tamaño</Label>
-                <select
+                <EditorSelect
                   id="editor-style-size"
                   value={draft.definition.fontSize ?? ""}
                   className={fieldClass}
-                  onChange={(event) =>
+                  onValueChange={(value) =>
                     setDraft((current) => ({
                       ...current,
                       definition: replaceStyleDefinition(current.definition, {
-                        fontSize: event.target.value || null,
+                        fontSize: value || null,
                       }),
                     }))
                   }
                 >
-                  <option value="">Heredar del documento</option>
+                  <EditorSelectOption value="">Heredar del documento</EditorSelectOption>
                   {TEXT_FONT_SIZES.map((size) => (
-                    <option key={size.value} value={size.value}>
+                    <EditorSelectOption key={size.value} value={size.value}>
                       {size.label}
-                    </option>
+                    </EditorSelectOption>
                   ))}
-                </select>
+                </EditorSelect>
               </div>
             </div>
 
@@ -732,25 +735,25 @@ export function EditorTextStylesMenu({
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="grid gap-1.5 sm:col-span-2">
                   <Label htmlFor="editor-style-block-type">Tipo de bloque</Label>
-                  <select
+                  <EditorSelect
                     id="editor-style-block-type"
                     value={draft.definition.blockType}
                     disabled={Boolean(editingStyle)}
                     className={fieldClass}
-                    onChange={(event) =>
+                    onValueChange={(value) =>
                       setDraft((current) => ({
                         ...current,
                         definition: replaceStyleDefinition(current.definition, {
-                          blockType: event.target.value as EditorTextStyleDefinition["blockType"],
+                          blockType: value as EditorTextStyleDefinition["blockType"],
                         }),
                       }))
                     }
                   >
-                    <option value="paragraph">Párrafo</option>
-                    <option value="heading1">Título</option>
-                    <option value="heading2">Encabezado de sección</option>
-                    <option value="heading3">Subtítulo</option>
-                  </select>
+                    <EditorSelectOption value="paragraph">Párrafo</EditorSelectOption>
+                    <EditorSelectOption value="heading1">Título</EditorSelectOption>
+                    <EditorSelectOption value="heading2">Encabezado de sección</EditorSelectOption>
+                    <EditorSelectOption value="heading3">Subtítulo</EditorSelectOption>
+                  </EditorSelect>
                   {editingStyle && (
                     <p className="text-xs text-muted-foreground">
                       La estructura del estilo queda definida al guardarlo por primera vez.
@@ -759,46 +762,46 @@ export function EditorTextStylesMenu({
                 </div>
                 <div className="grid gap-1.5">
                   <Label htmlFor="editor-style-alignment">Alineación</Label>
-                  <select
+                  <EditorSelect
                     id="editor-style-alignment"
                     value={draft.definition.textAlign}
                     className={fieldClass}
-                    onChange={(event) =>
+                    onValueChange={(value) =>
                       setDraft((current) => ({
                         ...current,
                         definition: replaceStyleDefinition(current.definition, {
-                          textAlign: event.target.value as EditorTextStyleDefinition["textAlign"],
+                          textAlign: value as EditorTextStyleDefinition["textAlign"],
                         }),
                       }))
                     }
                   >
-                    <option value="left">Izquierda</option>
-                    <option value="center">Centrada</option>
-                    <option value="right">Derecha</option>
-                    <option value="justify">Justificada</option>
-                  </select>
+                    <EditorSelectOption value="left">Izquierda</EditorSelectOption>
+                    <EditorSelectOption value="center">Centrada</EditorSelectOption>
+                    <EditorSelectOption value="right">Derecha</EditorSelectOption>
+                    <EditorSelectOption value="justify">Justificada</EditorSelectOption>
+                  </EditorSelect>
                 </div>
                 <div className="grid gap-1.5">
                   <Label htmlFor="editor-style-line-height">Interlineado</Label>
-                  <select
+                  <EditorSelect
                     id="editor-style-line-height"
                     value={draft.definition.lineHeight}
                     className={fieldClass}
-                    onChange={(event) =>
+                    onValueChange={(value) =>
                       setDraft((current) => ({
                         ...current,
                         definition: replaceStyleDefinition(current.definition, {
-                          lineHeight: event.target.value as EditorTextStyleDefinition["lineHeight"],
+                          lineHeight: value as EditorTextStyleDefinition["lineHeight"],
                         }),
                       }))
                     }
                   >
-                    <option value="1">Sencillo</option>
-                    <option value="1.15">1,15</option>
-                    <option value="1.5">1,5</option>
-                    <option value="1.8">1,8</option>
-                    <option value="2">Doble</option>
-                  </select>
+                    <EditorSelectOption value="1">Sencillo</EditorSelectOption>
+                    <EditorSelectOption value="1.15">1,15</EditorSelectOption>
+                    <EditorSelectOption value="1.5">1,5</EditorSelectOption>
+                    <EditorSelectOption value="1.8">1,8</EditorSelectOption>
+                    <EditorSelectOption value="2">Doble</EditorSelectOption>
+                  </EditorSelect>
                 </div>
                 <div className="grid gap-1.5">
                   <Label htmlFor="editor-style-indent-left">
@@ -868,23 +871,23 @@ export function EditorTextStylesMenu({
                 </div>
                 <div className="grid gap-1.5">
                   <Label htmlFor="editor-style-tab-size">Tabulación</Label>
-                  <select
+                  <EditorSelect
                     id="editor-style-tab-size"
                     value={draft.definition.tabSize}
                     className={fieldClass}
-                    onChange={(event) =>
+                    onValueChange={(value) =>
                       setDraft((current) => ({
                         ...current,
                         definition: replaceStyleDefinition(current.definition, {
-                          tabSize: Number(event.target.value) as 2 | 4 | 8,
+                          tabSize: Number(value) as 2 | 4 | 8,
                         }),
                       }))
                     }
                   >
-                    <option value="2">2 espacios</option>
-                    <option value="4">4 espacios</option>
-                    <option value="8">8 espacios</option>
-                  </select>
+                    <EditorSelectOption value="2">2 espacios</EditorSelectOption>
+                    <EditorSelectOption value="4">4 espacios</EditorSelectOption>
+                    <EditorSelectOption value="8">8 espacios</EditorSelectOption>
+                  </EditorSelect>
                 </div>
               </div>
             )}
@@ -896,7 +899,7 @@ export function EditorTextStylesMenu({
             </p>
           )}
 
-          <DialogFooter>
+          <DialogFooter className="mx-0 mb-0 mt-2 rounded-none border-t border-[#dadce0] bg-transparent px-0 pb-0 pt-4">
             <Button
               type="button"
               variant="outline"

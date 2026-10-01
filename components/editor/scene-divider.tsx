@@ -1,15 +1,19 @@
 "use client"
 
 import { mergeAttributes, Node } from "@tiptap/core"
-import { NodeViewWrapper, ReactNodeViewRenderer, type NodeViewProps } from "@tiptap/react"
+import { NodeViewWrapper, ReactNodeViewRenderer, type NodeViewProps, type Editor } from "@tiptap/react"
 
 import { cn } from "@/lib/utils"
+import type { CSSProperties } from "react"
 
 export const SCENE_DIVIDER_VARIANTS = [
   "flourish",
   "diamonds",
   "stars",
   "waves",
+  "dots",
+  "asterisks",
+  "moon",
 ] as const
 
 export type SceneDividerVariant = (typeof SCENE_DIVIDER_VARIANTS)[number]
@@ -24,6 +28,9 @@ export const SCENE_DIVIDER_OPTIONS: Array<{
   { value: "diamonds", label: "Puntas y puntos" },
   { value: "stars", label: "Estrellas" },
   { value: "waves", label: "Ramas y hojas" },
+  { value: "dots", label: "Tres puntos" },
+  { value: "asterisks", label: "Asteriscos" },
+  { value: "moon", label: "Luna y estrellas" },
 ]
 
 const SCENE_DIVIDER_GLYPHS: Record<SceneDividerVariant, string> = {
@@ -31,6 +38,35 @@ const SCENE_DIVIDER_GLYPHS: Record<SceneDividerVariant, string> = {
   diamonds: "• ◆ •",
   stars: "✦",
   waves: "❧",
+  dots: "• • •",
+  asterisks: "⁂",
+  moon: "✦ ☾ ✦",
+}
+
+export function normalizeSceneDividerColor(value: unknown): string | null {
+  return typeof value === "string" && /^#[0-9a-f]{6}$/i.test(value) ? value.toLowerCase() : null
+}
+
+export function getSceneDividerColor(editor: Editor): string | null {
+  return editor.isActive("sceneDivider")
+    ? normalizeSceneDividerColor(editor.getAttributes("sceneDivider").color)
+    : editor.storage.sceneDivider.color
+}
+
+export function chooseSceneDividerColor(editor: Editor, value: string) {
+  const color = normalizeSceneDividerColor(value)
+  editor.storage.sceneDivider.color = color
+  if (editor.isActive("sceneDivider")) {
+    return editor.chain().focus().updateAttributes("sceneDivider", { color }).run()
+  }
+  // Actualiza los controles sin modificar el documento ni perder el punto de inserción.
+  editor.view.dispatch(editor.state.tr.setMeta("sceneDividerColor", color))
+  return true
+}
+
+function dividerColorStyle(color: unknown): CSSProperties | undefined {
+  const normalized = normalizeSceneDividerColor(color)
+  return normalized ? { "--scene-divider-color": normalized } as CSSProperties : undefined
 }
 
 export function isSceneDividerVariant(
@@ -55,6 +91,18 @@ function SceneDividerArtwork({ variant }: { variant: SceneDividerVariant }) {
     "aria-label": "Adorno ornamental",
     style: { color: "var(--scene-divider-color)" },
   } as const
+
+  if (variant === "dots") {
+    return <svg {...svgProps}><g fill="currentColor"><circle cx="44" cy="16" r="3" /><circle cx="64" cy="16" r="3" /><circle cx="84" cy="16" r="3" /></g></svg>
+  }
+
+  if (variant === "asterisks") {
+    return <svg {...svgProps}><g fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">{[44, 64, 84].map((x) => <path key={x} d={`M${x} 8v16 M${x - 7} 12l14 8 M${x - 7} 20l14-8`} />)}</g></svg>
+  }
+
+  if (variant === "moon") {
+    return <svg {...svgProps}><path d="M69 4a12 12 0 1 0 0 24c-10-3-10-21 0-24z" fill="currentColor" /><path d="M40 10v12 M34 16h12 M90 10v12 M84 16h12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
+  }
 
   if (variant === "flourish") {
     return (
@@ -174,14 +222,17 @@ function SceneDividerArtwork({ variant }: { variant: SceneDividerVariant }) {
 export function SceneDividerPreview({
   variant,
   className,
+  color,
 }: {
   variant: SceneDividerVariant
   className?: string
+  color?: string | null
 }) {
   return (
     <span
       className={cn("scene-divider-preview", className)}
       data-divider-variant={variant}
+      style={dividerColorStyle(color)}
       aria-hidden="true"
     >
       <span className="scene-divider__line" />
@@ -202,6 +253,8 @@ function SceneDividerNodeView({ node, selected }: NodeViewProps) {
       className={cn("scene-divider", selected && "scene-divider--selected")}
       data-scene-divider=""
       data-divider-variant={variant}
+      data-divider-color={normalizeSceneDividerColor(node.attrs.color) ?? undefined}
+      style={dividerColorStyle(node.attrs.color)}
       role="separator"
       aria-label="Separador ornamental"
       contentEditable={false}
@@ -216,6 +269,9 @@ function SceneDividerNodeView({ node, selected }: NodeViewProps) {
 }
 
 declare module "@tiptap/core" {
+  interface Storage {
+    sceneDivider: { color: string | null }
+  }
   interface Commands<ReturnType> {
     sceneDivider: {
       setSceneDivider: (variant?: SceneDividerVariant) => ReturnType
@@ -231,8 +287,20 @@ export const SceneDivider = Node.create({
   selectable: true,
   draggable: false,
 
+  addStorage() {
+    return { color: null }
+  },
+
   addAttributes() {
     return {
+      color: {
+        default: null,
+        parseHTML: (element: HTMLElement) => normalizeSceneDividerColor(element.getAttribute("data-divider-color")),
+        renderHTML: (attributes: { color?: unknown }) => {
+          const color = normalizeSceneDividerColor(attributes.color)
+          return color ? { "data-divider-color": color, style: `--scene-divider-color: ${color}` } : {}
+        },
+      },
       variant: {
         default: DEFAULT_SCENE_DIVIDER_VARIANT,
         parseHTML: (element: HTMLElement) =>
@@ -289,7 +357,7 @@ export const SceneDivider = Node.create({
         ({ commands }) =>
           commands.insertContent({
             type: this.name,
-            attrs: { variant: normalizeSceneDividerVariant(variant) },
+            attrs: { variant: normalizeSceneDividerVariant(variant), color: this.storage.color },
           }),
     }
   },

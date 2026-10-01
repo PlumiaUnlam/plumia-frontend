@@ -6,6 +6,9 @@ import { useEditorState } from "@tiptap/react"
 import type { Editor } from "@tiptap/react"
 
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu"
+import { MenubarItem } from "@/components/ui/menubar"
+import { Input } from "@/components/ui/input"
+import { normalizeSceneDividerColor, getSceneDividerColor, chooseSceneDividerColor } from "./scene-divider"
 import {
   BULLET_LIST_COLORS,
   applyBulletListColor,
@@ -27,8 +30,9 @@ import {
 
 type ColorPaletteProps = {
   editor: Editor
-  kind: "text" | "highlight" | "bullet" | "ordered"
+  kind: "text" | "highlight" | "bullet" | "ordered" | "sceneDivider"
   menuItemClass: string
+  menuType?: "dropdown" | "menubar"
 }
 
 const COLOR_GRID = [
@@ -42,13 +46,15 @@ const COLOR_GRID = [
   ["#5b0f00", "#660000", "#783f04", "#7f6000", "#274e13", "#0c343d", "#1c4587", "#073763", "#20124d", "#4c1130"],
 ] as const
 
-export function ColorPalette({ editor, kind, menuItemClass }: ColorPaletteProps) {
+export function ColorPalette({ editor, kind, menuItemClass, menuType = "dropdown" }: ColorPaletteProps) {
+  const Item = menuType === "menubar" ? MenubarItem : DropdownMenuItem
   const activeColor = useEditorState({
     editor,
     selector: ({ editor: currentEditor }) => {
       if (kind === "text") return getActiveTextColor(currentEditor)
       if (kind === "highlight") return getTextHighlightColor(currentEditor)
       if (kind === "bullet") return getActiveBulletListColor(currentEditor)
+      if (kind === "sceneDivider") return getSceneDividerColor(currentEditor) ?? "automatic"
       return getActiveOrderedListColor(currentEditor)
     },
   })
@@ -66,7 +72,7 @@ export function ColorPalette({ editor, kind, menuItemClass }: ColorPaletteProps)
         ? "Color de resaltado"
         : kind === "bullet"
           ? "Color de viñeta"
-          : "Color de numeración"
+          : kind === "sceneDivider" ? "Color del separador" : "Color de numeración"
 
   const applyColor = (color: string) => {
     if (kind === "text") {
@@ -75,12 +81,14 @@ export function ColorPalette({ editor, kind, menuItemClass }: ColorPaletteProps)
       applyTextHighlightColor(editor, color)
     } else if (kind === "bullet") {
       applyBulletListColor(editor, color as BulletListColor)
+    } else if (kind === "sceneDivider") {
+      chooseSceneDividerColor(editor, color)
     } else {
       applyOrderedListColor(editor, color as BulletListColor)
     }
   }
 
-  const automaticColor = colors[0]
+  const automaticColor = kind === "sceneDivider" ? { value: "automatic", label: "Color del tema" } : colors[0]
   const customColor = /^#[0-9a-f]{6}$/i.test(activeColor)
     ? activeColor
     : "#1f2937"
@@ -88,7 +96,7 @@ export function ColorPalette({ editor, kind, menuItemClass }: ColorPaletteProps)
   return (
     <div className="p-1">
       {kind !== "highlight" && (
-        <DropdownMenuItem
+        <Item
           className={`mb-2 w-full gap-2 rounded-md border px-2 py-1.5 text-xs ${menuItemClass} ${activeColor === automaticColor.value ? "border-[#1a73e8] bg-[#e8f0fe] text-[#174ea6]" : "border-transparent"}`}
           onSelect={() => applyColor(automaticColor.value)}
           title={`${title}: ${automaticColor.label}`}
@@ -100,7 +108,7 @@ export function ColorPalette({ editor, kind, menuItemClass }: ColorPaletteProps)
           {activeColor === automaticColor.value && (
             <Check className="ml-auto h-3.5 w-3.5" />
           )}
-        </DropdownMenuItem>
+        </Item>
       )}
 
       <div
@@ -115,6 +123,7 @@ export function ColorPalette({ editor, kind, menuItemClass }: ColorPaletteProps)
             title={title}
             activeColor={activeColor}
             menuItemClass={menuItemClass}
+            menuType={menuType}
             onSelect={() => applyColor(color)}
           />
         ))}
@@ -124,7 +133,27 @@ export function ColorPalette({ editor, kind, menuItemClass }: ColorPaletteProps)
         <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-[#5f6368]">
           Personalizado
         </div>
-        <label
+        {kind === "sceneDivider" ? (
+          <div className="space-y-1.5">
+            <label htmlFor={customInputId} className="text-xs text-[#5f6368]">Color hexadecimal</label>
+            <Input id={customInputId} key={customColor} defaultValue={customColor} maxLength={7}
+              placeholder="#1f2937" className="h-9 py-0 text-sm"
+              onKeyDown={(event) => {
+                event.stopPropagation()
+                if (event.key === "Enter") {
+                  event.preventDefault()
+                  const color = normalizeSceneDividerColor(event.currentTarget.value)
+                  if (color) applyColor(color)
+                }
+              }}
+              onBlur={(event) => {
+                const color = normalizeSceneDividerColor(event.currentTarget.value)
+                if (color) applyColor(color)
+                else event.currentTarget.value = customColor
+              }}
+            />
+          </div>
+        ) : <label
           htmlFor={customInputId}
           className="inline-flex h-8 cursor-pointer items-center gap-2 rounded-md border border-transparent px-1.5 text-xs text-[#3c4043] hover:bg-[#f1f3f4]"
           title="Elegir color personalizado"
@@ -144,7 +173,7 @@ export function ColorPalette({ editor, kind, menuItemClass }: ColorPaletteProps)
             className="sr-only"
             onChange={(event) => applyColor(event.currentTarget.value)}
           />
-        </label>
+        </label>}
       </div>
     </div>
   )
@@ -156,17 +185,20 @@ function ColorItem({
   activeColor,
   menuItemClass,
   onSelect,
+  menuType,
 }: {
   color: string
   title: string
   activeColor: string
   menuItemClass: string
   onSelect: () => void
+  menuType: "dropdown" | "menubar"
 }) {
   const isActive = activeColor.toLowerCase() === color.toLowerCase()
+  const Item = menuType === "menubar" ? MenubarItem : DropdownMenuItem
 
   return (
-    <DropdownMenuItem
+    <Item
       className={`relative h-7 w-7 rounded-full border border-[#dadce0] p-0 outline-none focus:bg-[#e8f0fe] focus:ring-2 focus:ring-[#1a73e8] ${menuItemClass}`}
       onSelect={onSelect}
       title={`${title}: ${color}`}
@@ -179,6 +211,6 @@ function ColorItem({
       {isActive && (
         <Check className="relative z-10 mx-auto h-3.5 w-3.5 text-white drop-shadow-[0_0_2px_rgba(0,0,0,0.9)]" />
       )}
-    </DropdownMenuItem>
+    </Item>
   )
 }
