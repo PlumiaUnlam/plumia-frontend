@@ -36,18 +36,18 @@ export function SpellcheckSettingsDialog({
 }: SpellcheckSettingsDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Configuración del corrector</DialogTitle>
-          <DialogDescription>
+      <DialogContent className="w-[min(28rem,calc(100vw-1.5rem))] max-w-none gap-0 overflow-hidden border-[#dadce0] p-0 sm:max-w-none">
+        <DialogHeader className="border-b border-[#dadce0] px-6 py-5 pr-12">
+          <DialogTitle className="text-[#202124]">Configuración del corrector</DialogTitle>
+          <DialogDescription className="text-[#5f6368]">
             Elegí el idioma que utilizará el corrector ortográfico nativo del navegador.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-1.5">
+        <div className="space-y-2 px-6 py-5">
           <label
             htmlFor="spellcheck-settings-language"
-            className="text-xs font-medium text-foreground"
+            className="text-xs font-medium text-[#5f6368]"
           >
             Idioma
           </label>
@@ -57,7 +57,7 @@ export function SpellcheckSettingsDialog({
             onChange={(event) =>
               onLanguageChange(event.target.value as SpellcheckLanguage)
             }
-            className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+            className="h-10 w-full rounded-lg border border-[#dadce0] bg-white px-3 text-sm text-[#3c4043] outline-none focus-visible:border-[#1a73e8] focus-visible:ring-2 focus-visible:ring-[#d2e3fc]"
           >
             {languageOptions.map((option) => (
               <option key={option.value} value={option.value}>
@@ -67,7 +67,7 @@ export function SpellcheckSettingsDialog({
           </select>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="mx-0 mt-0 border-t border-[#dadce0] bg-[#f8fafd] px-6 py-4 sm:flex-row sm:justify-end">
           <Button
             type="button"
             variant="outline"
@@ -83,4 +83,3 @@ export function SpellcheckSettingsDialog({
     </Dialog>
   )
 }
-

@@ -39,7 +39,7 @@ const BUILT_IN_STYLES: BuiltInStyle[] = [
   },
   {
     id: `${BUILT_IN_STYLE_ID_PREFIX}main-title`,
-    name: "Título principal",
+    name: "Título",
     kind: "paragraph",
     definition: paragraphStyle({
       blockType: "heading1",
@@ -51,7 +51,7 @@ const BUILT_IN_STYLES: BuiltInStyle[] = [
   },
   {
     id: `${BUILT_IN_STYLE_ID_PREFIX}section-title`,
-    name: "Título de sección",
+    name: "Encabezado de sección",
     kind: "paragraph",
     definition: paragraphStyle({
       blockType: "heading2",

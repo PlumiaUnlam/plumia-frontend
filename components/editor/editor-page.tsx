@@ -200,7 +200,6 @@ export function EditorLayout({ projectId }: EditorLayoutProps) {
       <Header
         mode={writingMode}
         onModeChange={setWritingMode}
-        onExportClick={() => setIsExportDialogOpen(true)}
       />
 
       <SidebarProvider className="flex min-h-0 flex-1">
@@ -231,6 +230,7 @@ export function EditorLayout({ projectId }: EditorLayoutProps) {
                 sections={sections}
                 onOpenSearch={() => setIsSearchPanelOpen(true)}
                 onOpenSpellcheckSettings={handleOpenSpellcheckSettings}
+                onExportClick={() => setIsExportDialogOpen(true)}
                 onBeforeExportChange={registerBeforeExport}
               />
             )}

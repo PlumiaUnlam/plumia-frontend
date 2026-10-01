@@ -1,5 +1,5 @@
 
-import { useEffect, useMemo } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { EditorContent, useEditor } from "@tiptap/react"
 import StarterKit from "@tiptap/starter-kit"
 
@@ -63,6 +63,7 @@ type RichTextEditorProps = {
   onToggleZenMode?: () => void
   onOpenSearch?: () => void
   onOpenSpellcheckSettings?: () => void
+  onExportClick?: () => void
   paneId?: EditorPaneId
   saveNow?: () => Promise<unknown>
   showToolbar?: boolean
@@ -90,6 +91,7 @@ export function RichTextEditor({
   onToggleZenMode,
   onOpenSearch,
   onOpenSpellcheckSettings,
+  onExportClick,
   paneId = "primary",
   saveNow,
   showToolbar = true,
@@ -99,6 +101,7 @@ export function RichTextEditor({
   isSplit = false,
   canSplit = true,
 }: RichTextEditorProps) {
+  const [paragraphDialogOpen, setParagraphDialogOpen] = useState(false)
   const {
     error,
     isUploading,
@@ -320,18 +323,23 @@ export function RichTextEditor({
       {editorTextStylesCss && <style>{editorTextStylesCss}</style>}
 
       {showToolbar && !isZenMode && (
-          <EditorMenuBar
-            editor={editor}
-            projectId={projectId}
-            versionLabel={versionLabel}
-            onSave={onSave}
-            onOpenSearch={onOpenSearch}
-            onOpenSpellcheckSettings={onOpenSpellcheckSettings}
-            onInsertImage={openImagePicker}
+        <EditorMenuBar
+          editor={editor}
+          projectId={projectId}
+          versionLabel={versionLabel}
+          onSave={onSave}
+          onExportClick={onExportClick}
+          onOpenSearch={onOpenSearch}
+          onOpenSpellcheckSettings={onOpenSpellcheckSettings}
+          onOpenParagraphFormat={() => setParagraphDialogOpen(true)}
+          onInsertImage={openImagePicker}
           onAnalyzeChanges={onAnalyzeChanges}
           isAnalysisSaving={isAnalysisSaving}
           onToggleZenMode={onToggleZenMode}
           isZenMode={isZenMode}
+          onToggleSplit={onToggleSplit}
+          isSplit={isSplit}
+          canSplit={canSplit}
           onInsertDivider={(variant) =>
             editor.chain().focus().setSceneDivider(variant).run()
           }
@@ -345,11 +353,14 @@ export function RichTextEditor({
           isUploadingImage={isUploading}
           onAnalyzeChanges={onAnalyzeChanges}
           isAnalysisSaving={isAnalysisSaving}
+          onToggleZenMode={onToggleZenMode}
           isZenMode={isZenMode}
           paneId={paneId}
           onToggleSplit={onToggleSplit}
           isSplit={isSplit}
           canSplit={canSplit}
+          paragraphDialogOpen={paragraphDialogOpen}
+          onParagraphDialogOpenChange={setParagraphDialogOpen}
           onInsertDivider={(variant: SceneDividerVariant) =>
             editor.chain().focus().setSceneDivider(variant).run()
           }

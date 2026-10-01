@@ -457,16 +457,16 @@ export function SearchReplacePanel({
           if (!dialogOpen && !isReplacing) setPendingReplace(null)
         }}
       >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirmar reemplazo</DialogTitle>
-            <DialogDescription>
+        <DialogContent className="w-[min(30rem,calc(100vw-1.5rem))] max-w-none gap-0 overflow-hidden border-[#dadce0] p-0 sm:max-w-none">
+          <DialogHeader className="border-b border-[#dadce0] px-6 py-5 pr-12">
+            <DialogTitle className="text-[#202124]">Confirmar reemplazo</DialogTitle>
+            <DialogDescription className="text-[#5f6368]">
               Se reemplazarán {pendingReplace?.matches.length ?? 0} ocurrencias
               en {pendingReplace ? new Set(pendingReplace.matches.map((match) => match.sceneId)).size : 0} escenas.
               Esta acción modificará los borradores actuales.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
+          <DialogFooter className="mx-0 mt-4 border-t border-[#dadce0] bg-[#f8fafd] px-6 py-4 sm:flex-row sm:justify-end">
             <Button
               type="button"
               variant="outline"

@@ -40,6 +40,7 @@ type SceneEditorProps = {
   onToggleZenMode: () => void
   onOpenSearch?: () => void
   onOpenSpellcheckSettings?: () => void
+  onExportClick?: () => void
   paneId: EditorPaneId
   showToolbar: boolean
   onEditorFocus?: () => void
@@ -62,6 +63,7 @@ function SceneEditor({
   onToggleZenMode,
   onOpenSearch,
   onOpenSpellcheckSettings,
+  onExportClick,
   paneId,
   showToolbar,
   onEditorFocus,
@@ -162,6 +164,7 @@ function SceneEditor({
         onToggleZenMode={onToggleZenMode}
         onOpenSearch={onOpenSearch}
         onOpenSpellcheckSettings={onOpenSpellcheckSettings}
+        onExportClick={onExportClick}
         paneId={paneId}
         saveNow={saveNow}
         showToolbar={showToolbar}
@@ -186,6 +189,7 @@ function SceneDocumentLoader({
   onToggleZenMode,
   onOpenSearch,
   onOpenSpellcheckSettings,
+  onExportClick,
   showToolbar,
   onEditorFocus,
   onToolbarActionsChange,
@@ -203,6 +207,7 @@ function SceneDocumentLoader({
   onToggleZenMode: () => void
   onOpenSearch?: () => void
   onOpenSpellcheckSettings?: () => void
+  onExportClick?: () => void
   showToolbar: boolean
   onEditorFocus?: () => void
   onToolbarActionsChange?: (
@@ -282,6 +287,7 @@ function SceneDocumentLoader({
       onToggleZenMode={onToggleZenMode}
       onOpenSearch={onOpenSearch}
       onOpenSpellcheckSettings={onOpenSpellcheckSettings}
+      onExportClick={onExportClick}
       paneId={paneId}
       showToolbar={showToolbar}
       onEditorFocus={onEditorFocus}
@@ -372,6 +378,7 @@ function EditorPanel({
   onToggleZenMode,
   onOpenSearch,
   onOpenSpellcheckSettings,
+  onExportClick,
   showToolbar,
   onEditorFocus,
   onToolbarActionsChange,
@@ -388,6 +395,7 @@ function EditorPanel({
   onToggleZenMode: () => void
   onOpenSearch?: () => void
   onOpenSpellcheckSettings?: () => void
+  onExportClick?: () => void
   showToolbar: boolean
   onEditorFocus?: () => void
   onToolbarActionsChange?: (
@@ -409,6 +417,7 @@ function EditorPanel({
       onToggleZenMode={onToggleZenMode}
       onOpenSearch={onOpenSearch}
       onOpenSpellcheckSettings={onOpenSpellcheckSettings}
+      onExportClick={onExportClick}
       showToolbar={showToolbar}
       onEditorFocus={onEditorFocus}
       onToolbarActionsChange={onToolbarActionsChange}
@@ -428,6 +437,7 @@ function EditorWorkspace({
   onToggleZenMode,
   onOpenSearch,
   onOpenSpellcheckSettings,
+  onExportClick,
   onBeforeExportChange,
 }: {
   sceneId: string
@@ -438,6 +448,7 @@ function EditorWorkspace({
   onToggleZenMode: () => void
   onOpenSearch?: () => void
   onOpenSpellcheckSettings?: () => void
+  onExportClick?: () => void
   onBeforeExportChange?: (handler: (() => Promise<void>) | null) => void
 }) {
   const setActiveScene = useEditorStore((s) => s.setActiveScene)
@@ -446,6 +457,7 @@ function EditorWorkspace({
     null,
   )
   const [focusedPane, setFocusedPane] = useState<EditorPaneId>("primary")
+  const [paragraphDialogOpen, setParagraphDialogOpen] = useState(false)
   const [primaryActions, setPrimaryActions] =
     useState<EditorToolbarActions | null>(null)
   const [secondaryActions, setSecondaryActions] =
@@ -615,19 +627,20 @@ function EditorWorkspace({
           projectId={projectId}
           versionLabel={focusedActions.versionLabel}
           onSave={() => void focusedActions.saveNow()}
+          onExportClick={onExportClick}
           onInsertImage={focusedActions.onInsertImage}
           onAnalyzeChanges={focusedActions.onAnalyzeChanges}
           isAnalysisSaving={focusedActions.isAnalysisSaving}
           onToggleZenMode={onToggleZenMode}
           onOpenSearch={onOpenSearch}
           onOpenSpellcheckSettings={onOpenSpellcheckSettings}
+          onOpenParagraphFormat={() => setParagraphDialogOpen(true)}
+          onToggleSplit={() => void handleToggleSplit()}
+          isSplit={effectiveIsSplit}
+          canSplit={canSplit}
           isZenMode={isZenMode}
           onInsertDivider={(variant) =>
-            focusedActions.editor
-              .chain()
-              .focus()
-              .setSceneDivider(variant)
-              .run()
+            focusedActions.editor.chain().focus().setSceneDivider(variant).run()
           }
         />
       )}
@@ -639,11 +652,14 @@ function EditorWorkspace({
           isUploadingImage={focusedActions.isUploadingImage}
           onAnalyzeChanges={focusedActions.onAnalyzeChanges}
           isAnalysisSaving={focusedActions.isAnalysisSaving}
+          onToggleZenMode={onToggleZenMode}
           isZenMode={isZenMode}
           paneId={focusedPane}
           onToggleSplit={() => void handleToggleSplit()}
           isSplit={effectiveIsSplit}
           canSplit={canSplit}
+          paragraphDialogOpen={paragraphDialogOpen}
+          onParagraphDialogOpenChange={setParagraphDialogOpen}
           onInsertDivider={
             focusedActions
               ? (variant) =>
@@ -690,6 +706,7 @@ function EditorWorkspace({
               onToggleZenMode={onToggleZenMode}
               onOpenSearch={onOpenSearch}
               onOpenSpellcheckSettings={onOpenSpellcheckSettings}
+              onExportClick={onExportClick}
               showToolbar={!effectiveIsSplit}
               onEditorFocus={() => setFocusedPane("primary")}
               onToolbarActionsChange={registerPrimaryActions}
@@ -746,6 +763,7 @@ export function EditorContainer({
   onToggleZenMode,
   onOpenSearch,
   onOpenSpellcheckSettings,
+  onExportClick,
   onBeforeExportChange,
 }: {
   sceneId: string
@@ -755,6 +773,7 @@ export function EditorContainer({
   onToggleZenMode: () => void
   onOpenSearch?: () => void
   onOpenSpellcheckSettings?: () => void
+  onExportClick?: () => void
   onBeforeExportChange?: (handler: (() => Promise<void>) | null) => void
 }) {
   const selectedVersionId = useEditorStore((s) => s.selectedSceneVersionId)
@@ -769,6 +788,7 @@ export function EditorContainer({
       onToggleZenMode={onToggleZenMode}
       onOpenSearch={onOpenSearch}
       onOpenSpellcheckSettings={onOpenSpellcheckSettings}
+      onExportClick={onExportClick}
       onBeforeExportChange={onBeforeExportChange}
     />
   )

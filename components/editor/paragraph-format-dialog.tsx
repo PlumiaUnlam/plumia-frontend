@@ -7,7 +7,6 @@ import {
   AlignJustify,
   AlignLeft,
   AlignRight,
-  ChevronDown,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -18,7 +17,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -56,15 +54,16 @@ type NumericParagraphAttribute =
 type ParagraphFormatDialogProps = {
   editor: Editor
   attributes: ParagraphAttributes
-  disabled?: boolean
+  open: boolean
+  onOpenChange: (open: boolean) => void
 }
 
 export function ParagraphFormatDialog({
   editor,
   attributes,
-  disabled = false,
+  open,
+  onOpenChange,
 }: ParagraphFormatDialogProps) {
-  const [open, setOpen] = useState(false)
   const [draft, setDraft] = useState<ParagraphAttributes>({
     ...DEFAULT_PARAGRAPH_ATTRIBUTES,
     ...attributes,
@@ -78,7 +77,7 @@ export function ParagraphFormatDialog({
       })
     }
 
-    setOpen(nextOpen)
+    onOpenChange(nextOpen)
   }
 
   const updateNumber = (
@@ -98,52 +97,36 @@ export function ParagraphFormatDialog({
       .focus()
       .updateAttributes("paragraph", { ...draft, editorStyleId: null })
       .run()
-    setOpen(false)
+    onOpenChange(false)
   }
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          className="h-7 gap-1 rounded-md px-1.5 text-[#3c4043] hover:bg-[#e8eaed] hover:text-[#202124]"
-          disabled={disabled}
-          title="Más opciones de párrafo"
-          aria-label="Más opciones de párrafo"
-          onMouseDown={(event) => event.preventDefault()}
-        >
-          <span className="text-xs font-medium">Párrafo</span>
-          <ChevronDown className="h-3 w-3" />
-        </Button>
-      </DialogTrigger>
-
-      <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-[620px]">
-        <DialogHeader className="border-b border-[#dadce0] px-6 py-5">
+      <DialogContent className="flex max-h-[min(85dvh,48rem)] w-[min(48rem,calc(100vw-3rem))] max-w-none flex-col gap-0 overflow-hidden border-[#dadce0] bg-white p-0 sm:max-w-none">
+        <DialogHeader className="shrink-0 border-b border-[#dadce0] px-4 py-4 pr-10 sm:px-6 sm:py-5 sm:pr-12">
           <DialogTitle className="text-[#202124]">Opciones de párrafo</DialogTitle>
           <DialogDescription className="text-[#5f6368]">
             Configurá la alineación, sangría, espaciado y tabulaciones del párrafo actual.
           </DialogDescription>
         </DialogHeader>
 
-        <Tabs defaultValue="spacing" className="gap-0">
+        <Tabs defaultValue="spacing" className="flex min-h-0 flex-1 flex-col gap-0">
           <TabsList
             variant="line"
-            className="w-full justify-start rounded-none border-b border-[#dadce0] px-6 pt-2"
+            className="grid h-auto min-h-11 w-full shrink-0 grid-cols-2 overflow-x-hidden overflow-y-hidden rounded-none border-b border-[#dadce0] px-3 py-1 group-data-horizontal/tabs:h-auto sm:px-6"
           >
-            <TabsTrigger value="spacing" className="flex-none px-3 pb-3">
+            <TabsTrigger value="spacing" className="h-full min-h-11 w-full min-w-0 whitespace-normal px-2 py-2 text-center group-data-horizontal/tabs:after:bottom-0">
               Sangría y espaciado
             </TabsTrigger>
-            <TabsTrigger value="tabs" className="flex-none px-3 pb-3">
+            <TabsTrigger value="tabs" className="h-full min-h-11 w-full min-w-0 whitespace-normal px-2 py-2 text-center group-data-horizontal/tabs:after:bottom-0">
               Tabulaciones
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="spacing" className="space-y-6 px-6 py-5">
+          <TabsContent value="spacing" className="min-h-0 flex-1 space-y-6 overflow-x-hidden overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
             <section className="space-y-2">
               <Label className={fieldLabelClass}>Alineación</Label>
-              <div className="mt-2 grid grid-cols-4 gap-1 rounded-md border border-[#dadce0] bg-white p-1">
+              <div className="mt-2 flex flex-wrap items-center gap-2 rounded-md border border-[#dadce0] bg-white p-2">
                 {alignmentOptions.map(({ value, label, icon: Icon }) => (
                   <Button
                     key={value}
@@ -152,15 +135,15 @@ export function ParagraphFormatDialog({
                     variant="ghost"
                     className={
                       draft.textAlign === value
-                        ? "h-9 bg-[#d2e3fc] text-[#174ea6] hover:bg-[#c2d7f8]"
-                        : "h-9 text-[#3c4043] hover:bg-[#f1f3f4]"
+                        ? "h-11 shrink-0 gap-2 whitespace-nowrap bg-[#d2e3fc] px-3 text-[#174ea6] hover:bg-[#c2d7f8]"
+                        : "h-11 shrink-0 gap-2 whitespace-nowrap px-3 text-[#3c4043] hover:bg-[#f1f3f4]"
                     }
                     title={label}
                     aria-label={label}
                     onClick={() => setDraft((current) => ({ ...current, textAlign: value }))}
                   >
                     <Icon className="h-4 w-4" />
-                    <span className="hidden sm:inline">{label}</span>
+                    <span>{label}</span>
                   </Button>
                 ))}
               </div>
@@ -232,7 +215,7 @@ export function ParagraphFormatDialog({
             </section>
           </TabsContent>
 
-          <TabsContent value="tabs" className="space-y-4 px-6 py-5">
+          <TabsContent value="tabs" className="min-h-0 flex-1 space-y-4 overflow-x-hidden overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
             <section className="space-y-2">
               <Label htmlFor="paragraph-tab-size" className={fieldLabelClass}>
                 Tabulación predeterminada
@@ -249,7 +232,7 @@ export function ParagraphFormatDialog({
                 }
               >
                 {PARAGRAPH_TAB_SIZES.map((tabSize) => (
-                <option key={tabSize} value={tabSize}>
+                  <option key={tabSize} value={tabSize}>
                     Cada tabulación equivale a {tabSize} espacios
                   </option>
                 ))}
@@ -261,7 +244,7 @@ export function ParagraphFormatDialog({
           </TabsContent>
         </Tabs>
 
-        <DialogFooter className="mx-0 mb-0 border-t border-[#dadce0] bg-[#f8fafd] px-6 py-3 sm:justify-between">
+        <DialogFooter className="mx-0 mb-0 shrink-0 flex-col-reverse border-t border-[#dadce0] bg-[#f8fafd] px-4 py-3 sm:flex-row sm:justify-between sm:px-6">
           <Button
             type="button"
             variant="ghost"
@@ -271,8 +254,8 @@ export function ParagraphFormatDialog({
             Restablecer
           </Button>
           <div className="flex items-center justify-end gap-2">
-            <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
-            Cancelar
+            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+              Cancelar
             </Button>
             <Button type="button" onClick={apply}>
               Aceptar

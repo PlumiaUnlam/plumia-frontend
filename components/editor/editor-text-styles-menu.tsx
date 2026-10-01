@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import type { CSSProperties } from "react"
 import type { Editor } from "@tiptap/react"
 import {
   Check,
@@ -44,6 +45,7 @@ import {
 } from "./editor-text-styles"
 import {
   TEXT_FONT_FAMILY_GROUPS,
+  getFontFamilyCss,
   type TextFontFamily,
 } from "./text-font-family"
 import { TEXT_FONT_SIZES } from "./text-font-size"
@@ -66,7 +68,7 @@ type StyleDraft = {
 }
 
 const dropdownContentClass =
-  "max-h-[min(75vh,34rem)] w-72 overflow-y-auto border-[#dadce0] bg-white text-[#3c4043] shadow-[0_3px_8px_rgba(60,64,67,0.24)]"
+  "max-h-[min(75dvh,34rem)] w-72 overflow-x-hidden overflow-y-auto border-[#dadce0] bg-white text-[#3c4043] shadow-[0_3px_8px_rgba(60,64,67,0.24)]"
 const itemClass = "text-[#3c4043] focus:bg-[#f1f3f4] focus:text-[#202124]"
 const fieldClass =
   "h-9 rounded-md border-[#dadce0] bg-white px-2.5 text-sm text-[#3c4043]"
@@ -88,6 +90,36 @@ function replaceStyleDefinition(
   changes: Partial<EditorTextStyleDefinition>,
 ): EditorTextStyleDefinition {
   return { ...current, ...changes }
+}
+
+function getStylePreviewStyle(style: EditorTextStyle): CSSProperties {
+  const definition = style.definition
+  const fontSize = definition.fontSize
+  const validFontSize =
+    fontSize && /^\d+(?:\.\d+)?(?:pt|px|em|rem|%)$/i.test(fontSize)
+      ? `clamp(0.8rem, ${fontSize}, 1.25rem)`
+      : "0.875rem"
+  const decorations = [
+    definition.underline ? "underline" : "",
+    definition.strike ? "line-through" : "",
+  ].filter(Boolean)
+
+  return {
+    fontFamily: definition.fontFamily
+      ? getFontFamilyCss(definition.fontFamily as TextFontFamily)
+      : undefined,
+    fontSize: validFontSize,
+    fontWeight: definition.bold ? 700 : 400,
+    fontStyle: definition.italic ? "italic" : "normal",
+    color: definition.color && /^#[0-9a-f]{6}$/i.test(definition.color)
+      ? definition.color
+      : "#3c4043",
+    backgroundColor:
+      definition.highlightColor && /^#[0-9a-f]{6}$/i.test(definition.highlightColor)
+        ? definition.highlightColor
+        : undefined,
+    textDecoration: decorations.length ? decorations.join(" ") : "none",
+  }
 }
 
 export function EditorTextStylesMenu({
@@ -245,13 +277,21 @@ export function EditorTextStylesMenu({
     const isDefault = isDefaultEditorTextStyle(style)
     return (
       <DropdownMenuSub key={style.id}>
-        <DropdownMenuSubTrigger className={`${itemClass} gap-2`}>
+        <DropdownMenuSubTrigger
+          className={`${itemClass} min-h-12 gap-2 whitespace-normal py-2`}
+        >
           {currentStyleId === style.id ? (
             <Check className="size-4 shrink-0" />
           ) : (
             <span className="size-4 shrink-0" />
           )}
-          <span className="min-w-0 flex-1 truncate">{style.name}</span>
+          <span
+            className="min-w-0 flex-1 line-clamp-2 break-words leading-tight"
+            style={getStylePreviewStyle(style)}
+            title={style.name}
+          >
+            {style.name}
+          </span>
           <ChevronRight className="size-3.5 opacity-60" />
         </DropdownMenuSubTrigger>
         <DropdownMenuSubContent className={dropdownContentClass}>
@@ -415,12 +455,12 @@ export function EditorTextStylesMenu({
       </DropdownMenu>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-h-[90vh] max-w-xl overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
+        <DialogContent className="w-[min(48rem,calc(100vw-1.5rem))] max-w-none max-h-[min(90dvh,52rem)] overflow-x-hidden overflow-y-auto border-[#dadce0] bg-white p-5 sm:max-w-none sm:p-6">
+          <DialogHeader className="mb-1 pr-10 sm:pr-12">
+            <DialogTitle className="text-[#202124]">
               {editingStyle ? "Editar estilo" : "Guardar estilo reutilizable"}
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-[#5f6368]">
               Aplicá un nombre fácil de reconocer. Si modificás este estilo,
               cambiará en todos los lugares donde se usa.
             </DialogDescription>
@@ -707,8 +747,8 @@ export function EditorTextStylesMenu({
                     }
                   >
                     <option value="paragraph">Párrafo</option>
-                    <option value="heading1">Título principal</option>
-                    <option value="heading2">Título de sección</option>
+                    <option value="heading1">Título</option>
+                    <option value="heading2">Encabezado de sección</option>
                     <option value="heading3">Subtítulo</option>
                   </select>
                   {editingStyle && (

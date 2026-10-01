@@ -7,6 +7,7 @@ import {
   Baseline,
   Bold,
   ChevronDown,
+  Eye,
   Highlighter,
   IndentDecrease,
   IndentIncrease,
@@ -22,6 +23,7 @@ import {
   Plus,
   PaintRoller,
   RemoveFormatting,
+  RotateCcw,
   SeparatorHorizontal,
   Redo2,
   Strikethrough,
@@ -90,7 +92,7 @@ import {
 } from "./text-extra-formatting"
 
 const toolbarButtonClass =
-  "h-7 w-7 rounded-md p-1 text-[#3c4043] hover:bg-[#e8eaed] hover:text-[#202124] [&_svg]:size-3.5"
+  "h-8 w-8 rounded-md p-1 text-[#3c4043] hover:bg-[#e8eaed] hover:text-[#202124] [&_svg]:size-3.5 max-[640px]:h-9 max-[640px]:w-9"
 const toolbarMenuClass =
   "border-[#dadce0] bg-white text-[#3c4043] shadow-[0_3px_8px_rgba(60,64,67,0.24)]"
 const toolbarMenuItemClass =
@@ -115,11 +117,14 @@ interface EditorToolbarProps {
   onAnalyzeChanges?: () => void
   isAnalysisSaving?: boolean
   isZenMode?: boolean
+  onToggleZenMode?: () => void
   onInsertDivider?: (variant: SceneDividerVariant) => void
   paneId?: EditorPaneId
   onToggleSplit?: () => void
   isSplit?: boolean
   canSplit?: boolean
+  paragraphDialogOpen: boolean
+  onParagraphDialogOpenChange: (open: boolean) => void
 }
 
 export function EditorToolbar({
@@ -130,11 +135,14 @@ export function EditorToolbar({
   onAnalyzeChanges,
   isAnalysisSaving = false,
   isZenMode = false,
+  onToggleZenMode,
   onInsertDivider,
   paneId = "primary",
   onToggleSplit,
   isSplit = false,
   canSplit = true,
+  paragraphDialogOpen,
+  onParagraphDialogOpenChange,
 }: EditorToolbarProps) {
   const paragraphState = useEditorState({
     editor,
@@ -222,8 +230,8 @@ export function EditorToolbar({
   }
 
   const toolbar = (
-    <div className="editor-toolbar mx-2 mb-1 flex flex-col gap-1 rounded-b-md border border-[#dadce0] bg-[#f1f3f4] px-2 py-1 text-[#3c4043] shadow-sm">
-      <div className="flex w-full flex-wrap items-center gap-0.5">
+    <div className="editor-toolbar mx-2 mb-1 flex min-w-0 flex-col gap-1 rounded-b-lg border border-[#dadce0] bg-[#f8f9fa] px-2 py-2 text-[#3c4043] shadow-sm">
+      <div className="flex min-h-8 w-full flex-wrap items-center gap-0.5">
       <Button
         type="button"
         size="icon-sm"
@@ -764,11 +772,25 @@ export function EditorToolbar({
         <IndentIncrease className="h-4 w-4" />
       </Button>
 
-      <ParagraphFormatDialog
-        editor={editor}
-        attributes={paragraphAttributes}
+      <Button
+        type="button"
+        size="icon-sm"
+        variant="ghost"
+        className={toolbarButtonClass}
         disabled={!paragraphEnabled}
-      />
+        title="Restablecer sangrías"
+        aria-label="Restablecer sangrías"
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={() =>
+          updateParagraph({
+            indentLeft: 0,
+            indentRight: 0,
+            firstLineIndent: 0,
+          })
+        }
+      >
+        <RotateCcw className="h-4 w-4" />
+      </Button>
 
       {onInsertDivider && (
         <DropdownMenu>
@@ -778,11 +800,11 @@ export function EditorToolbar({
               size="icon-sm"
               variant="ghost"
               className={toolbarButtonClass}
-              title="Insertar separador"
-              aria-label="Insertar separador ornamental"
+              title="Insertar separador de escena"
+              aria-label="Insertar separador de escena"
               onMouseDown={(event) => event.preventDefault()}
             >
-              <SeparatorHorizontal className="h-4 w-4" />
+              <SeparatorHorizontal className="size-4" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className={`w-64 ${toolbarMenuClass}`}>
@@ -793,10 +815,7 @@ export function EditorToolbar({
                 className={`gap-3 py-2 ${toolbarMenuItemClass}`}
                 onSelect={() => onInsertDivider(option.value)}
               >
-                <SceneDividerPreview
-                  variant={option.value}
-                  className="w-24 shrink-0"
-                />
+                <SceneDividerPreview variant={option.value} className="w-24 shrink-0" />
                 <span>{option.label}</span>
               </DropdownMenuItem>
             ))}
@@ -807,23 +826,21 @@ export function EditorToolbar({
       {onToggleSplit && (
         <Button
           type="button"
-          size="icon"
-          variant={isSplit ? "default" : "ghost"}
+          size="icon-sm"
+          variant={isSplit ? "secondary" : "ghost"}
           className={toolbarButtonClass}
           disabled={!canSplit && !isSplit}
           onMouseDown={(event) => event.preventDefault()}
           onClick={onToggleSplit}
           title={isSplit ? "Cerrar pantalla dividida" : "Pantalla dividida"}
-          aria-label={
-            isSplit ? "Cerrar pantalla dividida" : "Abrir pantalla dividida"
-          }
+          aria-label={isSplit ? "Cerrar pantalla dividida" : "Abrir pantalla dividida"}
           aria-pressed={isSplit}
         >
-          <Columns2 className="h-4 w-4" />
+          <Columns2 className="size-4" />
         </Button>
       )}
 
-      <div className="ml-auto flex shrink-0 items-center gap-0.5 border-l border-[#dadce0] pl-2">
+      <div className="ml-auto flex shrink-0 items-center gap-0.5 border-l border-[#dadce0] pl-2 max-[640px]:ml-0 max-[640px]:w-full max-[640px]:justify-end max-[640px]:border-l-0 max-[640px]:border-t max-[640px]:pt-1 max-[640px]:pl-0">
         <span
           className="flex size-7 items-center justify-center rounded-md border border-[#dadce0] bg-white text-[#5f6368] [&_svg]:size-3.5"
           title={versionLabel}
@@ -842,11 +859,12 @@ export function EditorToolbar({
             onMouseDown={(event) => event.preventDefault()}
             onClick={onInsertImage}
             title="Insertar imagen"
+            aria-label="Insertar imagen"
           >
             {isUploadingImage ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Loader2 className="size-4 animate-spin" />
             ) : (
-              <ImagePlus className="h-4 w-4" />
+              <ImagePlus className="size-4" />
             )}
           </Button>
         )}
@@ -856,9 +874,30 @@ export function EditorToolbar({
             onClick={onAnalyzeChanges}
           />
         )}
+        {onToggleZenMode && (
+          <Button
+            type="button"
+            size="icon-sm"
+            variant={isZenMode ? "secondary" : "ghost"}
+            className={toolbarButtonClass}
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={onToggleZenMode}
+            title={isZenMode ? "Salir del modo Zen" : "Entrar en modo Zen"}
+            aria-label={isZenMode ? "Salir del modo Zen" : "Entrar en modo Zen"}
+            aria-pressed={isZenMode}
+          >
+            <Eye className="size-4" />
+          </Button>
+        )}
         <SaveStatusIndicator paneId={paneId} className="pr-1" />
       </div>
       </div>
+      <ParagraphFormatDialog
+        editor={editor}
+        attributes={paragraphAttributes}
+        open={paragraphDialogOpen}
+        onOpenChange={onParagraphDialogOpenChange}
+      />
     </div>
   )
 
