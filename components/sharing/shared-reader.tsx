@@ -1,7 +1,6 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { useRouter } from "next/navigation"
 import {
   BookOpen,
   CheckCircle2,
@@ -44,8 +43,12 @@ type SharedReaderProps = {
 }
 
 export function SharedReader({ slug, initialToken }: SharedReaderProps) {
-  const router = useRouter()
-  const { user, loading: authLoading } = useAuth()
+  const {
+    firebaseUser,
+    loading: authLoading,
+    loginWithGoogle,
+    logout,
+  } = useAuth()
   const [view, setView] = useState<SharedManuscriptView | null>(null)
   const [comments, setComments] = useState<ReaderComment[]>([])
   const [activeChapterId, setActiveChapterId] = useState<string | null>(null)
@@ -55,25 +58,23 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
   const [submittingComment, setSubmittingComment] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [signingIn, setSigningIn] = useState(false)
+  const [loadedUserId, setLoadedUserId] = useState<string | null>(null)
 
   useEffect(() => {
     if (authLoading) return
-    if (!user) {
-      const current = `/shared/${slug}${initialToken ? `?token=${encodeURIComponent(initialToken)}` : ""}`
-      router.replace(`/login?redirect=${encodeURIComponent(current)}`)
-      return
-    }
+    if (!firebaseUser) return
 
     let cancelled = false
     void (async () => {
       try {
         const loadedView = initialToken
           ? await acceptShareInvitation(slug, initialToken)
-          : await getSharedManuscript(slug)
+          : await getSharedManuscript(slug, initialToken)
         const [resolvedView, loadedComments] = await Promise.all([
-          resolveSnapshotImages(loadedView, slug),
+          resolveSnapshotImages(loadedView, slug, initialToken),
           loadedView.viewer.canComment
-            ? getReaderComments(slug)
+            ? getReaderComments(slug, initialToken)
             : Promise.resolve([]),
         ])
         if (cancelled) return
@@ -83,7 +84,6 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
           resolvedView.manuscript.books[0]?.chapters[0]?.id ?? null,
         )
         setError(null)
-        if (initialToken) router.replace(`/shared/${slug}`)
       } catch (loadError) {
         if (!cancelled) {
           setError(
@@ -93,13 +93,37 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
           )
         }
       } finally {
-        if (!cancelled) setLoading(false)
+        if (!cancelled) {
+          setLoadedUserId(firebaseUser.uid)
+          setLoading(false)
+        }
       }
     })()
     return () => {
       cancelled = true
     }
-  }, [authLoading, initialToken, router, slug, user])
+  }, [authLoading, firebaseUser, initialToken, slug])
+
+  const handleGoogleSignIn = async () => {
+    setSigningIn(true)
+    setLoading(true)
+    setLoadedUserId(null)
+    setView(null)
+    setComments([])
+    setError(null)
+    try {
+      if (firebaseUser) {
+        await logout()
+      }
+      await loginWithGoogle()
+    } catch (signInError) {
+      setLoading(false)
+      setLoadedUserId(null)
+      setError(getGoogleSignInErrorMessage(signInError))
+    } finally {
+      setSigningIn(false)
+    }
+  }
 
   const chapters = useMemo(
     () =>
@@ -145,10 +169,14 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
     if (!selection || !commentBody.trim()) return
     setSubmittingComment(true)
     try {
-      const created = await createReaderComment(slug, {
-        ...selection,
-        body: commentBody.trim(),
-      })
+      const created = await createReaderComment(
+        slug,
+        initialToken,
+        {
+          ...selection,
+          body: commentBody.trim(),
+        },
+      )
       setComments((current) => [...current, created])
       setSelection(null)
       setCommentBody("")
@@ -175,11 +203,42 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
     )
   }
 
-  if (authLoading || loading) {
+  if (
+    authLoading ||
+    (firebaseUser && (loading || loadedUserId !== firebaseUser.uid))
+  ) {
     return (
       <div className="flex min-h-screen items-center justify-center gap-3 bg-[#f4f0e8] text-muted-foreground">
         <Spinner className="size-5" /> Abriendo versión compartida…
       </div>
+    )
+  }
+
+  if (!firebaseUser) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#f4f0e8] p-6">
+        <div className="max-w-md rounded-2xl bg-card p-8 text-center shadow-xl">
+          <BookOpen className="mx-auto mb-4 size-10 text-primary" />
+          <h1 className="text-xl font-semibold">Verificá tu invitación</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Ingresá con la cuenta de Google que recibió este enlace. No se
+            creará una cuenta de PlumIA.
+          </p>
+          {error && (
+            <p className="mt-4 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              {error}
+            </p>
+          )}
+          <Button
+            className="mt-5 w-full"
+            disabled={signingIn}
+            onClick={() => void handleGoogleSignIn()}
+          >
+            {signingIn ? <Spinner className="size-4" /> : <LogIn />}
+            Continuar con Google
+          </Button>
+        </div>
+      </main>
     )
   }
 
@@ -192,11 +251,23 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
           <p className="mt-2 text-sm text-muted-foreground">
             {error ?? "La invitación no está disponible."}
           </p>
-          {!user && (
-            <Button className="mt-5" onClick={() => router.push("/login")}>
-              <LogIn /> Iniciar sesión
-            </Button>
+          {!initialToken && (
+            <p className="mt-4 text-xs text-muted-foreground">
+              Abrí el enlace completo que recibiste por correo.
+            </p>
           )}
+          <p className="mt-4 text-xs text-muted-foreground">
+            Sesión actual: {firebaseUser.email}
+          </p>
+          <Button
+            className="mt-4"
+            variant="outline"
+            disabled={signingIn}
+            onClick={() => void handleGoogleSignIn()}
+          >
+            {signingIn ? <Spinner className="size-4" /> : <LogIn />}
+            Usar otra cuenta de Google
+          </Button>
         </div>
       </main>
     )
@@ -422,15 +493,39 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
   )
 }
 
+function getGoogleSignInErrorMessage(error: unknown): string | null {
+  const code =
+    typeof error === "object" && error !== null && "code" in error
+      ? String(error.code)
+      : null
+
+  switch (code) {
+    case "auth/popup-closed-by-user":
+    case "auth/cancelled-popup-request":
+      return null
+    case "auth/popup-blocked":
+      return "El navegador bloqueó la ventana de Google. Habilitá los popups e intentá nuevamente."
+    case "auth/unauthorized-domain":
+      return "Este dominio todavía no está autorizado para iniciar sesión con Google."
+    case "auth/operation-not-allowed":
+      return "El acceso con Google todavía no está habilitado en Firebase."
+    case "auth/network-request-failed":
+      return "No pudimos contactar a Google. Revisá tu conexión e intentá nuevamente."
+    default:
+      return "No se pudo iniciar sesión con Google. Intentá nuevamente."
+  }
+}
+
 async function resolveSnapshotImages(
   view: SharedManuscriptView,
   slug: string,
+  token?: string,
 ): Promise<SharedManuscriptView> {
   const cache = new Map<string, Promise<string>>()
   const resolveKey = (key: string) => {
     const cached = cache.get(key)
     if (cached) return cached
-    const pending = getSharedStorageUrl(slug, key)
+    const pending = getSharedStorageUrl(slug, key, token)
     cache.set(key, pending)
     return pending
   }

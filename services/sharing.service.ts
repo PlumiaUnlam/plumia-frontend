@@ -1,3 +1,4 @@
+import { auth } from "@/lib/firebase"
 import { api } from "@/services/api.service"
 import type {
   CreatedShare,
@@ -8,6 +9,38 @@ import type {
   SharedManuscriptView,
   TextSelectionAnchor,
 } from "@/types/sharing"
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000"
+
+async function sharedRequest<T>(
+  path: string,
+  shareToken: string | undefined,
+  options: RequestInit = {},
+): Promise<T> {
+  await auth.authStateReady()
+  const firebaseToken = await auth.currentUser?.getIdToken()
+  const headers: Record<string, string> = {
+    Accept: "application/json",
+    "Content-Type": "application/json",
+    ...(firebaseToken ? { Authorization: `Bearer ${firebaseToken}` } : {}),
+    ...(shareToken ? { "X-Share-Token": shareToken } : {}),
+  }
+  const response = await fetch(`${API_URL}${path}`, {
+    ...options,
+    headers,
+  })
+
+  if (!response.ok) {
+    let errorText = await response.text()
+    try {
+      const parsed = JSON.parse(errorText) as { message?: string }
+      if (parsed.message) errorText = parsed.message
+    } catch {}
+    throw new Error(errorText)
+  }
+
+  return (await response.json()) as T
+}
 
 export function createFrozenShare(
   bookId: string,
@@ -43,24 +76,35 @@ export function acceptShareInvitation(
   slug: string,
   token: string,
 ): Promise<SharedManuscriptView> {
-  return api.post(`/reading/invitations/${slug}/accept`, { token })
+  return sharedRequest(`/reading/invitations/${slug}/accept`, token, {
+    method: "POST",
+    body: JSON.stringify({ token }),
+  })
 }
 
 export function getSharedManuscript(
   slug: string,
+  token?: string,
 ): Promise<SharedManuscriptView> {
-  return api.get(`/reading/invitations/${slug}`)
+  return sharedRequest(`/reading/invitations/${slug}`, token)
 }
 
-export function getReaderComments(slug: string): Promise<ReaderComment[]> {
-  return api.get(`/reading/invitations/${slug}/comments`)
+export function getReaderComments(
+  slug: string,
+  token?: string,
+): Promise<ReaderComment[]> {
+  return sharedRequest(`/reading/invitations/${slug}/comments`, token)
 }
 
 export function createReaderComment(
   slug: string,
+  token: string | undefined,
   input: TextSelectionAnchor & { body: string },
 ): Promise<ReaderComment> {
-  return api.post(`/reading/invitations/${slug}/comments`, input)
+  return sharedRequest(`/reading/invitations/${slug}/comments`, token, {
+    method: "POST",
+    body: JSON.stringify(input),
+  })
 }
 
 export function updateReaderComment(
@@ -76,10 +120,12 @@ export function updateReaderComment(
 export async function getSharedStorageUrl(
   slug: string,
   storageKey: string,
+  token?: string,
 ): Promise<string> {
-  const result = await api.post<{ url: string }>(
+  const result = await sharedRequest<{ url: string }>(
     `/reading/invitations/${slug}/storage-url`,
-    { storageKey },
+    token,
+    { method: "POST", body: JSON.stringify({ storageKey }) },
   )
   return result.url
 }

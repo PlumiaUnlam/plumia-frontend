@@ -11,11 +11,14 @@ import {
 } from "react"
 import {
   createUserWithEmailAndPassword,
+  GoogleAuthProvider,
   onIdTokenChanged,
   signInWithEmailAndPassword,
+  signInWithPopup,
   signOut,
   type User as FirebaseUser,
 } from "firebase/auth"
+import { usePathname } from "next/navigation"
 import { auth } from "@/lib/firebase"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000"
@@ -38,12 +41,15 @@ interface AuthContextType {
   user: BackendUser | null
   loading: boolean
   login: (email: string, password: string) => Promise<void>
+  loginWithGoogle: () => Promise<void>
   register: (email: string, password: string) => Promise<void>
   logout: () => Promise<void>
   getIdToken: () => Promise<string | null>
 }
 
 const AuthContext = createContext<AuthContextType | null>(null)
+const googleProvider = new GoogleAuthProvider()
+googleProvider.setCustomParameters({ prompt: "select_account" })
 
 class BackendSyncError extends Error {
   constructor(
@@ -75,6 +81,8 @@ async function requestBackendUser(idToken: string): Promise<BackendUser> {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const pathname = usePathname()
+  const isSharedReader = pathname.startsWith("/shared/")
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null)
   const [user, setUser] = useState<BackendUser | null>(null)
   const [loading, setLoading] = useState(true)
@@ -114,7 +122,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       try {
         if (fbUser) {
-          await syncBackendUser(fbUser)
+          if (isSharedReader) {
+            setUser(null)
+          } else {
+            await syncBackendUser(fbUser)
+          }
         } else {
           document.cookie = "__session=; path=/; max-age=0"
           setUser(null)
@@ -129,11 +141,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })
 
     return unsubscribe
-  }, [syncBackendUser])
+  }, [isSharedReader, syncBackendUser])
 
   const login = async (email: string, password: string) => {
     const credential = await signInWithEmailAndPassword(auth, email, password)
     await syncBackendUser(credential.user)
+  }
+
+  const loginWithGoogle = async () => {
+    await signInWithPopup(auth, googleProvider)
   }
 
   const register = async (email: string, password: string) => {
@@ -160,7 +176,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ firebaseUser, user, loading, login, register, logout, getIdToken }}
+      value={{
+        firebaseUser,
+        user,
+        loading,
+        login,
+        loginWithGoogle,
+        register,
+        logout,
+        getIdToken,
+      }}
     >
       {children}
     </AuthContext.Provider>

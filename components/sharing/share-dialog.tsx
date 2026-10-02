@@ -228,8 +228,8 @@ export function ShareDialog({
           <section className="space-y-2 rounded-xl border border-primary/20 bg-primary/5 p-3">
             <p className="text-sm font-semibold">Enlace creado</p>
             <p className="text-xs text-muted-foreground">
-              Solo podrá aceptarlo una cuenta con el email indicado. Copialo y
-              envialo por el medio que prefieras.
+              La persona deberá ingresar con la cuenta de Google del correo
+              invitado. No necesita crear una cuenta de PlumIA.
             </p>
             <div className="flex gap-2">
               <Input value={createdLink} readOnly className="text-xs" />
