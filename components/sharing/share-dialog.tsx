@@ -1,8 +1,18 @@
 "use client"
 
 import { useCallback, useEffect, useState, type FormEvent } from "react"
-import { Check, Copy, ExternalLink, Link2, Trash2 } from "lucide-react"
+import {
+  AlertCircle,
+  Check,
+  Copy,
+  ExternalLink,
+  Link2,
+  Mail,
+  Trash2,
+} from "lucide-react"
 
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -13,6 +23,27 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty"
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@/components/ui/input-group"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Spinner } from "@/components/ui/spinner"
 import { isEmail } from "@/helpers/validation"
 import {
@@ -65,7 +96,8 @@ export function ShareDialog({
     }
     setLoading(true)
     try {
-      setShares(await getBookShares(bookId))
+      const bookShares = await getBookShares(bookId)
+      setShares(bookShares.filter((share) => share.status !== "REVOKED"))
       setError(null)
     } catch (loadError) {
       setError(
@@ -138,11 +170,7 @@ export function ShareDialog({
     if (!bookId) return
     try {
       await revokeBookShare(bookId, shareId)
-      setShares((current) =>
-        current.map((share) =>
-          share.id === shareId ? { ...share, status: "REVOKED" } : share,
-        ),
-      )
+      setShares((current) => current.filter((share) => share.id !== shareId))
     } catch (revokeError) {
       setError(
         revokeError instanceof Error
@@ -154,7 +182,7 @@ export function ShareDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-xl">
+      <DialogContent className="flex max-h-[85vh] flex-col overflow-hidden sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>Compartir un libro</DialogTitle>
           <DialogDescription>
@@ -164,54 +192,74 @@ export function ShareDialog({
         </DialogHeader>
 
         <form className="space-y-4" onSubmit={handleSubmit}>
-          <label className="space-y-1.5 text-sm font-medium">
-            Libro
-            <select
-              value={bookId}
-              onChange={(event) => {
-                setSelectedBookId(event.target.value)
-                setCreatedLink(null)
-              }}
-              className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-            >
-              {books.length === 0 && <option value="">No hay libros</option>}
-              {books.map((book) => (
-                <option key={book.id} value={book.id}>
-                  {book.title}
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className="grid gap-3 sm:grid-cols-[1fr_180px]">
-            <label className="space-y-1.5 text-sm font-medium">
-              Email de la persona
-              <Input
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                placeholder="lectora@ejemplo.com"
-                autoComplete="email"
-              />
-            </label>
-            <label className="space-y-1.5 text-sm font-medium">
-              Permiso
-              <select
-                value={permission}
-                onChange={(event) =>
-                  setPermission(event.target.value as SharePermission)
-                }
-                className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+          <FieldGroup className="gap-4">
+            <Field>
+              <FieldLabel htmlFor="share-book">Libro</FieldLabel>
+              <Select
+                value={bookId || undefined}
+                disabled={books.length === 0}
+                onValueChange={(value) => {
+                  setSelectedBookId(value)
+                  setCreatedLink(null)
+                }}
               >
-                <option value="READ_ONLY">Solo lectura</option>
-                <option value="COMMENT">Lectura y comentarios</option>
-              </select>
-            </label>
-          </div>
+                <SelectTrigger id="share-book" className="h-10 w-full">
+                  <SelectValue
+                    placeholder={
+                      books.length === 0 ? "No hay libros" : "Seleccioná un libro"
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent align="start">
+                  {books.map((book) => (
+                    <SelectItem key={book.id} value={book.id}>
+                      {book.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+
+            <div className="grid gap-3 sm:grid-cols-[1fr_180px]">
+              <Field>
+                <FieldLabel htmlFor="share-email">Email de la persona</FieldLabel>
+                <Input
+                  id="share-email"
+                  type="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  placeholder="lectora@ejemplo.com"
+                  autoComplete="email"
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="share-permission">Permiso</FieldLabel>
+                <Select
+                  value={permission}
+                  onValueChange={(value) =>
+                    setPermission(value as SharePermission)
+                  }
+                >
+                  <SelectTrigger id="share-permission" className="h-10 w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent align="start">
+                    <SelectItem value="READ_ONLY">Solo lectura</SelectItem>
+                    <SelectItem value="COMMENT">
+                      Lectura y comentarios
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </Field>
+            </div>
+          </FieldGroup>
 
           {error && (
-            <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
-              {error}
-            </p>
+            <Alert variant="destructive">
+              <AlertCircle />
+              <AlertTitle>No pudimos completar la acción</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
           )}
 
           <Button
@@ -225,100 +273,123 @@ export function ShareDialog({
         </form>
 
         {createdLink && (
-          <section className="space-y-2 rounded-xl border border-primary/20 bg-primary/5 p-3">
+          <section className="space-y-3 rounded-xl border border-primary/20 bg-primary/5 p-4">
             <p className="text-sm font-semibold">Enlace creado</p>
             <p className="text-xs text-muted-foreground">
               La persona deberá ingresar con la cuenta de Google del correo
               invitado. No necesita crear una cuenta de PlumIA.
             </p>
-            <div className="flex gap-2">
-              <Input value={createdLink} readOnly className="text-xs" />
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                onClick={() => void copyCreatedLink()}
-                aria-label="Copiar enlace"
-              >
-                {copied ? <Check /> : <Copy />}
-              </Button>
-              <Button type="button" variant="outline" size="icon" asChild>
-                <a
-                  href={createdLink}
-                  target="_blank"
-                  rel="noreferrer"
-                  aria-label="Abrir versión compartida"
+            <InputGroup className="h-10 bg-background">
+              <InputGroupInput
+                value={createdLink}
+                readOnly
+                className="text-xs"
+                aria-label="Enlace compartido"
+              />
+              <InputGroupAddon align="inline-end" className="gap-0.5 pr-1">
+                <InputGroupButton
+                  size="icon-sm"
+                  onClick={() => void copyCreatedLink()}
+                  aria-label="Copiar enlace"
                 >
-                  <ExternalLink />
-                </a>
-              </Button>
-            </div>
+                  {copied ? <Check /> : <Copy />}
+                </InputGroupButton>
+                <InputGroupButton size="icon-sm" asChild>
+                  <a
+                    href={createdLink}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label="Abrir versión compartida"
+                  >
+                    <ExternalLink />
+                  </a>
+                </InputGroupButton>
+              </InputGroupAddon>
+            </InputGroup>
           </section>
         )}
 
-        <section className="space-y-2 border-t pt-4">
+        <section className="flex min-h-0 flex-1 flex-col gap-2 border-t pt-4">
           <h3 className="text-sm font-semibold">Invitaciones</h3>
-          {loading ? (
-            <div className="flex justify-center py-4">
-              <Spinner className="size-5" />
-            </div>
-          ) : shares.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              Todavía no compartiste ninguna versión.
-            </p>
-          ) : (
-            <div className="space-y-2">
-              {shares.map((share) => (
-                <div
-                  key={share.id}
-                  className="flex items-center gap-3 rounded-lg border p-3"
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">
-                      {share.invitedEmail}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {permissionLabels[share.permission]} ·{" "}
-                      {share.status === "PENDING"
-                        ? "Pendiente"
-                        : share.status === "ACCEPTED"
-                          ? "Aceptada"
-                          : "Revocada"} · Versión del{" "}
-                      {new Date(share.frozenAt).toLocaleString("es-UY")}
-                    </p>
-                  </div>
-                  <Button type="button" variant="ghost" size="icon-sm" asChild>
-                    <a
-                      href={`/shared/${share.slug}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      aria-label={`${share.status === "REVOKED" ? "Ver historial" : "Abrir versión"} compartida con ${share.invitedEmail}`}
-                    >
-                      <ExternalLink />
-                    </a>
-                  </Button>
-                  {share.status !== "REVOKED" && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      onClick={() => void revoke(share.id)}
-                      aria-label={`Revocar invitación de ${share.invitedEmail}`}
-                    >
-                      <Trash2 />
+          <div className="min-h-0 overflow-y-auto pr-1">
+            {loading ? (
+              <div className="flex justify-center py-4">
+                <Spinner className="size-5" />
+              </div>
+            ) : shares.length === 0 ? (
+              <Empty className="min-h-32 border bg-muted/30 p-4">
+                <EmptyHeader>
+                  <EmptyMedia variant="icon">
+                    <Mail />
+                  </EmptyMedia>
+                  <EmptyTitle>Sin invitaciones</EmptyTitle>
+                  <EmptyDescription>
+                    Todavía no compartiste ninguna versión de este libro.
+                  </EmptyDescription>
+                </EmptyHeader>
+              </Empty>
+            ) : (
+              <div className="space-y-2">
+                {shares.map((share) => (
+                  <div
+                    key={share.id}
+                    className="flex items-center gap-3 rounded-lg border p-3"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">
+                        {share.invitedEmail}
+                      </p>
+                      <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                        <span className="text-xs text-muted-foreground">
+                          {permissionLabels[share.permission]}
+                        </span>
+                        <Badge
+                          variant={
+                            share.status === "ACCEPTED"
+                              ? "secondary"
+                              : "default"
+                          }
+                        >
+                          {share.status === "PENDING"
+                            ? "Pendiente"
+                            : share.status === "ACCEPTED"
+                              ? "Aceptada"
+                              : "Revocada"}
+                        </Badge>
+                      </div>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Versión del {new Date(share.frozenAt).toLocaleString("es-UY")}
+                      </p>
+                    </div>
+                    <Button type="button" variant="ghost" size="icon-sm" asChild>
+                      <a
+                        href={`/shared/${share.slug}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        aria-label={`${share.status === "REVOKED" ? "Ver historial" : "Abrir versión"} compartida con ${share.invitedEmail}`}
+                      >
+                        <ExternalLink />
+                      </a>
                     </Button>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
+                    {share.status !== "REVOKED" && (
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon-sm"
+                        onClick={() => void revoke(share.id)}
+                        aria-label={`Revocar invitación de ${share.invitedEmail}`}
+                      >
+                        <Trash2 />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </section>
 
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
-            Cerrar
-          </Button>
-        </DialogFooter>
+        <DialogFooter showCloseButton />
       </DialogContent>
     </Dialog>
   )

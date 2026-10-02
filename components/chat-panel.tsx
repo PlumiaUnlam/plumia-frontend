@@ -47,6 +47,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
   createChatThread,
   deleteChatThread,
   getChatMessages,
@@ -435,10 +442,16 @@ export function ChatPanel({
         className={`flex min-h-0 flex-col bg-card ${
           isFullscreen
             ? "h-full max-h-[calc(100vh-1rem)] w-full max-w-5xl flex-none overflow-hidden rounded-2xl border border-border shadow-2xl sm:max-h-[calc(100vh-3rem)] sm:rounded-3xl"
-            : "flex-1"
+            : "h-full flex-1"
         }`}
       >
-        <div className="relative shrink-0 border-b border-border px-3 py-3">
+        <div
+          className={`relative shrink-0 border-b border-border ${
+            isFullscreen
+              ? "px-4 py-3"
+              : "flex h-16 flex-col justify-center px-3 py-2"
+          }`}
+        >
           <div className="flex items-center gap-1.5">
             <div className="flex min-w-0 flex-1 items-center gap-2 text-[11px] font-medium text-primary">
               <Sparkles className="size-3.5 shrink-0" />
@@ -515,8 +528,12 @@ export function ChatPanel({
           )}
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4 sm:px-6 sm:py-6">
-          <div className="mx-auto w-full max-w-3xl">
+        <div
+          className={`flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain ${
+            isFullscreen ? "px-3 py-4 sm:px-6 sm:py-6" : "p-3"
+          }`}
+        >
+          <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col justify-end">
             <ChatMessages
               isLoading={isLoading}
               messages={messages}
@@ -532,6 +549,7 @@ export function ChatPanel({
         </div>
 
         <ChatComposer
+          isFullscreen={isFullscreen}
           draft={draft}
           isSending={isSending}
           isVoiceBusy={isVoiceBusy}
@@ -614,6 +632,7 @@ function ChatMessages({
 }
 
 function ChatComposer({
+  isFullscreen,
   draft,
   isSending,
   isVoiceBusy,
@@ -637,6 +656,7 @@ function ChatComposer({
   onSelectAudioInput,
   onCloseVoiceSettings,
 }: {
+  readonly isFullscreen: boolean
   readonly draft: string
   readonly isSending: boolean
   readonly isVoiceBusy: boolean
@@ -666,7 +686,9 @@ function ChatComposer({
   return (
     <form
       onSubmit={onSubmit}
-      className="shrink-0 border-t border-border bg-card px-3 py-3 sm:px-6 sm:py-4"
+      className={`shrink-0 border-t border-border bg-card ${
+        isFullscreen ? "px-3 py-3 sm:px-6 sm:py-4" : "p-3"
+      }`}
     >
       <div className="mx-auto w-full max-w-3xl">
         {displayError && (
@@ -1344,25 +1366,31 @@ function VoiceSettingsModal({
           <X className="size-3" />
         </Button>
       </div>
-      <label className="mt-3 block text-[9px] font-medium text-muted-foreground">
-        <span className="block">Entrada de audio</span>
-        <select
-          value={selectedAudioInputId}
-          onChange={(event) => onSelectAudioInput(event.target.value)}
+      <div className="mt-3 text-[9px] font-medium text-muted-foreground">
+        <label htmlFor="chat-audio-input" className="block">
+          Entrada de audio
+        </label>
+        <Select
+          value={selectedAudioInputId || undefined}
+          onValueChange={onSelectAudioInput}
           disabled={audioInputDevices.length === 0}
-          className="mt-1 h-8 w-full rounded-lg border border-border bg-card px-2 text-[10px] text-foreground outline-none focus:border-primary/40"
         >
-          {audioInputDevices.length === 0 ? (
-            <option value="">Micrófono predeterminado</option>
-          ) : (
-            audioInputDevices.map((device) => (
-              <option key={device.deviceId} value={device.deviceId}>
-                {device.label}
-              </option>
-            ))
-          )}
-        </select>
-      </label>
+          <SelectTrigger
+            id="chat-audio-input"
+            size="sm"
+            className="mt-1 w-full bg-card text-[10px] text-foreground"
+          >
+            <SelectValue placeholder="Micrófono predeterminado" />
+          </SelectTrigger>
+          <SelectContent align="start">
+            {audioInputDevices.map((device, index) => (
+              <SelectItem key={device.deviceId} value={device.deviceId}>
+                {device.label || `Micrófono ${index + 1}`}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
       <div className="mt-3">
         <div className="mb-1 flex justify-between text-[9px] text-muted-foreground">
           <span>Nivel detectado</span>

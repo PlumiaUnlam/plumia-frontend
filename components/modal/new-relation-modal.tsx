@@ -18,6 +18,13 @@ import {
   FieldLegend,
   FieldSet,
 } from "@/components/ui/field";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
 import {
@@ -51,6 +58,8 @@ type NewRelationModalProps = {
     description: string | null;
   };
 };
+
+const UNASSIGNED_ENTITY_VALUE = "__unassigned__";
 
 function getRelationModalTitle(isProposal: boolean, isEditing: boolean) {
   if (isProposal) return "Revisar propuesta de relación";
@@ -304,23 +313,30 @@ function EntitySelect({
     <Field>
       <FieldLabel htmlFor={id}>{label}</FieldLabel>
       <FieldContent>
-        <select
-          id={id}
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          className="h-10 w-full min-w-0 rounded-lg border border-border bg-background px-3.5 py-2 text-sm text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+        <Select
+          value={value || UNASSIGNED_ENTITY_VALUE}
+          onValueChange={(nextValue) =>
+            onChange(nextValue === UNASSIGNED_ENTITY_VALUE ? "" : nextValue)
+          }
         >
-          <option value="">
-            {pendingLabel ? `${pendingLabel} (pendiente)` : "Seleccionar entidad..."}
-          </option>
-          {entities
-            .filter((entity) => entity.id !== excludeId)
-            .map((entity) => (
-              <option key={entity.id} value={entity.id}>
-                {entity.canonicalName}
-              </option>
-            ))}
-        </select>
+          <SelectTrigger id={id} className="w-full min-w-0">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent align="start">
+            <SelectItem value={UNASSIGNED_ENTITY_VALUE}>
+              {pendingLabel
+                ? `${pendingLabel} (pendiente)`
+                : "Seleccionar entidad..."}
+            </SelectItem>
+            {entities
+              .filter((entity) => entity.id !== excludeId)
+              .map((entity) => (
+                <SelectItem key={entity.id} value={entity.id}>
+                  {entity.canonicalName}
+                </SelectItem>
+              ))}
+          </SelectContent>
+        </Select>
       </FieldContent>
     </Field>
   );

@@ -21,6 +21,15 @@ import {
 import { requestKnowledgeRefresh } from "@/hooks/use-knowledge-refresh"
 import { requireSuccessfulSave } from "@/lib/editor-save-protection"
 import { registerEditorSaveShortcut } from "@/lib/editor-save-shortcut"
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { EditorMenuBar } from "./editor-menu-bar"
 import { EditorToolbar } from "./toolbar"
 import { RichTextEditor } from "./RichTextEditor"
@@ -355,27 +364,36 @@ function SceneSelector({
       >
         {label}
       </label>
-      <select
-        id={`editor-section-${label.replaceAll(" ", "-").toLowerCase()}`}
-        aria-label={`Seleccionar ${label.toLowerCase()}`}
+      <Select
         value={value}
         disabled={disabled}
-        onChange={(event) => onChange(event.target.value)}
-        className="min-w-0 flex-1 rounded-md border border-input bg-background px-2 py-1.5 text-xs text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        onValueChange={onChange}
       >
-        {groups.map((group) => (
-          <optgroup
-            key={`${group.bookTitle}\u0000${group.chapterTitle}`}
-            label={`${group.bookTitle} · ${group.chapterTitle}`}
-          >
-            {group.sections.map((section) => (
-              <option key={section.id} value={section.id}>
-                {section.title}
-              </option>
-            ))}
-          </optgroup>
-        ))}
-      </select>
+        <SelectTrigger
+          id={`editor-section-${label.replaceAll(" ", "-").toLowerCase()}`}
+          aria-label={`Seleccionar ${label.toLowerCase()}`}
+          size="sm"
+          className="min-w-0 flex-1 text-xs"
+        >
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent align="start">
+          {groups.map((group) => (
+            <SelectGroup
+              key={`${group.bookTitle}\u0000${group.chapterTitle}`}
+            >
+              <SelectLabel>
+                {group.bookTitle} · {group.chapterTitle}
+              </SelectLabel>
+              {group.sections.map((section) => (
+                <SelectItem key={section.id} value={section.id}>
+                  {section.title}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   )
 }
@@ -470,6 +488,7 @@ function EditorWorkspace({
   )
   const [focusedPane, setFocusedPane] = useState<EditorPaneId>("primary")
   const [paragraphDialogOpen, setParagraphDialogOpen] = useState(false)
+  const [toolbarExpanded, setToolbarExpanded] = useState(false)
   const [primaryActions, setPrimaryActions] =
     useState<EditorToolbarActions | null>(null)
   const [secondaryActions, setSecondaryActions] =
@@ -663,12 +682,16 @@ function EditorWorkspace({
           isSplit={effectiveIsSplit}
           canSplit={canSplit}
           isZenMode={isZenMode}
+          toolbarExpanded={toolbarExpanded}
+          onToggleToolbar={() => setToolbarExpanded((expanded) => !expanded)}
           onInsertDivider={(variant) =>
             focusedActions.editor.chain().focus().setSceneDivider(variant).run()
           }
         />
       )}
-      {effectiveIsSplit && focusedActions && (
+      {effectiveIsSplit &&
+        focusedActions &&
+        (isZenMode || toolbarExpanded) && (
         <EditorToolbar
           editor={focusedActions.editor}
           onInsertImage={focusedActions.onInsertImage}
@@ -692,7 +715,7 @@ function EditorWorkspace({
               : undefined
           }
         />
-      )}
+        )}
 
       <div
         className={

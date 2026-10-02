@@ -6,6 +6,7 @@ import {
   Columns2,
   Download,
   Maximize2,
+  Minimize2,
   Highlighter,
   ImagePlus,
   Italic,
@@ -77,6 +78,8 @@ type EditorMenuBarProps = {
   onToggleSplit?: () => void
   isSplit?: boolean
   canSplit?: boolean
+  toolbarExpanded: boolean
+  onToggleToolbar: () => void
 }
 
 export function EditorMenuBar({
@@ -96,6 +99,8 @@ export function EditorMenuBar({
   onToggleSplit,
   isSplit = false,
   canSplit = true,
+  toolbarExpanded,
+  onToggleToolbar,
 }: Readonly<EditorMenuBarProps>) {
   const formatPainterActive = useFormatPainterState(editor)
   const editorState = useEditorState({
@@ -160,7 +165,7 @@ export function EditorMenuBar({
   return (
     <Menubar
       aria-label="Menús del editor"
-      className="editor-menu-bar mx-2 mt-1 flex h-auto min-h-10 min-w-0 flex-wrap items-center gap-0.5 rounded-t-lg border border-b-0 border-[#dadce0] bg-[#f8fafd] px-1 py-1 text-[#3c4043]"
+      className={`editor-menu-bar mx-2 mt-1 flex h-auto min-h-10 min-w-0 flex-wrap items-center gap-0.5 border border-[#dadce0] bg-[#f8fafd] px-1 py-1 text-[#3c4043] ${toolbarExpanded ? "rounded-t-lg border-b-0" : "mb-1 rounded-lg"}`}
     >
       {menu(
         "Archivo",
@@ -370,6 +375,27 @@ export function EditorMenuBar({
           )}
         </>,
       )}
+
+      <Button
+        type="button"
+        size="icon-sm"
+        variant="ghost"
+        className="ml-auto size-8 shrink-0 rounded-md text-[#3c4043] hover:bg-[#eee3f5] hover:text-[#70348c] focus-visible:ring-2 focus-visible:ring-[#b98ad2]"
+        aria-expanded={toolbarExpanded}
+        aria-controls="editor-formatting-toolbar"
+        aria-label={
+          toolbarExpanded ? "Ocultar herramientas" : "Mostrar herramientas"
+        }
+        title={toolbarExpanded ? "Ocultar herramientas" : "Mostrar herramientas"}
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={onToggleToolbar}
+      >
+        {toolbarExpanded ? (
+          <Minimize2 className="size-4" />
+        ) : (
+          <Maximize2 className="size-4" />
+        )}
+      </Button>
     </Menubar>
   )
 }

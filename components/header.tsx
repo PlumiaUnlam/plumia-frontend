@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useRouter, usePathname } from 'next/navigation'
 import { Button } from "@/components/ui/button";
+import { UserMenu } from "@/components/user-menu";
 import {
   Tooltip,
   TooltipContent,
@@ -41,7 +42,11 @@ export function Header({ mode, onModeChange, onShareClick, onExportClick }: Head
     segments[1] === "projects" && segments[3] === "statistics";
 
   return (
-    <header className="relative z-10 flex h-12 shrink-0 items-center gap-3 bg-primary px-4 text-primary-foreground">
+    <header
+      className={`flex h-12 shrink-0 items-center gap-3 bg-primary px-4 text-primary-foreground ${
+        isStatisticsPage ? "sticky top-0 z-40" : "relative z-10"
+      }`}
+    >
       <div className="mr-1 flex items-center gap-2.5">
         <Image
           src="/dark-logo.png"
@@ -123,6 +128,7 @@ export function Header({ mode, onModeChange, onShareClick, onExportClick }: Head
             </Tooltip>
           </TooltipProvider>
         )}
+        <UserMenu inverted />
       </div>
     </header>
   )

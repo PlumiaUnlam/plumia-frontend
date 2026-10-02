@@ -119,6 +119,7 @@ export function RichTextEditor({
   const [isAnnotationsOpen, setIsAnnotationsOpen] = useState(false)
   const [isAnnotationComposerOpen, setIsAnnotationComposerOpen] = useState(false)
   const [annotationDraftAnchor, setAnnotationDraftAnchor] = useState<Omit<CreateAuthorAnnotationInput, "body"> | null>(null)
+  const [toolbarExpanded, setToolbarExpanded] = useState(false)
   const {
     error,
     isUploading,
@@ -440,12 +441,14 @@ export function RichTextEditor({
           onToggleSplit={onToggleSplit}
           isSplit={isSplit}
           canSplit={canSplit}
+          toolbarExpanded={toolbarExpanded}
+          onToggleToolbar={() => setToolbarExpanded((expanded) => !expanded)}
           onInsertDivider={(variant) =>
             editor.chain().focus().setSceneDivider(variant).run()
           }
         />
       )}
-      {showToolbar && (
+      {showToolbar && (isZenMode || toolbarExpanded) && (
         <EditorToolbar
           editor={editor}
           onInsertImage={openImagePicker}
@@ -472,7 +475,7 @@ export function RichTextEditor({
 
       <div className="flex min-h-0 flex-1">
         <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">
-          <div className="mx-auto max-w-3xl px-6 py-10">
+          <div className="mx-auto max-w-3xl px-6 pb-10 pt-4">
             {allowAnnotations && (
               <div className="mb-3 flex justify-end">
                 <Button

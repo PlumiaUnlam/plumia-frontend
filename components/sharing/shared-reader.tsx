@@ -19,6 +19,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Spinner } from "@/components/ui/spinner"
 import { Textarea } from "@/components/ui/textarea"
 import { useAuth } from "@/contexts/AuthContext"
@@ -326,18 +333,25 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
             {new Date(view.manuscript.frozenAt).toLocaleString("es-UY")}
           </p>
         </div>
-        <select
-          value={activeChapterId ?? ""}
-          onChange={(event) => scrollToChapter(event.target.value)}
-          aria-label="Ir a capítulo"
-          className="ml-auto h-8 max-w-40 rounded-md border border-border bg-background px-2 text-xs lg:hidden"
+        <Select
+          value={activeChapterId ?? undefined}
+          onValueChange={scrollToChapter}
         >
-          {chapters.map((chapter) => (
-            <option key={chapter.id} value={chapter.id}>
-              {chapter.title}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger
+            aria-label="Ir a capítulo"
+            size="sm"
+            className="ml-auto max-w-40 text-xs lg:hidden"
+          >
+            <SelectValue placeholder="Ir a capítulo" />
+          </SelectTrigger>
+          <SelectContent align="end">
+            {chapters.map((chapter) => (
+              <SelectItem key={chapter.id} value={chapter.id}>
+                {chapter.title}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <div className="ml-2 hidden items-center gap-2 text-xs text-muted-foreground sm:flex lg:ml-auto">
           <PanelLeftClose className="size-4" />
           {view.viewer.isOwner
