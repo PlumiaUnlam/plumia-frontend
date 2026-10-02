@@ -177,9 +177,21 @@ const impactLabels: Record<TimelineImpact, string> = {
 }
 
 const impactStyles: Record<TimelineImpact, string> = {
-  HIGH: "border-red-500 bg-red-50/70 dark:bg-red-950/20",
-  MEDIUM: "border-amber-500 bg-amber-50/70 dark:bg-amber-950/20",
-  LOW: "border-primary/45 bg-card",
+  HIGH: "border-violet-600 border-l-[6px] bg-violet-100/80 dark:border-violet-400 dark:bg-violet-950/40",
+  MEDIUM: "border-violet-400 border-l-4 bg-violet-50/80 dark:border-violet-600 dark:bg-violet-950/20",
+  LOW: "border-violet-200 border-l-4 bg-card dark:border-violet-800",
+}
+
+const impactIndicatorStyles: Record<TimelineImpact, string> = {
+  HIGH: "bg-violet-600 text-white dark:bg-violet-400 dark:text-violet-950",
+  MEDIUM: "bg-violet-200 text-violet-800 dark:bg-violet-800 dark:text-violet-100",
+  LOW: "border border-violet-200 bg-background text-violet-500 dark:border-violet-800 dark:text-violet-300",
+}
+
+const impactDotStyles: Record<TimelineImpact, string> = {
+  HIGH: "bg-violet-600 dark:bg-violet-400",
+  MEDIUM: "bg-violet-400 dark:bg-violet-600",
+  LOW: "bg-violet-200 ring-1 ring-violet-300 dark:bg-violet-800 dark:ring-violet-700",
 }
 
 function createEmptyDraft(): TimelineDraft {
@@ -664,7 +676,7 @@ export function TimelinePanel({
                   className={`flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors ${isSelected ? "border-primary bg-primary/10 text-primary" : "border-border bg-background text-foreground hover:border-primary/40 hover:bg-muted"}`}
                   onClick={() => toggleImpact(impact)}
                 >
-                  <span className={`size-2 rounded-full ${impact === "HIGH" ? "bg-red-500" : impact === "MEDIUM" ? "bg-amber-500" : "bg-primary/60"}`} />
+                  <span className={`size-2 rounded-full ${impactDotStyles[impact]}`} />
                   {impactLabels[impact]}
                 </button>
               )
@@ -942,9 +954,14 @@ function TimelineEventDragPreview({ event }: Readonly<{ event: TimelineEvent }>)
       aria-hidden="true"
       className={`pointer-events-none w-[min(72rem,calc(100vw-8rem))] rounded-2xl border-2 p-6 shadow-2xl ring-2 ring-primary/25 ${impactStyles[event.impact]}`}
     >
-      <p className="mb-2 text-sm font-medium text-primary/75">
-        {event.temporalLabel || event.date || "Sin fecha"}
-      </p>
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <p className="text-sm font-medium text-primary/75">
+          {event.temporalLabel || event.date || "Sin fecha"}
+        </p>
+        <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${impactIndicatorStyles[event.impact]}`}>
+          Impacto {impactLabels[event.impact].toLowerCase()}
+        </span>
+      </div>
       <h2 className="text-xl font-bold tracking-tight sm:text-2xl">
         {event.title}
       </h2>
@@ -963,7 +980,12 @@ function TimelineEventCard({ compact, expanded, entities, event, onToggleDetail,
         <div className="flex min-w-0 gap-2">
           {dragHandle}
           <div>
-            <p className="mb-2 text-sm font-medium text-primary/75">{event.temporalLabel || event.date || "Sin fecha"}</p>
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              <p className="text-sm font-medium text-primary/75">{event.temporalLabel || event.date || "Sin fecha"}</p>
+              <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${impactIndicatorStyles[event.impact]}`}>
+                Impacto {impactLabels[event.impact].toLowerCase()}
+              </span>
+            </div>
             {compact ? (
               <button type="button" className={`${showDetails ? "text-xl sm:text-2xl" : "text-lg"} block text-left font-bold tracking-tight`} onClick={onToggleDetail} aria-expanded={expanded}>{event.title}</button>
             ) : (
