@@ -34,7 +34,7 @@ export function EntitySelector({
   onChange,
   onCreateEntity,
   label = "Entidades relacionadas",
-}: EntitySelectorProps) {
+}: Readonly<EntitySelectorProps>) {
   const portalContainerRef = useRef<HTMLDivElement | null>(null)
   const anchorRef = useComboboxAnchor()
   const [searchValue, setSearchValue] = useState("")

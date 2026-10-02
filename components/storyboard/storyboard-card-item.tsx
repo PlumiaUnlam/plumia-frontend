@@ -22,7 +22,7 @@ export function StoryboardCardItem({
   entitiesById,
   onEdit,
   onDelete,
-}: StoryboardCardItemProps) {
+}: Readonly<StoryboardCardItemProps>) {
   const {
     attributes,
     listeners,

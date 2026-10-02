@@ -88,26 +88,31 @@ function wait(ms: number, signal: AbortSignal) {
 
 async function waitForSummaryJob(jobId: string, signal: AbortSignal) {
   const deadline = Date.now() + SUMMARY_JOB_TIMEOUT_MS;
+  const poll = async (): Promise<void> => {
+    if (Date.now() >= deadline) {
+      throw new Error(
+        "El resumen sigue en proceso. Intentalo nuevamente en unos minutos.",
+      );
+    }
 
-  while (Date.now() < deadline) {
     const job = await getSummaryJob(jobId, { signal });
-
     if (job.status === "COMPLETED") return;
     if (job.status === "FAILED") {
       throw new Error(job.errorMessage ?? "No se pudo generar el resumen");
     }
 
     await wait(SUMMARY_JOB_POLL_MS, signal);
-  }
+    return poll();
+  };
 
-  throw new Error("El resumen sigue en proceso. Intentalo nuevamente en unos minutos.");
+  return poll();
 }
 
 export function SummariesPanel({
   chapters,
   loading,
   error,
-}: SummariesPanelProps) {
+}: Readonly<SummariesPanelProps>) {
   const [activeChapterId, setActiveChapterId] = useState<string | null>(null);
   const [generatingIds, setGeneratingIds] = useState<Set<string>>(new Set());
   const [summaries, setSummaries] = useState<Record<string, SummaryView>>({});
@@ -276,7 +281,7 @@ export function SummariesPanel({
     document.body.appendChild(textArea);
     textArea.select();
     document.execCommand("copy");
-    document.body.removeChild(textArea);
+    textArea.remove();
   };
 
   return (

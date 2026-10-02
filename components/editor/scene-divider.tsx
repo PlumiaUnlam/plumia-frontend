@@ -82,7 +82,7 @@ function normalizeSceneDividerVariant(value: unknown): SceneDividerVariant {
   return isSceneDividerVariant(value) ? value : DEFAULT_SCENE_DIVIDER_VARIANT
 }
 
-function SceneDividerArtwork({ variant }: { variant: SceneDividerVariant }) {
+function SceneDividerArtwork({ variant }: Readonly<{ variant: SceneDividerVariant }>) {
   const svgProps = {
     className: "scene-divider__svg",
     viewBox: "0 0 128 32",
@@ -223,11 +223,11 @@ export function SceneDividerPreview({
   variant,
   className,
   color,
-}: {
+}: Readonly<{
   variant: SceneDividerVariant
   className?: string
   color?: string | null
-}) {
+}>) {
   return (
     <span
       className={cn("scene-divider-preview", className)}
@@ -244,7 +244,7 @@ export function SceneDividerPreview({
   )
 }
 
-function SceneDividerNodeView({ node, selected }: NodeViewProps) {
+function SceneDividerNodeView({ node, selected }: Readonly<NodeViewProps>) {
   const variant = normalizeSceneDividerVariant(node.attrs.variant)
 
   return (
@@ -295,7 +295,7 @@ export const SceneDivider = Node.create({
     return {
       color: {
         default: null,
-        parseHTML: (element: HTMLElement) => normalizeSceneDividerColor(element.getAttribute("data-divider-color")),
+        parseHTML: (element: HTMLElement) => normalizeSceneDividerColor(element.dataset.dividerColor ?? null),
         renderHTML: (attributes: { color?: unknown }) => {
           const color = normalizeSceneDividerColor(attributes.color)
           return color ? { "data-divider-color": color, style: `--scene-divider-color: ${color}` } : {}
@@ -305,7 +305,7 @@ export const SceneDivider = Node.create({
         default: DEFAULT_SCENE_DIVIDER_VARIANT,
         parseHTML: (element: HTMLElement) =>
           normalizeSceneDividerVariant(
-            element.getAttribute("data-divider-variant"),
+            element.dataset.dividerVariant ?? null,
           ),
         renderHTML: (attributes: { variant?: unknown }) => ({
           "data-divider-variant": normalizeSceneDividerVariant(

@@ -27,7 +27,7 @@ export function ChipEditor({
   onInputChange,
   onAdd,
   onRemove,
-}: ChipEditorProps) {
+}: Readonly<ChipEditorProps>) {
   return (
     <Field>
       <FieldLabel>{label}</FieldLabel>

@@ -94,6 +94,11 @@ function replaceStyleDefinition(
   return { ...current, ...changes }
 }
 
+function getStyleSaveLabel(saving: boolean, editing: boolean) {
+  if (saving) return "Guardando…"
+  return editing ? "Guardar cambios" : "Guardar estilo"
+}
+
 function getStylePreviewStyle(style: EditorTextStyle): CSSProperties {
   const definition = style.definition
   const fontSize = definition.fontSize
@@ -129,7 +134,7 @@ export function EditorTextStylesMenu({
   projectId,
   onSave,
   renderMenu,
-}: EditorTextStylesMenuProps) {
+}: Readonly<EditorTextStylesMenuProps>) {
   const { styles, isLoading, saveStyle, removeStyle, refresh } =
     useEditorTextStyles(projectId)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -571,7 +576,7 @@ export function EditorTextStylesMenu({
                     }))
                   }
                 />
-                Negrita
+                <span>Negrita</span>
               </label>
               <label className="flex items-center gap-2 text-sm text-[#3c4043]">
                 <input
@@ -586,7 +591,7 @@ export function EditorTextStylesMenu({
                     }))
                   }
                 />
-                Cursiva
+                <span>Cursiva</span>
               </label>
               <label className="flex items-center gap-2 text-sm text-[#3c4043]">
                 <input
@@ -601,7 +606,7 @@ export function EditorTextStylesMenu({
                     }))
                   }
                 />
-                Subrayado
+                <span>Subrayado</span>
               </label>
               <label className="flex items-center gap-2 text-sm text-[#3c4043]">
                 <input
@@ -616,7 +621,7 @@ export function EditorTextStylesMenu({
                     }))
                   }
                 />
-                Tachado
+                <span>Tachado</span>
               </label>
               <label className="flex items-center gap-2 text-sm text-[#3c4043]">
                 <input
@@ -634,7 +639,7 @@ export function EditorTextStylesMenu({
                     }))
                   }
                 />
-                Subíndice
+                <span>Subíndice</span>
               </label>
               <label className="flex items-center gap-2 text-sm text-[#3c4043]">
                 <input
@@ -652,7 +657,7 @@ export function EditorTextStylesMenu({
                     }))
                   }
                 />
-                Superíndice
+                <span>Superíndice</span>
               </label>
             </div>
 
@@ -909,7 +914,7 @@ export function EditorTextStylesMenu({
               Cancelar
             </Button>
             <Button type="button" onClick={() => void saveDialog()} disabled={saving}>
-              {saving ? "Guardando…" : editingStyle ? "Guardar cambios" : "Guardar estilo"}
+              {getStyleSaveLabel(saving, Boolean(editingStyle))}
             </Button>
           </DialogFooter>
         </DialogContent>

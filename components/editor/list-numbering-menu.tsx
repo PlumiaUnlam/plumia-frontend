@@ -35,6 +35,18 @@ const menuClass =
   "border-[#dadce0] bg-white text-[#3c4043] shadow-[0_3px_8px_rgba(60,64,67,0.24)]"
 const itemClass = "gap-3 text-[#3c4043] focus:bg-[#f1f3f4] focus:text-[#202124]"
 
+function applyStartNumber(
+  editor: Editor,
+  value: string,
+  onApplied: () => void,
+) {
+  const parsed = Number.parseInt(value, 10)
+  if (!Number.isFinite(parsed) || parsed < 1) return
+
+  setOrderedListStart(editor, parsed)
+  onApplied()
+}
+
 type MarkerPosition = {
   x: number
   y: number
@@ -64,7 +76,7 @@ function StartNumberDialog({
   onOpenChange,
   onValueChange,
   onApply,
-}: StartNumberDialogProps) {
+}: Readonly<StartNumberDialogProps>) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[calc(100dvh-1rem)] w-[min(22rem,calc(100vw-1.5rem))] max-w-none gap-0 overflow-x-hidden overflow-y-auto border-[#dadce0] bg-white p-0 sm:max-w-none">
@@ -109,7 +121,7 @@ function StartNumberDialog({
 /** Toolbar access for the same actions available from an ordered-list marker. */
 export function ListNumberingActionsButton({
   editor,
-}: ListNumberingActionsButtonProps) {
+}: Readonly<ListNumberingActionsButtonProps>) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [startDialogOpen, setStartDialogOpen] = useState(false)
   const [startValue, setStartValue] = useState("1")
@@ -121,13 +133,8 @@ export function ListNumberingActionsButton({
     setMenuOpen(false)
   }
 
-  const applyStartValue = () => {
-    const parsed = Number.parseInt(startValue, 10)
-    if (!Number.isFinite(parsed) || parsed < 1) return
-
-    setOrderedListStart(editor, parsed)
-    setStartDialogOpen(false)
-  }
+  const applyStartValue = () =>
+    applyStartNumber(editor, startValue, () => setStartDialogOpen(false))
 
   return (
     <>
@@ -251,7 +258,7 @@ function findMarkerHit(editor: Editor, event: MouseEvent): MarkerHit | null {
 }
 
 /** Context menu opened from the marker area of any list item. */
-export function ListNumberingMenu({ editor }: ListNumberingMenuProps) {
+export function ListNumberingMenu({ editor }: Readonly<ListNumberingMenuProps>) {
   const [markerPosition, setMarkerPosition] = useState<MarkerPosition | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const [markerKind, setMarkerKind] = useState<"bullet" | "ordered">("ordered")
@@ -309,13 +316,8 @@ export function ListNumberingMenu({ editor }: ListNumberingMenuProps) {
     closeMenu()
   }
 
-  const applyStartValue = () => {
-    const parsed = Number.parseInt(startValue, 10)
-    if (!Number.isFinite(parsed) || parsed < 1) return
-
-    setOrderedListStart(editor, parsed)
-    setStartDialogOpen(false)
-  }
+  const applyStartValue = () =>
+    applyStartNumber(editor, startValue, () => setStartDialogOpen(false))
 
   return (
     <>

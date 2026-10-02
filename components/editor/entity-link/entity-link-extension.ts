@@ -27,7 +27,7 @@ export const EntityLink = Mark.create({
     return {
       entityId: {
         default: null,
-        parseHTML: (element) => element.getAttribute("data-entity-id"),
+        parseHTML: (element: HTMLElement) => element.dataset.entityId ?? null,
         renderHTML: (attributes) => {
           if (!attributes.entityId) return {}
           return { "data-entity-id": attributes.entityId }
@@ -35,7 +35,7 @@ export const EntityLink = Mark.create({
       },
       entityType: {
         default: null,
-        parseHTML: (element) => element.getAttribute("data-entity-type"),
+        parseHTML: (element: HTMLElement) => element.dataset.entityType ?? null,
         renderHTML: (attributes) => {
           if (!attributes.entityType) return {}
           return { "data-entity-type": attributes.entityType }
@@ -43,7 +43,7 @@ export const EntityLink = Mark.create({
       },
       entityName: {
         default: null,
-        parseHTML: (element) => element.getAttribute("data-entity-name"),
+        parseHTML: (element: HTMLElement) => element.dataset.entityName ?? null,
         renderHTML: (attributes) => {
           if (!attributes.entityName) return {}
           return { "data-entity-name": attributes.entityName }

@@ -50,9 +50,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { getActiveTextColor } from "./text-formatting"
 import { SceneDividerMenuOptions } from "./scene-divider-menu"
-import { SaveStatusIndicator } from "./save-status-indicator"
 import { AnalysisButton } from "./analysis/analysis-button"
-import type { EditorPaneId } from "./editor-types"
 import {
   type SceneDividerVariant,
 } from "./scene-divider"
@@ -101,6 +99,75 @@ const toolbarMenuClass =
   "border-[#dadce0] bg-white text-[#3c4043] shadow-[0_3px_8px_rgba(60,64,67,0.24)]"
 const toolbarMenuItemClass =
   "text-[#3c4043] focus:bg-[#f1f3f4] focus:text-[#202124]"
+const activeToolbarClass =
+  "bg-[#d3e3fd] text-[#174ea6] hover:bg-[#c2d7f8]"
+
+function renderWhen<T>(condition: unknown, content: T): T | null {
+  if (!condition) return null
+  return content
+}
+
+function getToggleButtonClass(active: boolean, baseClass: string) {
+  return active ? `${baseClass} ${activeToolbarClass}` : baseClass
+}
+
+function getHighlightButtonClass(active: boolean) {
+  return active ? "bg-[#fff3b0] hover:bg-[#ffe680]" : ""
+}
+
+function getImageUploadIcon(isUploading: boolean) {
+  if (isUploading) return <Loader2 className="size-4 animate-spin" />
+  return <ImagePlus className="size-4" />
+}
+
+function getFormatPainterTitle(active: boolean) {
+  if (active) {
+    return "Formato copiado. Seleccioná el texto destino o Esc para cancelar."
+  }
+  return "Copiar formato"
+}
+
+function getFormatPainterLabel(active: boolean) {
+  return active ? "Cancelar o aplicar formato" : "Copiar formato"
+}
+
+function getHighlightActionLabel(active: boolean) {
+  return active ? "Quitar resaltado" : "Aplicar color actual"
+}
+
+function getTextColorValue(color: string) {
+  return color === "inherit" ? "currentColor" : color
+}
+
+function getFontSizeValue(value: string) {
+  if (value === "normal") return null
+  return value as TextFontSize
+}
+
+function getIndentDisabled(
+  listEnabled: boolean,
+  canChangeList: boolean,
+  paragraphEnabled: boolean,
+  indent: number,
+  direction: "increase" | "decrease",
+) {
+  if (listEnabled) return !canChangeList
+  if (!paragraphEnabled) return true
+  return direction === "increase" ? indent >= 8 : indent <= 0
+}
+
+function getSplitButtonTitle(canSplit: boolean, isSplit: boolean) {
+  if (canSplit || isSplit) return undefined
+  return "Necesitás al menos dos secciones para dividir la pantalla"
+}
+
+function getSplitButtonLabel(isSplit: boolean) {
+  return isSplit ? "Cerrar pantalla dividida" : "Pantalla dividida"
+}
+
+function getTextColorIndicator(color: string) {
+  return { color: getTextColorValue(color) }
+}
 
 const alignmentOptions: ReadonlyArray<{
   value: ParagraphAlignment
@@ -113,17 +180,27 @@ const alignmentOptions: ReadonlyArray<{
   { value: "justify", label: "Justificada", icon: AlignJustify },
 ]
 
+function getAlignmentIcon(alignment: ParagraphAlignment) {
+  switch (alignment) {
+    case "center":
+      return <AlignCenter className="h-4 w-4" />
+    case "right":
+      return <AlignRight className="h-4 w-4" />
+    case "justify":
+      return <AlignJustify className="h-4 w-4" />
+    default:
+      return <AlignLeft className="h-4 w-4" />
+  }
+}
+
 interface EditorToolbarProps {
   editor: Editor
-  versionLabel: string
   onInsertImage?: () => void
   isUploadingImage?: boolean
   onAnalyzeChanges?: () => void
   isAnalysisSaving?: boolean
   isZenMode?: boolean
-  onToggleZenMode?: () => void
   onInsertDivider?: (variant: SceneDividerVariant) => void
-  paneId?: EditorPaneId
   onToggleSplit?: () => void
   isSplit?: boolean
   canSplit?: boolean
@@ -133,20 +210,18 @@ interface EditorToolbarProps {
 
 export function EditorToolbar({
   editor,
-  versionLabel,
   onInsertImage,
   isUploadingImage = false,
   onAnalyzeChanges,
   isAnalysisSaving = false,
   isZenMode = false,
   onInsertDivider,
-  paneId = "primary",
   onToggleSplit,
   isSplit = false,
   canSplit = true,
   paragraphDialogOpen,
   onParagraphDialogOpenChange,
-}: EditorToolbarProps) {
+}: Readonly<EditorToolbarProps>) {
   const paragraphState = useEditorState({
     editor,
     selector: ({ editor: currentEditor }) => ({
@@ -180,6 +255,7 @@ export function EditorToolbar({
     ...paragraphState.attributes,
   }
   const paragraphEnabled = paragraphState.isParagraph
+  const alignmentIcon = getAlignmentIcon(paragraphAttributes.textAlign)
   const listEnabled = paragraphState.isBulletList || paragraphState.isOrderedList
   const displayedFontSize = paragraphState.textFontSize ?? "11pt"
   const displayedFontFamily = paragraphState.textFontFamily ?? "Lora"
@@ -238,7 +314,8 @@ export function EditorToolbar({
     <TooltipProvider delayDuration={350}>
       <div className="editor-toolbar mx-2 mb-1 flex min-w-0 flex-col gap-1 rounded-b-lg border border-[#dadce0] bg-[#f8f9fa] px-2 py-2 text-[#3c4043] shadow-sm">
         <div className="flex min-h-8 w-full flex-wrap items-center gap-1">
-          <div role="group" aria-label="Historial" className={toolbarGroupClass}>
+          <fieldset className={`${toolbarGroupClass} border-0`} style={{ padding: 0, margin: 0, minWidth: 0 }}>
+            <legend className="sr-only">Historial</legend>
             <Button
               type="button"
               size="icon-sm"
@@ -267,21 +344,18 @@ export function EditorToolbar({
               <Redo2 className="h-4 w-4" />
             </Button>
 
-          </div>
-          <div role="group" aria-label="Fuente y tamaño" className={`${toolbarGroupClass} border-l border-[#dadce0] pl-2`}>
+          </fieldset>
+          <fieldset className={`${toolbarGroupClass} border-0 border-l border-[#dadce0] pl-2`} style={{ padding: 0, paddingLeft: "0.5rem", margin: 0, minWidth: 0 }}>
+            <legend className="sr-only">Fuente y tamaño</legend>
 
             <Button
               type="button"
               size="icon-sm"
               variant="ghost"
-              className={`${toolbarButtonClass} ${formatPainterActive ? "bg-[#d3e3fd] text-[#174ea6] hover:bg-[#c2d7f8]" : ""}`}
+              className={getToggleButtonClass(formatPainterActive, toolbarButtonClass)}
               disabled={!editor.isEditable}
-              title={
-                formatPainterActive
-                  ? "Formato copiado. Seleccioná el texto destino o Esc para cancelar."
-                  : "Copiar formato"
-              }
-              aria-label={formatPainterActive ? "Cancelar o aplicar formato" : "Copiar formato"}
+              title={getFormatPainterTitle(formatPainterActive)}
+              aria-label={getFormatPainterLabel(formatPainterActive)}
               aria-pressed={formatPainterActive}
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => toggleFormatPainter(editor)}
@@ -390,7 +464,7 @@ export function EditorToolbar({
                     onValueChange={(value) =>
                       applyTextFontSize(
                         editor,
-                        value === "normal" ? null : (value as TextFontSize),
+                        getFontSizeValue(value),
                       )
                     }
                   >
@@ -427,14 +501,15 @@ export function EditorToolbar({
               </Button>
             </div>
 
-          </div>
-          <div role="group" aria-label="Formato de texto" className={`${toolbarGroupClass} flex-wrap border-l border-[#dadce0] pl-2`}>
+          </fieldset>
+          <fieldset className={`${toolbarGroupClass} flex-wrap border-0 border-l border-[#dadce0] pl-2`} style={{ padding: 0, paddingLeft: "0.5rem", margin: 0, minWidth: 0 }}>
+            <legend className="sr-only">Formato de texto</legend>
 
             <Button
               type="button"
               size="icon-sm"
               variant="ghost"
-              className={`${toolbarButtonClass} ${paragraphState.isBold ? "bg-[#d3e3fd] text-[#174ea6] hover:bg-[#c2d7f8]" : ""}`}
+              className={getToggleButtonClass(paragraphState.isBold, toolbarButtonClass)}
               title="Negrita"
               aria-label="Negrita"
               aria-pressed={paragraphState.isBold}
@@ -448,7 +523,7 @@ export function EditorToolbar({
               type="button"
               size="icon-sm"
               variant="ghost"
-              className={`${toolbarButtonClass} ${paragraphState.isItalic ? "bg-[#d3e3fd] text-[#174ea6] hover:bg-[#c2d7f8]" : ""}`}
+              className={getToggleButtonClass(paragraphState.isItalic, toolbarButtonClass)}
               title="Cursiva"
               aria-label="Cursiva"
               aria-pressed={paragraphState.isItalic}
@@ -462,7 +537,7 @@ export function EditorToolbar({
               type="button"
               size="icon-sm"
               variant="ghost"
-              className={`${toolbarButtonClass} ${paragraphState.isUnderline ? "bg-[#d3e3fd] text-[#174ea6] hover:bg-[#c2d7f8]" : ""}`}
+              className={getToggleButtonClass(paragraphState.isUnderline, toolbarButtonClass)}
               title="Subrayado"
               aria-label="Subrayado"
               aria-pressed={paragraphState.isUnderline}
@@ -475,7 +550,7 @@ export function EditorToolbar({
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button type="button" size="sm" variant="ghost"
-                  className={`${toolbarLabelButtonClass} relative ${paragraphState.isTextHighlight ? "bg-[#fff3b0] hover:bg-[#ffe680]" : ""}`}
+                  className={`${toolbarLabelButtonClass} relative ${getHighlightButtonClass(paragraphState.isTextHighlight)}`}
                   title="Resaltado y color" aria-label="Resaltado y color"
                   onMouseDown={(event) => event.preventDefault()}>
                   <Highlighter className="size-4" />
@@ -487,7 +562,7 @@ export function EditorToolbar({
               <DropdownMenuContent align="start" className={`w-[min(24rem,calc(100vw-1rem))] max-h-[min(70vh,28rem)] overflow-y-auto p-2 ${toolbarMenuClass}`}>
                 <DropdownMenuLabel>Resaltado</DropdownMenuLabel>
                 <DropdownMenuItem className={toolbarMenuItemClass} onSelect={() => toggleTextHighlight(editor)}>
-                  <Highlighter className="size-4" /> {paragraphState.isTextHighlight ? "Quitar resaltado" : "Aplicar color actual"}
+                  <Highlighter className="size-4" /> {getHighlightActionLabel(paragraphState.isTextHighlight)}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <ColorPalette editor={editor} kind="highlight" menuItemClass={toolbarMenuItemClass} />
@@ -500,12 +575,12 @@ export function EditorToolbar({
                   type="button"
                   size="icon-sm"
                   variant="ghost"
-                  className={`${toolbarButtonClass} ${paragraphState.isTextColor ? "bg-[#d3e3fd] text-[#174ea6] hover:bg-[#c2d7f8]" : ""}`}
+                  className={getToggleButtonClass(paragraphState.isTextColor, toolbarButtonClass)}
                   title="Color de texto"
                   aria-label="Cambiar color de texto"
                   onMouseDown={(event) => event.preventDefault()}
                 >
-                  <Baseline className="h-4 w-4" style={{ color: paragraphState.textColor === "inherit" ? "currentColor" : paragraphState.textColor }} />
+                  <Baseline className="h-4 w-4" style={getTextColorIndicator(paragraphState.textColor)} />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent
@@ -548,18 +623,19 @@ export function EditorToolbar({
               </DropdownMenuContent>
             </DropdownMenu>
 
-          </div>
+          </fieldset>
         </div>
 
         <div className="flex w-full flex-wrap items-center gap-1">
-          <div role="group" aria-label="Listas" className={toolbarGroupClass}>
+          <fieldset className={`${toolbarGroupClass} border-0`} style={{ padding: 0, margin: 0, minWidth: 0 }}>
+            <legend className="sr-only">Listas</legend>
 
             <div className="flex items-center">
               <Button
                 type="button"
                 size="icon-sm"
                 variant="ghost"
-                className={`${toolbarButtonClass} rounded-r-none pr-1 ${paragraphState.isBulletList ? "bg-[#d3e3fd] text-[#174ea6] hover:bg-[#c2d7f8]" : ""}`}
+                className={`${getToggleButtonClass(paragraphState.isBulletList, toolbarButtonClass)} rounded-r-none pr-1`}
                 title="Lista con viñetas"
                 aria-label="Lista con viñetas"
                 aria-pressed={paragraphState.isBulletList}
@@ -574,7 +650,7 @@ export function EditorToolbar({
                     type="button"
                     size="icon-sm"
                     variant="ghost"
-                    className={`${toolbarButtonClass} -ml-px rounded-l-none px-0.5 ${paragraphState.isBulletList ? "bg-[#d3e3fd] text-[#174ea6] hover:bg-[#c2d7f8]" : ""}`}
+                    className={`${getToggleButtonClass(paragraphState.isBulletList, toolbarButtonClass)} -ml-px rounded-l-none px-0.5`}
                     title="Biblioteca de viñetas"
                     aria-label="Abrir biblioteca de viñetas"
                     onMouseDown={(event) => event.preventDefault()}
@@ -606,7 +682,7 @@ export function EditorToolbar({
                 type="button"
                 size="icon-sm"
                 variant="ghost"
-                className={`${toolbarButtonClass} rounded-r-none pr-1 ${paragraphState.isOrderedList ? "bg-[#d3e3fd] text-[#174ea6] hover:bg-[#c2d7f8]" : ""}`}
+                className={`${getToggleButtonClass(paragraphState.isOrderedList, toolbarButtonClass)} rounded-r-none pr-1`}
                 title="Lista numerada"
                 aria-label="Lista numerada"
                 aria-pressed={paragraphState.isOrderedList}
@@ -621,7 +697,7 @@ export function EditorToolbar({
                     type="button"
                     size="icon-sm"
                     variant="ghost"
-                    className={`${toolbarButtonClass} -ml-px rounded-l-none px-0.5 ${paragraphState.isOrderedList ? "bg-[#d3e3fd] text-[#174ea6] hover:bg-[#c2d7f8]" : ""}`}
+                    className={`${getToggleButtonClass(paragraphState.isOrderedList, toolbarButtonClass)} -ml-px rounded-l-none px-0.5`}
                     title="Biblioteca de numeración"
                     aria-label="Abrir biblioteca de numeración"
                     onMouseDown={(event) => event.preventDefault()}
@@ -650,8 +726,9 @@ export function EditorToolbar({
 
             <ListNumberingActionsButton editor={editor} />
 
-          </div>
-          <div role="group" aria-label="Párrafo" className={`${toolbarGroupClass} border-l border-[#dadce0] pl-2`}>
+          </fieldset>
+          <fieldset className={`${toolbarGroupClass} border-0 border-l border-[#dadce0] pl-2`} style={{ padding: 0, paddingLeft: "0.5rem", margin: 0, minWidth: 0 }}>
+            <legend className="sr-only">Párrafo</legend>
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -665,15 +742,7 @@ export function EditorToolbar({
                   aria-label="Alineación del párrafo"
                   onMouseDown={(event) => event.preventDefault()}
                 >
-                  {paragraphAttributes.textAlign === "center" ? (
-                    <AlignCenter className="h-4 w-4" />
-                  ) : paragraphAttributes.textAlign === "right" ? (
-                    <AlignRight className="h-4 w-4" />
-                  ) : paragraphAttributes.textAlign === "justify" ? (
-                    <AlignJustify className="h-4 w-4" />
-                  ) : (
-                    <AlignLeft className="h-4 w-4" />
-                  )}
+                  {alignmentIcon}
                   Alineación <ChevronDown className="h-3 w-3" />
                 </Button>
               </DropdownMenuTrigger>
@@ -704,7 +773,7 @@ export function EditorToolbar({
               size="icon-sm"
               variant="ghost"
               className={toolbarButtonClass}
-              disabled={listEnabled ? !paragraphState.canLiftListItem : !paragraphEnabled || paragraphAttributes.indentLeft <= 0}
+              disabled={getIndentDisabled(listEnabled, paragraphState.canLiftListItem, paragraphEnabled, paragraphAttributes.indentLeft, "decrease")}
               title="Disminuir sangría izquierda"
               aria-label="Disminuir sangría izquierda"
               onMouseDown={(event) => event.preventDefault()}
@@ -718,7 +787,7 @@ export function EditorToolbar({
               size="icon-sm"
               variant="ghost"
               className={toolbarButtonClass}
-              disabled={listEnabled ? !paragraphState.canSinkListItem : !paragraphEnabled || paragraphAttributes.indentLeft >= 8}
+              disabled={getIndentDisabled(listEnabled, paragraphState.canSinkListItem, paragraphEnabled, paragraphAttributes.indentLeft, "increase")}
               title="Aumentar sangría izquierda"
               aria-label="Aumentar sangría izquierda"
               onMouseDown={(event) => event.preventDefault()}
@@ -746,9 +815,10 @@ export function EditorToolbar({
               </DropdownMenuContent>
             </DropdownMenu>
 
-          </div>
-          <div role="group" aria-label="Insertar" className={`${toolbarGroupClass} border-l border-[#dadce0] pl-2`}>
-              {onInsertImage && (
+          </fieldset>
+          <fieldset className={`${toolbarGroupClass} border-0 border-l border-[#dadce0] pl-2`} style={{ padding: 0, paddingLeft: "0.5rem", margin: 0, minWidth: 0 }}>
+            <legend className="sr-only">Insertar</legend>
+              {renderWhen(onInsertImage, (
                 <Button
                   type="button"
                   size="sm"
@@ -760,15 +830,11 @@ export function EditorToolbar({
                   title="Insertar imagen"
                   aria-label="Insertar imagen"
                 >
-                  {isUploadingImage ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    <ImagePlus className="size-4" />
-                  )}
+                  {getImageUploadIcon(isUploadingImage)}
                   Imagen
                 </Button>
-              )}
-            {onInsertDivider && (
+              ))}
+            {renderWhen(onInsertDivider, (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
@@ -784,31 +850,26 @@ export function EditorToolbar({
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className={`w-64 ${toolbarMenuClass}`}>
-                  <SceneDividerMenuOptions editor={editor} onInsert={onInsertDivider} />
+                    <SceneDividerMenuOptions editor={editor} onInsert={onInsertDivider!} />
                 </DropdownMenuContent>
               </DropdownMenu>
-            )}
+            ))}
 
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[#dadce0] pt-2">
-          <div role="group" aria-label="Vista y revisión" className="flex flex-wrap items-center gap-2">
-            {onToggleSplit && (
+          </fieldset>
+          <fieldset className="m-0 ml-auto flex shrink-0 flex-wrap items-center gap-2 border-0 p-0">
+            <legend className="sr-only">Vista y revisión</legend>
+            {renderWhen(onToggleSplit, (
               <Button type="button" size="sm" variant="outline"
                 className="h-8 gap-2 border-[#dadce0] bg-transparent px-3 text-xs text-[#3c4043] hover:bg-[#e8eaed] hover:text-[#202124]"
-                disabled={!canSplit && !isSplit} onMouseDown={(event) => event.preventDefault()}
-                onClick={onToggleSplit} aria-pressed={isSplit}
-                title={!canSplit && !isSplit ? "Necesitás al menos dos secciones para dividir la pantalla" : undefined}>
+                disabled={getSplitButtonTitle(canSplit, isSplit) !== undefined} onMouseDown={(event) => event.preventDefault()}
+                onClick={onToggleSplit!} aria-pressed={isSplit}
+                title={getSplitButtonTitle(canSplit, isSplit)}>
                 <Columns2 className="size-4" />
-                {isSplit ? "Cerrar pantalla dividida" : "Pantalla dividida"}
+                {getSplitButtonLabel(isSplit)}
               </Button>
-            )}
-            {onAnalyzeChanges && <AnalysisButton isSaving={isAnalysisSaving} onClick={onAnalyzeChanges} />}
-          </div>
-          <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-x-3 gap-y-1 text-xs text-[#5f6368]">
-            <span className="min-w-0 max-w-full truncate" title={versionLabel}>Versión: {versionLabel}</span>
-            <SaveStatusIndicator paneId={paneId} />
-          </div>
+            ))}
+            {renderWhen(onAnalyzeChanges, <AnalysisButton isSaving={isAnalysisSaving} onClick={onAnalyzeChanges!} />)}
+          </fieldset>
         </div>
         <ParagraphFormatDialog
           key={paragraphDialogOpen ? "open" : "closed"}

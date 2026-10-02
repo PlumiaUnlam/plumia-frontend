@@ -10,11 +10,11 @@ import { SCENE_DIVIDER_OPTIONS, SceneDividerPreview, getSceneDividerColor, type 
 const itemClass = "min-h-9 gap-2 text-[#3c4043] focus:bg-[#f1f3f4] focus:text-[#202124]"
 const contentClass = "w-64 max-w-[calc(100vw-1rem)] max-h-[min(70dvh,30rem)] overflow-y-auto border-[#dadce0] bg-white text-[#3c4043]"
 
-export function SceneDividerMenuOptions({ editor, onInsert, menuType = "dropdown" }: {
+export function SceneDividerMenuOptions({ editor, onInsert, menuType = "dropdown" }: Readonly<{
   editor: Editor
   onInsert: (variant: SceneDividerVariant) => void
   menuType?: "dropdown" | "menubar"
-}) {
+}>) {
   const state = useEditorState({ editor, selector: ({ editor: current }) => ({
     selected: current.isActive("sceneDivider"),
     color: getSceneDividerColor(current),

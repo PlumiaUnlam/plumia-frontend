@@ -59,14 +59,13 @@ export const EditorTextStyleAttributes = Extension.create({
 })
 
 function cssValue(value: string) {
-  return value.replaceAll("\\", "\\\\").replaceAll('"', '\\"')
+  return value.replaceAll("\\", String.raw`\\`).replaceAll('"', String.raw`\"`)
 }
 
-function styleDeclarations(
+function appendFontDeclarations(
+  declarations: string[],
   definition: EditorTextStyleDefinition,
-  kind: EditorTextStyleKind,
 ) {
-  const declarations: string[] = []
   if (definition.fontFamily) {
     declarations.push(
       `font-family: ${getFontFamilyCss(definition.fontFamily as TextFontFamily)}`,
@@ -86,8 +85,17 @@ function styleDeclarations(
       `background-color: ${definition.highlightColor}`,
     )
   }
-  declarations.push(`font-weight: ${definition.bold ? "700" : "400"}`)
-  declarations.push(`font-style: ${definition.italic ? "italic" : "normal"}`)
+  declarations.push(
+    `font-weight: ${definition.bold ? "700" : "400"}`,
+    `font-style: ${definition.italic ? "italic" : "normal"}`,
+  )
+}
+
+function appendInlineMarkDeclarations(
+  declarations: string[],
+  definition: EditorTextStyleDefinition,
+  kind: EditorTextStyleKind,
+) {
   if (kind === "text" && definition.subscript !== definition.superscript) {
     declarations.push(
       `vertical-align: ${definition.subscript ? "sub" : "super"}`,
@@ -101,28 +109,52 @@ function styleDeclarations(
   declarations.push(
     `text-decoration: ${decorations.length ? decorations.join(" ") : "none"}`,
   )
+}
+
+function appendTextDeclarations(
+  declarations: string[],
+  definition: EditorTextStyleDefinition,
+  kind: EditorTextStyleKind,
+) {
+  appendFontDeclarations(declarations, definition)
+  appendInlineMarkDeclarations(declarations, definition, kind)
+}
+
+function appendParagraphDeclarations(
+  declarations: string[],
+  definition: EditorTextStyleDefinition,
+) {
+  if (["left", "center", "right", "justify"].includes(definition.textAlign)) {
+    declarations.push(`text-align: ${definition.textAlign} !important`)
+  }
+  if (["1", "1.15", "1.5", "1.8", "2"].includes(definition.lineHeight)) {
+    declarations.push(`line-height: ${definition.lineHeight} !important`)
+  }
+  if (Number.isFinite(definition.indentLeft) && definition.indentLeft >= 0) {
+    declarations.push(`margin-left: ${definition.indentLeft}cm !important`)
+  }
+  if (Number.isFinite(definition.indentRight) && definition.indentRight >= 0) {
+    declarations.push(`margin-right: ${definition.indentRight}cm !important`)
+  }
+  if (
+    Number.isFinite(definition.firstLineIndent) &&
+    definition.firstLineIndent >= 0
+  ) {
+    declarations.push(`text-indent: ${definition.firstLineIndent}cm !important`)
+  }
+  if ([2, 4, 8].includes(definition.tabSize)) {
+    declarations.push(`tab-size: ${definition.tabSize} !important`)
+  }
+}
+
+function styleDeclarations(
+  definition: EditorTextStyleDefinition,
+  kind: EditorTextStyleKind,
+) {
+  const declarations: string[] = []
+  appendTextDeclarations(declarations, definition, kind)
   if (kind === "paragraph") {
-    if (["left", "center", "right", "justify"].includes(definition.textAlign)) {
-      declarations.push(`text-align: ${definition.textAlign} !important`)
-    }
-    if (["1", "1.15", "1.5", "1.8", "2"].includes(definition.lineHeight)) {
-      declarations.push(`line-height: ${definition.lineHeight} !important`)
-    }
-    if (Number.isFinite(definition.indentLeft) && definition.indentLeft >= 0) {
-      declarations.push(`margin-left: ${definition.indentLeft}cm !important`)
-    }
-    if (Number.isFinite(definition.indentRight) && definition.indentRight >= 0) {
-      declarations.push(`margin-right: ${definition.indentRight}cm !important`)
-    }
-    if (
-      Number.isFinite(definition.firstLineIndent) &&
-      definition.firstLineIndent >= 0
-    ) {
-      declarations.push(`text-indent: ${definition.firstLineIndent}cm !important`)
-    }
-    if ([2, 4, 8].includes(definition.tabSize)) {
-      declarations.push(`tab-size: ${definition.tabSize} !important`)
-    }
+    appendParagraphDeclarations(declarations, definition)
   }
   return declarations.join("; ")
 }

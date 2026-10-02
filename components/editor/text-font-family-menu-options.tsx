@@ -34,7 +34,7 @@ export function TextFontFamilyMenuOptions({
   value,
   onValueChange,
   itemClassName,
-}: TextFontFamilyMenuOptionsProps) {
+}: Readonly<TextFontFamilyMenuOptionsProps>) {
   const [query, setQuery] = useState("")
   const searchInputRef = useRef<HTMLInputElement>(null)
   const visibleGroups = useMemo(() => {

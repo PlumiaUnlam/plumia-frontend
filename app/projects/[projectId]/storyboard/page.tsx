@@ -8,7 +8,7 @@ type ProjectStoryboardPageProps = {
 
 export default async function ProjectStoryboardPage({
   params,
-}: ProjectStoryboardPageProps) {
+}: Readonly<ProjectStoryboardPageProps>) {
   const { projectId } = await params
 
   return <Storyboard projectId={projectId} />

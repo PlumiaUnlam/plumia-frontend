@@ -10,7 +10,7 @@ type ProjectWorldbuildingPageProps = {
 
 export default async function ProjectWorldbuildingPage({
   params,
-}: ProjectWorldbuildingPageProps) {
+}: Readonly<ProjectWorldbuildingPageProps>) {
   const { projectId } = await params
 
   return (

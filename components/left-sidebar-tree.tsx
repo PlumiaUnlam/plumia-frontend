@@ -39,11 +39,11 @@ function SidebarItemMenu({
   item,
   onEdit,
   onDelete,
-}: {
+}: Readonly<{
   item: EditableItem;
   onEdit: (item: EditableItem) => void;
   onDelete: (item: EditableItem) => void;
-}) {
+}>) {
   return (
     <Menubar className="h-auto border-0 bg-transparent p-0">
       <MenubarMenu>
@@ -96,7 +96,7 @@ export function LeftSidebarTree({
   onSelectScene,
   onEditItem,
   onDeleteItem,
-}: LeftSidebarTreeProps) {
+}: Readonly<LeftSidebarTreeProps>) {
   return (
     <SidebarContent className="flex-1 overflow-y-auto bg-background group-data-[collapsible=icon]:hidden">
       {books.map((book) => (

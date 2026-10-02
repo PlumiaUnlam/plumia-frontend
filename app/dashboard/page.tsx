@@ -89,6 +89,76 @@ export default function DashboardPage() {
         });
     }, [projects, searchQuery]);
 
+    let projectContent;
+    if (isLoading) {
+        projectContent = (
+            <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+                {Array.from({ length: 3 }).map((_, index) => (
+                    <Card key={index} className="h-full">
+                        <CardHeader>
+                            <div className="h-4 w-24 rounded bg-muted" />
+                            <div className="h-3 w-full rounded bg-muted/80" />
+                        </CardHeader>
+                        <CardContent className="space-y-2">
+                            <div className="h-3 w-full rounded bg-muted/70" />
+                            <div className="h-3 w-2/3 rounded bg-muted/70" />
+                        </CardContent>
+                    </Card>
+                ))}
+            </div>
+        );
+    } else if (filteredProjects.length === 0) {
+        projectContent = (
+            <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
+                No se encontraron proyectos para esta búsqueda.
+            </div>
+        );
+    } else {
+        projectContent = (
+            <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+                {filteredProjects.map((project) => (
+                    <Card
+                        key={project.id}
+                        className="flex h-full cursor-pointer flex-col transition hover:border-primary/40 hover:shadow-md"
+                        onClick={() => router.push(`/projects/${encodeURIComponent(project.id)}/editor`)}
+                    >
+                        <CardHeader className="gap-3">
+                            <div className="flex items-start justify-between gap-3">
+                                <div>
+                                    <CardTitle className="line-clamp-2">{project.title}</CardTitle>
+                                    <CardDescription className="mt-1 line-clamp-2">
+                                        {project.description}
+                                    </CardDescription>
+                                </div>
+                                <Badge variant="secondary">{project.status}</Badge>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                                <Badge>{project.genre}</Badge>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="flex-1 space-y-3 text-sm text-muted-foreground">
+                            <div className="flex items-center gap-2">
+                                <BookOpen className="h-4 w-4" />
+                                <span>{formatWordCount(project.wordCountTarget)} palabras objetivo</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Clock3 className="h-4 w-4" />
+                                <span>
+                                    Actualizado{" "}
+                                    {new Date(project.updatedAt).toLocaleDateString("es-ES", {
+                                        day: "numeric",
+                                        month: "short",
+                                        year: "numeric",
+                                    })}
+                                </span>
+                            </div>
+                        </CardContent>
+                    </Card>
+                ))}
+            </div>
+        );
+    }
+
     const handleCreateSuccess = (project: ProjectResponse) => {
         setProjects((currentProjects) => [project, ...currentProjects]);
         setErrorMessage(null);
@@ -119,71 +189,7 @@ export default function DashboardPage() {
                     <p className="mb-4 text-sm text-amber-600">{errorMessage}</p>
                 ) : null}
 
-                {isLoading ? (
-                    <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-                        {Array.from({ length: 3 }).map((_, index) => (
-                            <Card key={index} className="h-full">
-                                <CardHeader>
-                                    <div className="h-4 w-24 rounded bg-muted" />
-                                    <div className="h-3 w-full rounded bg-muted/80" />
-                                </CardHeader>
-                                <CardContent className="space-y-2">
-                                    <div className="h-3 w-full rounded bg-muted/70" />
-                                    <div className="h-3 w-2/3 rounded bg-muted/70" />
-                                </CardContent>
-                            </Card>
-                        ))}
-                    </div>
-                ) : filteredProjects.length === 0 ? (
-                    <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
-                        No se encontraron proyectos para esta búsqueda.
-                    </div>
-                ) : (
-                    <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-                        {filteredProjects.map((project) => (
-                            <Card
-                                key={project.id}
-                                className="flex h-full cursor-pointer flex-col transition hover:border-primary/40 hover:shadow-md"
-                                onClick={() => router.push(`/projects/${encodeURIComponent(project.id)}/editor`)}
-                            >
-                                <CardHeader className="gap-3">
-                                    <div className="flex items-start justify-between gap-3">
-                                        <div>
-                                            <CardTitle className="line-clamp-2">{project.title}</CardTitle>
-                                            <CardDescription className="mt-1 line-clamp-2">
-                                                {project.description}
-                                            </CardDescription>
-                                        </div>
-                                        <Badge variant="secondary">{project.status}</Badge>
-                                    </div>
-
-                                    <div className="flex flex-wrap gap-2">
-                                        <Badge>{project.genre}</Badge>
-                                    </div>
-                                </CardHeader>
-
-                                <CardContent className="flex-1 space-y-3 text-sm text-muted-foreground">
-                                    <div className="flex items-center gap-2">
-                                        <BookOpen className="h-4 w-4" />
-                                        <span>{formatWordCount(project.wordCountTarget)} palabras objetivo</span>
-                                    </div>
-
-                                    <div className="flex items-center gap-2">
-                                        <Clock3 className="h-4 w-4" />
-                                        <span>
-                                            Actualizado {" "}
-                                            {new Date(project.updatedAt).toLocaleDateString("es-ES", {
-                                                day: "numeric",
-                                                month: "short",
-                                                year: "numeric",
-                                            })}
-                                        </span>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        ))}
-                    </div>
-                )}
+                {projectContent}
             </main>
 
             <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>

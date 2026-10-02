@@ -52,6 +52,18 @@ type NewRelationModalProps = {
   };
 };
 
+function getRelationModalTitle(isProposal: boolean, isEditing: boolean) {
+  if (isProposal) return "Revisar propuesta de relación";
+  if (isEditing) return "Editar Relación";
+  return "Nueva Relación";
+}
+
+function getRelationSubmitLabel(isProposal: boolean, isEditing: boolean) {
+  if (isProposal) return "Aceptar propuesta";
+  if (isEditing) return "Guardar cambios";
+  return "Crear relación";
+}
+
 export function NewRelationModal({
   show,
   entities,
@@ -154,11 +166,7 @@ export function NewRelationModal({
       <DialogContent className="min-w-[600px] gap-0 overflow-hidden">
         <DialogHeader className="border-b p-6 py-4">
           <DialogTitle>
-            {isProposal
-              ? "Revisar propuesta de relación"
-              : isEditing
-                ? "Editar Relación"
-                : "Nueva Relación"}
+            {getRelationModalTitle(isProposal, isEditing)}
           </DialogTitle>
         </DialogHeader>
 
@@ -265,11 +273,7 @@ export function NewRelationModal({
             Cancelar
           </Button>
           <Button disabled={!canSubmit || submitting} onClick={handleSubmit}>
-            {isProposal
-              ? "Aceptar propuesta"
-              : isEditing
-                ? "Guardar cambios"
-                : "Crear relación"}
+            {getRelationSubmitLabel(isProposal, isEditing)}
           </Button>
         </DialogFooter>
       </DialogContent>

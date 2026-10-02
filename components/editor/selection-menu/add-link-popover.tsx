@@ -19,7 +19,57 @@ type AddLinkPopoverProps = {
 
 type LinkMode = "url" | "entity"
 
-export function AddLinkPopover({ editor, projectId, onDone }: AddLinkPopoverProps) {
+function EntityLinkSearchResults({
+  loading,
+  entities,
+  onSelect,
+}: Readonly<{
+  loading: boolean
+  entities: Entity[]
+  onSelect: (entity: Entity) => void
+}>) {
+  if (loading) {
+    return (
+      <p className="px-2 py-3 text-center text-xs text-muted-foreground">
+        Cargando entidades...
+      </p>
+    )
+  }
+
+  if (entities.length === 0) {
+    return (
+      <p className="px-2 py-3 text-center text-xs text-muted-foreground">
+        No se encontraron entidades.
+      </p>
+    )
+  }
+
+  return entities.map((entity) => (
+    <button
+      key={entity.id}
+      type="button"
+      onMouseDown={(event) => event.preventDefault()}
+      onClick={() => onSelect(entity)}
+      className="flex w-full items-center gap-2 rounded-md px-1.5 py-1.5 text-left text-sm hover:bg-muted"
+    >
+      <EntityIconTile
+        category={TYPE_TO_CATEGORY[entity.type]}
+        className="size-7"
+        iconClassName="size-4"
+      />
+      <span className="min-w-0 flex-1">
+        <span className="block truncate font-medium">
+          {entity.canonicalName}
+        </span>
+        <span className="block text-xs text-muted-foreground">
+          {TYPE_TO_CATEGORY[entity.type]}
+        </span>
+      </span>
+    </button>
+  ))
+}
+
+export function AddLinkPopover({ editor, projectId, onDone }: Readonly<AddLinkPopoverProps>) {
   const [mode, setMode] = useState<LinkMode>("entity")
   const [url, setUrl] = useState("")
   const [query, setQuery] = useState("")
@@ -101,7 +151,6 @@ export function AddLinkPopover({ editor, projectId, onDone }: AddLinkPopoverProp
       {mode === "url" ? (
         <div className="flex gap-1.5">
           <input
-            autoFocus
             value={url}
             onChange={(event) => setUrl(event.target.value)}
             onKeyDown={(event) => {
@@ -125,7 +174,6 @@ export function AddLinkPopover({ editor, projectId, onDone }: AddLinkPopoverProp
           <div className="mb-1.5 flex items-center gap-2 rounded-md border border-border bg-background px-2 py-1.5">
             <Search size={14} className="shrink-0 text-muted-foreground" />
             <input
-              autoFocus
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Buscar entidad..."
@@ -134,39 +182,11 @@ export function AddLinkPopover({ editor, projectId, onDone }: AddLinkPopoverProp
           </div>
 
           <div className="max-h-56 overflow-y-auto">
-            {isLoading ? (
-              <p className="px-2 py-3 text-center text-xs text-muted-foreground">
-                Cargando entidades...
-              </p>
-            ) : filteredEntities.length === 0 ? (
-              <p className="px-2 py-3 text-center text-xs text-muted-foreground">
-                No se encontraron entidades.
-              </p>
-            ) : (
-              filteredEntities.map((entity) => (
-                <button
-                  key={entity.id}
-                  type="button"
-                  onMouseDown={(event) => event.preventDefault()}
-                  onClick={() => applyEntity(entity)}
-                  className="flex w-full items-center gap-2 rounded-md px-1.5 py-1.5 text-left text-sm hover:bg-muted"
-                >
-                  <EntityIconTile
-                    category={TYPE_TO_CATEGORY[entity.type]}
-                    className="size-7"
-                    iconClassName="size-4"
-                  />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate font-medium">
-                      {entity.canonicalName}
-                    </span>
-                    <span className="block text-xs text-muted-foreground">
-                      {TYPE_TO_CATEGORY[entity.type]}
-                    </span>
-                  </span>
-                </button>
-              ))
-            )}
+            <EntityLinkSearchResults
+              loading={isLoading}
+              entities={filteredEntities}
+              onSelect={applyEntity}
+            />
           </div>
         </div>
       )}

@@ -19,7 +19,7 @@ type NavbarProps = {
     onCreateProject?: () => void;
 };
 
-export function Navbar({ searchQuery, onSearchChange, onCreateProject }: NavbarProps) {
+export function Navbar({ searchQuery, onSearchChange, onCreateProject }: Readonly<NavbarProps>) {
     return (
         <header className="border-b bg-white">
             <div className="container mx-auto flex h-16 items-center justify-between px-4">

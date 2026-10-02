@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import type { Editor } from "@tiptap/react"
 import type { Mark } from "@tiptap/pm/model"
+import type { Transaction } from "@tiptap/pm/state"
 
 import {
   DEFAULT_PARAGRAPH_ATTRIBUTES,
@@ -106,68 +107,108 @@ function captureFormat(editor: Editor): FormatSnapshot {
   }
 }
 
+type TargetBlock = {
+  pos: number
+  node: Editor["state"]["doc"]
+}
+
+function applySnapshotMarks(
+  editor: Editor,
+  transaction: Transaction,
+  from: number,
+  to: number,
+  selectionEmpty: boolean,
+  marks: readonly Mark[],
+) {
+  if (selectionEmpty) {
+    transaction.setStoredMarks([...marks])
+    return
+  }
+
+  for (const markType of Object.values(editor.state.schema.marks)) {
+    if (markType.name !== "link") {
+      transaction.removeMark(from, to, markType)
+    }
+  }
+
+  for (const mark of marks) {
+    transaction.addMark(from, to, mark)
+  }
+}
+
+function getTargetBlocks(
+  editor: Editor,
+  transaction: Transaction,
+  from: number,
+  to: number,
+  selectionEmpty: boolean,
+): TargetBlock[] {
+  const targetBlocks: TargetBlock[] = []
+  if (selectionEmpty) {
+    const { $from } = editor.state.selection
+    if ($from.parent.isTextblock) {
+      targetBlocks.push({
+        pos: $from.before($from.depth),
+        node: $from.parent,
+      })
+    }
+    return targetBlocks
+  }
+
+  transaction.doc.nodesBetween(from, to, (node, pos) => {
+    if (node.isTextblock) targetBlocks.push({ pos, node })
+  })
+  return targetBlocks
+}
+
+function applySnapshotBlockFormat(
+  editor: Editor,
+  transaction: Transaction,
+  snapshot: FormatSnapshot,
+  targetBlocks: TargetBlock[],
+) {
+  if (!snapshot.blockType) return
+  const targetType = editor.state.schema.nodes[snapshot.blockType]
+  if (!targetType) return
+
+  for (const { pos, node } of targetBlocks) {
+    const $pos = transaction.doc.resolve(pos)
+    const canReplace = $pos.parent.canReplaceWith(
+      $pos.index(),
+      $pos.index() + 1,
+      targetType,
+    )
+    if (!canReplace || !targetType.validContent(node.content)) continue
+
+    const attributes =
+      snapshot.blockType === "heading"
+        ? {
+            level: snapshot.headingLevel,
+            editorStyleId: snapshot.editorStyleId,
+          }
+        : {
+            ...snapshot.paragraphAttributes,
+            editorStyleId: snapshot.editorStyleId,
+          }
+    transaction.setNodeMarkup(pos, targetType, attributes, node.marks)
+  }
+}
+
 function applyFormat(editor: Editor, snapshot: FormatSnapshot) {
   const { state, view } = editor
-  const { selection, schema } = state
+  const { selection } = state
   const { from, to } = selection
   const transaction = state.tr
 
-  if (selection.empty) {
-    transaction.setStoredMarks([...snapshot.marks])
-  } else {
-    for (const markType of Object.values(schema.marks)) {
-      if (markType.name !== "link") {
-        transaction.removeMark(from, to, markType)
-      }
-    }
-
-    for (const mark of snapshot.marks) {
-      transaction.addMark(from, to, mark)
-    }
-  }
-
-  const targetBlocks: Array<{ pos: number; node: typeof state.doc }> = []
-  if (selection.empty) {
-    if (selection.$from.parent.isTextblock) {
-      targetBlocks.push({
-        pos: selection.$from.before(selection.$from.depth),
-        node: selection.$from.parent,
-      })
-    }
-  } else {
-    transaction.doc.nodesBetween(from, to, (node, pos) => {
-      if (node.isTextblock) targetBlocks.push({ pos, node })
-    })
-  }
-
-  if (snapshot.blockType) {
-    const targetType = schema.nodes[snapshot.blockType]
-
-    if (targetType) {
-      for (const { pos, node } of targetBlocks) {
-        const $pos = transaction.doc.resolve(pos)
-        const canReplace = $pos.parent.canReplaceWith(
-          $pos.index(),
-          $pos.index() + 1,
-          targetType,
-        )
-
-        if (!canReplace || !targetType.validContent(node.content)) continue
-
-        const attributes =
-          snapshot.blockType === "heading"
-            ? {
-                level: snapshot.headingLevel,
-                editorStyleId: snapshot.editorStyleId,
-              }
-            : {
-                ...snapshot.paragraphAttributes,
-                editorStyleId: snapshot.editorStyleId,
-              }
-        transaction.setNodeMarkup(pos, targetType, attributes, node.marks)
-      }
-    }
-  }
+  applySnapshotMarks(editor, transaction, from, to, selection.empty, snapshot.marks)
+  const targetBlocks = getTargetBlocks(
+    editor,
+    transaction,
+    from,
+    to,
+    selection.empty,
+  )
+  applySnapshotBlockFormat(editor, transaction, snapshot, targetBlocks)
 
   if (transaction.docChanged || transaction.storedMarksSet) {
     view.dispatch(transaction)

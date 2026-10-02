@@ -25,7 +25,7 @@ type NewProjectFormProps = {
   onSuccess?: (project: ProjectResponse) => void
 }
 
-export function NewProjectForm({ onCancel, onSuccess }: NewProjectFormProps) {
+export function NewProjectForm({ onCancel, onSuccess }: Readonly<NewProjectFormProps>) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [values, setValues] = useState({
     title: "",

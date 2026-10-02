@@ -54,6 +54,15 @@ type SceneEditorProps = {
   canSplit?: boolean
 }
 
+function getEditorVersionLabel(
+  document: SceneDocument | SceneVersionDocument,
+  selectedVersionId: string | null,
+) {
+  if (selectedVersionId === null) return "Borrador principal"
+  if ("label" in document && document.label) return document.label
+  return "Version sin titulo"
+}
+
 function SceneEditor({
   sceneId,
   document,
@@ -73,11 +82,13 @@ function SceneEditor({
   onToggleSplit,
   isSplit,
   canSplit,
-}: SceneEditorProps) {
+}: Readonly<SceneEditorProps>) {
   const setCurrentContent = useEditorStore((s) => s.setCurrentContent)
+  const setEditorVersionLabel = useEditorStore((s) => s.setEditorVersionLabel)
   const saveStatus = useEditorStore(
     (s) => s.saveStatusByPane[paneId],
   )
+  const versionLabel = getEditorVersionLabel(document, selectedVersionId)
   const [content, setContent] = useState<ProseMirrorJSON | null>(
     document.content,
   )
@@ -137,6 +148,12 @@ function SceneEditor({
     }
   }, [content, paneId, setCurrentContent])
 
+  useEffect(() => {
+    if (paneId === "primary") {
+      setEditorVersionLabel(versionLabel)
+    }
+  }, [paneId, setEditorVersionLabel, versionLabel])
+
   return (
     <>
       <AnalysisToast
@@ -149,13 +166,6 @@ function SceneEditor({
         sceneId={sceneId}
         projectId={projectId}
         content={content}
-        versionLabel={
-          selectedVersionId
-            ? "label" in document && document.label
-              ? document.label
-              : "Version sin titulo"
-            : "Borrador principal"
-        }
         onChange={handleContentChange}
         onSave={() => void saveNow()}
         onAnalyzeChanges={
@@ -167,7 +177,6 @@ function SceneEditor({
         onOpenSearch={onOpenSearch}
         onOpenSpellcheckSettings={onOpenSpellcheckSettings}
         onExportClick={onExportClick}
-        paneId={paneId}
         saveNow={saveNow}
         showToolbar={showToolbar}
         onEditorFocus={onEditorFocus}
@@ -198,7 +207,7 @@ function SceneDocumentLoader({
   onToggleSplit,
   isSplit,
   canSplit,
-}: {
+}: Readonly<{
   sceneId: string
   selectedVersionId: string | null
   projectId: string
@@ -218,7 +227,7 @@ function SceneDocumentLoader({
   onToggleSplit?: () => void
   isSplit?: boolean
   canSplit?: boolean
-}) {
+}>) {
   const documentReloadToken = useEditorStore((s) => s.documentReloadToken)
   const [document, setDocument] = useState<
     SceneDocument | SceneVersionDocument | null
@@ -307,13 +316,13 @@ function SceneSelector({
   label,
   onChange,
   disabled,
-}: {
+}: Readonly<{
   value: string
   sections: EditorSectionOption[]
   label: string
   onChange: (sceneId: string) => void
   disabled: boolean
-}) {
+}>) {
   const groups = useMemo(() => {
     const grouped = new Map<
       string,
@@ -387,7 +396,7 @@ function EditorPanel({
   onToggleSplit,
   isSplit,
   canSplit,
-}: {
+}: Readonly<{
   sceneId: string
   section: EditorSectionOption
   selectedVersionId: string | null
@@ -406,7 +415,7 @@ function EditorPanel({
   onToggleSplit?: () => void
   isSplit?: boolean
   canSplit?: boolean
-}) {
+}>) {
   return (
     <SceneDocumentLoader
       sceneId={sceneId}
@@ -441,7 +450,7 @@ function EditorWorkspace({
   onOpenSpellcheckSettings,
   onExportClick,
   onBeforeExportChange,
-}: {
+}: Readonly<{
   sceneId: string
   selectedVersionId: string | null
   projectId: string
@@ -452,7 +461,7 @@ function EditorWorkspace({
   onOpenSpellcheckSettings?: () => void
   onExportClick?: () => void
   onBeforeExportChange?: (handler: (() => Promise<void>) | null) => void
-}) {
+}>) {
   const setActiveScene = useEditorStore((s) => s.setActiveScene)
   const [isSplit, setIsSplit] = useState(false)
   const [secondarySceneId, setSecondarySceneId] = useState<string | null>(
@@ -470,13 +479,15 @@ function EditorWorkspace({
   const canSplit = sections.length > 1
   const fallbackSecondarySceneId =
     sections.find((section) => section.id !== sceneId)?.id ?? null
-  const activeSecondarySceneId =
-    isSplit && canSplit
-      ? secondarySceneId &&
-        sections.some((section) => section.id === secondarySceneId)
-        ? secondarySceneId
-        : fallbackSecondarySceneId
-      : null
+  let activeSecondarySceneId: string | null = null
+  if (isSplit && canSplit) {
+    const secondarySceneIsAvailable =
+      secondarySceneId !== null &&
+      sections.some((section) => section.id === secondarySceneId)
+    activeSecondarySceneId = secondarySceneIsAvailable
+      ? secondarySceneId
+      : fallbackSecondarySceneId
+  }
   const effectiveIsSplit = Boolean(activeSecondarySceneId)
   const primarySection = sections.find((section) => section.id === sceneId)
   const secondarySection = sections.find(
@@ -638,7 +649,6 @@ function EditorWorkspace({
         <EditorMenuBar
           editor={focusedActions.editor}
           projectId={projectId}
-          versionLabel={focusedActions.versionLabel}
           onSave={() => void focusedActions.saveNow()}
           onExportClick={onExportClick}
           onInsertImage={focusedActions.onInsertImage}
@@ -660,14 +670,11 @@ function EditorWorkspace({
       {effectiveIsSplit && focusedActions && (
         <EditorToolbar
           editor={focusedActions.editor}
-          versionLabel={focusedActions.versionLabel}
           onInsertImage={focusedActions.onInsertImage}
           isUploadingImage={focusedActions.isUploadingImage}
           onAnalyzeChanges={focusedActions.onAnalyzeChanges}
           isAnalysisSaving={focusedActions.isAnalysisSaving}
-          onToggleZenMode={onToggleZenMode}
           isZenMode={isZenMode}
-          paneId={focusedPane}
           onToggleSplit={() => void handleToggleSplit()}
           isSplit={effectiveIsSplit}
           canSplit={canSplit}
@@ -695,7 +702,7 @@ function EditorWorkspace({
       >
         <div
           className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
-          onMouseDown={() => setFocusedPane("primary")}
+          onFocusCapture={() => setFocusedPane("primary")}
         >
           {effectiveIsSplit && (
             <SceneSelector
@@ -733,7 +740,7 @@ function EditorWorkspace({
         {effectiveIsSplit && activeSecondarySceneId && secondarySection && (
           <div
             className="flex min-h-0 min-w-0 flex-col overflow-hidden"
-            onMouseDown={() => setFocusedPane("secondary")}
+            onFocusCapture={() => setFocusedPane("secondary")}
           >
             <SceneSelector
               value={activeSecondarySceneId}
@@ -778,7 +785,7 @@ export function EditorContainer({
   onOpenSpellcheckSettings,
   onExportClick,
   onBeforeExportChange,
-}: {
+}: Readonly<{
   sceneId: string
   projectId: string
   isZenMode: boolean
@@ -788,7 +795,7 @@ export function EditorContainer({
   onOpenSpellcheckSettings?: () => void
   onExportClick?: () => void
   onBeforeExportChange?: (handler: (() => Promise<void>) | null) => void
-}) {
+}>) {
   const selectedVersionId = useEditorStore((s) => s.selectedSceneVersionId)
 
   return (

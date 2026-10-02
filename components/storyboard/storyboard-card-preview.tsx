@@ -14,7 +14,7 @@ type StoryboardCardPreviewProps = {
 export function StoryboardCardPreview({
   card,
   entitiesById,
-}: StoryboardCardPreviewProps) {
+}: Readonly<StoryboardCardPreviewProps>) {
   return (
     <article className="w-[284px] cursor-grabbing rounded-lg border border-primary/40 bg-card p-4 shadow-xl ring-2 ring-primary/15">
       <StoryboardCardBody

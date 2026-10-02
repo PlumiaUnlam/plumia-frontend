@@ -48,7 +48,7 @@ export function LeftSidebarItemModals({
   onCreateBook,
   onCreateChapter,
   onCreateSection,
-}: LeftSidebarItemModalsProps) {
+}: Readonly<LeftSidebarItemModalsProps>) {
   return (
     <>
       <Dialog

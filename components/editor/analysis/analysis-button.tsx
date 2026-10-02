@@ -8,7 +8,7 @@ type AnalysisButtonProps = {
   onClick: () => void
 }
 
-export function AnalysisButton({ isSaving, onClick }: AnalysisButtonProps) {
+export function AnalysisButton({ isSaving, onClick }: Readonly<AnalysisButtonProps>) {
   return (
     <Button
       type="button"

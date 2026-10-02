@@ -88,7 +88,12 @@ function parseSpacing(element: HTMLElement, property: string): number | null {
   if (!value) return null
   const parsed = Number.parseFloat(value)
   if (!Number.isFinite(parsed) || parsed < 0) return null
-  const points = value.endsWith("px") ? parsed * 0.75 : value.endsWith("pt") || parsed === 0 ? parsed : null
+  let points: number | null = null
+  if (value.endsWith("px")) {
+    points = parsed * 0.75
+  } else if (value.endsWith("pt") || parsed === 0) {
+    points = parsed
+  }
   return points === null ? null : Math.min(144, Math.round(points * 100) / 100)
 }
 

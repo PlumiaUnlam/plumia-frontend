@@ -30,7 +30,7 @@ export function StoryboardColumn({
   onAddCard,
   onEditCard,
   onDeleteCard,
-}: StoryboardColumnProps) {
+}: Readonly<StoryboardColumnProps>) {
   const { isOver, setNodeRef } = useDroppable({ id: column.id })
   const ColumnIcon = column.icon
 

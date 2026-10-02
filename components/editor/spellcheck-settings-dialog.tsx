@@ -37,7 +37,7 @@ export function SpellcheckSettingsDialog({
   onLanguageChange,
   onOpenChange,
   onSave,
-}: SpellcheckSettingsDialogProps) {
+}: Readonly<SpellcheckSettingsDialogProps>) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[min(28rem,calc(100vw-1.5rem))] max-w-none gap-0 overflow-hidden border-[#dadce0] p-0 sm:max-w-none">

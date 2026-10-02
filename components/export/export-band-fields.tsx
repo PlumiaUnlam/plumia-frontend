@@ -67,7 +67,7 @@ export function ExportBandFields({
   value,
   disabled,
   onChange,
-}: ExportBandFieldsProps) {
+}: Readonly<ExportBandFieldsProps>) {
   const selectedOption = value
     ? options.find((option) => option.matches(value))
     : undefined
@@ -126,7 +126,8 @@ export function ExportBandFields({
       {selectedOption && (
         <div className="space-y-1.5">
           <span className="text-xs font-medium text-[#3e2a4e]">Alineación</span>
-          <div className="flex gap-1" role="group" aria-label="Alineación">
+          <fieldset className="m-0 flex min-w-0 gap-1 border-0 p-0">
+            <legend className="sr-only">Alineación</legend>
             {alignmentOptions.map(({ value: option, label: optionLabel, icon: Icon }) => (
               <button
                 key={option}
@@ -144,7 +145,7 @@ export function ExportBandFields({
                 <Icon className="size-4" />
               </button>
             ))}
-          </div>
+          </fieldset>
         </div>
       )}
     </fieldset>

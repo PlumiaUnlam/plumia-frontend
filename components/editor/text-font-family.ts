@@ -275,14 +275,10 @@ export function findTextFontFamilyByName(value: string): TextFontFamily | null {
 export function getFontFamilyCss(fontFamily: TextFontFamily): string {
   const option = findFontOption(fontFamily)
   const family = option?.cssName ?? option?.value ?? "Lora"
-  const fallback =
-    option?.category === "serif"
-      ? "serif"
-      : option?.category === "monospace"
-        ? "monospace"
-        : option?.category === "handwriting"
-          ? "cursive"
-          : "sans-serif"
+  let fallback = "sans-serif"
+  if (option?.category === "serif") fallback = "serif"
+  else if (option?.category === "monospace") fallback = "monospace"
+  else if (option?.category === "handwriting") fallback = "cursive"
 
   return `'${family}', ${fallback}`
 }

@@ -24,8 +24,6 @@ export const BULLET_LIST_COLORS = [
   { value: "#db2777", label: "Rosa" },
 ] as const
 
-export type BulletListColor = string
-export type OrderedListColor = BulletListColor
 
 export const ORDERED_LIST_STYLES = [
   { value: "1", label: "Números", preview: ["1.", "2.", "3."] },
@@ -75,7 +73,7 @@ function isHexColor(value: string) {
   return /^#[0-9a-f]{6}$/i.test(value)
 }
 
-function isBulletListColor(value: string): value is BulletListColor {
+function isBulletListColor(value: string) {
   return value === "currentColor" || isHexColor(value)
 }
 
@@ -110,14 +108,14 @@ export const ListFormatting = Extension.create({
             },
           },
           bulletColor: {
-            default: "currentColor" as BulletListColor,
+            default: "currentColor",
             parseHTML: (element: HTMLElement) => {
               const color = element.dataset.bulletColor
               return color && isBulletListColor(color)
                 ? color
                 : "currentColor"
             },
-            renderHTML: (attributes: { bulletColor?: BulletListColor }) => ({
+            renderHTML: (attributes: { bulletColor?: string }) => ({
               "data-bullet-color": attributes.bulletColor ?? "currentColor",
               style: `--bullet-color: ${attributes.bulletColor ?? "currentColor"}`,
             }),
@@ -128,7 +126,7 @@ export const ListFormatting = Extension.create({
         types: ["orderedList"],
         attributes: {
           orderedListColor: {
-            default: "currentColor" as OrderedListColor,
+            default: "currentColor",
             parseHTML: (element: HTMLElement) => {
               const color = element.dataset.listColor
               return color && isBulletListColor(color)
@@ -136,7 +134,7 @@ export const ListFormatting = Extension.create({
                 : "currentColor"
             },
             renderHTML: (attributes: {
-              orderedListColor?: OrderedListColor
+              orderedListColor?: string
             }) => {
               const color = attributes.orderedListColor ?? "currentColor"
 
@@ -175,7 +173,7 @@ export function getActiveBulletListStyle(editor: Editor): BulletListStyle {
   return isBulletListStyle(value) ? value : "disc"
 }
 
-export function getActiveBulletListColor(editor: Editor): BulletListColor {
+export function getActiveBulletListColor(editor: Editor): string {
   const value = editor.getAttributes("bulletList").bulletColor
   return typeof value === "string" && isBulletListColor(value)
     ? value
@@ -190,7 +188,7 @@ export function getActiveOrderedListStyle(editor: Editor): OrderedListStyle {
     : "1"
 }
 
-export function getActiveOrderedListColor(editor: Editor): OrderedListColor {
+export function getActiveOrderedListColor(editor: Editor): string {
   const value = editor.getAttributes("orderedList").orderedListColor
   return typeof value === "string" && isBulletListColor(value)
     ? value
@@ -212,7 +210,7 @@ export function applyBulletListStyle(
 
 export function applyBulletListColor(
   editor: Editor,
-  color: BulletListColor,
+  color: string,
 ) {
   const chain = editor.chain().focus()
 
@@ -243,7 +241,7 @@ export function applyOrderedListStyle(
 
 export function applyOrderedListColor(
   editor: Editor,
-  color: OrderedListColor,
+  color: string,
 ) {
   const chain = editor.chain().focus()
 
