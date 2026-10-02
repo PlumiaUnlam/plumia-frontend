@@ -65,12 +65,31 @@ export type ReaderComment = {
   prefix: string | null
   suffix: string | null
   status: ReaderCommentStatus
+  isVisible: boolean
+  replies: ReaderCommentReply[]
+  statusHistory: ReaderCommentStatusEvent[]
   author: {
     id: string | null
     displayName: string
   }
   createdAt: string
   updatedAt: string
+}
+
+export type ReaderCommentReply = {
+  id: string
+  body: string
+  author: {
+    id: string | null
+    displayName: string
+  }
+  createdAt: string
+}
+
+export type ReaderCommentStatusEvent = {
+  status: ReaderCommentStatus
+  changedByName: string
+  createdAt: string
 }
 
 export type TextSelectionAnchor = {

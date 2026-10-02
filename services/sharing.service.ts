@@ -107,6 +107,22 @@ export function createReaderComment(
   })
 }
 
+export function createReaderCommentReply(
+  slug: string,
+  token: string | undefined,
+  commentId: string,
+  body: string,
+): Promise<ReaderComment> {
+  return sharedRequest(
+    `/reading/invitations/${slug}/comments/${commentId}/replies`,
+    token,
+    {
+      method: "POST",
+      body: JSON.stringify({ body }),
+    },
+  )
+}
+
 export function updateReaderComment(
   slug: string,
   commentId: string,

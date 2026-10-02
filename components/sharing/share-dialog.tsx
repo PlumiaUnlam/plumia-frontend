@@ -283,21 +283,20 @@ export function ShareDialog({
                         ? "Pendiente"
                         : share.status === "ACCEPTED"
                           ? "Aceptada"
-                          : "Revocada"}
+                          : "Revocada"} · Versión del{" "}
+                      {new Date(share.frozenAt).toLocaleString("es-UY")}
                     </p>
                   </div>
-                  {share.status !== "REVOKED" && (
-                    <Button type="button" variant="ghost" size="icon-sm" asChild>
-                      <a
-                        href={`/shared/${share.slug}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        aria-label={`Abrir versión compartida con ${share.invitedEmail}`}
-                      >
-                        <ExternalLink />
-                      </a>
-                    </Button>
-                  )}
+                  <Button type="button" variant="ghost" size="icon-sm" asChild>
+                    <a
+                      href={`/shared/${share.slug}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      aria-label={`${share.status === "REVOKED" ? "Ver historial" : "Abrir versión"} compartida con ${share.invitedEmail}`}
+                    >
+                      <ExternalLink />
+                    </a>
+                  </Button>
                   {share.status !== "REVOKED" && (
                     <Button
                       type="button"
