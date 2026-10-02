@@ -1,14 +1,17 @@
 "use client"
 
-import { useEffect, useMemo, useState, type KeyboardEvent } from "react"
+import { useEffect, useMemo, useState } from "react"
 import {
   BookOpen,
   Clock3,
   FolderPlus,
+  MoreHorizontal,
+  Pencil,
   SearchX,
+  Trash2,
   TriangleAlert,
 } from "lucide-react"
-import { useRouter } from "next/navigation"
+import Link from "next/link"
 
 import { NewProjectForm } from "@/components/form/new-project-form"
 import { Navbar } from "@/components/navbar"
@@ -16,18 +19,30 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { Dialog } from "@/components/ui/dialog"
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import {
   Empty,
   EmptyContent,
@@ -37,7 +52,9 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Spinner } from "@/components/ui/spinner"
 import {
+  deleteProject,
   getDashboardProjects,
   type ProjectResponse,
 } from "@/services/project.service"
@@ -46,12 +63,24 @@ function formatWordCount(value: number) {
   return new Intl.NumberFormat("es-ES").format(value)
 }
 
+function formatProjectStatus(status: string) {
+  const labels: Record<string, string> = {
+    draft: "Borrador",
+    active: "Activo",
+    archived: "Archivado",
+  }
+
+  return labels[status] ?? status
+}
+
 export default function DashboardPage() {
-  const router = useRouter()
   const [projects, setProjects] = useState<ProjectResponse[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [isLoading, setIsLoading] = useState(true)
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
+  const [projectToEdit, setProjectToEdit] = useState<ProjectResponse | null>(null)
+  const [projectToDelete, setProjectToDelete] = useState<ProjectResponse | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   useEffect(() => {
@@ -106,20 +135,6 @@ export default function DashboardPage() {
       return searchableText.includes(normalizedQuery)
     })
   }, [projects, searchQuery])
-
-  const openProject = (projectId: string) => {
-    router.push(`/projects/${encodeURIComponent(projectId)}/editor`)
-  }
-
-  const handleProjectKeyDown = (
-    event: KeyboardEvent<HTMLDivElement>,
-    projectId: string,
-  ) => {
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault()
-      openProject(projectId)
-    }
-  }
 
   let projectContent
   if (isLoading) {
@@ -178,13 +193,13 @@ export default function DashboardPage() {
         {filteredProjects.map((project) => (
           <Card
             key={project.id}
-            role="button"
-            tabIndex={0}
-            aria-label={`Abrir ${project.title}`}
-            className="flex h-full cursor-pointer flex-col transition-[transform,box-shadow] hover:-translate-y-0.5 hover:shadow-lg hover:shadow-primary/10 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-            onClick={() => openProject(project.id)}
-            onKeyDown={(event) => handleProjectKeyDown(event, project.id)}
+            className="relative flex h-full flex-col transition-[transform,box-shadow] hover:-translate-y-0.5 hover:shadow-lg hover:shadow-primary/10"
           >
+            <Link
+              href={`/projects/${encodeURIComponent(project.id)}/editor`}
+              aria-label={`Abrir ${project.title}`}
+              className="absolute inset-0 z-10 rounded-xl focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+            />
             <CardHeader className="gap-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -193,13 +208,37 @@ export default function DashboardPage() {
                     {project.description}
                   </CardDescription>
                 </div>
-                <Badge variant="outline">{project.status}</Badge>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Badge variant="secondary">{project.genre}</Badge>
+                <div className="relative z-20 shrink-0">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label={`Acciones de ${project.title}`}
+                      >
+                        <MoreHorizontal />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-40">
+                      <DropdownMenuItem onSelect={() => setProjectToEdit(project)}>
+                        <Pencil />
+                        Editar
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        variant="destructive"
+                        onSelect={() => setProjectToDelete(project)}
+                      >
+                        <Trash2 />
+                        Eliminar
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
               </div>
             </CardHeader>
-            <CardContent className="flex-1 space-y-3 text-sm text-muted-foreground">
+            <CardContent className="flex flex-1 flex-col gap-3 text-sm text-muted-foreground">
               <div className="flex items-center gap-2">
                 <BookOpen className="size-4" />
                 <span>{formatWordCount(project.wordCountTarget)} palabras objetivo</span>
@@ -215,6 +254,12 @@ export default function DashboardPage() {
                   })}
                 </span>
               </div>
+              <div className="mt-auto flex items-center justify-between gap-3 border-t pt-3">
+                <Badge variant="secondary">{project.genre}</Badge>
+                <span className="text-xs font-medium text-foreground/70">
+                  Estado: {formatProjectStatus(project.status)}
+                </span>
+              </div>
             </CardContent>
           </Card>
         ))}
@@ -226,6 +271,37 @@ export default function DashboardPage() {
     setProjects((currentProjects) => [project, ...currentProjects])
     setErrorMessage(null)
     setIsCreateDialogOpen(false)
+  }
+
+  const handleEditSuccess = (updatedProject: ProjectResponse) => {
+    setProjects((currentProjects) =>
+      currentProjects.map((project) =>
+        project.id === updatedProject.id ? updatedProject : project,
+      ),
+    )
+    setErrorMessage(null)
+    setProjectToEdit(null)
+  }
+
+  const handleDeleteProject = async () => {
+    if (!projectToDelete) return
+
+    setIsDeleting(true)
+    try {
+      await deleteProject(projectToDelete.id)
+      setProjects((currentProjects) =>
+        currentProjects.filter((project) => project.id !== projectToDelete.id),
+      )
+      setErrorMessage(null)
+      setProjectToDelete(null)
+    } catch (error) {
+      console.error("Error deleting project:", error)
+      setErrorMessage(
+        `No se pudo eliminar “${projectToDelete.title}”. Inténtalo nuevamente.`,
+      )
+    } finally {
+      setIsDeleting(false)
+    }
   }
 
   const projectCountLabel = `${filteredProjects.length} ${
@@ -266,16 +342,59 @@ export default function DashboardPage() {
       </main>
 
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Crear nuevo proyecto</DialogTitle>
-          </DialogHeader>
-          <NewProjectForm
-            onCancel={() => setIsCreateDialogOpen(false)}
-            onSuccess={handleCreateSuccess}
-          />
-        </DialogContent>
+        <NewProjectForm
+          onCancel={() => setIsCreateDialogOpen(false)}
+          onSuccess={handleCreateSuccess}
+        />
       </Dialog>
+
+      <Dialog
+        open={Boolean(projectToEdit)}
+        onOpenChange={(open) => {
+          if (!open) setProjectToEdit(null)
+        }}
+      >
+        {projectToEdit ? (
+          <NewProjectForm
+            key={projectToEdit.id}
+            project={projectToEdit}
+            onCancel={() => setProjectToEdit(null)}
+            onSuccess={handleEditSuccess}
+          />
+        ) : null}
+      </Dialog>
+
+      <AlertDialog
+        open={Boolean(projectToDelete)}
+        onOpenChange={(open) => {
+          if (!open && !isDeleting) setProjectToDelete(null)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar este proyecto?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {projectToDelete
+                ? `“${projectToDelete.title}” y todo su contenido dejarán de estar disponibles. Esta acción no se puede deshacer.`
+                : "Esta acción no se puede deshacer."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={isDeleting}
+              onClick={(event) => {
+                event.preventDefault()
+                void handleDeleteProject()
+              }}
+            >
+              {isDeleting ? <Spinner className="size-4" /> : <Trash2 />}
+              {isDeleting ? "Eliminando…" : "Eliminar proyecto"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
