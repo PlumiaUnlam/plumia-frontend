@@ -6,7 +6,6 @@ import {
   Check,
   ChevronDown,
   ChevronRight,
-  FileText,
   RefreshCw,
   Search,
   Sparkles,
@@ -86,7 +85,6 @@ type WikiPanelProps = {
 type WikiSectionKey =
   | "inconsistencies"
   | "relationships"
-  | "entities"
   | "proposals";
 
 export function WikiPanel({
@@ -131,7 +129,6 @@ export function WikiPanel({
   >({
     inconsistencies: true,
     relationships: true,
-    entities: true,
     proposals: true,
   });
 
@@ -199,19 +196,6 @@ export function WikiPanel({
     );
   }, [auditAlerts, searchQuery]);
 
-  const updateProposalsByEntityId = useMemo(() => {
-    const result = new Map<string, EntityProposal>();
-    for (const proposal of proposals) {
-      if (
-        proposal.targetEntity &&
-        proposal.proposedData.proposalKind === "ENTITY_UPDATE"
-      ) {
-        result.set(proposal.targetEntity.id, proposal);
-      }
-    }
-    return result;
-  }, [proposals]);
-
   const reviewingProposal =
     proposals.find((proposal) => proposal.id === reviewingProposalId) ?? null;
   const editingEntityProposal =
@@ -265,7 +249,11 @@ export function WikiPanel({
           <input
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
-            placeholder="Buscar entidades..."
+            placeholder={
+              showReviewSections
+                ? "Buscar en la revisión..."
+                : "Buscar entidades..."
+            }
             className="min-w-0 flex-1 bg-transparent text-[11px] text-foreground outline-none placeholder:text-muted-foreground"
           />
         </div>
@@ -304,22 +292,14 @@ export function WikiPanel({
             onEdit={setEditingRelationshipProposalId}
           />
 
-          <ConfirmedEntitiesSection
-            entities={filteredEntities}
-            loading={loading}
-            error={entitiesError}
-            primaryImageUrls={primaryImageUrls}
-            showReviewSections={showReviewSections}
-            updateProposalsByEntityId={updateProposalsByEntityId}
-            expanded={expandedSections.entities}
-            onToggle={() => toggleSection("entities")}
-            onReviewProposal={(proposalId) => {
-              const proposal = proposals.find(
-                (candidate) => candidate.id === proposalId,
-              )
-              if (proposal) handleEntityProposalEdit(proposal)
-            }}
-          />
+          {!showReviewSections && (
+            <ConfirmedEntityList
+              entities={filteredEntities}
+              loading={loading}
+              error={entitiesError}
+              primaryImageUrls={primaryImageUrls}
+            />
+          )}
 
           <EntityProposalsSection
             visible={showReviewSections}
@@ -627,17 +607,11 @@ function ConfirmedEntityList({
   error,
   entities,
   primaryImageUrls,
-  showReviewSections,
-  updateProposalsByEntityId,
-  onReviewProposal,
 }: Readonly<{
   loading: boolean;
   error: Error | undefined;
   entities: readonly Entity[];
   primaryImageUrls: Readonly<Record<string, string>>;
-  showReviewSections: boolean;
-  updateProposalsByEntityId: ReadonlyMap<string, EntityProposal>;
-  onReviewProposal: (proposalId: string) => void;
 }>) {
   if (loading) {
     return Array.from({ length: 3 }).map((_, index) => (
@@ -674,59 +648,8 @@ function ConfirmedEntityList({
       key={entity.id}
       entity={entity}
       primaryImageUrl={primaryImageUrls[entity.id]}
-      updateProposal={
-        showReviewSections
-          ? updateProposalsByEntityId.get(entity.id) ?? null
-          : null
-      }
-      onReviewProposal={onReviewProposal}
     />
   ))
-}
-
-function ConfirmedEntitiesSection({
-  entities,
-  loading,
-  error,
-  primaryImageUrls,
-  showReviewSections,
-  updateProposalsByEntityId,
-  expanded,
-  onToggle,
-  onReviewProposal,
-}: Readonly<{
-  entities: readonly Entity[];
-  loading: boolean;
-  error: Error | undefined;
-  primaryImageUrls: Readonly<Record<string, string>>;
-  showReviewSections: boolean;
-  updateProposalsByEntityId: ReadonlyMap<string, EntityProposal>;
-  expanded: boolean;
-  onToggle: () => void;
-  onReviewProposal: (proposalId: string) => void;
-}>) {
-  return (
-    <>
-      <WikiSectionTitle
-        icon={FileText}
-        label="Entidades confirmadas"
-        count={entities.length}
-        expanded={expanded}
-        onToggle={onToggle}
-      />
-      {expanded && (
-        <ConfirmedEntityList
-          loading={loading}
-          error={error}
-          entities={entities}
-          primaryImageUrls={primaryImageUrls}
-          showReviewSections={showReviewSections}
-          updateProposalsByEntityId={updateProposalsByEntityId}
-          onReviewProposal={onReviewProposal}
-        />
-      )}
-    </>
-  )
 }
 
 function EntityProposalList({
@@ -1047,13 +970,9 @@ function combineEntityDescriptions(
 function EditorWikiEntityCard({
   entity,
   primaryImageUrl,
-  updateProposal,
-  onReviewProposal,
 }: Readonly<{
   readonly entity: Entity;
   readonly primaryImageUrl: string | undefined;
-  readonly updateProposal: EntityProposal | null;
-  readonly onReviewProposal: (proposalId: string) => void;
 }>) {
   const category = TYPE_TO_CATEGORY[entity.type];
   const categoryStyle = getEntityCategoryStyle(category);
@@ -1096,18 +1015,6 @@ function EditorWikiEntityCard({
           >
             {categoryStyle.label}
           </Badge>
-          {updateProposal && (
-            <Button
-              type="button"
-              size="xs"
-              variant="outline"
-              className="h-6 shrink-0 border-amber-500/30 px-2 text-[9px] text-amber-700 hover:bg-amber-500/10 dark:text-amber-400"
-              onClick={() => onReviewProposal(updateProposal.id)}
-            >
-              <RefreshCw className="size-3" />
-              Actualizar
-            </Button>
-          )}
         </div>
 
         {entity.aliases.length > 0 && (
