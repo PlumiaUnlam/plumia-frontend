@@ -3,11 +3,13 @@ import Link from "next/link";
 import { useRouter, usePathname } from 'next/navigation'
 import { Button } from "@/components/ui/button";
 import Image from 'next/image';
+import { Share2 } from "lucide-react";
 import type { WritingMode } from "@/types/writing-mode";
 
 type HeaderProps = {
   readonly mode?: WritingMode;
   readonly onModeChange?: (mode: WritingMode) => void;
+  readonly onShareClick?: () => void;
 };
 
 const writingModes: readonly WritingMode[] = ["creation", "review", "zen"];
@@ -18,7 +20,7 @@ const modeLabels: Record<WritingMode, string> = {
   zen: "Zen",
 };
 
-export function Header({ mode, onModeChange }: HeaderProps) {
+export function Header({ mode, onModeChange, onShareClick }: HeaderProps) {
   const router = useRouter();
   const pathname = usePathname();
   const segments = pathname.split("/");
@@ -72,6 +74,12 @@ export function Header({ mode, onModeChange }: HeaderProps) {
             </button>
           ))}
         </div>
+      )}
+
+      {onShareClick && (
+        <Button variant="ghost" onClick={onShareClick} className="ml-auto gap-2 text-white hover:bg-white/10 hover:text-white">
+          <Share2 className="size-4" />Compartir
+        </Button>
       )}
 
     </header>

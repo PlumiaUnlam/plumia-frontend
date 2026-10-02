@@ -2,8 +2,17 @@
 import { useEffect, useMemo, useState } from "react"
 import { EditorContent, useEditor } from "@tiptap/react"
 import StarterKit from "@tiptap/starter-kit"
+import { MessageSquare } from "lucide-react"
 
 import type { ProseMirrorJSON } from "@/types/scene"
+import type { AuthorAnnotation, CreateAuthorAnnotationInput } from "@/types/author-annotation"
+import {
+  createSceneAnnotation,
+  deleteSceneAnnotation,
+  getSceneAnnotations,
+  updateSceneAnnotation,
+} from "@/services/author-annotation.service"
+import { Button } from "@/components/ui/button"
 import { useEditorStore } from "@/stores/editor.store"
 import {
   CitationFocus,
@@ -23,6 +32,12 @@ import { EntityLink } from "./entity-link/entity-link-extension"
 import { useEntityLink } from "./entity-link/use-entity-link"
 import { EntityLinkHoverTooltip } from "./entity-link/entity-link-hover-tooltip"
 import { SelectionBubbleMenu } from "./selection-menu/selection-bubble-menu"
+import { AuthorAnnotationPanel } from "./author-annotation-panel"
+import {
+  findAuthorAnnotationAnchor,
+  AuthorAnnotationDecorations,
+  authorAnnotationDecorationKey,
+} from "./author-annotation-decorations"
 import { SceneDivider } from "./scene-divider"
 import { ParagraphFormatting } from "./paragraph-formatting"
 import { ListFormatting } from "./list-formatting"
@@ -72,6 +87,7 @@ type RichTextEditorProps = {
   onToggleSplit?: () => void
   isSplit?: boolean
   canSplit?: boolean
+  allowAnnotations?: boolean
 }
 
 export function RichTextEditor({
@@ -96,8 +112,13 @@ export function RichTextEditor({
   onToggleSplit,
   isSplit = false,
   canSplit = true,
+  allowAnnotations = true,
 }: Readonly<RichTextEditorProps>) {
   const [paragraphDialogOpen, setParagraphDialogOpen] = useState(false)
+  const [annotations, setAnnotations] = useState<AuthorAnnotation[]>([])
+  const [isAnnotationsOpen, setIsAnnotationsOpen] = useState(false)
+  const [isAnnotationComposerOpen, setIsAnnotationComposerOpen] = useState(false)
+  const [annotationDraftAnchor, setAnnotationDraftAnchor] = useState<Omit<CreateAuthorAnnotationInput, "body"> | null>(null)
   const {
     error,
     isUploading,
@@ -156,6 +177,7 @@ export function RichTextEditor({
       EntityLink,
       EditorSearchFocus,
       CitationFocus,
+      AuthorAnnotationDecorations,
     ],
     content: content ?? "",
     editorProps: {
@@ -174,6 +196,95 @@ export function RichTextEditor({
   useEffect(() => {
     bindEditor(editor ?? null)
   }, [editor, bindEditor])
+
+  useEffect(() => {
+    if (!allowAnnotations) {
+      setAnnotations([])
+      setIsAnnotationsOpen(false)
+      return
+    }
+
+    const controller = new AbortController()
+    void getSceneAnnotations(sceneId, { signal: controller.signal })
+      .then((items) => {
+        if (!controller.signal.aborted) setAnnotations(items)
+      })
+      .catch((error: unknown) => {
+        if (!controller.signal.aborted) {
+          console.error("Error loading scene annotations:", error)
+        }
+      })
+
+    return () => controller.abort()
+  }, [allowAnnotations, sceneId])
+
+  useEffect(() => {
+    if (!editor || !allowAnnotations) return
+    editor.view.dispatch(
+      editor.state.tr.setMeta(authorAnnotationDecorationKey, annotations),
+    )
+  }, [allowAnnotations, editor, annotations])
+
+  const handleStartAnnotation = () => {
+    if (!editor || !allowAnnotations) return
+    const { from, to, empty } = editor.state.selection
+    if (empty) return
+
+    const quote = editor.state.doc.textBetween(from, to, "\n").trim()
+    if (!quote) return
+
+    setAnnotationDraftAnchor({
+      quote,
+      anchorFrom: from,
+      anchorTo: to,
+      contextBefore: editor.state.doc.textBetween(Math.max(0, from - 100), from, "\n").slice(-200),
+      contextAfter: editor.state.doc.textBetween(to, Math.min(editor.state.doc.content.size, to + 100), "\n").slice(0, 200),
+    })
+    setIsAnnotationsOpen(true)
+    setIsAnnotationComposerOpen(true)
+  }
+
+  const handleStartFreeAnnotation = () => {
+    setAnnotationDraftAnchor(null)
+    setIsAnnotationsOpen(true)
+    setIsAnnotationComposerOpen(true)
+  }
+
+  const handleCreateAnnotation = async (body: string) => {
+    const annotation = await createSceneAnnotation(sceneId, {
+      ...(annotationDraftAnchor ?? {}),
+      body,
+    })
+    setAnnotations((current) => [annotation, ...current])
+    setAnnotationDraftAnchor(null)
+    setIsAnnotationComposerOpen(false)
+  }
+
+  const handleEditAnnotation = async (annotationId: string, body: string) => {
+    const updated = await updateSceneAnnotation(sceneId, annotationId, body)
+    setAnnotations((current) => current.map((item) => item.id === updated.id ? updated : item))
+  }
+
+  const handleDeleteAnnotation = async (annotationId: string) => {
+    await deleteSceneAnnotation(sceneId, annotationId)
+    setAnnotations((current) => current.filter((item) => item.id !== annotationId))
+  }
+
+  const handleNavigateToAnnotation = (annotation: AuthorAnnotation) => {
+    if (!editor) return
+    const anchor = findAuthorAnnotationAnchor(editor.state.doc, annotation)
+    if (!anchor) return
+    editor.chain().focus().setTextSelection(anchor).run()
+    const node = editor.view.domAtPos(anchor.from).node
+    const target = node instanceof HTMLElement ? node : node.parentElement
+    target?.scrollIntoView({ behavior: "smooth", block: "center" })
+  }
+
+  const handleCloseAnnotations = () => {
+    setIsAnnotationsOpen(false)
+    setIsAnnotationComposerOpen(false)
+    setAnnotationDraftAnchor(null)
+  }
 
   useEffect(() => {
     if (!onToolbarActionsChange) return
@@ -359,8 +470,26 @@ export function RichTextEditor({
         </div>
       )}
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-3xl px-6 py-10">
+      <div className="flex min-h-0 flex-1">
+        <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">
+          <div className="mx-auto max-w-3xl px-6 py-10">
+            {allowAnnotations && (
+              <div className="mb-3 flex justify-end">
+                <Button
+                  type="button"
+                  variant={isAnnotationsOpen ? "secondary" : "outline"}
+                  size="sm"
+                  onClick={() => setIsAnnotationsOpen((open) => !open)}
+                  className="gap-2 border-[#dfc8ec] text-[#70408a]"
+                >
+                  <MessageSquare className="size-4" />
+                  Mis anotaciones
+                  <span className="rounded-full bg-[#eadcf1] px-1.5 py-0.5 text-xs">
+                    {annotations.length}
+                  </span>
+                </Button>
+              </div>
+            )}
           <div
             className="
               flex
@@ -385,7 +514,11 @@ export function RichTextEditor({
               </>
             )}
 
-            <SelectionBubbleMenu editor={editor} projectId={projectId} />
+            <SelectionBubbleMenu
+              editor={editor}
+              projectId={projectId}
+              onAddAnnotation={allowAnnotations ? handleStartAnnotation : undefined}
+            />
             <ListNumberingMenu editor={editor} />
             <EntityLinkHoverTooltip
               editor={editor}
@@ -414,6 +547,11 @@ export function RichTextEditor({
                 [&_.editor-search-match]:rounded-sm
                 [&_.editor-search-match]:bg-yellow-100/70
                 [&_.editor-search-match]:text-inherit
+                [&_.author-annotation-anchor]:rounded-sm
+                [&_.author-annotation-anchor]:bg-[#ecd9f5]
+                [&_.author-annotation-anchor]:decoration-2
+                [&_.author-annotation-anchor]:decoration-[#9c61b6]
+                [&_.author-annotation-anchor]:underline
 
                 text-[16px]
 
@@ -427,6 +565,20 @@ export function RichTextEditor({
             />
           </div>
         </div>
+        </div>
+        {allowAnnotations && isAnnotationsOpen && (
+          <AuthorAnnotationPanel
+            annotations={annotations}
+            draftAnchor={annotationDraftAnchor}
+            isComposerOpen={isAnnotationComposerOpen}
+            onClose={handleCloseAnnotations}
+            onStartCreate={handleStartFreeAnnotation}
+            onCreate={handleCreateAnnotation}
+            onEdit={handleEditAnnotation}
+            onDelete={handleDeleteAnnotation}
+            onNavigate={handleNavigateToAnnotation}
+          />
+        )}
       </div>
     </div>
   )

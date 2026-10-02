@@ -16,6 +16,7 @@ import type { EditorSectionOption } from "./editor-types"
 import type { EditorSearchMatch, SpellcheckLanguage } from "@/types/editor-search"
 import type { ProseMirrorJSON } from "@/types/scene"
 import { ExportDialog } from "@/components/export/export-dialog"
+import { ShareManagementDialog } from "@/components/reading/share-management-dialog"
 
 const blockTypes = new Set([
   "doc",
@@ -78,6 +79,7 @@ export function EditorLayout({ projectId }: Readonly<EditorLayoutProps>) {
   const [projectsError, setProjectsError] = useState<string | null>(null)
   const [writingMode, setWritingMode] = useState<WritingMode>("review")
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false)
+  const [isShareDialogOpen, setIsShareDialogOpen] = useState(false)
   const [isSearchPanelOpen, setIsSearchPanelOpen] = useState(false)
   const [isSpellcheckSettingsOpen, setIsSpellcheckSettingsOpen] = useState(false)
   const [draftSpellcheckLanguage, setDraftSpellcheckLanguage] =
@@ -267,6 +269,7 @@ export function EditorLayout({ projectId }: Readonly<EditorLayoutProps>) {
       <Header
         mode={writingMode}
         onModeChange={setWritingMode}
+        onShareClick={() => setIsShareDialogOpen(true)}
       />
 
       <SidebarProvider className="flex min-h-0 flex-1">
@@ -373,6 +376,13 @@ export function EditorLayout({ projectId }: Readonly<EditorLayoutProps>) {
         onLanguageChange={setDraftSpellcheckLanguage}
         onOpenChange={setIsSpellcheckSettingsOpen}
         onSave={handleSaveSpellcheckSettings}
+      />
+
+      <ShareManagementDialog
+        projectId={projectId}
+        open={isShareDialogOpen}
+        onOpenChange={setIsShareDialogOpen}
+        onBeforeCreate={saveBeforeExport}
       />
     </div>
   )

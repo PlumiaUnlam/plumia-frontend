@@ -20,6 +20,17 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## E2E con Playwright
+
+Instala Chromium una vez y ejecuta los recorridos principales con:
+
+```bash
+pnpm exec playwright install chromium
+pnpm test:e2e
+```
+
+`pnpm test:e2e` genera el build de producción antes de iniciar Playwright. Las pruebas simulan Firebase y la API, comparten una sesión autenticada y ejecutan los casos de Chromium en paralelo.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

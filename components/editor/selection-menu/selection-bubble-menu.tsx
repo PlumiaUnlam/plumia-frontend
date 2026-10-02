@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { BubbleMenu } from "@tiptap/react/menus"
 import type { Editor } from "@tiptap/react"
-import { Link2 } from "lucide-react"
+import { Link2, MessageSquarePlus } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { AddLinkPopover } from "./add-link-popover"
@@ -11,9 +11,10 @@ import { AddLinkPopover } from "./add-link-popover"
 type SelectionBubbleMenuProps = {
   editor: Editor
   projectId: string
+  onAddAnnotation?: () => void
 }
 
-export function SelectionBubbleMenu({ editor, projectId }: Readonly<SelectionBubbleMenuProps>) {
+export function SelectionBubbleMenu({ editor, projectId, onAddAnnotation }: Readonly<SelectionBubbleMenuProps>) {
   const [open, setOpen] = useState(false)
 
   useEffect(() => {
@@ -34,6 +35,18 @@ export function SelectionBubbleMenu({ editor, projectId }: Readonly<SelectionBub
         />
       ) : (
         <div className="flex items-center gap-1 rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-md">
+          {onAddAnnotation && (
+            <Button
+              type="button"
+              size="xs"
+              variant="ghost"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={onAddAnnotation}
+            >
+              <MessageSquarePlus className="size-3.5" />
+              Anotar
+            </Button>
+          )}
           <Button
             type="button"
             size="xs"
