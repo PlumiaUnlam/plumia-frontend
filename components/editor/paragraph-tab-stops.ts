@@ -64,9 +64,11 @@ export function paragraphTabStopsPlugin() {
           const offset = tab.getBoundingClientRect().left - origin
           const font = textStyle.font || `${textStyle.fontSize} ${textStyle.fontFamily}`
           let space = measurements.get(font)
-          if (context) context.font = font
-          space ??= context?.measureText(" ").width || Number.parseFloat(textStyle.fontSize) / 2
-          measurements.set(font, space)
+          if (space === undefined) {
+            if (context) context.font = font
+            space = context?.measureText(" ").width || Number.parseFloat(textStyle.fontSize) / 2
+            measurements.set(font, space)
+          }
           const width = nextTabWidth(offset, stops, space * (Number(paragraphStyle.tabSize) || 4))
           tab.style.width = `${Math.max(1, width)}px`
         }
