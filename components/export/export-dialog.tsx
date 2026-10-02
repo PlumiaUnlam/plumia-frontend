@@ -14,11 +14,14 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import {
-  NativeSelect,
-  NativeSelectOption,
-} from "@/components/ui/native-select"
 import { Progress } from "@/components/ui/progress"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   ExportBandFields,
@@ -328,24 +331,28 @@ export function ExportDialog({
                   >
                     Libro
                   </label>
-                  <NativeSelect
-                    id="export-book"
-                    value={bookId ?? ""}
+                  <Select
+                    value={bookId ?? undefined}
                     disabled={isBusy || books.length === 0}
-                    onChange={(event) => setSelectedBookId(event.target.value)}
-                    className="w-full [&>select]:h-10"
+                    onValueChange={setSelectedBookId}
                   >
-                    {books.length === 0 && (
-                      <NativeSelectOption value="">
-                        El proyecto no tiene libros
-                      </NativeSelectOption>
-                    )}
-                    {books.map((book) => (
-                      <NativeSelectOption key={book.id} value={book.id}>
-                        {book.title}
-                      </NativeSelectOption>
-                    ))}
-                  </NativeSelect>
+                    <SelectTrigger id="export-book" className="h-10 w-full">
+                      <SelectValue
+                        placeholder={
+                          books.length === 0
+                            ? "El proyecto no tiene libros"
+                            : "Seleccioná un libro"
+                        }
+                      />
+                    </SelectTrigger>
+                    <SelectContent align="start">
+                      {books.map((book) => (
+                        <SelectItem key={book.id} value={book.id}>
+                          {book.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="grid gap-2.5">

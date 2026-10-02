@@ -38,9 +38,12 @@ import {
   InputGroupInput,
 } from "@/components/ui/input-group"
 import {
-  NativeSelect,
-  NativeSelectOption,
-} from "@/components/ui/native-select"
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Spinner } from "@/components/ui/spinner"
 import { isEmail } from "@/helpers/validation"
 import {
@@ -195,25 +198,29 @@ export function ShareDialog({
           <FieldGroup className="gap-4">
             <Field>
               <FieldLabel htmlFor="share-book">Libro</FieldLabel>
-              <NativeSelect
-                id="share-book"
-                value={bookId}
+              <Select
+                value={bookId || undefined}
                 disabled={books.length === 0}
-                onChange={(event) => {
-                  setSelectedBookId(event.target.value)
+                onValueChange={(value) => {
+                  setSelectedBookId(value)
                   setCreatedLink(null)
                 }}
-                className="w-full [&>select]:h-10"
               >
-                {books.length === 0 && (
-                  <NativeSelectOption value="">No hay libros</NativeSelectOption>
-                )}
-                {books.map((book) => (
-                  <NativeSelectOption key={book.id} value={book.id}>
-                    {book.title}
-                  </NativeSelectOption>
-                ))}
-              </NativeSelect>
+                <SelectTrigger id="share-book" className="h-10 w-full">
+                  <SelectValue
+                    placeholder={
+                      books.length === 0 ? "No hay libros" : "Seleccioná un libro"
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent align="start">
+                  {books.map((book) => (
+                    <SelectItem key={book.id} value={book.id}>
+                      {book.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </Field>
 
             <div className="grid gap-3 sm:grid-cols-[1fr_180px]">
@@ -230,21 +237,22 @@ export function ShareDialog({
               </Field>
               <Field>
                 <FieldLabel htmlFor="share-permission">Permiso</FieldLabel>
-                <NativeSelect
-                  id="share-permission"
+                <Select
                   value={permission}
-                  onChange={(event) =>
-                    setPermission(event.target.value as SharePermission)
+                  onValueChange={(value) =>
+                    setPermission(value as SharePermission)
                   }
-                  className="w-full [&>select]:h-10"
                 >
-                  <NativeSelectOption value="READ_ONLY">
-                    Solo lectura
-                  </NativeSelectOption>
-                  <NativeSelectOption value="COMMENT">
-                    Lectura y comentarios
-                  </NativeSelectOption>
-                </NativeSelect>
+                  <SelectTrigger id="share-permission" className="h-10 w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent align="start">
+                    <SelectItem value="READ_ONLY">Solo lectura</SelectItem>
+                    <SelectItem value="COMMENT">
+                      Lectura y comentarios
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
               </Field>
             </div>
           </FieldGroup>
