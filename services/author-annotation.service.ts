@@ -1,5 +1,9 @@
 import { api } from "@/services/api.service"
-import type { AuthorAnnotation, CreateAuthorAnnotationInput } from "@/types/author-annotation"
+import type {
+  AuthorAnnotation,
+  CreateAuthorAnnotationInput,
+  UpdateAuthorAnnotationInput,
+} from "@/types/author-annotation"
 
 export function getSceneAnnotations(
   sceneId: string,
@@ -18,11 +22,11 @@ export function createSceneAnnotation(
 export function updateSceneAnnotation(
   sceneId: string,
   annotationId: string,
-  body: string,
+  input: UpdateAuthorAnnotationInput,
 ): Promise<AuthorAnnotation> {
   return api.patch<AuthorAnnotation>(
     `/scenes/${sceneId}/annotations/${annotationId}`,
-    { body },
+    input,
   )
 }
 

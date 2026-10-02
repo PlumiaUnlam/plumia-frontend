@@ -19,6 +19,7 @@ export type AuthorAnnotation = {
   contextAfter: string | null
   createdAt: string
   updatedAt: string
+  resolvedAt: string | null
 }
 
 export type CreateAuthorAnnotationInput = {
@@ -28,4 +29,9 @@ export type CreateAuthorAnnotationInput = {
   anchorTo?: number
   contextBefore?: string
   contextAfter?: string
+}
+
+export type UpdateAuthorAnnotationInput = {
+  body?: string
+  isResolved?: boolean
 }

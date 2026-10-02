@@ -1,18 +1,19 @@
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, type MouseEvent } from "react"
 import { EditorContent, useEditor } from "@tiptap/react"
 import StarterKit from "@tiptap/starter-kit"
-import { MessageSquare } from "lucide-react"
 
 import type { ProseMirrorJSON } from "@/types/scene"
-import type { AuthorAnnotation, CreateAuthorAnnotationInput } from "@/types/author-annotation"
+import type {
+  AuthorAnnotation,
+  CreateAuthorAnnotationInput,
+} from "@/types/author-annotation"
 import {
   createSceneAnnotation,
   deleteSceneAnnotation,
   getSceneAnnotations,
   updateSceneAnnotation,
 } from "@/services/author-annotation.service"
-import { Button } from "@/components/ui/button"
 import { useEditorStore } from "@/stores/editor.store"
 import {
   CitationFocus,
@@ -37,6 +38,7 @@ import {
   findAuthorAnnotationAnchor,
   AuthorAnnotationDecorations,
   authorAnnotationDecorationKey,
+  sortAuthorAnnotationsByTextPosition,
 } from "./author-annotation-decorations"
 import { SceneDivider } from "./scene-divider"
 import { ParagraphFormatting } from "./paragraph-formatting"
@@ -117,6 +119,9 @@ export function RichTextEditor({
   const [paragraphDialogOpen, setParagraphDialogOpen] = useState(false)
   const [annotations, setAnnotations] = useState<AuthorAnnotation[]>([])
   const [isAnnotationsOpen, setIsAnnotationsOpen] = useState(false)
+  const [showAnnotationMarkers, setShowAnnotationMarkers] = useState(true)
+  const [focusedAnnotationId, setFocusedAnnotationId] = useState<string | null>(null)
+  const [annotationFocusVersion, setAnnotationFocusVersion] = useState(0)
   const [isAnnotationComposerOpen, setIsAnnotationComposerOpen] = useState(false)
   const [annotationDraftAnchor, setAnnotationDraftAnchor] = useState<Omit<CreateAuthorAnnotationInput, "body"> | null>(null)
   const [toolbarExpanded, setToolbarExpanded] = useState(false)
@@ -194,16 +199,16 @@ export function RichTextEditor({
     },
   })
 
+  const orderedAnnotations = editor
+    ? sortAuthorAnnotationsByTextPosition(editor.state.doc, annotations)
+    : annotations
+
   useEffect(() => {
     bindEditor(editor ?? null)
   }, [editor, bindEditor])
 
   useEffect(() => {
-    if (!allowAnnotations) {
-      setAnnotations([])
-      setIsAnnotationsOpen(false)
-      return
-    }
+    if (!allowAnnotations) return
 
     const controller = new AbortController()
     void getSceneAnnotations(sceneId, { signal: controller.signal })
@@ -220,11 +225,21 @@ export function RichTextEditor({
   }, [allowAnnotations, sceneId])
 
   useEffect(() => {
-    if (!editor || !allowAnnotations) return
+    if (!editor) return
     editor.view.dispatch(
-      editor.state.tr.setMeta(authorAnnotationDecorationKey, annotations),
+      editor.state.tr.setMeta(authorAnnotationDecorationKey, {
+        annotations: allowAnnotations ? orderedAnnotations : [],
+        showMarkers: allowAnnotations && showAnnotationMarkers,
+        focusedAnnotationId: allowAnnotations ? focusedAnnotationId : null,
+      }),
     )
-  }, [allowAnnotations, editor, annotations])
+  }, [
+    allowAnnotations,
+    editor,
+    orderedAnnotations,
+    showAnnotationMarkers,
+    focusedAnnotationId,
+  ])
 
   const handleStartAnnotation = () => {
     if (!editor || !allowAnnotations) return
@@ -242,13 +257,17 @@ export function RichTextEditor({
       contextAfter: editor.state.doc.textBetween(to, Math.min(editor.state.doc.content.size, to + 100), "\n").slice(0, 200),
     })
     setIsAnnotationsOpen(true)
+    setShowAnnotationMarkers(true)
     setIsAnnotationComposerOpen(true)
+    setFocusedAnnotationId(null)
   }
 
   const handleStartFreeAnnotation = () => {
     setAnnotationDraftAnchor(null)
     setIsAnnotationsOpen(true)
+    setShowAnnotationMarkers(true)
     setIsAnnotationComposerOpen(true)
+    setFocusedAnnotationId(null)
   }
 
   const handleCreateAnnotation = async (body: string) => {
@@ -257,12 +276,24 @@ export function RichTextEditor({
       body,
     })
     setAnnotations((current) => [annotation, ...current])
+    setFocusedAnnotationId(annotation.id)
+    setAnnotationFocusVersion((version) => version + 1)
     setAnnotationDraftAnchor(null)
     setIsAnnotationComposerOpen(false)
   }
 
   const handleEditAnnotation = async (annotationId: string, body: string) => {
-    const updated = await updateSceneAnnotation(sceneId, annotationId, body)
+    const updated = await updateSceneAnnotation(sceneId, annotationId, { body })
+    setAnnotations((current) => current.map((item) => item.id === updated.id ? updated : item))
+  }
+
+  const handleSetAnnotationResolved = async (
+    annotationId: string,
+    isResolved: boolean,
+  ) => {
+    const updated = await updateSceneAnnotation(sceneId, annotationId, {
+      isResolved,
+    })
     setAnnotations((current) => current.map((item) => item.id === updated.id ? updated : item))
   }
 
@@ -285,6 +316,55 @@ export function RichTextEditor({
     setIsAnnotationsOpen(false)
     setIsAnnotationComposerOpen(false)
     setAnnotationDraftAnchor(null)
+    setFocusedAnnotationId(null)
+  }
+
+  const handleFocusAnnotation = (annotationId: string) => {
+    setFocusedAnnotationId(annotationId)
+    setAnnotationFocusVersion((version) => version + 1)
+  }
+
+  const handleToggleAnnotations = () => {
+    if (isAnnotationsOpen) {
+      setIsAnnotationsOpen(false)
+      setShowAnnotationMarkers(false)
+      setIsAnnotationComposerOpen(false)
+      setAnnotationDraftAnchor(null)
+      setFocusedAnnotationId(null)
+      return
+    }
+
+    if (showAnnotationMarkers) {
+      setShowAnnotationMarkers(false)
+      return
+    }
+
+    setIsAnnotationsOpen(true)
+    setShowAnnotationMarkers(true)
+  }
+
+  const handleAnnotationMarkerClick = (event: MouseEvent<HTMLDivElement>) => {
+    if (!(event.target instanceof Element)) return
+    const marker = event.target.closest<HTMLElement>(
+      "[data-author-annotation-marker-id]",
+    )
+    const annotationId = marker?.dataset.authorAnnotationMarkerId
+    if (!annotationId) return
+
+    event.preventDefault()
+    event.stopPropagation()
+
+    if (isAnnotationsOpen && focusedAnnotationId === annotationId) {
+      setIsAnnotationsOpen(false)
+      setIsAnnotationComposerOpen(false)
+      setAnnotationDraftAnchor(null)
+      setFocusedAnnotationId(null)
+      return
+    }
+
+    handleFocusAnnotation(annotationId)
+    setIsAnnotationComposerOpen(false)
+    setIsAnnotationsOpen(true)
   }
 
   useEffect(() => {
@@ -412,6 +492,7 @@ export function RichTextEditor({
     <div
       className="relative flex h-full min-h-0 flex-col"
       onFocusCapture={() => onEditorFocus?.()}
+      onClick={handleAnnotationMarkerClick}
     >
       <SpellcheckSuggestions key={sceneId} editor={editor} language={spellcheckLanguage} />
       <input
@@ -436,6 +517,11 @@ export function RichTextEditor({
           onInsertImage={openImagePicker}
           onAnalyzeChanges={onAnalyzeChanges}
           isAnalysisSaving={isAnalysisSaving}
+          onToggleAnnotations={allowAnnotations
+            ? handleToggleAnnotations
+            : undefined}
+          areAnnotationsOpen={isAnnotationsOpen}
+          areAnnotationMarkersVisible={showAnnotationMarkers}
           isZenMode={isZenMode}
           onToggleZenMode={onToggleZenMode}
           onToggleSplit={onToggleSplit}
@@ -476,23 +562,6 @@ export function RichTextEditor({
       <div className="flex min-h-0 flex-1">
         <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">
           <div className="mx-auto max-w-3xl px-6 pb-10 pt-4">
-            {allowAnnotations && (
-              <div className="mb-3 flex justify-end">
-                <Button
-                  type="button"
-                  variant={isAnnotationsOpen ? "secondary" : "outline"}
-                  size="sm"
-                  onClick={() => setIsAnnotationsOpen((open) => !open)}
-                  className="gap-2 border-[#dfc8ec] text-[#70408a]"
-                >
-                  <MessageSquare className="size-4" />
-                  Mis anotaciones
-                  <span className="rounded-full bg-[#eadcf1] px-1.5 py-0.5 text-xs">
-                    {annotations.length}
-                  </span>
-                </Button>
-              </div>
-            )}
           <div
             className="
               flex
@@ -564,6 +633,7 @@ export function RichTextEditor({
 
                 [&_.ProseMirror]:flex-1
                 [&_.ProseMirror]:outline-none
+                [&_.ProseMirror>*]:relative
               "
             />
           </div>
@@ -571,13 +641,17 @@ export function RichTextEditor({
         </div>
         {allowAnnotations && isAnnotationsOpen && (
           <AuthorAnnotationPanel
-            annotations={annotations}
+            annotations={orderedAnnotations}
             draftAnchor={annotationDraftAnchor}
             isComposerOpen={isAnnotationComposerOpen}
+            focusedAnnotationId={focusedAnnotationId}
+            focusVersion={annotationFocusVersion}
+            onFocusAnnotation={handleFocusAnnotation}
             onClose={handleCloseAnnotations}
             onStartCreate={handleStartFreeAnnotation}
             onCreate={handleCreateAnnotation}
             onEdit={handleEditAnnotation}
+            onSetResolved={handleSetAnnotationResolved}
             onDelete={handleDeleteAnnotation}
             onNavigate={handleNavigateToAnnotation}
           />

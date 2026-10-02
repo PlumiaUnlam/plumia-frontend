@@ -44,7 +44,7 @@ export function SelectionBubbleMenu({ editor, projectId, onAddAnnotation }: Read
               onClick={onAddAnnotation}
             >
               <MessageSquarePlus className="size-3.5" />
-              Anotar
+              Comentar
             </Button>
           )}
           <Button

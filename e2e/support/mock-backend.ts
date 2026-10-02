@@ -1,4 +1,5 @@
 import type { Page, Route } from "@playwright/test"
+import type { AuthorAnnotation } from "@/types/author-annotation"
 
 const projectId = "e2e-project"
 const bookId = "e2e-book"
@@ -112,14 +113,25 @@ export type MockBackend = {
   structureCreates: Array<{ kind: string; payload: Record<string, unknown> }>
   sceneWrites: Array<JsonDocument>
   storyboardCreates: Array<Record<string, unknown>>
+  annotationUpdates: Array<{ id: string; payload: Record<string, unknown> }>
+  annotationDeletes: string[]
   getSceneContent: () => JsonDocument
+  getAuthorAnnotations: () => AuthorAnnotation[]
 }
 
-export async function installMockBackend(page: Page): Promise<MockBackend> {
+type MockBackendOptions = {
+  authorAnnotations?: AuthorAnnotation[]
+}
+
+export async function installMockBackend(
+  page: Page,
+  options: MockBackendOptions = {},
+): Promise<MockBackend> {
   const project = makeProject()
   const projects: Project[] = [project]
   let sceneContent = starterSceneContent()
   let cards: Array<Record<string, unknown>> = []
+  let authorAnnotations = structuredClone(options.authorAnnotations ?? [])
   let generatedId = 0
 
   const mock: MockBackend = {
@@ -127,7 +139,10 @@ export async function installMockBackend(page: Page): Promise<MockBackend> {
     structureCreates: [],
     sceneWrites: [],
     storyboardCreates: [],
+    annotationUpdates: [],
+    annotationDeletes: [],
     getSceneContent: () => structuredClone(sceneContent),
+    getAuthorAnnotations: () => structuredClone(authorAnnotations),
   }
 
   await page.route(
@@ -245,6 +260,78 @@ export async function installMockBackend(page: Page): Promise<MockBackend> {
         hash: "updated-e2e-hash",
         contentChanged: true,
       })
+      return
+    }
+
+    const annotationCollectionMatch = url.pathname.match(
+      /^\/scenes\/([^/]+)\/annotations$/,
+    )
+    if (annotationCollectionMatch && request.method() === "GET") {
+      await json(route, authorAnnotations)
+      return
+    }
+
+    if (annotationCollectionMatch && request.method() === "POST") {
+      const payload = request.postDataJSON() as Record<string, unknown>
+      const annotation: AuthorAnnotation = {
+        id: `e2e-annotation-${++generatedId}`,
+        sceneId: annotationCollectionMatch[1],
+        authorId: "e2e-writer",
+        author: {
+          id: "e2e-writer",
+          name: "Escritora",
+          lastname: "Prueba",
+          displayName: "Escritora de prueba",
+          avatarUrl: null,
+        },
+        body: String(payload.body ?? ""),
+        quote: typeof payload.quote === "string" ? payload.quote : null,
+        anchorFrom: typeof payload.anchorFrom === "number" ? payload.anchorFrom : null,
+        anchorTo: typeof payload.anchorTo === "number" ? payload.anchorTo : null,
+        contextBefore: typeof payload.contextBefore === "string" ? payload.contextBefore : null,
+        contextAfter: typeof payload.contextAfter === "string" ? payload.contextAfter : null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        resolvedAt: null,
+      }
+      authorAnnotations = [...authorAnnotations, annotation]
+      await json(route, annotation, 201)
+      return
+    }
+
+    const annotationMatch = url.pathname.match(
+      /^\/scenes\/[^/]+\/annotations\/([^/]+)$/,
+    )
+    if (annotationMatch && request.method() === "PATCH") {
+      const id = annotationMatch[1]
+      const payload = request.postDataJSON() as Record<string, unknown>
+      mock.annotationUpdates.push({ id, payload })
+      let updated: AuthorAnnotation | undefined
+      authorAnnotations = authorAnnotations.map((annotation) => {
+        if (annotation.id !== id) return annotation
+        updated = {
+          ...annotation,
+          ...(typeof payload.body === "string" ? { body: payload.body } : {}),
+          ...(typeof payload.isResolved === "boolean"
+            ? { resolvedAt: payload.isResolved ? new Date().toISOString() : null }
+            : {}),
+          updatedAt: new Date().toISOString(),
+        }
+        return updated
+      })
+      if (!updated) {
+        await json(route, { message: "No se encontró la anotación" }, 404)
+        return
+      }
+      await json(route, updated)
+      return
+    }
+
+    if (annotationMatch && request.method() === "DELETE") {
+      const id = annotationMatch[1]
+      mock.annotationDeletes.push(id)
+      authorAnnotations = authorAnnotations.filter((annotation) => annotation.id !== id)
+      await route.fulfill({ status: 204 })
       return
     }
 

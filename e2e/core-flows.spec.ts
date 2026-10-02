@@ -78,6 +78,7 @@ test("HU-03 CA-007: aplica formato, guarda la escena y conserva el formato al re
   await page.getByRole("button", { name: "El umbral 10 palabras" }).click()
   const editor = page.locator(".ProseMirror")
   await expect(editor).toContainText("La noche cubría la ciudad.")
+  await page.getByRole("button", { name: "Mostrar herramientas" }).click()
   await editor.click()
   await editor.press("ControlOrMeta+a")
   await page.getByRole("button", { name: "Negrita" }).click()
