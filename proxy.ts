@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 
-const protectedRoutes = ["/editor", "/worldbuilding"]
+const protectedRoutes = ["/dashboard", "/editor", "/worldbuilding", "/projects"]
 const authRoutes = ["/login", "/register"]
 
 export function proxy(request: NextRequest) {
@@ -15,12 +15,19 @@ export function proxy(request: NextRequest) {
   }
 
   if (authRoutes.some((route) => pathname === route || pathname.startsWith(`${route}/`)) && session) {
-    return NextResponse.redirect(new URL("/editor", request.url))
+    return NextResponse.redirect(new URL("/dashboard", request.url))
   }
 
   return NextResponse.next()
 }
 
 export const config = {
-  matcher: ["/editor/:path*", "/worldbuilding/:path*", "/login", "/register"],
+  matcher: [
+    "/dashboard/:path*",
+    "/editor/:path*",
+    "/worldbuilding/:path*",
+    "/projects/:path*",
+    "/login",
+    "/register",
+  ],
 }
