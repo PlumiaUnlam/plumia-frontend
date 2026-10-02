@@ -16,6 +16,7 @@ import type { EditorSectionOption } from "./editor-types"
 import type { EditorSearchMatch, SpellcheckLanguage } from "@/types/editor-search"
 import type { ProseMirrorJSON } from "@/types/scene"
 import { ExportDialog } from "@/components/export/export-dialog"
+import { ShareDialog } from "@/components/sharing/share-dialog"
 
 const blockTypes = new Set([
   "doc",
@@ -78,6 +79,7 @@ export function EditorLayout({ projectId }: Readonly<EditorLayoutProps>) {
   const [projectsError, setProjectsError] = useState<string | null>(null)
   const [writingMode, setWritingMode] = useState<WritingMode>("review")
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false)
+  const [isShareDialogOpen, setIsShareDialogOpen] = useState(false)
   const [isSearchPanelOpen, setIsSearchPanelOpen] = useState(false)
   const [isSpellcheckSettingsOpen, setIsSpellcheckSettingsOpen] = useState(false)
   const [draftSpellcheckLanguage, setDraftSpellcheckLanguage] =
@@ -180,16 +182,17 @@ export function EditorLayout({ projectId }: Readonly<EditorLayoutProps>) {
     [books],
   )
 
-  const defaultExportBookId = useMemo(() => {
-    const activeBook = activeSceneId
-      ? books.find((book) =>
-          book.chapters.some((chapter) =>
-            chapter.scenes.some((scene) => scene.id === activeSceneId),
-          ),
-        )
-      : undefined
-    return activeBook?.id ?? books[0]?.id ?? null
-  }, [activeSceneId, books])
+  const activeBookId = useMemo(
+    () =>
+      books.find((book) =>
+        book.chapters.some((chapter) =>
+          chapter.scenes.some((scene) => scene.id === activeSceneId),
+        ),
+      )?.id ?? null,
+    [activeSceneId, books],
+  )
+
+  const defaultExportBookId = activeBookId ?? books[0]?.id ?? null
 
   const loadProject = useCallback(async () => {
     if (!projectId) {
@@ -267,6 +270,8 @@ export function EditorLayout({ projectId }: Readonly<EditorLayoutProps>) {
       <Header
         mode={writingMode}
         onModeChange={setWritingMode}
+        onShareClick={() => setIsShareDialogOpen(true)}
+        onExportClick={() => setIsExportDialogOpen(true)}
       />
 
       <SidebarProvider className="flex min-h-0 flex-1">
@@ -365,6 +370,14 @@ export function EditorLayout({ projectId }: Readonly<EditorLayoutProps>) {
         isHistoricalVersion={Boolean(selectedSceneVersionId)}
         onOpenChange={setIsExportDialogOpen}
         onBeforeExport={saveBeforeExport}
+      />
+
+      <ShareDialog
+        books={books}
+        activeBookId={activeBookId}
+        open={isShareDialogOpen}
+        onOpenChange={setIsShareDialogOpen}
+        onBeforeShare={saveBeforeExport}
       />
 
       <SpellcheckSettingsDialog

@@ -150,7 +150,15 @@ export function LoginForm() {
                   variant="link"
                   type="button"
                   className="p-0 h-auto text-xs font-medium"
-                  onClick={() => void router.push("/register")}
+                  onClick={() => {
+                    const params = new URLSearchParams(globalThis.location?.search ?? "")
+                    const redirect = params.get("redirect")
+                    void router.push(
+                      redirect
+                        ? `/register?redirect=${encodeURIComponent(redirect)}`
+                        : "/register",
+                    )
+                  }}
                 >
                   Regístrate
                 </Button>
