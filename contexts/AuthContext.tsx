@@ -16,10 +16,12 @@ import {
   signInWithEmailAndPassword,
   signInWithPopup,
   signOut,
+  updateProfile as updateFirebaseProfile,
   type User as FirebaseUser,
 } from "firebase/auth"
 import { usePathname } from "next/navigation"
 import { auth } from "@/lib/firebase"
+import { api } from "@/services/api.service"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000"
 
@@ -44,6 +46,10 @@ interface AuthContextType {
   loginWithGoogle: () => Promise<void>
   register: (email: string, password: string) => Promise<void>
   logout: () => Promise<void>
+  updateUserProfile: (profile: {
+    displayName: string
+    photoURL: string | null
+  }) => Promise<void>
   getIdToken: () => Promise<string | null>
 }
 
@@ -166,6 +172,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null)
   }
 
+  const updateUserProfile = async ({
+    displayName,
+    photoURL,
+  }: {
+    displayName: string
+    photoURL: string | null
+  }) => {
+    const currentUser = auth.currentUser
+
+    if (!currentUser) {
+      throw new Error("No hay una sesión activa")
+    }
+
+    await updateFirebaseProfile(currentUser, { displayName, photoURL })
+    const updatedUser = await api.patch<BackendUser>("/users/me", {
+      displayName,
+      avatarUrl: photoURL,
+    })
+    setUser(updatedUser)
+  }
+
   const getIdToken = async (): Promise<string | null> => {
     if (!auth.currentUser) {
       return null
@@ -184,6 +211,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loginWithGoogle,
         register,
         logout,
+        updateUserProfile,
         getIdToken,
       }}
     >
