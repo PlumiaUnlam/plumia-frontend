@@ -1,5 +1,5 @@
 
-import { useEffect, useMemo, useState, type MouseEvent } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { EditorContent, useEditor } from "@tiptap/react"
 import StarterKit from "@tiptap/starter-kit"
 
@@ -271,10 +271,10 @@ export function RichTextEditor({
   }
 
   const handleCreateAnnotation = async (body: string) => {
-    const annotation = await createSceneAnnotation(sceneId, {
-      ...(annotationDraftAnchor ?? {}),
-      body,
-    })
+    const input: CreateAuthorAnnotationInput = annotationDraftAnchor
+      ? { ...annotationDraftAnchor, body }
+      : { body }
+    const annotation = await createSceneAnnotation(sceneId, input)
     setAnnotations((current) => [annotation, ...current])
     setFocusedAnnotationId(annotation.id)
     setAnnotationFocusVersion((version) => version + 1)
@@ -324,6 +324,40 @@ export function RichTextEditor({
     setAnnotationFocusVersion((version) => version + 1)
   }
 
+  useEffect(() => {
+    if (!editor) return
+
+    const handleAnnotationMarkerClick = (event: globalThis.MouseEvent) => {
+      if (!(event.target instanceof Element)) return
+      const marker = event.target.closest<HTMLElement>(
+        "[data-author-annotation-marker-id]",
+      )
+      const annotationId = marker?.dataset.authorAnnotationMarkerId
+      if (!annotationId) return
+
+      event.preventDefault()
+      event.stopPropagation()
+
+      if (isAnnotationsOpen && focusedAnnotationId === annotationId) {
+        setIsAnnotationsOpen(false)
+        setIsAnnotationComposerOpen(false)
+        setAnnotationDraftAnchor(null)
+        setFocusedAnnotationId(null)
+        return
+      }
+
+      handleFocusAnnotation(annotationId)
+      setIsAnnotationComposerOpen(false)
+      setIsAnnotationsOpen(true)
+    }
+
+    const editorElement = editor.view.dom
+    editorElement.addEventListener("click", handleAnnotationMarkerClick)
+    return () => {
+      editorElement.removeEventListener("click", handleAnnotationMarkerClick)
+    }
+  }, [editor, focusedAnnotationId, isAnnotationsOpen])
+
   const handleToggleAnnotations = () => {
     if (isAnnotationsOpen) {
       setIsAnnotationsOpen(false)
@@ -341,30 +375,6 @@ export function RichTextEditor({
 
     setIsAnnotationsOpen(true)
     setShowAnnotationMarkers(true)
-  }
-
-  const handleAnnotationMarkerClick = (event: MouseEvent<HTMLDivElement>) => {
-    if (!(event.target instanceof Element)) return
-    const marker = event.target.closest<HTMLElement>(
-      "[data-author-annotation-marker-id]",
-    )
-    const annotationId = marker?.dataset.authorAnnotationMarkerId
-    if (!annotationId) return
-
-    event.preventDefault()
-    event.stopPropagation()
-
-    if (isAnnotationsOpen && focusedAnnotationId === annotationId) {
-      setIsAnnotationsOpen(false)
-      setIsAnnotationComposerOpen(false)
-      setAnnotationDraftAnchor(null)
-      setFocusedAnnotationId(null)
-      return
-    }
-
-    handleFocusAnnotation(annotationId)
-    setIsAnnotationComposerOpen(false)
-    setIsAnnotationsOpen(true)
   }
 
   useEffect(() => {
@@ -492,7 +502,6 @@ export function RichTextEditor({
     <div
       className="relative flex h-full min-h-0 flex-col"
       onFocusCapture={() => onEditorFocus?.()}
-      onClick={handleAnnotationMarkerClick}
     >
       <SpellcheckSuggestions key={sceneId} editor={editor} language={spellcheckLanguage} />
       <input
@@ -646,7 +655,6 @@ export function RichTextEditor({
             isComposerOpen={isAnnotationComposerOpen}
             focusedAnnotationId={focusedAnnotationId}
             focusVersion={annotationFocusVersion}
-            onFocusAnnotation={handleFocusAnnotation}
             onClose={handleCloseAnnotations}
             onStartCreate={handleStartFreeAnnotation}
             onCreate={handleCreateAnnotation}

@@ -26,7 +26,6 @@ type AnnotationPanelProps = {
   isComposerOpen: boolean
   focusedAnnotationId: string | null
   focusVersion: number
-  onFocusAnnotation: (annotationId: string) => void
   onClose: () => void
   onStartCreate: () => void
   onCreate: (body: string) => Promise<void>
@@ -62,7 +61,6 @@ export function AuthorAnnotationPanel({
   isComposerOpen,
   focusedAnnotationId,
   focusVersion,
-  onFocusAnnotation,
   onClose,
   onStartCreate,
   onCreate,
@@ -86,14 +84,12 @@ export function AuthorAnnotationPanel({
   const focusedAnnotation = annotations.find(
     (annotation) => annotation.id === focusedAnnotationId,
   )
-  const filter =
-    filterSelection.focusVersion === focusVersion
-      ? filterSelection.filter
-      : focusedAnnotation
-        ? focusedAnnotation.resolvedAt
-          ? "RESOLVED"
-          : "OPEN"
-        : "OPEN"
+  let filter: AnnotationFilter = "OPEN"
+  if (filterSelection.focusVersion === focusVersion) {
+    filter = filterSelection.filter
+  } else if (focusedAnnotation?.resolvedAt) {
+    filter = "RESOLVED"
+  }
   const visibleAnnotations = annotations.filter((annotation) => {
     if (filter === "OPEN") return !annotation.resolvedAt
     if (filter === "RESOLVED") return Boolean(annotation.resolvedAt)
@@ -240,7 +236,6 @@ export function AuthorAnnotationPanel({
               key={annotation.id}
               id={`author-annotation-${annotation.id}`}
               tabIndex={-1}
-              onClick={() => onFocusAnnotation(annotation.id)}
               className={`rounded-xl border p-4 shadow-sm outline-none transition-colors ${
                 focusedAnnotationId === annotation.id
                   ? "border-[#a56abc] ring-2 ring-[#eadcf1]"

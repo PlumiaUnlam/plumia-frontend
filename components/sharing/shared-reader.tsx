@@ -50,6 +50,12 @@ type SharedReaderProps = {
   initialToken?: string
 }
 
+function getViewerDescription(viewer: SharedManuscriptView["viewer"]) {
+  if (viewer.isOwner) return "Comentarios de la versión"
+  if (viewer.canComment) return "Revisión con comentarios"
+  return "Solo lectura"
+}
+
 export function SharedReader({ slug, initialToken }: SharedReaderProps) {
   const {
     firebaseUser,
@@ -359,11 +365,7 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
         </Select>
         <div className="ml-2 hidden items-center gap-2 text-xs text-muted-foreground sm:flex lg:ml-auto">
           <PanelLeftClose className="size-4" />
-          {view.viewer.isOwner
-            ? "Comentarios de la versión"
-            : view.viewer.canComment
-              ? "Revisión con comentarios"
-              : "Solo lectura"}
+          {getViewerDescription(view.viewer)}
         </div>
       </header>
 

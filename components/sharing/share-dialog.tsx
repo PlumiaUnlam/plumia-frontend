@@ -66,6 +66,17 @@ const permissionLabels: Record<SharePermission, string> = {
   COMMENT: "Puede comentar",
 }
 
+function getShareStatusLabel(status: ShareSummary["status"]) {
+  switch (status) {
+    case "PENDING":
+      return "Pendiente"
+    case "ACCEPTED":
+      return "Aceptada"
+    case "REVOKED":
+      return "Revocada"
+  }
+}
+
 export function ShareDialog({
   books,
   activeBookId,
@@ -350,11 +361,7 @@ export function ShareDialog({
                               : "default"
                           }
                         >
-                          {share.status === "PENDING"
-                            ? "Pendiente"
-                            : share.status === "ACCEPTED"
-                              ? "Aceptada"
-                              : "Revocada"}
+                          {getShareStatusLabel(share.status)}
                         </Badge>
                       </div>
                       <p className="mt-1 text-xs text-muted-foreground">
