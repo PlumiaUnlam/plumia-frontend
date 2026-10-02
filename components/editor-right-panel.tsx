@@ -311,26 +311,27 @@ export function EditorRightPanel({
       }`}
     >
       <div className={isCollapsed ? "hidden" : "flex h-full min-h-0 flex-col"}>
-        <div className="flex h-12 shrink-0 border-b border-border">
+        <div className="flex h-12 shrink-0 items-center gap-1 border-b border-border bg-card px-1.5">
           {tabs.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
               type="button"
               onClick={() => setActiveTab(id)}
-              className={`flex min-w-0 flex-1 items-center justify-center gap-1.5 border-b-2 px-2 text-[11px] font-medium transition-colors ${
+              aria-pressed={activeTab === id}
+              className={`flex h-8 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-md px-2 text-xs font-medium transition-colors ${
                 activeTab === id
-                  ? "border-primary bg-primary/5 text-primary"
-                  : "border-transparent text-muted-foreground hover:bg-muted/40 hover:text-foreground"
+                  ? "bg-primary/10 text-primary shadow-sm"
+                  : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
               }`}
             >
-              <Icon size={12} />
+              <Icon size={14} />
               <span className="truncate">{label}</span>
             </button>
           ))}
           <button
             type="button"
             onClick={() => setIsCollapsed(true)}
-            className="flex w-10 shrink-0 items-center justify-center border-l border-border text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+            className="ml-0.5 flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
             title="Colapsar panel derecho"
             aria-label="Colapsar panel derecho"
           >
@@ -338,7 +339,7 @@ export function EditorRightPanel({
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-hidden">
+        <div className="min-h-0 flex-1 overflow-hidden bg-card">
           {activeTab === "wiki" && (
             <WikiPanel
               entities={entities ?? []}
