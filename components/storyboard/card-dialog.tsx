@@ -16,6 +16,13 @@ import {
 } from "@/components/ui/dialog"
 import { Field, FieldContent, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import {
   useVoiceTranscriber,
@@ -364,19 +371,26 @@ function VoiceRecorderSection({
           >
             Micrófono
           </label>
-          <select
-            id="storyboard-audio-input"
-            className="h-8 min-w-0 flex-1 rounded-md border border-input bg-background px-2 text-xs outline-none focus:ring-2 focus:ring-ring"
+          <Select
             disabled={controlsDisabled}
-            value={selectedAudioInputId}
-            onChange={(event) => selectAudioInput(event.target.value)}
+            value={selectedAudioInputId || undefined}
+            onValueChange={selectAudioInput}
           >
-            {audioInputDevices.map((device, index) => (
-              <option key={device.deviceId} value={device.deviceId}>
-                {device.label || `Micrófono ${index + 1}`}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger
+              id="storyboard-audio-input"
+              size="sm"
+              className="min-w-0 flex-1 text-xs"
+            >
+              <SelectValue placeholder="Micrófono predeterminado" />
+            </SelectTrigger>
+            <SelectContent align="start">
+              {audioInputDevices.map((device, index) => (
+                <SelectItem key={device.deviceId} value={device.deviceId}>
+                  {device.label || `Micrófono ${index + 1}`}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Button
             type="button"
             variant="ghost"

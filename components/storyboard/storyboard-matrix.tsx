@@ -32,6 +32,13 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
   Table,
   TableBody,
   TableCell,
@@ -79,6 +86,8 @@ const SOURCE_LABELS: Record<StoryboardArcSourceType, string> = {
   relationship: "Relación",
 }
 
+const UNASSIGNED_VALUE = "__unassigned__"
+
 const RELATION_LABELS: Record<Relationship["relationType"], string> = {
   ALLY: "Aliado",
   ENEMY: "Enemigo",
@@ -90,13 +99,6 @@ const RELATION_LABELS: Record<Relationship["relationType"], string> = {
   LOCATED_IN: "Ubicado en",
   OWNS: "Posee",
   KNOWS: "Conoce",
-}
-
-function selectClassName(className?: string) {
-  return cn(
-    "h-10 w-full min-w-0 rounded-lg border border-border bg-background px-3.5 py-2 text-sm text-foreground transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30",
-    className,
-  )
 }
 
 function getRelationshipLabel(
@@ -250,18 +252,23 @@ function ArcDialog({
         <div className="grid gap-4">
           <div className="grid gap-2">
             <label htmlFor={sourceTypeInputId} className="text-sm font-medium">Tipo de arco</label>
-            <select
-              id={sourceTypeInputId}
+            <Select
               value={sourceType}
-              onChange={(event) => setSourceType(event.target.value as StoryboardArcSourceType)}
-              className={selectClassName()}
+              onValueChange={(value) =>
+                setSourceType(value as StoryboardArcSourceType)
+              }
             >
-              {Object.entries(SOURCE_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger id={sourceTypeInputId} className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent align="start">
+                {Object.entries(SOURCE_LABELS).map(([value, label]) => (
+                  <SelectItem key={value} value={value}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {sourceType === "custom" ? (
@@ -286,38 +293,52 @@ function ArcDialog({
           {sourceType === "entity" ? (
             <div className="grid gap-2">
               <label htmlFor={entitySelectId} className="text-sm font-medium">Entidad</label>
-              <select
-                id={entitySelectId}
-                value={entityId}
-                onChange={(event) => setEntityId(event.target.value)}
-                className={selectClassName()}
+              <Select
+                value={entityId || UNASSIGNED_VALUE}
+                onValueChange={(value) =>
+                  setEntityId(value === UNASSIGNED_VALUE ? "" : value)
+                }
               >
-                <option value="">Selecciona una entidad</option>
-                {entities.map((entity) => (
-                  <option key={entity.id} value={entity.id}>
-                    {entity.canonicalName}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger id={entitySelectId} className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent align="start">
+                  <SelectItem value={UNASSIGNED_VALUE}>
+                    Selecciona una entidad
+                  </SelectItem>
+                  {entities.map((entity) => (
+                    <SelectItem key={entity.id} value={entity.id}>
+                      {entity.canonicalName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           ) : null}
 
           {sourceType === "relationship" ? (
             <div className="grid gap-2">
               <label htmlFor={relationshipSelectId} className="text-sm font-medium">Relación</label>
-              <select
-                id={relationshipSelectId}
-                value={relationshipId}
-                onChange={(event) => setRelationshipId(event.target.value)}
-                className={selectClassName()}
+              <Select
+                value={relationshipId || UNASSIGNED_VALUE}
+                onValueChange={(value) =>
+                  setRelationshipId(value === UNASSIGNED_VALUE ? "" : value)
+                }
               >
-                <option value="">Selecciona una relación</option>
-                {relationships.map((relationship) => (
-                  <option key={relationship.id} value={relationship.id}>
-                    {getRelationshipLabel(relationship, entitiesById)}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger id={relationshipSelectId} className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent align="start">
+                  <SelectItem value={UNASSIGNED_VALUE}>
+                    Selecciona una relación
+                  </SelectItem>
+                  {relationships.map((relationship) => (
+                    <SelectItem key={relationship.id} value={relationship.id}>
+                      {getRelationshipLabel(relationship, entitiesById)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           ) : null}
         </div>

@@ -49,6 +49,13 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { getTimelineDateWarning } from "@/lib/timeline-date-warning"
 import {
@@ -165,6 +172,8 @@ type PendingMove = {
 }
 
 const generalArcFilter = "__general_events__"
+const allFilterValue = "__all__"
+const noArcValue = "__no_arc__"
 
 const impactLabels: Record<TimelineImpact, string> = {
   HIGH: "Alto",
@@ -592,19 +601,27 @@ export function TimelinePanel({
             Por personaje
           </FilterButton>
           {isParticipantFilterOpen && (
-            <select
-              aria-label="Filtrar por personaje"
-              className="h-9 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-              value={selectedEntityId ?? ""}
-              onChange={(event) => setSelectedEntityId(event.target.value || null)}
+            <Select
+              value={selectedEntityId ?? allFilterValue}
+              onValueChange={(value) =>
+                setSelectedEntityId(value === allFilterValue ? null : value)
+              }
             >
-              <option value="">Todos los personajes</option>
-              {participantEntities.map((entity) => (
-                <option key={entity.id} value={entity.id}>
-                  {entity.canonicalName}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger
+                aria-label="Filtrar por personaje"
+                className="w-full"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent align="start">
+                <SelectItem value={allFilterValue}>Todos los personajes</SelectItem>
+                {participantEntities.map((entity) => (
+                  <SelectItem key={entity.id} value={entity.id}>
+                    {entity.canonicalName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           )}
           <FilterButton
             active={isArcFilterOpen}
@@ -613,20 +630,30 @@ export function TimelinePanel({
             Por arco narrativo
           </FilterButton>
           {isArcFilterOpen && (
-            <select
-              aria-label="Filtrar por arco narrativo"
-              className="h-9 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-              value={selectedArcId ?? ""}
-              onChange={(event) => setSelectedArcId(event.target.value || null)}
+            <Select
+              value={selectedArcId ?? allFilterValue}
+              onValueChange={(value) =>
+                setSelectedArcId(value === allFilterValue ? null : value)
+              }
             >
-              <option value="">Todos los arcos</option>
-              <option value={generalArcFilter}>Hechos generales (sin arco)</option>
-              {(arcs ?? []).map((arc) => (
-                <option key={arc.id} value={arc.id}>
-                  {arc.title}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger
+                aria-label="Filtrar por arco narrativo"
+                className="w-full"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent align="start">
+                <SelectItem value={allFilterValue}>Todos los arcos</SelectItem>
+                <SelectItem value={generalArcFilter}>
+                  Hechos generales (sin arco)
+                </SelectItem>
+                {(arcs ?? []).map((arc) => (
+                  <SelectItem key={arc.id} value={arc.id}>
+                    {arc.title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           )}
         </div>
 
@@ -1064,10 +1091,26 @@ function TimelineEventDialog({ arcs, entities, createdEntity, event, open, onReq
           <FormField label="Descripción" htmlFor="timeline-description"><Textarea id="timeline-description" value={displayedDraft.description} onChange={(inputEvent) => updateDraft({ description: inputEvent.target.value })} placeholder="Describe qué ocurre en este evento..." rows={5} /></FormField>
           <div className="space-y-2">
             <Label htmlFor="timeline-arc">Arco narrativo</Label>
-            <select id="timeline-arc" className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50" value={displayedDraft.storyboardArcId ?? ""} onChange={(inputEvent) => updateDraft({ storyboardArcId: inputEvent.target.value || null })}>
-              <option value="">Sin arco — hecho general de la obra</option>
-              {arcs.map((arc) => <option key={arc.id} value={arc.id}>{arc.title}</option>)}
-            </select>
+            <Select
+              value={displayedDraft.storyboardArcId ?? noArcValue}
+              onValueChange={(value) =>
+                updateDraft({ storyboardArcId: value === noArcValue ? null : value })
+              }
+            >
+              <SelectTrigger id="timeline-arc" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent align="start">
+                <SelectItem value={noArcValue}>
+                  Sin arco — hecho general de la obra
+                </SelectItem>
+                {arcs.map((arc) => (
+                  <SelectItem key={arc.id} value={arc.id}>
+                    {arc.title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <p className="text-xs text-muted-foreground">Usá esta opción para hechos históricos o eventos que atraviesan toda la obra.</p>
           </div>
           <div className="space-y-3">

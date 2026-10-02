@@ -47,6 +47,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
   createChatThread,
   deleteChatThread,
   getChatMessages,
@@ -1344,25 +1351,31 @@ function VoiceSettingsModal({
           <X className="size-3" />
         </Button>
       </div>
-      <label className="mt-3 block text-[9px] font-medium text-muted-foreground">
-        <span className="block">Entrada de audio</span>
-        <select
-          value={selectedAudioInputId}
-          onChange={(event) => onSelectAudioInput(event.target.value)}
+      <div className="mt-3 text-[9px] font-medium text-muted-foreground">
+        <label htmlFor="chat-audio-input" className="block">
+          Entrada de audio
+        </label>
+        <Select
+          value={selectedAudioInputId || undefined}
+          onValueChange={onSelectAudioInput}
           disabled={audioInputDevices.length === 0}
-          className="mt-1 h-8 w-full rounded-lg border border-border bg-card px-2 text-[10px] text-foreground outline-none focus:border-primary/40"
         >
-          {audioInputDevices.length === 0 ? (
-            <option value="">Micrófono predeterminado</option>
-          ) : (
-            audioInputDevices.map((device) => (
-              <option key={device.deviceId} value={device.deviceId}>
-                {device.label}
-              </option>
-            ))
-          )}
-        </select>
-      </label>
+          <SelectTrigger
+            id="chat-audio-input"
+            size="sm"
+            className="mt-1 w-full bg-card text-[10px] text-foreground"
+          >
+            <SelectValue placeholder="Micrófono predeterminado" />
+          </SelectTrigger>
+          <SelectContent align="start">
+            {audioInputDevices.map((device, index) => (
+              <SelectItem key={device.deviceId} value={device.deviceId}>
+                {device.label || `Micrófono ${index + 1}`}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
       <div className="mt-3">
         <div className="mb-1 flex justify-between text-[9px] text-muted-foreground">
           <span>Nivel detectado</span>
