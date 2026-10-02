@@ -1,11 +1,10 @@
 "use client"
 
 import { useEffect, useRef, useState, type ComponentType } from "react"
-import { BookOpen, FileText, Info, Loader2, RotateCcw, X } from "lucide-react"
+import { BookOpen, FileText, Info, Loader2, RotateCcw } from "lucide-react"
 
 import {
   Dialog,
-  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -15,6 +14,11 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import {
+  NativeSelect,
+  NativeSelectOption,
+} from "@/components/ui/native-select"
+import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   ExportBandFields,
@@ -286,33 +290,23 @@ export function ExportDialog({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
-        showCloseButton={false}
-        className="max-h-[calc(100dvh-1rem)] w-[min(40rem,calc(100vw-1.5rem))] max-w-none gap-0 overflow-x-hidden overflow-y-auto rounded-[10px] border-[#e8dff0] bg-white p-0 text-[#2f1d40] shadow-xl sm:max-h-[min(90dvh,52rem)] sm:max-w-none"
+        className="max-h-[calc(100dvh-1rem)] w-[min(40rem,calc(100vw-1.5rem))] max-w-none gap-0 overflow-x-hidden overflow-y-auto border-border bg-popover p-0 text-popover-foreground shadow-xl sm:max-h-[min(90dvh,52rem)] sm:max-w-none"
       >
-        <DialogHeader className="relative gap-0 border-b border-[#eee4f5] px-3.5 py-3">
-          <DialogTitle className="text-[16px] font-semibold leading-5 text-[#2f1d40]">
+        <DialogHeader className="relative gap-0 border-b border-border px-3.5 py-3 pr-12">
+          <DialogTitle className="text-base font-semibold leading-5 text-foreground">
             Exportar libro
           </DialogTitle>
-          <DialogClose asChild>
-            <button
-              type="button"
-              className="absolute right-3 top-1/2 inline-flex size-6 -translate-y-1/2 items-center justify-center rounded-md text-[#9875b1] transition-colors hover:bg-[#f5eff8] hover:text-[#633c7e] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b98ad2]"
-              aria-label="Cerrar"
-            >
-              <X className="size-4" strokeWidth={1.5} />
-            </button>
-          </DialogClose>
         </DialogHeader>
 
         <div className="space-y-4 px-3.5 py-5">
-          <DialogDescription className="text-[14px] leading-[1.35] text-[#8f70ae]">
+          <DialogDescription className="leading-snug">
             Elegí el libro, el formato y el diseño de página
           </DialogDescription>
 
           {isHistoricalVersion ? (
-            <Alert className="border-[#e8dff0] bg-[#fbf8fd] text-[#5f3b78]">
+            <Alert className="bg-muted/50">
               <AlertTitle>Versión histórica seleccionada</AlertTitle>
-              <AlertDescription className="text-[#8f70ae]">
+              <AlertDescription>
                 Volvé al borrador principal para exportar
               </AlertDescription>
             </Alert>
@@ -330,26 +324,28 @@ export function ExportDialog({
                 <div className="space-y-1.5">
                   <label
                     htmlFor="export-book"
-                    className="text-xs font-medium text-[#3e2a4e]"
+                    className="text-xs font-medium text-foreground"
                   >
                     Libro
                   </label>
-                  <select
+                  <NativeSelect
                     id="export-book"
                     value={bookId ?? ""}
                     disabled={isBusy || books.length === 0}
                     onChange={(event) => setSelectedBookId(event.target.value)}
-                    className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                    className="w-full [&>select]:h-10"
                   >
                     {books.length === 0 && (
-                      <option value="">El proyecto no tiene libros</option>
+                      <NativeSelectOption value="">
+                        El proyecto no tiene libros
+                      </NativeSelectOption>
                     )}
                     {books.map((book) => (
-                      <option key={book.id} value={book.id}>
+                      <NativeSelectOption key={book.id} value={book.id}>
                         {book.title}
-                      </option>
+                      </NativeSelectOption>
                     ))}
-                  </select>
+                  </NativeSelect>
                 </div>
 
                 <div className="grid gap-2.5">
@@ -361,25 +357,25 @@ export function ExportDialog({
                         type="button"
                         variant="outline"
                         aria-pressed={isSelected}
-                        className={`flex min-h-[76px] w-full items-center justify-start gap-3 rounded-[9px] bg-white px-3 text-left font-normal whitespace-normal shadow-none hover:border-[#d9c5e7] hover:bg-[#fdfaff] ${
+                        className={`flex min-h-[76px] w-full items-center justify-start gap-3 bg-card px-3 text-left font-normal whitespace-normal shadow-none hover:border-primary/30 hover:bg-primary/5 ${
                           isSelected
-                            ? "border-[#b98ad2] bg-[#fbf8fd] ring-2 ring-[#eadcf3]"
-                            : "border-[#e8dff0]"
+                            ? "border-primary/50 bg-primary/5 ring-2 ring-primary/10"
+                            : "border-border"
                         }`}
                         disabled={isBusy}
                         onClick={() => setSelectedFormat(format)}
                       >
-                        <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-[#f2ebf7] text-[#8745ad]">
+                        <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
                           <Icon className="size-7" strokeWidth={1.8} />
                         </span>
                         <span className="min-w-0 space-y-0.5">
-                          <span className="block text-[14px] font-semibold leading-4 text-[#30203f]">
+                          <span className="block text-sm font-semibold leading-4 text-foreground">
                             {format}
                           </span>
-                          <span className="block text-[12px] font-medium leading-4 text-[#3e2a4e]">
+                          <span className="block text-xs font-medium leading-4 text-foreground">
                             {title}
                           </span>
-                          <span className="block text-[11px] font-normal leading-3 text-[#8d6aa8]">
+                          <span className="block text-[11px] font-normal leading-3 text-muted-foreground">
                             {description}
                           </span>
                         </span>
@@ -389,9 +385,9 @@ export function ExportDialog({
                 </div>
 
                 {selectedFormat === "EPUB" && hasBands && (
-                  <Alert className="border-[#e8dff0] bg-[#fbf8fd] text-[#5f3b78]">
+                  <Alert className="bg-muted/50">
                     <Info className="size-4" />
-                    <AlertDescription className="text-[#8f70ae]">
+                    <AlertDescription>
                       En EPUB el encabezado y el pie de página no se aplican;
                       sólo se aproximan los márgenes.
                     </AlertDescription>
@@ -401,7 +397,7 @@ export function ExportDialog({
 
               <TabsContent value="page" className="space-y-4 pt-2">
                 {settingsLoading ? (
-                  <div className="flex items-center justify-center gap-2 py-8 text-sm text-[#8f70ae]">
+                  <div className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
                     <Loader2 className="size-4 animate-spin" />
                     Cargando configuración…
                   </div>
@@ -417,7 +413,7 @@ export function ExportDialog({
                     )}
 
                     <fieldset className="space-y-2">
-                      <legend className="mb-2 text-[13px] font-semibold text-[#30203f]">
+                      <legend className="mb-2 text-[13px] font-semibold text-foreground">
                         Márgenes (cm)
                       </legend>
                       <div className="grid grid-cols-2 gap-2.5">
@@ -425,7 +421,7 @@ export function ExportDialog({
                           <div key={key} className="space-y-1">
                             <label
                               htmlFor={`export-margin-${key}`}
-                              className="text-xs font-medium text-[#3e2a4e]"
+                              className="text-xs font-medium text-foreground"
                             >
                               {label}
                             </label>
@@ -469,7 +465,7 @@ export function ExportDialog({
                       onChange={(footer) => updateSettings({ footer })}
                     />
 
-                    <p className="text-[11px] leading-4 text-[#8d6aa8]">
+                    <p className="text-[11px] leading-4 text-muted-foreground">
                       La configuración se guarda para todo el proyecto al exportar.
                       La portada nunca lleva encabezado ni pie de página.
                     </p>
@@ -487,17 +483,16 @@ export function ExportDialog({
           )}
 
           {job && !error && (
-            <div className="space-y-2 rounded-lg border border-[#e8dff0] bg-[#fbf8fd] p-3 text-[#5f3b78]">
+            <div className="space-y-2 rounded-lg border border-border bg-muted/50 p-3 text-foreground">
               <div className="flex items-center justify-between text-sm">
                 <span>{statusLabel(job.status)}</span>
                 <span>{job.progress}%</span>
               </div>
-              <div className="h-2 overflow-hidden rounded-full bg-[#eee4f5]">
-                <div
-                  className="h-full rounded-full bg-[#8745ad] transition-all"
-                  style={{ width: `${Math.min(100, Math.max(0, job.progress))}%` }}
-                />
-              </div>
+              <Progress
+                value={Math.min(100, Math.max(0, job.progress))}
+                className="h-2"
+                aria-label={`Progreso de exportación: ${job.progress}%`}
+              />
             </div>
           )}
 
@@ -509,7 +504,7 @@ export function ExportDialog({
           )}
         </div>
 
-        <DialogFooter className="m-0 flex-row justify-end gap-2 rounded-none border-t border-[#eee4f5] bg-white px-3.5 py-3">
+        <DialogFooter className="m-0 flex-row justify-end gap-2 rounded-none border-t border-border bg-muted/30 px-3.5 py-3">
           {error && job && (
             <Button type="button" variant="outline" onClick={retry}>
               <RotateCcw className="mr-2 h-4 w-4" />
@@ -519,7 +514,7 @@ export function ExportDialog({
           <Button
             type="button"
             variant="outline"
-            className="h-8 rounded-md border-[#e7d9f1] px-3 text-xs font-medium text-[#362046] hover:bg-[#faf6fd]"
+            size="sm"
             disabled={isSubmitting}
             onClick={() => handleOpenChange(false)}
           >
@@ -528,7 +523,7 @@ export function ExportDialog({
           {!isHistoricalVersion && (
             <Button
               type="button"
-              className="h-8 rounded-md bg-[#8745ad] px-3 text-xs font-medium text-white hover:bg-[#763a99]"
+              size="sm"
               disabled={!canExport}
               onClick={() => void handleExport()}
             >

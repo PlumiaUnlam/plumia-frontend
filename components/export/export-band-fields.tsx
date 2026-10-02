@@ -2,6 +2,7 @@
 
 import { AlignCenter, AlignLeft, AlignRight } from "lucide-react"
 
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import type { ExportAlignment, ExportBand } from "@/services/export.service"
 
 export type ExportBandOption = {
@@ -87,65 +88,64 @@ export function ExportBandFields({
   }
 
   return (
-    <fieldset className="space-y-2.5 rounded-lg border border-[#e8dff0] p-3">
-      <legend className="px-1 text-[13px] font-semibold text-[#30203f]">
+    <fieldset className="space-y-2.5 rounded-lg border border-border p-3">
+      <legend className="px-1 text-[13px] font-semibold text-foreground">
         {label}
       </legend>
 
       <div className="space-y-1.5">
-        <span className="text-xs font-medium text-[#3e2a4e]">Contenido</span>
-        <div
-          className="flex flex-wrap gap-1.5"
-          role="radiogroup"
+        <span className="text-xs font-medium text-foreground">Contenido</span>
+        <ToggleGroup
+          type="single"
+          variant="outline"
+          size="sm"
+          value={selectedValue}
+          onValueChange={(nextValue) => handleSelect(nextValue || NONE_VALUE)}
+          className="flex-wrap justify-start"
           aria-label={`Contenido del ${label.toLowerCase()}`}
         >
-          {choices.map((choice) => {
-            const isSelected = selectedValue === choice.value
-            return (
-              <button
-                key={choice.value}
-                id={`${id}-${choice.value}`}
-                type="button"
-                role="radio"
-                aria-checked={isSelected}
-                disabled={disabled}
-                onClick={() => handleSelect(choice.value)}
-                className={`rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
-                  isSelected
-                    ? "border-[#b98ad2] bg-[#f2ebf7] text-[#8745ad]"
-                    : "border-[#e8dff0] bg-white text-[#5f3b78] hover:bg-[#fdfaff]"
-                }`}
-              >
-                {choice.label}
-              </button>
-            )
-          })}
-        </div>
+          {choices.map((choice) => (
+            <ToggleGroupItem
+              key={choice.value}
+              id={`${id}-${choice.value}`}
+              value={choice.value}
+              disabled={disabled}
+            >
+              {choice.label}
+            </ToggleGroupItem>
+          ))}
+        </ToggleGroup>
       </div>
 
       {selectedOption && (
         <div className="space-y-1.5">
-          <span className="text-xs font-medium text-[#3e2a4e]">Alineación</span>
-          <fieldset className="m-0 flex min-w-0 gap-1 border-0 p-0">
-            <legend className="sr-only">Alineación</legend>
-            {alignmentOptions.map(({ value: option, label: optionLabel, icon: Icon }) => (
-              <button
-                key={option}
-                type="button"
-                disabled={disabled}
-                aria-label={optionLabel}
-                aria-pressed={alignment === option}
-                onClick={() => handleAlignment(option)}
-                className={`inline-flex size-8 items-center justify-center rounded-md border transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
-                  alignment === option
-                    ? "border-[#b98ad2] bg-[#f2ebf7] text-[#8745ad]"
-                    : "border-[#e8dff0] bg-white text-[#8d6aa8] hover:bg-[#fdfaff]"
-                }`}
-              >
-                <Icon className="size-4" />
-              </button>
-            ))}
-          </fieldset>
+          <span className="text-xs font-medium text-foreground">Alineación</span>
+          <ToggleGroup
+            type="single"
+            variant="outline"
+            size="sm"
+            value={alignment}
+            onValueChange={(nextAlignment) => {
+              if (nextAlignment) {
+                handleAlignment(nextAlignment as ExportAlignment)
+              }
+            }}
+            aria-label="Alineación"
+          >
+            {alignmentOptions.map(
+              ({ value: option, label: optionLabel, icon: Icon }) => (
+                <ToggleGroupItem
+                  key={option}
+                  value={option}
+                  disabled={disabled}
+                  aria-label={optionLabel}
+                  className="size-8"
+                >
+                  <Icon className="size-4" />
+                </ToggleGroupItem>
+              ),
+            )}
+          </ToggleGroup>
         </div>
       )}
     </fieldset>
