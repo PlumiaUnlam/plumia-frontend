@@ -129,8 +129,23 @@ export type CreateProjectPayload = {
   wordCountTarget?: number
 }
 
+export type UpdateProjectPayload = Partial<CreateProjectPayload> & {
+  status?: "draft" | "active" | "archived"
+}
+
 export async function createProject(payload: CreateProjectPayload) {
   return api.post<ProjectResponse>("/projects", payload)
+}
+
+export async function updateProject(
+  projectId: string,
+  payload: UpdateProjectPayload,
+) {
+  return api.patch<ProjectResponse>(`/projects/${projectId}`, payload)
+}
+
+export async function deleteProject(projectId: string) {
+  return api.delete<ProjectResponse>(`/projects/${projectId}`)
 }
 
 export async function getChapters() {

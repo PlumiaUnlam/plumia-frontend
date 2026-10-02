@@ -1,15 +1,9 @@
 import Image from "next/image"
 import Link from "next/link"
-import { LogOut, Plus, Search, Settings, User } from "lucide-react"
+import { Plus, Search } from "lucide-react"
 
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { UserMenu } from "@/components/user-menu"
 import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import {
   InputGroup,
   InputGroupAddon,
@@ -48,35 +42,7 @@ export function Navbar({
           </span>
         </Link>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="rounded-full"
-              aria-label="Abrir menú de usuario"
-            >
-              <Avatar className="size-9">
-                <AvatarFallback>AP</AvatarFallback>
-              </Avatar>
-            </Button>
-          </DropdownMenuTrigger>
-
-          <DropdownMenuContent align="end" className="w-48">
-            <DropdownMenuItem>
-              <User />
-              Perfil
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              <Settings />
-              Configuración
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              <LogOut />
-              Cerrar sesión
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <UserMenu />
       </div>
 
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-3 px-4 pb-4 sm:flex-row sm:items-center sm:justify-between md:px-6">

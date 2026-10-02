@@ -18,20 +18,35 @@ import {
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { createProject, type ProjectResponse } from "@/services/project.service"
+import {
+  createProject,
+  updateProject,
+  type ProjectResponse,
+} from "@/services/project.service"
+import {
+  NativeSelect,
+  NativeSelectOption,
+} from "@/components/ui/native-select"
 
 type NewProjectFormProps = {
   onCancel: () => void
   onSuccess?: (project: ProjectResponse) => void
+  project?: ProjectResponse
 }
 
-export function NewProjectForm({ onCancel, onSuccess }: Readonly<NewProjectFormProps>) {
+export function NewProjectForm({
+  onCancel,
+  onSuccess,
+  project,
+}: Readonly<NewProjectFormProps>) {
+  const isEditing = Boolean(project)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [values, setValues] = useState({
-    title: "",
-    description: "",
-    genre: "",
-    wordCountTarget: "",
+    title: project?.title ?? "",
+    description: project?.description ?? "",
+    genre: project?.genre ?? "",
+    wordCountTarget: project ? String(project.wordCountTarget) : "",
+    status: project?.status ?? "draft",
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
 
@@ -45,6 +60,15 @@ export function NewProjectForm({ onCancel, onSuccess }: Readonly<NewProjectFormP
 
     if (!values.title.trim()) {
       nextErrors.title = "El nombre del proyecto es obligatorio."
+    }
+
+    if (
+      values.wordCountTarget.trim() &&
+      (!Number.isInteger(Number(values.wordCountTarget)) ||
+        Number(values.wordCountTarget) < 1)
+    ) {
+      nextErrors.wordCountTarget =
+        "El objetivo debe ser un número entero mayor que cero."
     }
 
     setErrors(nextErrors)
@@ -63,21 +87,28 @@ export function NewProjectForm({ onCancel, onSuccess }: Readonly<NewProjectFormP
     try {
       const payload = {
         title: values.title.trim(),
-        description: values.description.trim() || undefined,
-        genre: values.genre.trim() || undefined,
+        description: isEditing
+          ? values.description.trim()
+          : values.description.trim() || undefined,
+        genre: isEditing ? values.genre.trim() : values.genre.trim() || undefined,
         wordCountTarget: values.wordCountTarget.trim()
           ? Number(values.wordCountTarget)
           : undefined,
       }
 
-      const newProject = await createProject(payload)
-      onSuccess?.(newProject)
+      const savedProject = project
+        ? await updateProject(project.id, {
+            ...payload,
+            status: values.status as "draft" | "active" | "archived",
+          })
+        : await createProject(payload)
+      onSuccess?.(savedProject)
       onCancel()
     } catch (error) {
-      console.error("Error creating project:", error)
+      console.error(`Error ${isEditing ? "updating" : "creating"} project:`, error)
       setErrors((prev) => ({
         ...prev,
-        submit: "No se pudo crear el proyecto. Inténtalo nuevamente.",
+        submit: `No se pudo ${isEditing ? "guardar" : "crear"} el proyecto. Inténtalo nuevamente.`,
       }))
     } finally {
       setIsSubmitting(false)
@@ -87,9 +118,13 @@ export function NewProjectForm({ onCancel, onSuccess }: Readonly<NewProjectFormP
   return (
     <DialogContent className="max-w-2xl">
       <DialogHeader>
-        <DialogTitle>Crear nuevo proyecto</DialogTitle>
+        <DialogTitle>
+          {isEditing ? "Editar proyecto" : "Crear nuevo proyecto"}
+        </DialogTitle>
         <DialogDescription>
-          Completa los datos básicos para empezar a trabajar en tu nueva historia.
+          {isEditing
+            ? "Actualiza los datos generales y el estado del proyecto."
+            : "Completa los datos básicos para empezar a trabajar en tu nueva historia."}
         </DialogDescription>
       </DialogHeader>
 
@@ -105,6 +140,7 @@ export function NewProjectForm({ onCancel, onSuccess }: Readonly<NewProjectFormP
                 type="text"
                 placeholder="Nombre del Proyecto"
                 autoComplete="off"
+                maxLength={200}
                 aria-invalid={!!errors.title}
               />
             </FieldContent>
@@ -135,11 +171,12 @@ export function NewProjectForm({ onCancel, onSuccess }: Readonly<NewProjectFormP
                   type="text"
                   placeholder="Fantasía"
                   autoComplete="off"
+                  maxLength={100}
                 />
               </FieldContent>
             </Field>
 
-            <Field>
+            <Field data-invalid={!!errors.wordCountTarget}>
               <FieldLabel htmlFor="wordCountTarget">Objetivo de palabras</FieldLabel>
               <FieldContent>
                 <Input
@@ -148,11 +185,32 @@ export function NewProjectForm({ onCancel, onSuccess }: Readonly<NewProjectFormP
                   onChange={(event) => setField("wordCountTarget", event.target.value)}
                   type="number"
                   min="1"
+                  step="1"
                   placeholder="80000"
+                  aria-invalid={!!errors.wordCountTarget}
                 />
               </FieldContent>
+              <FieldError>{errors.wordCountTarget}</FieldError>
             </Field>
           </div>
+
+          {isEditing ? (
+            <Field>
+              <FieldLabel htmlFor="status">Estado</FieldLabel>
+              <FieldContent>
+                <NativeSelect
+                  id="status"
+                  className="w-full"
+                  value={values.status}
+                  onChange={(event) => setField("status", event.target.value)}
+                >
+                  <NativeSelectOption value="draft">Borrador</NativeSelectOption>
+                  <NativeSelectOption value="active">Activo</NativeSelectOption>
+                  <NativeSelectOption value="archived">Archivado</NativeSelectOption>
+                </NativeSelect>
+              </FieldContent>
+            </Field>
+          ) : null}
 
           {errors.submit ? (
             <p className="text-sm text-destructive">{errors.submit}</p>
@@ -167,7 +225,13 @@ export function NewProjectForm({ onCancel, onSuccess }: Readonly<NewProjectFormP
               disabled={isSubmitting}
               className="rounded-xl shadow-sm text-base"
             >
-              {isSubmitting ? <Spinner className="size-4" /> : "Crear proyecto"}
+              {isSubmitting ? (
+                <Spinner className="size-4" />
+              ) : isEditing ? (
+                "Guardar cambios"
+              ) : (
+                "Crear proyecto"
+              )}
             </Button>
           </div>
         </form>
