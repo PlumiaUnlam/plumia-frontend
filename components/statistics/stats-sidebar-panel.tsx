@@ -3,6 +3,7 @@
 import Link from "next/link";
 import {
   ArrowUpRight,
+  BarChart2,
   CalendarDays,
   Flame,
   Gauge,
@@ -90,7 +91,7 @@ function GoalSummary({
 
 function StatsSidebarSkeleton() {
   return (
-    <div className="space-y-4 p-4" aria-label="Cargando estadísticas">
+    <div className="space-y-3 p-3" aria-label="Cargando estadísticas">
       <div className="h-32 animate-pulse rounded-xl bg-muted" />
       <div className="grid grid-cols-2 gap-2">
         {Array.from({ length: 4 }).map((_, index) => (
@@ -132,28 +133,49 @@ export function StatsSidebarPanel({ projectId }: Readonly<{ projectId: string }>
   const goals = new Map(data.goals.map((goal) => [goal.goalType, goal]));
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <div className="flex items-center justify-between border-b px-4 py-3">
-        <div>
-          <p className="text-sm font-semibold">Resumen de escritura</p>
-          <p className="text-[11px] text-muted-foreground">{data.project.title}</p>
+    <div className="flex h-full min-h-0 flex-col bg-card">
+      <div className="flex h-16 shrink-0 flex-col justify-center border-b border-border px-3 py-2">
+        <div className="flex items-center gap-1.5">
+          <div className="flex min-w-0 flex-1 items-center gap-2 text-[11px] font-medium text-primary">
+            <BarChart2 className="size-3.5 shrink-0" />
+            <span className="truncate">Resumen de escritura</span>
+          </div>
+          <Button
+            asChild
+            variant="ghost"
+            size="icon-sm"
+            className="size-7 rounded-lg text-muted-foreground"
+          >
+            <Link
+              href={`/projects/${projectId}/statistics`}
+              aria-label="Ver estadísticas completas"
+              title="Ver estadísticas completas"
+            >
+              <ArrowUpRight className="size-3.5" />
+            </Link>
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="size-7 rounded-lg text-muted-foreground"
+            aria-label="Actualizar estadísticas"
+            title="Actualizar estadísticas"
+            onClick={() => void mutate()}
+            disabled={isValidating}
+          >
+            {isValidating ? (
+              <LoaderCircle className="size-3.5 animate-spin" />
+            ) : (
+              <RefreshCw className="size-3.5" />
+            )}
+          </Button>
         </div>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label="Actualizar estadísticas"
-          onClick={() => void mutate()}
-          disabled={isValidating}
-        >
-          {isValidating ? (
-            <LoaderCircle className="animate-spin" />
-          ) : (
-            <RefreshCw />
-          )}
-        </Button>
+        <p className="mt-1 truncate text-[10px] leading-relaxed text-muted-foreground">
+          {data.project.title}
+        </p>
       </div>
 
-      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
         <section className="rounded-xl bg-gradient-to-br from-[#32134a] via-[#5e2b7c] to-[#8146a3] p-4 text-white">
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -218,15 +240,6 @@ export function StatsSidebarPanel({ projectId }: Readonly<{ projectId: string }>
           <GoalSummary type="DAILY" goal={goals.get("DAILY")} />
           <GoalSummary type="WEEKLY" goal={goals.get("WEEKLY")} />
         </section>
-      </div>
-
-      <div className="border-t p-3">
-        <Button asChild variant="outline" className="w-full">
-          <Link href={`/projects/${projectId}/statistics`}>
-            Ver estadísticas completas
-            <ArrowUpRight />
-          </Link>
-        </Button>
       </div>
     </div>
   );

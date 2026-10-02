@@ -442,10 +442,16 @@ export function ChatPanel({
         className={`flex min-h-0 flex-col bg-card ${
           isFullscreen
             ? "h-full max-h-[calc(100vh-1rem)] w-full max-w-5xl flex-none overflow-hidden rounded-2xl border border-border shadow-2xl sm:max-h-[calc(100vh-3rem)] sm:rounded-3xl"
-            : "flex-1"
+            : "h-full flex-1"
         }`}
       >
-        <div className="relative shrink-0 border-b border-border px-3 py-3">
+        <div
+          className={`relative shrink-0 border-b border-border ${
+            isFullscreen
+              ? "px-4 py-3"
+              : "flex h-16 flex-col justify-center px-3 py-2"
+          }`}
+        >
           <div className="flex items-center gap-1.5">
             <div className="flex min-w-0 flex-1 items-center gap-2 text-[11px] font-medium text-primary">
               <Sparkles className="size-3.5 shrink-0" />
@@ -522,7 +528,11 @@ export function ChatPanel({
           )}
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4 sm:px-6 sm:py-6">
+        <div
+          className={`min-h-0 flex-1 overflow-y-auto overscroll-contain ${
+            isFullscreen ? "px-3 py-4 sm:px-6 sm:py-6" : "p-3"
+          }`}
+        >
           <div className="mx-auto w-full max-w-3xl">
             <ChatMessages
               isLoading={isLoading}
@@ -539,6 +549,7 @@ export function ChatPanel({
         </div>
 
         <ChatComposer
+          isFullscreen={isFullscreen}
           draft={draft}
           isSending={isSending}
           isVoiceBusy={isVoiceBusy}
@@ -621,6 +632,7 @@ function ChatMessages({
 }
 
 function ChatComposer({
+  isFullscreen,
   draft,
   isSending,
   isVoiceBusy,
@@ -644,6 +656,7 @@ function ChatComposer({
   onSelectAudioInput,
   onCloseVoiceSettings,
 }: {
+  readonly isFullscreen: boolean
   readonly draft: string
   readonly isSending: boolean
   readonly isVoiceBusy: boolean
@@ -673,7 +686,9 @@ function ChatComposer({
   return (
     <form
       onSubmit={onSubmit}
-      className="shrink-0 border-t border-border bg-card px-3 py-3 sm:px-6 sm:py-4"
+      className={`shrink-0 border-t border-border bg-card ${
+        isFullscreen ? "px-3 py-3 sm:px-6 sm:py-4" : "p-3"
+      }`}
     >
       <div className="mx-auto w-full max-w-3xl">
         {displayError && (
