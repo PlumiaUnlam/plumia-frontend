@@ -13,7 +13,6 @@ import { useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import {
   Loader2,
-  Plus,
   Star,
   Calendar,
   FileText,
@@ -820,7 +819,7 @@ function WorldbuildingHeader({
       </div>
       {activeTab === "wiki" && (
         <Button onClick={onCreateEntity}>
-          <Plus size={16} />
+          <Star size={16} />
           Nueva Entidad
         </Button>
       )}
@@ -835,7 +834,7 @@ function WorldbuildingHeader({
       )}
       {activeTab === "timeline" && (
         <Button onClick={onCreateTimelineEvent}>
-          <Plus size={16} />
+          <Calendar size={16} />
           Nuevo Evento
         </Button>
       )}
@@ -852,6 +851,7 @@ type WorldbuildingTabsProps = {
   timelineEventId: string | null;
   timelineCreatedEntity: { id: string; revision: number } | null;
   timelineNewEventRequest: number;
+  onTimelineNewEventRequestHandled: () => void;
   entities: Entity[];
   isLoadingEntities: boolean;
   entityError: Error | undefined;
@@ -888,6 +888,7 @@ function WorldbuildingTabs({
   timelineEventId,
   timelineCreatedEntity,
   timelineNewEventRequest,
+  onTimelineNewEventRequestHandled,
   entities,
   isLoadingEntities,
   entityError,
@@ -988,6 +989,7 @@ function WorldbuildingTabs({
           focusEventId={timelineEventId}
           createdEntity={timelineCreatedEntity}
           newEventRequest={timelineNewEventRequest}
+          onNewEventRequestHandled={onTimelineNewEventRequestHandled}
           onRequestCreateEntity={onRequestCreateEntity}
         />
       </TabsContent>
@@ -1422,6 +1424,9 @@ export function Worldbuilding({ projectId }: Readonly<WorldbuildingProps>) {
     null,
   );
   const [timelineNewEventRequest, setTimelineNewEventRequest] = useState(0);
+  const handleTimelineNewEventRequestHandled = useCallback(() => {
+    setTimelineNewEventRequest(0);
+  }, []);
   const [timelineEntityInitialName, setTimelineEntityInitialName] = useState<
     string | null
   >(null);
@@ -1596,6 +1601,7 @@ export function Worldbuilding({ projectId }: Readonly<WorldbuildingProps>) {
           timelineEventId={timelineEventIdParam}
           timelineCreatedEntity={timelineCreatedEntity}
           timelineNewEventRequest={timelineNewEventRequest}
+          onTimelineNewEventRequestHandled={handleTimelineNewEventRequestHandled}
           entities={worldbuildingEntities}
           isLoadingEntities={isLoading}
           entityError={error}
