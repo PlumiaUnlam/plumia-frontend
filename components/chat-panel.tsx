@@ -529,11 +529,11 @@ export function ChatPanel({
         </div>
 
         <div
-          className={`min-h-0 flex-1 overflow-y-auto overscroll-contain ${
+          className={`flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain ${
             isFullscreen ? "px-3 py-4 sm:px-6 sm:py-6" : "p-3"
           }`}
         >
-          <div className="mx-auto w-full max-w-3xl">
+          <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col justify-end">
             <ChatMessages
               isLoading={isLoading}
               messages={messages}
