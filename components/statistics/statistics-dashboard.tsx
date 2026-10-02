@@ -25,7 +25,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
-  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
@@ -604,10 +603,13 @@ export function StatisticsDashboard({ projectId }: Readonly<{ projectId: string 
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Badge variant="secondary" className="gap-1.5">
-              <span className="size-1.5 rounded-full bg-emerald-500" />
-              <span>Actualización automática</span>
-            </Badge>
+            <Button
+              onClick={() => setGoalsDialogOpen(true)}
+              disabled={loading || !dashboard}
+            >
+              <Pencil />
+              Definir metas
+            </Button>
             <Button
               variant="outline"
               size="icon-sm"
@@ -704,18 +706,10 @@ export function StatisticsDashboard({ projectId }: Readonly<{ projectId: string 
               </Card>
               <Card>
                 <CardHeader>
-                  <div>
-                    <CardTitle>Mis metas</CardTitle>
-                    <CardDescription>
-                      Tu avance diario y semanal en un solo lugar.
-                    </CardDescription>
-                  </div>
-                  <CardAction>
-                    <Button size="sm" onClick={() => setGoalsDialogOpen(true)}>
-                      <Pencil />
-                      Definir metas
-                    </Button>
-                  </CardAction>
+                  <CardTitle>Mis metas</CardTitle>
+                  <CardDescription>
+                    Tu avance diario y semanal en un solo lugar.
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <GoalCard type="DAILY" goal={goals.get("DAILY")} />
