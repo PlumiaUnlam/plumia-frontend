@@ -1,81 +1,103 @@
-import Link from "next/link";
+import Image from "next/image"
+import Link from "next/link"
+import { LogOut, Plus, Search, Settings, User } from "lucide-react"
 
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Button } from "@/components/ui/button"
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Plus, Search } from "lucide-react";
-import { Input } from "./ui/input";
-import Image from "next/image";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group"
 
 type NavbarProps = {
-    searchQuery: string;
-    onSearchChange: (value: string) => void;
-    onCreateProject?: () => void;
-};
+  searchQuery: string
+  onSearchChange: (value: string) => void
+  onCreateProject?: () => void
+}
 
-export function Navbar({ searchQuery, onSearchChange, onCreateProject }: Readonly<NavbarProps>) {
-    return (
-        <header className="border-b bg-white">
-            <div className="container mx-auto flex h-16 items-center justify-between px-4">
-                {/* Logo */}
-                <div className="flex items-center gap-1">
-                    <Image
-                        src="/logo.png"
-                        alt="PlumIA Logo"
-                        width={40}
-                        height={40}
-                        className="h-10 w-auto object-contain"
-                    />
-                    <Link
-                        href="/"
-                        className="text-xl font-semibold tracking-tight"
-                    >
-                        Plum<span className="text-primary">IA</span>
-                    </Link>
+export function Navbar({
+  searchQuery,
+  onSearchChange,
+  onCreateProject,
+}: Readonly<NavbarProps>) {
+  return (
+    <header className="sticky top-0 z-40 border-b bg-white">
+      <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-4 md:px-6">
+        <Link
+          href="/"
+          className="flex items-center gap-2 rounded-lg focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+          aria-label="Ir al inicio de PlumIA"
+        >
+          <Image
+            src="/logo.png"
+            alt=""
+            width={40}
+            height={40}
+            className="size-10 object-contain"
+            priority
+          />
+          <span className="text-xl font-semibold tracking-tight">
+            Plum<span className="text-primary">IA</span>
+          </span>
+        </Link>
 
-                </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="rounded-full"
+              aria-label="Abrir menú de usuario"
+            >
+              <Avatar className="size-9">
+                <AvatarFallback>AP</AvatarFallback>
+              </Avatar>
+            </Button>
+          </DropdownMenuTrigger>
 
-                {/* Right Section */}
-                <div className="flex items-center gap-3">
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Avatar className="cursor-pointer">
-                                <AvatarFallback>AP</AvatarFallback>
-                            </Avatar>
-                        </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuItem>
+              <User />
+              Perfil
+            </DropdownMenuItem>
+            <DropdownMenuItem>
+              <Settings />
+              Configuración
+            </DropdownMenuItem>
+            <DropdownMenuItem>
+              <LogOut />
+              Cerrar sesión
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
 
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuItem>Profile</DropdownMenuItem>
-                            <DropdownMenuItem>Settings</DropdownMenuItem>
-                            <DropdownMenuItem>Logout</DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                </div>
-            </div>
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-3 px-4 pb-4 sm:flex-row sm:items-center sm:justify-between md:px-6">
+        <InputGroup className="h-10 max-w-md bg-muted/30">
+          <InputGroupAddon>
+            <Search />
+          </InputGroupAddon>
+          <InputGroupInput
+            type="search"
+            placeholder="Buscar por título o género"
+            value={searchQuery}
+            onChange={(event) => onSearchChange(event.target.value)}
+            aria-label="Buscar proyectos"
+          />
+        </InputGroup>
 
-            <div className="container mx-auto flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="relative w-full max-w-md">
-                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-
-                    <Input
-                        placeholder="Buscar por título o género"
-                        className="pl-9"
-                        value={searchQuery}
-                        onChange={(event) => onSearchChange(event.target.value)}
-                    />
-                </div>
-
-                <Button onClick={onCreateProject}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Crear proyecto
-                </Button>
-            </div>
-        </header>
-    );
+        <Button onClick={onCreateProject} className="w-full sm:w-auto">
+          <Plus />
+          Crear proyecto
+        </Button>
+      </div>
+    </header>
+  )
 }

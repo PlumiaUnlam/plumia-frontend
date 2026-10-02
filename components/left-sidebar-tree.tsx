@@ -98,7 +98,7 @@ export function LeftSidebarTree({
   onDeleteItem,
 }: Readonly<LeftSidebarTreeProps>) {
   return (
-    <SidebarContent className="flex-1 overflow-y-auto bg-background group-data-[collapsible=icon]:hidden">
+    <SidebarContent className="flex-1 overflow-y-auto bg-card group-data-[collapsible=icon]:hidden">
       {books.map((book) => (
         <SidebarGroup key={book.id}>
           <SidebarMenu>

@@ -312,7 +312,10 @@ export function EditorToolbar({
 
   const toolbar = (
     <TooltipProvider delayDuration={350}>
-      <div className="editor-toolbar mx-2 mb-1 flex min-w-0 flex-col gap-1 rounded-b-lg border border-[#dadce0] bg-[#f8f9fa] px-2 py-2 text-[#3c4043] shadow-sm">
+      <div
+        id="editor-formatting-toolbar"
+        className="editor-toolbar mx-2 mb-1 flex min-w-0 flex-col gap-1 rounded-b-lg border border-[#dadce0] bg-[#f8f9fa] px-2 py-2 text-[#3c4043] shadow-sm"
+      >
         <div className="flex min-h-8 w-full flex-wrap items-center gap-1">
           <fieldset className={`${toolbarGroupClass} border-0`} style={{ padding: 0, margin: 0, minWidth: 0 }}>
             <legend className="sr-only">Historial</legend>

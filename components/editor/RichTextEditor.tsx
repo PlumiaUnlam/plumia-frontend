@@ -98,6 +98,7 @@ export function RichTextEditor({
   canSplit = true,
 }: Readonly<RichTextEditorProps>) {
   const [paragraphDialogOpen, setParagraphDialogOpen] = useState(false)
+  const [toolbarExpanded, setToolbarExpanded] = useState(false)
   const {
     error,
     isUploading,
@@ -329,12 +330,14 @@ export function RichTextEditor({
           onToggleSplit={onToggleSplit}
           isSplit={isSplit}
           canSplit={canSplit}
+          toolbarExpanded={toolbarExpanded}
+          onToggleToolbar={() => setToolbarExpanded((expanded) => !expanded)}
           onInsertDivider={(variant) =>
             editor.chain().focus().setSceneDivider(variant).run()
           }
         />
       )}
-      {showToolbar && (
+      {showToolbar && (isZenMode || toolbarExpanded) && (
         <EditorToolbar
           editor={editor}
           onInsertImage={openImagePicker}
@@ -360,7 +363,7 @@ export function RichTextEditor({
       )}
 
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-3xl px-6 py-10">
+        <div className="mx-auto max-w-3xl px-6 pb-10 pt-4">
           <div
             className="
               flex

@@ -319,18 +319,18 @@ export function LeftSidebar({
     <div className="flex h-full min-h-0">
       <Sidebar
         collapsible="icon"
-        className="relative flex h-full min-h-0 flex-col border-r bg-background"
+        className="relative flex h-full min-h-0 flex-col border-r border-border bg-card [&_[data-slot=sidebar-inner]]:bg-card"
       >
-        <SidebarHeader className="h-12 shrink-0 justify-center border-b bg-background p-2">
-          <div className="flex w-full items-center gap-1 group-data-[collapsible=icon]:hidden">
-            <h2 className="min-w-0 flex-1 truncate font-semibold center text-sm justify-center">
+        <SidebarHeader className="h-12 shrink-0 justify-center border-b border-border bg-card p-0">
+          <div className="flex h-full w-full items-center group-data-[collapsible=icon]:hidden">
+            <h2 className="flex min-w-0 flex-1 items-center truncate px-3 text-sm font-semibold">
               {projectTitle}
             </h2>
 
             <Button
-              size="icon-xs"
+              size="icon-sm"
               variant="ghost"
-              className="size-6"
+              className="h-full w-10 rounded-none text-muted-foreground hover:bg-muted/40 hover:text-foreground"
               onClick={() =>
                 setModalType({
                   type: "book",
@@ -338,14 +338,15 @@ export function LeftSidebar({
                   sortKey: nextSortKey(books),
                 })
               }
+              aria-label="Agregar libro"
             >
-              <Plus className="size-3" />
+              <Plus className="size-4" />
             </Button>
 
             <Button
               size="icon-sm"
               variant="ghost"
-              className="size-8 rounded-md text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+              className="h-full w-10 rounded-none border-l border-border text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
               onClick={toggleSidebar}
               aria-label="Cerrar estructura del proyecto"
             >
@@ -385,7 +386,7 @@ export function LeftSidebar({
           onEditItem={openEditItem}
           onDeleteItem={setItemToDelete}
         />
-        <SidebarFooter className="border-t bg-background p-2">
+        <SidebarFooter className="border-t border-border bg-card p-2 group-data-[collapsible=icon]:border-t-0 group-data-[collapsible=icon]:p-1.5">
           <TooltipProvider>
             <div className="grid w-full grid-cols-4 gap-0.5 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:gap-1">
             <Tooltip>
