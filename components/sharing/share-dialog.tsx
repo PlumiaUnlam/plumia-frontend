@@ -96,7 +96,8 @@ export function ShareDialog({
     }
     setLoading(true)
     try {
-      setShares(await getBookShares(bookId))
+      const bookShares = await getBookShares(bookId)
+      setShares(bookShares.filter((share) => share.status !== "REVOKED"))
       setError(null)
     } catch (loadError) {
       setError(
@@ -169,11 +170,7 @@ export function ShareDialog({
     if (!bookId) return
     try {
       await revokeBookShare(bookId, shareId)
-      setShares((current) =>
-        current.map((share) =>
-          share.id === shareId ? { ...share, status: "REVOKED" } : share,
-        ),
-      )
+      setShares((current) => current.filter((share) => share.id !== shareId))
     } catch (revokeError) {
       setError(
         revokeError instanceof Error
@@ -185,7 +182,7 @@ export function ShareDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-xl">
+      <DialogContent className="flex max-h-[85vh] flex-col overflow-hidden sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>Compartir un libro</DialogTitle>
           <DialogDescription>
@@ -312,57 +309,53 @@ export function ShareDialog({
           </section>
         )}
 
-        <section className="space-y-2 border-t pt-4">
+        <section className="flex min-h-0 flex-1 flex-col gap-2 border-t pt-4">
           <h3 className="text-sm font-semibold">Invitaciones</h3>
-          {loading ? (
-            <div className="flex justify-center py-4">
-              <Spinner className="size-5" />
-            </div>
-          ) : shares.length === 0 ? (
-            <Empty className="min-h-32 border bg-muted/30 p-4">
-              <EmptyHeader>
-                <EmptyMedia variant="icon">
-                  <Mail />
-                </EmptyMedia>
-                <EmptyTitle>Sin invitaciones</EmptyTitle>
-                <EmptyDescription>
-                  Todavía no compartiste ninguna versión de este libro.
-                </EmptyDescription>
-              </EmptyHeader>
-            </Empty>
-          ) : (
-            <div className="space-y-2">
-              {shares.map((share) => (
-                <div
-                  key={share.id}
-                  className="flex items-center gap-3 rounded-lg border p-3"
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">
-                      {share.invitedEmail}
-                    </p>
-                    <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                      <span className="text-xs text-muted-foreground">
-                        {permissionLabels[share.permission]}
-                      </span>
-                      <Badge
-                        variant={
-                          share.status === "REVOKED"
-                            ? "outline"
-                            : share.status === "ACCEPTED"
+          <div className="min-h-0 overflow-y-auto pr-1">
+            {loading ? (
+              <div className="flex justify-center py-4">
+                <Spinner className="size-5" />
+              </div>
+            ) : shares.length === 0 ? (
+              <Empty className="min-h-32 border bg-muted/30 p-4">
+                <EmptyHeader>
+                  <EmptyMedia variant="icon">
+                    <Mail />
+                  </EmptyMedia>
+                  <EmptyTitle>Sin invitaciones</EmptyTitle>
+                  <EmptyDescription>
+                    Todavía no compartiste ninguna versión de este libro.
+                  </EmptyDescription>
+                </EmptyHeader>
+              </Empty>
+            ) : (
+              <div className="space-y-2">
+                {shares.map((share) => (
+                  <div
+                    key={share.id}
+                    className="flex items-center gap-3 rounded-lg border p-3"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">
+                        {share.invitedEmail}
+                      </p>
+                      <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                        <span className="text-xs text-muted-foreground">
+                          {permissionLabels[share.permission]}
+                        </span>
+                        <Badge
+                          variant={
+                            share.status === "ACCEPTED"
                               ? "secondary"
                               : "default"
-                        }
-                      >
-                        {share.status === "PENDING"
-                          ? "Pendiente"
-                          : share.status === "ACCEPTED"
-                            ? "Aceptada"
-                            : "Revocada"}
-                      </Badge>
+                          }
+                        >
+                          {share.status === "PENDING"
+                            ? "Pendiente"
+                            : "Aceptada"}
+                        </Badge>
+                      </div>
                     </div>
-                  </div>
-                  {share.status !== "REVOKED" && (
                     <Button type="button" variant="ghost" size="icon-sm" asChild>
                       <a
                         href={`/shared/${share.slug}`}
@@ -373,8 +366,6 @@ export function ShareDialog({
                         <ExternalLink />
                       </a>
                     </Button>
-                  )}
-                  {share.status !== "REVOKED" && (
                     <Button
                       type="button"
                       variant="destructive"
@@ -384,11 +375,11 @@ export function ShareDialog({
                     >
                       <Trash2 />
                     </Button>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </section>
 
         <DialogFooter showCloseButton />
