@@ -67,6 +67,7 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
   const [submittingReplyFor, setSubmittingReplyFor] = useState<string | null>(null)
   const [submittingComment, setSubmittingComment] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [discussionError, setDiscussionError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [signingIn, setSigningIn] = useState(false)
   const [loadedUserId, setLoadedUserId] = useState<string | null>(null)
@@ -94,6 +95,7 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
           resolvedView.manuscript.books[0]?.chapters[0]?.id ?? null,
         )
         setError(null)
+        setDiscussionError(null)
       } catch (loadError) {
         if (!cancelled) {
           setError(
@@ -121,6 +123,7 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
     setView(null)
     setComments([])
     setError(null)
+    setDiscussionError(null)
     try {
       if (firebaseUser) {
         await logout()
@@ -191,8 +194,9 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
       setSelection(null)
       setCommentBody("")
       setActiveCommentId(created.id)
+      setDiscussionError(null)
     } catch (submitError) {
-      setError(
+      setDiscussionError(
         submitError instanceof Error
           ? submitError.message
           : "No se pudo guardar el comentario.",
@@ -212,8 +216,9 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
       setComments((current) =>
         current.map((item) => (item.id === updated.id ? updated : item)),
       )
+      setDiscussionError(null)
     } catch (updateError) {
-      setError(
+      setDiscussionError(
         updateError instanceof Error
           ? updateError.message
           : "No se pudo actualizar el estado del comentario.",
@@ -236,9 +241,9 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
         current.map((item) => (item.id === updated.id ? updated : item)),
       )
       setReplyDrafts((current) => ({ ...current, [comment.id]: "" }))
-      setError(null)
+      setDiscussionError(null)
     } catch (replyError) {
-      setError(
+      setDiscussionError(
         replyError instanceof Error
           ? replyError.message
           : "No se pudo guardar la respuesta.",
@@ -459,6 +464,16 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
                 {comments.length}
               </span>
             </div>
+            {discussionError && (
+              <p role="alert" className="mb-4 rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                {discussionError}
+              </p>
+            )}
+            {view.viewer.isOwner && !view.viewer.canComment && (
+              <p className="mb-4 rounded-lg bg-muted/60 p-3 text-xs text-muted-foreground">
+                Esta invitación está en modo solo lectura. Podés consultar y responder hilos existentes; no se pueden crear comentarios nuevos.
+              </p>
+            )}
             {view.viewer.canComment && (
               <p className="mb-4 rounded-lg bg-primary/5 p-3 text-xs text-muted-foreground">
                 Seleccioná una parte del texto para dejar un comentario.
