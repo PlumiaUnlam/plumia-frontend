@@ -487,6 +487,7 @@ function EditorWorkspace({
   )
   const [focusedPane, setFocusedPane] = useState<EditorPaneId>("primary")
   const [paragraphDialogOpen, setParagraphDialogOpen] = useState(false)
+  const [toolbarExpanded, setToolbarExpanded] = useState(false)
   const [primaryActions, setPrimaryActions] =
     useState<EditorToolbarActions | null>(null)
   const [secondaryActions, setSecondaryActions] =
@@ -680,12 +681,16 @@ function EditorWorkspace({
           isSplit={effectiveIsSplit}
           canSplit={canSplit}
           isZenMode={isZenMode}
+          toolbarExpanded={toolbarExpanded}
+          onToggleToolbar={() => setToolbarExpanded((expanded) => !expanded)}
           onInsertDivider={(variant) =>
             focusedActions.editor.chain().focus().setSceneDivider(variant).run()
           }
         />
       )}
-      {effectiveIsSplit && focusedActions && (
+      {effectiveIsSplit &&
+        focusedActions &&
+        (isZenMode || toolbarExpanded) && (
         <EditorToolbar
           editor={focusedActions.editor}
           onInsertImage={focusedActions.onInsertImage}
@@ -709,7 +714,7 @@ function EditorWorkspace({
               : undefined
           }
         />
-      )}
+        )}
 
       <div
         className={
