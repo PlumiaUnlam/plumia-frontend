@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import {
   DndContext,
   DragOverlay,
@@ -165,6 +166,9 @@ function canFetchStoryboardData(
 }
 
 export function Storyboard({ projectId }: Readonly<StoryboardProps>) {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const requestedView = searchParams.get("view")
   const { loading, firebaseUser } = useAuth()
   const shouldFetch = canFetchStoryboardData(
     projectId,
@@ -178,7 +182,14 @@ export function Storyboard({ projectId }: Readonly<StoryboardProps>) {
   const [dialogState, setDialogState] = useState<CardDialogState>(null)
   const [cardToDelete, setCardToDelete] = useState<StoryboardCard | null>(null)
   const [activeCardId, setActiveCardId] = useState<string | null>(null)
-  const [viewMode, setViewMode] = useState<StoryboardViewMode>("kanban")
+  const viewMode: StoryboardViewMode =
+    requestedView === "matrix" ? "matrix" : "kanban"
+
+  const handleViewModeChange = (nextView: StoryboardViewMode) => {
+    router.replace(
+      `/projects/${encodeURIComponent(projectId)}/storyboard?view=${nextView}`,
+    )
+  }
   const [submitting, setSubmitting] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
 
@@ -385,7 +396,7 @@ export function Storyboard({ projectId }: Readonly<StoryboardProps>) {
               <Button
                 size="xs"
                 variant={getViewModeVariant(viewMode, "kanban")}
-                onClick={() => setViewMode("kanban")}
+                onClick={() => handleViewModeChange("kanban")}
               >
                 <Columns3 className="size-3.5" />
                 Kanban
@@ -393,7 +404,7 @@ export function Storyboard({ projectId }: Readonly<StoryboardProps>) {
               <Button
                 size="xs"
                 variant={getViewModeVariant(viewMode, "matrix")}
-                onClick={() => setViewMode("matrix")}
+                onClick={() => handleViewModeChange("matrix")}
               >
                 <Grid3x3 className="size-3.5" />
                 Matriz
