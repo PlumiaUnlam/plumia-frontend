@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
 import {
   BarChart3,
   BookOpen,
@@ -18,11 +20,13 @@ import {
   Sparkles,
   Target,
   TrendingUp,
+  X,
 } from "lucide-react";
 
 import { Header } from "@/components/header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import {
   Card,
   CardContent,
@@ -32,6 +36,11 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Dialog,
   DialogContent,
@@ -99,6 +108,74 @@ function formatLongDate(value: string | null) {
     month: "long",
     year: "numeric",
   }).format(new Date(value));
+}
+
+function parseDateInput(value: string) {
+  if (!value) return undefined;
+  return new Date(`${value}T12:00:00`);
+}
+
+function DeadlineDatePicker({
+  id,
+  value,
+  onChange,
+}: Readonly<{
+  id: string;
+  value: string;
+  onChange: (value: string) => void;
+}>) {
+  const [open, setOpen] = useState(false);
+  const selectedDate = parseDateInput(value);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          id={id}
+          type="button"
+          variant="outline"
+          className="w-full justify-between px-3 font-normal"
+        >
+          <span className={value ? "text-foreground" : "text-muted-foreground"}>
+            {selectedDate
+              ? format(selectedDate, "d 'de' MMMM 'de' yyyy", { locale: es })
+              : "Seleccionar fecha"}
+          </span>
+          <CalendarDays className="text-muted-foreground" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-auto p-0">
+        <Calendar
+          mode="single"
+          selected={selectedDate}
+          onSelect={(date) => {
+            if (!date) return;
+            onChange(format(date, "yyyy-MM-dd"));
+            setOpen(false);
+          }}
+          locale={es}
+          autoFocus
+        />
+        {value ? (
+          <div className="border-t p-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="w-full"
+              onClick={() => {
+                onChange("");
+                setOpen(false);
+              }}
+            >
+              <X />
+              Quitar fecha
+            </Button>
+          </div>
+        ) : null}
+      </PopoverContent>
+    </Popover>
+  );
 }
 
 function getRefreshIconClass(refreshing: boolean) {
@@ -409,11 +486,10 @@ function GoalsDialog({
                   <Label htmlFor={`${field.type}-deadline`}>
                     Fecha objetivo <span className="font-normal text-muted-foreground">(opcional)</span>
                   </Label>
-                  <Input
+                  <DeadlineDatePicker
                     id={`${field.type}-deadline`}
-                    type="date"
                     value={field.deadline}
-                    onChange={(event) => field.setDeadline(event.target.value)}
+                    onChange={field.setDeadline}
                   />
                 </div>
               </div>

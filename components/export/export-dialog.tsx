@@ -292,20 +292,16 @@ export function ExportDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent
-        className="max-h-[calc(100dvh-1rem)] w-[min(40rem,calc(100vw-1.5rem))] max-w-none gap-0 overflow-x-hidden overflow-y-auto border-border bg-popover p-0 text-popover-foreground shadow-xl sm:max-h-[min(90dvh,52rem)] sm:max-w-none"
-      >
-        <DialogHeader className="relative gap-0 border-b border-border px-3.5 py-3 pr-12">
-          <DialogTitle className="text-base font-semibold leading-5 text-foreground">
-            Exportar libro
-          </DialogTitle>
+      <DialogContent className="flex max-h-[85vh] flex-col overflow-hidden sm:max-w-xl">
+        <DialogHeader>
+          <DialogTitle>Exportar un libro</DialogTitle>
+          <DialogDescription>
+            Elegí el libro, el formato de archivo y la configuración de página
+            que querés usar.
+          </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 px-3.5 py-5">
-          <DialogDescription className="leading-snug">
-            Elegí el libro, el formato y el diseño de página
-          </DialogDescription>
-
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
           {isHistoricalVersion ? (
             <Alert className="bg-muted/50">
               <AlertTitle>Versión histórica seleccionada</AlertTitle>
@@ -511,7 +507,7 @@ export function ExportDialog({
           )}
         </div>
 
-        <DialogFooter className="m-0 flex-row justify-end gap-2 rounded-none border-t border-border bg-muted/30 px-3.5 py-3">
+        <DialogFooter>
           {error && job && (
             <Button type="button" variant="outline" onClick={retry}>
               <RotateCcw className="mr-2 h-4 w-4" />
@@ -521,7 +517,6 @@ export function ExportDialog({
           <Button
             type="button"
             variant="outline"
-            size="sm"
             disabled={isSubmitting}
             onClick={() => handleOpenChange(false)}
           >
@@ -530,7 +525,6 @@ export function ExportDialog({
           {!isHistoricalVersion && (
             <Button
               type="button"
-              size="sm"
               disabled={!canExport}
               onClick={() => void handleExport()}
             >
