@@ -11,6 +11,7 @@ import {
   ImagePlus,
   Italic,
   Languages,
+  MessageSquare,
   PaintRoller,
   Pilcrow,
   RemoveFormatting,
@@ -70,6 +71,9 @@ type EditorMenuBarProps = {
   onInsertDivider?: (variant: SceneDividerVariant) => void
   onAnalyzeChanges?: () => void
   isAnalysisSaving?: boolean
+  onToggleAnnotations?: () => void
+  areAnnotationsOpen?: boolean
+  areAnnotationMarkersVisible?: boolean
   isZenMode?: boolean
   onToggleZenMode?: () => void
   onOpenSearch?: () => void
@@ -91,6 +95,9 @@ export function EditorMenuBar({
   onInsertDivider,
   onAnalyzeChanges,
   isAnalysisSaving = false,
+  onToggleAnnotations,
+  areAnnotationsOpen = false,
+  areAnnotationMarkersVisible = true,
   isZenMode = false,
   onToggleZenMode,
   onOpenSearch,
@@ -118,6 +125,13 @@ export function EditorMenuBar({
       isParagraph: currentEditor.isActive("paragraph"),
     }),
   })
+
+  let annotationMenuLabel = "Mostrar comentarios"
+  if (areAnnotationsOpen) {
+    annotationMenuLabel = "Ocultar comentarios"
+  } else if (areAnnotationMarkersVisible) {
+    annotationMenuLabel = "Ocultar iconos de anotación"
+  }
 
   const menuItem = (
     icon: ReactNode,
@@ -336,6 +350,14 @@ export function EditorMenuBar({
       {menu(
         "Revisar",
         <>
+          {onToggleAnnotations
+            ? menuItem(
+                <MessageSquare className="size-4" />,
+                annotationMenuLabel,
+                onToggleAnnotations,
+              )
+            : null}
+          {onToggleAnnotations && <MenubarSeparator />}
           {menuItem(
             <Sparkles className="size-4" />,
             isAnalysisSaving ? "Programando análisis…" : "Analizar cambios",

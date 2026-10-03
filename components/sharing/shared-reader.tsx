@@ -32,6 +32,7 @@ import { useAuth } from "@/contexts/AuthContext"
 import {
   acceptShareInvitation,
   createReaderComment,
+  createReaderCommentReply,
   getReaderComments,
   getSharedManuscript,
   getSharedStorageUrl,
@@ -49,6 +50,12 @@ type SharedReaderProps = {
   initialToken?: string
 }
 
+function getViewerDescription(viewer: SharedManuscriptView["viewer"]) {
+  if (viewer.isOwner) return "Comentarios de la versión"
+  if (viewer.canComment) return "Revisión con comentarios"
+  return "Solo lectura"
+}
+
 export function SharedReader({ slug, initialToken }: SharedReaderProps) {
   const {
     firebaseUser,
@@ -62,8 +69,11 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null)
   const [selection, setSelection] = useState<TextSelectionAnchor | null>(null)
   const [commentBody, setCommentBody] = useState("")
+  const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({})
+  const [submittingReplyFor, setSubmittingReplyFor] = useState<string | null>(null)
   const [submittingComment, setSubmittingComment] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [discussionError, setDiscussionError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [signingIn, setSigningIn] = useState(false)
   const [loadedUserId, setLoadedUserId] = useState<string | null>(null)
@@ -80,7 +90,7 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
           : await getSharedManuscript(slug, initialToken)
         const [resolvedView, loadedComments] = await Promise.all([
           resolveSnapshotImages(loadedView, slug, initialToken),
-          loadedView.viewer.canComment
+          (loadedView.viewer.isOwner || loadedView.viewer.canComment)
             ? getReaderComments(slug, initialToken)
             : Promise.resolve([]),
         ])
@@ -91,6 +101,7 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
           resolvedView.manuscript.books[0]?.chapters[0]?.id ?? null,
         )
         setError(null)
+        setDiscussionError(null)
       } catch (loadError) {
         if (!cancelled) {
           setError(
@@ -118,6 +129,7 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
     setView(null)
     setComments([])
     setError(null)
+    setDiscussionError(null)
     try {
       if (firebaseUser) {
         await logout()
@@ -188,8 +200,9 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
       setSelection(null)
       setCommentBody("")
       setActiveCommentId(created.id)
+      setDiscussionError(null)
     } catch (submitError) {
-      setError(
+      setDiscussionError(
         submitError instanceof Error
           ? submitError.message
           : "No se pudo guardar el comentario.",
@@ -200,15 +213,53 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
   }
 
   const toggleResolved = async (comment: ReaderComment) => {
-    const updated = await updateReaderComment(
-      slug,
-      comment.id,
-      comment.status === "OPEN" ? "RESOLVED" : "OPEN",
-    )
-    setComments((current) =>
-      current.map((item) => (item.id === updated.id ? updated : item)),
-    )
+    try {
+      const updated = await updateReaderComment(
+        slug,
+        comment.id,
+        comment.status === "OPEN" ? "RESOLVED" : "OPEN",
+      )
+      setComments((current) =>
+        current.map((item) => (item.id === updated.id ? updated : item)),
+      )
+      setDiscussionError(null)
+    } catch (updateError) {
+      setDiscussionError(
+        updateError instanceof Error
+          ? updateError.message
+          : "No se pudo actualizar el estado del comentario.",
+      )
+    }
   }
+
+  const submitReply = async (comment: ReaderComment) => {
+    const body = replyDrafts[comment.id]?.trim()
+    if (!body) return
+    setSubmittingReplyFor(comment.id)
+    try {
+      const updated = await createReaderCommentReply(
+        slug,
+        initialToken,
+        comment.id,
+        body,
+      )
+      setComments((current) =>
+        current.map((item) => (item.id === updated.id ? updated : item)),
+      )
+      setReplyDrafts((current) => ({ ...current, [comment.id]: "" }))
+      setDiscussionError(null)
+    } catch (replyError) {
+      setDiscussionError(
+        replyError instanceof Error
+          ? replyError.message
+          : "No se pudo guardar la respuesta.",
+      )
+    } finally {
+      setSubmittingReplyFor(null)
+    }
+  }
+
+  const canOpenDiscussion = view?.viewer.isOwner || view?.viewer.canComment
 
   if (
     authLoading ||
@@ -314,13 +365,13 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
         </Select>
         <div className="ml-2 hidden items-center gap-2 text-xs text-muted-foreground sm:flex lg:ml-auto">
           <PanelLeftClose className="size-4" />
-          {view.viewer.canComment ? "Revisión con comentarios" : "Solo lectura"}
+          {getViewerDescription(view.viewer)}
         </div>
       </header>
 
       <div
         className={`mx-auto grid grid-cols-1 gap-6 px-4 py-6 ${
-          view.viewer.canComment
+          canOpenDiscussion
             ? "max-w-[1500px] lg:grid-cols-[240px_minmax(0,760px)_320px]"
             : "max-w-[1080px] lg:grid-cols-[240px_minmax(0,760px)]"
         }`}
@@ -406,7 +457,7 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
           </section>
         </main>
 
-        {view.viewer.canComment && <aside>
+        {canOpenDiscussion && <aside>
           <div className="sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto rounded-xl bg-[#fffdf8] p-4 shadow-sm dark:bg-[#211827]">
             <div className="mb-4 flex items-center gap-2">
               <MessageSquare className="size-4 text-primary" />
@@ -415,6 +466,16 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
                 {comments.length}
               </span>
             </div>
+            {discussionError && (
+              <p role="alert" className="mb-4 rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                {discussionError}
+              </p>
+            )}
+            {view.viewer.isOwner && !view.viewer.canComment && (
+              <p className="mb-4 rounded-lg bg-muted/60 p-3 text-xs text-muted-foreground">
+                Esta invitación está en modo solo lectura. Podés consultar y responder hilos existentes; no se pueden crear comentarios nuevos.
+              </p>
+            )}
             {view.viewer.canComment && (
               <p className="mb-4 rounded-lg bg-primary/5 p-3 text-xs text-muted-foreground">
                 Seleccioná una parte del texto para dejar un comentario.
@@ -443,6 +504,9 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
                     <p className="text-sm">{comment.body}</p>
                     <div className="mt-2 flex items-center gap-2 text-[11px] text-muted-foreground">
                       <span>{comment.author.displayName}</span>
+                      <time dateTime={comment.createdAt}>
+                        {new Date(comment.createdAt).toLocaleString("es-UY")}
+                      </time>
                       {comment.status === "RESOLVED" && (
                         <span className="flex items-center gap-1 text-emerald-700">
                           <CheckCircle2 className="size-3" /> Resuelto
@@ -462,6 +526,63 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
                       >
                         {comment.status === "OPEN" ? "Resolver" : "Reabrir"}
                       </Button>
+                    )}
+                    {comment.replies.length > 0 && (
+                      <div className="mt-3 space-y-2 border-l-2 border-primary/15 pl-3">
+                        {comment.replies.map((reply) => (
+                          <div key={reply.id} className="rounded-md bg-muted/60 p-2">
+                            <p className="text-xs">{reply.body}</p>
+                            <p className="mt-1 text-[10px] text-muted-foreground">
+                              {reply.author.displayName} ·{" "}
+                              {new Date(reply.createdAt).toLocaleString("es-UY")}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {comment.statusHistory.length > 0 && (
+                      <details className="mt-3 text-[11px] text-muted-foreground">
+                        <summary className="cursor-pointer">Historial del estado</summary>
+                        <ol className="mt-2 space-y-1 pl-4">
+                          {comment.statusHistory.map((event, index) => (
+                            <li key={`${comment.id}-status-${index}`}>
+                              {event.changedByName} ·{" "}
+                              {event.status === "RESOLVED" ? "resolvió" : "abrió"} ·{" "}
+                              {new Date(event.createdAt).toLocaleString("es-UY")}
+                            </li>
+                          ))}
+                        </ol>
+                      </details>
+                    )}
+                    {(view.viewer.isOwner || view.viewer.canComment) && (
+                      <div className="mt-3 space-y-2">
+                        <Textarea
+                          value={replyDrafts[comment.id] ?? ""}
+                          onChange={(event) =>
+                            setReplyDrafts((current) => ({
+                              ...current,
+                              [comment.id]: event.target.value,
+                            }))
+                          }
+                          placeholder="Escribe una respuesta…"
+                          rows={2}
+                          aria-label={`Respuesta al comentario de ${comment.author.displayName}`}
+                        />
+                        <Button
+                          type="button"
+                          size="sm"
+                          disabled={
+                            !replyDrafts[comment.id]?.trim() ||
+                            submittingReplyFor === comment.id
+                          }
+                          onClick={() => void submitReply(comment)}
+                        >
+                          {submittingReplyFor === comment.id && (
+                            <Spinner className="size-4" />
+                          )}
+                          Responder
+                        </Button>
+                      </div>
                     )}
                   </article>
                 ))}

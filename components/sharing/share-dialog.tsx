@@ -66,6 +66,17 @@ const permissionLabels: Record<SharePermission, string> = {
   COMMENT: "Puede comentar",
 }
 
+function getShareStatusLabel(status: ShareSummary["status"]) {
+  switch (status) {
+    case "PENDING":
+      return "Pendiente"
+    case "ACCEPTED":
+      return "Aceptada"
+    case "REVOKED":
+      return "Revocada"
+  }
+}
+
 export function ShareDialog({
   books,
   activeBookId,
@@ -350,31 +361,34 @@ export function ShareDialog({
                               : "default"
                           }
                         >
-                          {share.status === "PENDING"
-                            ? "Pendiente"
-                            : "Aceptada"}
+                          {getShareStatusLabel(share.status)}
                         </Badge>
                       </div>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Versión del {new Date(share.frozenAt).toLocaleString("es-UY")}
+                      </p>
                     </div>
                     <Button type="button" variant="ghost" size="icon-sm" asChild>
                       <a
                         href={`/shared/${share.slug}`}
                         target="_blank"
                         rel="noreferrer"
-                        aria-label={`Abrir versión compartida con ${share.invitedEmail}`}
+                        aria-label={`${share.status === "REVOKED" ? "Ver historial" : "Abrir versión"} compartida con ${share.invitedEmail}`}
                       >
                         <ExternalLink />
                       </a>
                     </Button>
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="icon-sm"
-                      onClick={() => void revoke(share.id)}
-                      aria-label={`Revocar invitación de ${share.invitedEmail}`}
-                    >
-                      <Trash2 />
-                    </Button>
+                    {share.status !== "REVOKED" && (
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon-sm"
+                        onClick={() => void revoke(share.id)}
+                        aria-label={`Revocar invitación de ${share.invitedEmail}`}
+                      >
+                        <Trash2 />
+                      </Button>
+                    )}
                   </div>
                 ))}
               </div>
