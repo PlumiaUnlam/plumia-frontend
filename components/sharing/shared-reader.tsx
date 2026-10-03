@@ -419,7 +419,7 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
         className={`mx-auto grid grid-cols-1 gap-6 px-4 py-6 ${
           canOpenDiscussion
             ? "max-w-[1500px] lg:grid-cols-[240px_minmax(0,760px)_320px]"
-            : "max-w-[1080px] lg:grid-cols-[240px_minmax(0,760px)]"
+            : "max-w-[1320px] lg:grid-cols-[minmax(180px,240px)_minmax(0,760px)_minmax(180px,240px)]"
         }`}
       >
         <nav className="hidden lg:block">
@@ -504,9 +504,11 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
           </section>
         </main>
 
+        {!canOpenDiscussion && <div aria-hidden="true" className="hidden lg:block" />}
+
         {canOpenDiscussion && <aside>
           <div className="sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto rounded-xl bg-[#fffdf8] p-4 shadow-sm dark:bg-[#211827]">
-            <div className="mb-4 flex items-center gap-2">
+            <div className="mb-1 flex items-center gap-2">
               <MessageSquare className="size-4 text-primary" />
               <h2 className="text-sm font-semibold">Comentarios</h2>
               <span className="ml-auto text-xs text-muted-foreground">
@@ -518,9 +520,26 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
                 {discussionError}
               </p>
             )}
-            <p className="mb-4 rounded-lg bg-primary/5 p-3 text-xs text-muted-foreground">
+            <p className="mb-3 pl-6 text-[11px] leading-4 text-muted-foreground">
               Seleccioná una parte del texto para dejar un comentario.
             </p>
+            {resolvedComments.length > 0 && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="xs"
+                className="mb-3 w-full justify-between text-muted-foreground"
+                aria-expanded={showResolvedComments}
+                onClick={() => setShowResolvedComments((current) => !current)}
+              >
+                Resueltos ({resolvedComments.length})
+                <ChevronDown
+                  className={`size-3.5 transition-transform ${
+                    showResolvedComments ? "rotate-180" : ""
+                  }`}
+                />
+              </Button>
+            )}
             {visibleComments.length === 0 ? (
               <p className="py-5 text-center text-sm text-muted-foreground">
                 No hay comentarios pendientes.
@@ -666,24 +685,6 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
                   </article>
                 ))}
               </div>
-            )}
-            {resolvedComments.length > 0 && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="xs"
-                className="mt-3 w-full justify-between text-muted-foreground"
-                aria-expanded={showResolvedComments}
-                onClick={() => setShowResolvedComments((current) => !current)}
-              >
-                {resolvedComments.length} resuelto
-                {resolvedComments.length === 1 ? "" : "s"}
-                <ChevronDown
-                  className={`size-3.5 transition-transform ${
-                    showResolvedComments ? "rotate-180" : ""
-                  }`}
-                />
-              </Button>
             )}
           </div>
         </aside>}
