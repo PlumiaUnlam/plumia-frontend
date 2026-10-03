@@ -140,17 +140,17 @@ export function SpellcheckSuggestions({ editor, language }: Readonly<{ editor: E
 
   return (
     <Dialog open={target !== null} onOpenChange={(open) => { if (!open) close() }}>
-      <DialogContent className="w-[min(30rem,calc(100vw-1.5rem))] max-w-none max-h-[80dvh] gap-0 overflow-y-auto border-[#dadce0] bg-white p-0 sm:max-w-none"
+      <DialogContent className="w-[min(30rem,calc(100vw-1.5rem))] max-w-none max-h-[80dvh] gap-0 overflow-y-auto border-[#dadce0] bg-white p-0 dark:border-border dark:bg-popover sm:max-w-none"
         onCloseAutoFocus={(event) => {
           event.preventDefault()
           if (!editor.isDestroyed) editor.commands.focus()
         }}>
-        <DialogHeader className="border-b border-[#dadce0] px-6 py-5 pr-12">
-          <DialogTitle className="text-[#202124]">Sugerencias ortográficas</DialogTitle>
-          <DialogDescription className="text-[#5f6368]">Revisá «{target?.word}» y elegí una corrección.</DialogDescription>
+        <DialogHeader className="border-b border-[#dadce0] px-6 py-5 pr-12 dark:border-border">
+          <DialogTitle className="text-[#202124] dark:text-foreground">Sugerencias ortográficas</DialogTitle>
+          <DialogDescription className="text-[#5f6368] dark:text-muted-foreground">Revisá «{target?.word}» y elegí una corrección.</DialogDescription>
         </DialogHeader>
         <div className="space-y-4 px-6 py-5">
-          <div role="status" aria-live="polite" className="text-sm text-[#5f6368]">
+          <div role="status" aria-live="polite" className="text-sm text-[#5f6368] dark:text-muted-foreground">
             <SpellcheckStatus
               result={currentResult}
               onRetry={() => setAttempt((value) => value + 1)}
@@ -158,7 +158,7 @@ export function SpellcheckSuggestions({ editor, language }: Readonly<{ editor: E
           </div>
           {!!currentResult?.suggestions?.length && (
             <div className="grid grid-cols-2 gap-2" role="group" aria-label="Correcciones sugeridas">
-              {currentResult.suggestions.map((word) => <Button key={word} type="button" variant="outline" className="h-auto min-h-9 justify-start whitespace-normal break-all border-[#dadce0] bg-white text-[#3c4043]" onClick={() => apply(word)}>{word}</Button>)}
+              {currentResult.suggestions.map((word) => <Button key={word} type="button" variant="outline" className="h-auto min-h-9 justify-start whitespace-normal break-all border-[#dadce0] bg-white text-[#3c4043] dark:border-border dark:bg-input/30 dark:text-foreground" onClick={() => apply(word)}>{word}</Button>)}
             </div>
           )}
           <div className="space-y-1.5">
@@ -169,7 +169,7 @@ export function SpellcheckSuggestions({ editor, language }: Readonly<{ editor: E
           </div>
           {editError && <p role="alert" className="text-sm text-destructive">{editError}</p>}
         </div>
-        <DialogFooter className="mx-0 mb-0 border-t border-[#dadce0] bg-[#f8fafd] px-6 py-4 sm:flex-row sm:justify-end">
+        <DialogFooter className="mx-0 mb-0 border-t border-[#dadce0] bg-[#f8fafd] px-6 py-4 dark:border-border dark:bg-muted/50 sm:flex-row sm:justify-end">
           <Button type="button" variant="outline" onClick={close}>Cerrar</Button>
           <Button type="button" disabled={!replacement.trim() || replacement.trim() === target?.word} onClick={() => apply(replacement)}>Reemplazar</Button>
         </DialogFooter>

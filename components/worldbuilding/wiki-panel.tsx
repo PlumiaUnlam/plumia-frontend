@@ -251,7 +251,7 @@ export function WikiTab({
                       className={`cursor-pointer focus-visible:ring-2 focus-visible:ring-primary transition-colors ${
                         isSelected
                           ? "bg-primary/10 border-primary"
-                          : "bg-white hover:bg-muted/50"
+                          : "bg-white hover:bg-muted/50 dark:bg-card"
                       }`}
                     >
                       {primaryImageUrl ||

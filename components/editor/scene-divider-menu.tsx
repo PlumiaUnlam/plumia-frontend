@@ -7,8 +7,8 @@ import * as Menubar from "@/components/ui/menubar"
 import { ColorPalette } from "./color-palette"
 import { SCENE_DIVIDER_OPTIONS, SceneDividerPreview, getSceneDividerColor, type SceneDividerVariant } from "./scene-divider"
 
-const itemClass = "min-h-9 gap-2 text-[#3c4043] focus:bg-[#f1f3f4] focus:text-[#202124]"
-const contentClass = "w-64 max-w-[calc(100vw-1rem)] max-h-[min(70dvh,30rem)] overflow-y-auto border-[#dadce0] bg-white text-[#3c4043]"
+const itemClass = "min-h-9 gap-2 text-[#3c4043] focus:bg-[#f1f3f4] focus:text-[#202124] dark:text-foreground dark:focus:bg-accent dark:focus:text-accent-foreground"
+const contentClass = "w-64 max-w-[calc(100vw-1rem)] max-h-[min(70dvh,30rem)] overflow-y-auto border-[#dadce0] bg-white text-[#3c4043] dark:border-border dark:bg-popover dark:text-popover-foreground"
 
 export function SceneDividerMenuOptions({ editor, onInsert, menuType = "dropdown" }: Readonly<{
   editor: Editor
@@ -52,12 +52,12 @@ export function SceneDividerMenuOptions({ editor, onInsert, menuType = "dropdown
       <Separator />
       <Sub>
         <Trigger className={itemClass}><Palette className="size-4" /> Color del separador</Trigger>
-        <Portal><Content className="w-[min(22rem,calc(100vw-1rem))] border-[#dadce0] bg-white p-2">
+        <Portal><Content className="w-[min(22rem,calc(100vw-1rem))] border-[#dadce0] bg-white p-2 dark:border-border dark:bg-popover">
           <Label>{state.selected ? "Color del separador seleccionado" : "Color del próximo separador"}</Label>
           <ColorPalette editor={editor} kind="sceneDivider" menuItemClass={itemClass} menuType={menuType} />
         </Content></Portal>
       </Sub>
-      {!state.selected && <p className="px-2 py-2 text-xs leading-5 text-[#5f6368]">El color elegido se aplica al próximo separador. Seleccioná uno del documento para editarlo.</p>}
+      {!state.selected && <p className="px-2 py-2 text-xs leading-5 text-[#5f6368] dark:text-muted-foreground">El color elegido se aplica al próximo separador. Seleccioná uno del documento para editarlo.</p>}
     </>
   )
 }

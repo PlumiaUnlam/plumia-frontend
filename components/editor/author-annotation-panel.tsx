@@ -128,12 +128,12 @@ export function AuthorAnnotationPanel({
   }
 
   return (
-    <aside className="flex h-full min-h-0 w-[min(22rem,42vw)] shrink-0 flex-col border-l border-[#eadcf1] bg-[#fbf9fd] text-[#28183a] max-[700px]:fixed max-[700px]:inset-y-0 max-[700px]:right-0 max-[700px]:z-30 max-[700px]:w-[min(22rem,92vw)] max-[700px]:border-l max-[700px]:shadow-xl">
-      <header className="flex shrink-0 items-center justify-between border-b border-[#eadcf1] px-4 py-3">
+    <aside className="flex h-full min-h-0 w-[min(22rem,42vw)] shrink-0 flex-col border-l border-[#eadcf1] bg-[#fbf9fd] text-[#28183a] dark:border-border dark:bg-[#211827] dark:text-foreground max-[700px]:fixed max-[700px]:inset-y-0 max-[700px]:right-0 max-[700px]:z-30 max-[700px]:w-[min(22rem,92vw)] max-[700px]:border-l max-[700px]:shadow-xl">
+      <header className="flex shrink-0 items-center justify-between border-b border-[#eadcf1] px-4 py-3 dark:border-border">
         <div className="flex items-center gap-2">
-          <MessageSquareText className="size-4 text-[#8246a0]" />
+          <MessageSquareText className="size-4 text-[#8246a0] dark:text-violet-300" />
           <h2 className="font-semibold">Comentarios</h2>
-          <span className="rounded-full bg-[#eadcf1] px-2 py-0.5 text-xs text-[#70408a]">
+          <span className="rounded-full bg-[#eadcf1] px-2 py-0.5 text-xs text-[#70408a] dark:bg-violet-950/70 dark:text-violet-200">
             {annotations.length}
           </span>
         </div>
@@ -148,7 +148,7 @@ export function AuthorAnnotationPanel({
         </Button>
       </header>
 
-      <div className="flex shrink-0 gap-1 border-b border-[#eadcf1] px-3 py-2">
+      <div className="flex shrink-0 gap-1 border-b border-[#eadcf1] px-3 py-2 dark:border-border">
         {([
           ["OPEN", "Abiertos", openCount],
           ["RESOLVED", "Resueltos", resolvedCount],
@@ -161,8 +161,8 @@ export function AuthorAnnotationPanel({
             onClick={() => setFilterSelection({ focusVersion, filter: value })}
             className={`flex-1 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors ${
               filter === value
-                ? "bg-[#eadcf1] text-[#63367a]"
-                : "text-[#806b8b] hover:bg-[#f3edf7]"
+                ? "bg-[#eadcf1] text-[#63367a] dark:bg-violet-950/70 dark:text-violet-200"
+                : "text-[#806b8b] hover:bg-[#f3edf7] dark:text-muted-foreground dark:hover:bg-muted"
             }`}
           >
             {label} <span className="opacity-70">{count}</span>
@@ -172,12 +172,12 @@ export function AuthorAnnotationPanel({
 
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
         {isComposerOpen && (
-          <section className="rounded-xl border border-[#dfc8ec] bg-[#f6effa] p-4 shadow-sm">
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[#8b68a3]">
+          <section className="rounded-xl border border-[#dfc8ec] bg-[#f6effa] p-4 shadow-sm dark:border-violet-900/70 dark:bg-violet-950/25">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[#8b68a3] dark:text-violet-300">
               Nueva anotación
             </p>
             {draftAnchor?.quote && (
-              <blockquote className="mb-3 line-clamp-3 border-l-2 border-[#9a65b3] pl-2 text-sm text-[#5f496c]">
+              <blockquote className="mb-3 line-clamp-3 border-l-2 border-[#9a65b3] pl-2 text-sm text-[#5f496c] dark:border-violet-500 dark:text-muted-foreground">
                 {draftAnchor.quote}
               </blockquote>
             )}
@@ -187,7 +187,7 @@ export function AuthorAnnotationPanel({
               onChange={(event) => setDraft(event.target.value)}
               placeholder="Escribe una nota privada…"
               aria-label="Escribe una anotación privada"
-              className="min-h-24 resize-y border-[#dfc8ec] bg-white focus-visible:ring-[#9a65b3]"
+              className="min-h-24 resize-y border-[#dfc8ec] bg-white focus-visible:ring-[#9a65b3] dark:border-violet-900 dark:bg-background dark:focus-visible:ring-violet-500"
               maxLength={5000}
             />
             <div className="mt-3 flex justify-end gap-2">
@@ -214,13 +214,13 @@ export function AuthorAnnotationPanel({
         )}
 
         {!isComposerOpen && annotations.length === 0 && (
-          <div className="rounded-xl border border-dashed border-[#decce8] px-4 py-8 text-center text-sm text-[#806b8b]">
+          <div className="rounded-xl border border-dashed border-[#decce8] px-4 py-8 text-center text-sm text-[#806b8b] dark:border-violet-900 dark:text-muted-foreground">
             Las anotaciones son privadas y no se incluyen en las versiones compartidas.
           </div>
         )}
 
         {!isComposerOpen && annotations.length > 0 && visibleAnnotations.length === 0 && (
-          <div className="rounded-xl border border-dashed border-[#decce8] px-4 py-8 text-center text-sm text-[#806b8b]">
+          <div className="rounded-xl border border-dashed border-[#decce8] px-4 py-8 text-center text-sm text-[#806b8b] dark:border-violet-900 dark:text-muted-foreground">
             No hay anotaciones {filter === "OPEN" ? "abiertas" : "resueltas"}.
           </div>
         )}
@@ -238,27 +238,27 @@ export function AuthorAnnotationPanel({
               tabIndex={-1}
               className={`rounded-xl border p-4 shadow-sm outline-none transition-colors ${
                 focusedAnnotationId === annotation.id
-                  ? "border-[#a56abc] ring-2 ring-[#eadcf1]"
-                  : "border-[#dfc8ec]"
-              } ${isResolved ? "bg-white/70" : "bg-[#f6effa]"}`}
+                  ? "border-[#a56abc] ring-2 ring-[#eadcf1] dark:border-violet-500 dark:ring-violet-950"
+                  : "border-[#dfc8ec] dark:border-border"
+              } ${isResolved ? "bg-white/70 dark:bg-card/70" : "bg-[#f6effa] dark:bg-violet-950/25"}`}
             >
               <div className="mb-3 flex items-center gap-2.5">
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#e7d7ef] text-sm font-semibold text-[#7d3e9e]">
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#e7d7ef] text-sm font-semibold text-[#7d3e9e] dark:bg-violet-900/70 dark:text-violet-200">
                   {getInitials(name)}
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-semibold">
                     {name || "Autor"}
                   </span>
-                  <span className="block text-xs text-[#8b68a3]">
+                  <span className="block text-xs text-[#8b68a3] dark:text-muted-foreground">
                     {formatDate(annotation.updatedAt)}
                   </span>
                 </span>
                 <span
                   className={`hidden rounded-full px-2 py-1 text-[10px] font-medium sm:inline-flex ${
                     isResolved
-                      ? "bg-emerald-50 text-emerald-700"
-                      : "bg-violet-100 text-violet-700"
+                      ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
+                      : "bg-violet-100 text-violet-700 dark:bg-violet-950/70 dark:text-violet-200"
                   }`}
                 >
                   {isResolved ? "Resuelta" : "Abierta"}
@@ -308,7 +308,7 @@ export function AuthorAnnotationPanel({
               {annotation.quote && (
                 <button
                   type="button"
-                  className="mb-2 block w-full border-l-2 border-[#9a65b3] pl-2 text-left text-xs italic text-[#796485] line-clamp-2"
+                  className="mb-2 block w-full border-l-2 border-[#9a65b3] pl-2 text-left text-xs italic text-[#796485] line-clamp-2 dark:border-violet-500 dark:text-muted-foreground"
                   onClick={() => onNavigate(annotation)}
                 >
                   {annotation.quote}
@@ -321,7 +321,7 @@ export function AuthorAnnotationPanel({
                     value={editDraft}
                     onChange={(event) => setEditDraft(event.target.value)}
                     aria-label="Editar anotación"
-                    className="min-h-20 resize-y border-[#dfc8ec] bg-white"
+                    className="min-h-20 resize-y border-[#dfc8ec] bg-white dark:border-violet-900 dark:bg-background"
                     maxLength={5000}
                   />
                   <div className="mt-2 flex justify-end gap-2">
@@ -353,7 +353,7 @@ export function AuthorAnnotationPanel({
                 </p>
               )}
               {isResolved && annotation.resolvedAt && (
-                <p className="mt-3 flex items-center gap-1.5 text-xs text-emerald-700">
+                <p className="mt-3 flex items-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-300">
                   <CheckCircle2 className="size-3.5" />
                   Resuelta el {formatDate(annotation.resolvedAt)}
                 </p>
@@ -362,12 +362,12 @@ export function AuthorAnnotationPanel({
           )
         })}
 
-        {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
+        {error && <p role="alert" className="text-sm text-red-700 dark:text-red-300">{error}</p>}
         {!isComposerOpen && (
           <Button
             type="button"
             variant="outline"
-            className="w-full border-[#dfc8ec] text-[#70408a]"
+            className="w-full border-[#dfc8ec] text-[#70408a] dark:border-violet-900 dark:text-violet-200"
             onClick={onStartCreate}
           >
             Nueva anotación

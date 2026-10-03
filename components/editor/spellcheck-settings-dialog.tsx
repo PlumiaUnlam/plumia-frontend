@@ -40,10 +40,10 @@ export function SpellcheckSettingsDialog({
 }: Readonly<SpellcheckSettingsDialogProps>) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[min(28rem,calc(100vw-1.5rem))] max-w-none gap-0 overflow-hidden border-[#dadce0] p-0 sm:max-w-none">
-        <DialogHeader className="border-b border-[#dadce0] px-6 py-5 pr-12">
-          <DialogTitle className="text-[#202124]">Configuración del corrector</DialogTitle>
-          <DialogDescription className="text-[#5f6368]">
+      <DialogContent className="w-[min(28rem,calc(100vw-1.5rem))] max-w-none gap-0 overflow-hidden border-[#dadce0] p-0 dark:border-border sm:max-w-none">
+        <DialogHeader className="border-b border-[#dadce0] px-6 py-5 pr-12 dark:border-border">
+          <DialogTitle className="text-[#202124] dark:text-foreground">Configuración del corrector</DialogTitle>
+          <DialogDescription className="text-[#5f6368] dark:text-muted-foreground">
             Elegí el idioma del corrector y las sugerencias. Hacé clic derecho sobre una palabra para revisarla.
           </DialogDescription>
         </DialogHeader>
@@ -51,7 +51,7 @@ export function SpellcheckSettingsDialog({
         <div className="space-y-2 px-6 py-5">
           <label
             htmlFor="spellcheck-settings-language"
-            className="text-xs font-medium text-[#5f6368]"
+            className="text-xs font-medium text-[#5f6368] dark:text-muted-foreground"
           >
             Idioma
           </label>
@@ -61,7 +61,7 @@ export function SpellcheckSettingsDialog({
             onValueChange={(value) =>
               onLanguageChange(value as SpellcheckLanguage)
             }
-            className="h-10 w-full rounded-lg border border-[#dadce0] bg-white px-3 text-sm text-[#3c4043] outline-none focus-visible:border-[#1a73e8] focus-visible:ring-2 focus-visible:ring-[#d2e3fc]"
+            className="h-10 w-full rounded-lg border border-[#dadce0] bg-white px-3 text-sm text-[#3c4043] outline-none focus-visible:border-[#1a73e8] focus-visible:ring-2 focus-visible:ring-[#d2e3fc] dark:border-border dark:bg-input/30 dark:text-foreground dark:focus-visible:border-ring dark:focus-visible:ring-ring/50"
           >
             {languageOptions.map((option) => (
               <EditorSelectOption key={option.value} value={option.value}>
@@ -71,7 +71,7 @@ export function SpellcheckSettingsDialog({
           </EditorSelect>
         </div>
 
-        <DialogFooter className="mx-0 mt-0 border-t border-[#dadce0] bg-[#f8fafd] px-6 py-4 sm:flex-row sm:justify-end">
+        <DialogFooter className="mx-0 mt-0 border-t border-[#dadce0] bg-[#f8fafd] px-6 py-4 dark:border-border dark:bg-muted/50 sm:flex-row sm:justify-end">
           <Button
             type="button"
             variant="outline"

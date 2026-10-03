@@ -94,6 +94,20 @@
   background: color-mix(in srgb, #cbd5e1 25%, transparent);
 }
 
+.dark .shared-comment-highlight {
+  border-bottom-color: #d8b4fe;
+  background: color-mix(in srgb, #7e22ce 38%, transparent);
+}
+
+.dark .shared-comment-highlight:hover {
+  background: color-mix(in srgb, #9333ea 52%, transparent);
+}
+
+.dark .shared-comment-highlight--resolved {
+  border-bottom-color: #64748b;
+  background: color-mix(in srgb, #475569 32%, transparent);
+}
+
 :root {
   --background: #f5f1fb;
   --foreground: #1c0f33;

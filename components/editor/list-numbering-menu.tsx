@@ -32,8 +32,8 @@ import { ListStyleGrid } from "./list-style-grid"
 import { ColorPalette } from "./color-palette"
 
 const menuClass =
-  "border-[#dadce0] bg-white text-[#3c4043] shadow-[0_3px_8px_rgba(60,64,67,0.24)]"
-const itemClass = "gap-3 text-[#3c4043] focus:bg-[#f1f3f4] focus:text-[#202124]"
+  "border-[#dadce0] bg-white text-[#3c4043] shadow-[0_3px_8px_rgba(60,64,67,0.24)] dark:border-border dark:bg-popover dark:text-popover-foreground"
+const itemClass = "gap-3 text-[#3c4043] focus:bg-[#f1f3f4] focus:text-[#202124] dark:text-foreground dark:focus:bg-accent dark:focus:text-accent-foreground"
 
 function applyStartNumber(
   editor: Editor,
@@ -79,12 +79,12 @@ function StartNumberDialog({
 }: Readonly<StartNumberDialogProps>) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[calc(100dvh-1rem)] w-[min(22rem,calc(100vw-1.5rem))] max-w-none gap-0 overflow-x-hidden overflow-y-auto border-[#dadce0] bg-white p-0 sm:max-w-none">
-        <DialogHeader className="border-b border-[#dadce0] px-5 py-4 pr-12">
-          <DialogTitle className="text-[#202124]">
+      <DialogContent className="max-h-[calc(100dvh-1rem)] w-[min(22rem,calc(100vw-1.5rem))] max-w-none gap-0 overflow-x-hidden overflow-y-auto border-[#dadce0] bg-white p-0 dark:border-border dark:bg-popover sm:max-w-none">
+        <DialogHeader className="border-b border-[#dadce0] px-5 py-4 pr-12 dark:border-border">
+          <DialogTitle className="text-[#202124] dark:text-foreground">
             Comenzar numeración desde
           </DialogTitle>
-          <DialogDescription className="text-[#5f6368]">
+          <DialogDescription className="text-[#5f6368] dark:text-muted-foreground">
             Elegí el número inicial para la lista actual.
           </DialogDescription>
         </DialogHeader>

@@ -1,9 +1,10 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react"
-import { Camera, LogOut, Settings, Trash2, UserRound } from "lucide-react"
+import { Camera, LogOut, Monitor, Moon, Settings, Sun, Trash2, UserRound } from "lucide-react"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
+import { useTheme } from "next-themes"
 
 import { useAuth } from "@/contexts/AuthContext"
 import { cn } from "@/lib/utils"
@@ -22,7 +23,12 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
@@ -91,6 +97,7 @@ function getInitials(name: string | null | undefined, email: string | null | und
 
 export function UserMenu({ inverted = false }: UserMenuProps) {
   const router = useRouter()
+  const { setTheme, theme } = useTheme()
   const { firebaseUser, user, logout, updateUserProfile } = useAuth()
   const [profileOpen, setProfileOpen] = useState(false)
   const [displayName, setDisplayName] = useState("")
@@ -236,6 +243,31 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
             <Settings />
             Configurar perfil
           </DropdownMenuItem>
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+              {theme === "dark" ? <Moon /> : theme === "light" ? <Sun /> : <Monitor />}
+              Tema
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className="w-40">
+              <DropdownMenuRadioGroup
+                value={theme ?? "system"}
+                onValueChange={setTheme}
+              >
+                <DropdownMenuRadioItem value="light">
+                  <Sun />
+                  Claro
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="dark">
+                  <Moon />
+                  Oscuro
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="system">
+                  <Monitor />
+                  Sistema
+                </DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
           <DropdownMenuSeparator />
           <DropdownMenuItem
             variant="destructive"

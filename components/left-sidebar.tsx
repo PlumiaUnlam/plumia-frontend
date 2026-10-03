@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 
 import {
   Sidebar,
@@ -17,9 +16,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
-  Earth,
-  Layers3,
-  TrendingUp,
   Plus,
   PanelLeftClose,
   Undo2,
@@ -110,7 +106,6 @@ export function LeftSidebar({
   const [editName, setEditName] = useState("");
   const [isItemActionSubmitting, setIsItemActionSubmitting] = useState(false);
 
-  const router = useRouter();
   const setActiveScene = useEditorStore((s) => s.setActiveScene)
   const activeSceneId = useEditorStore((s) => s.activeSceneId)
   const selectedSceneVersionId = useEditorStore((s) => s.selectedSceneVersionId)
@@ -388,107 +383,32 @@ export function LeftSidebar({
         />
         <SidebarFooter className="border-t border-border bg-card p-2 group-data-[collapsible=icon]:border-t-0 group-data-[collapsible=icon]:p-1.5">
           <TooltipProvider>
-            <div className="grid w-full grid-cols-4 gap-0.5 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:gap-1">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  className="h-10 w-full flex-col gap-0.5 px-0 text-muted-foreground hover:text-foreground group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:w-8"
-                  onClick={() =>
-                    router.push(
-                      `/projects/${encodeURIComponent(projectId)}/worldbuilding`,
-                    )
-                  }
-                  aria-label="Worldbuilding"
-                >
-                  <Earth className="size-4" />
-                  <span className="max-w-full truncate text-[7.5px] font-medium leading-none group-data-[collapsible=icon]:hidden">
-                    Worldbuilding
-                  </span>
-                </Button>
-              </TooltipTrigger>
-              {showFooterTooltips ? (
-                <TooltipContent side="right" sideOffset={8}>
-                  Worldbuilding
-                </TooltipContent>
-              ) : null}
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  className="h-10 w-full flex-col gap-0.5 px-0 text-muted-foreground hover:text-foreground group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:w-8"
-                  onClick={() =>
-                    router.push(
-                      `/projects/${encodeURIComponent(projectId)}/storyboard`,
-                    )
-                  }
-                  aria-label="Tablero"
-                >
-                  <Layers3 className="size-4" />
-                  <span className="max-w-full truncate text-[7.5px] font-medium leading-none group-data-[collapsible=icon]:hidden">
-                    Tablero
-                  </span>
-                </Button>
-              </TooltipTrigger>
-              {showFooterTooltips ? (
-                <TooltipContent side="right" sideOffset={8}>
-                  Tablero
-                </TooltipContent>
-              ) : null}
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  className="h-10 w-full flex-col gap-0.5 px-0 text-muted-foreground hover:text-foreground group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:w-8"
-                  onClick={() =>
-                    router.push(
-                      `/projects/${encodeURIComponent(projectId)}/statistics`,
-                    )
-                  }
-                  aria-label="Estadísticas"
-                >
-                  <TrendingUp className="size-4" />
-                  <span className="max-w-full truncate text-[7.5px] font-medium leading-none group-data-[collapsible=icon]:hidden">
-                    Estadísticas
-                  </span>
-                </Button>
-              </TooltipTrigger>
-              {showFooterTooltips ? (
-                <TooltipContent side="right" sideOffset={8}>
-                  Estadísticas
-                </TooltipContent>
-              ) : null}
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  className={`h-10 w-full flex-col gap-0.5 px-0 hover:text-foreground group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:w-8 ${
-                    historyOpen
-                      ? "bg-sidebar-accent text-foreground"
-                      : "text-muted-foreground"
-                  }`}
-                  onClick={() => setHistoryOpen(true)}
-                  aria-label="Historial"
-                >
-                  <Undo2 className="size-4" />
-                  <span className="max-w-full truncate text-[7.5px] font-medium leading-none group-data-[collapsible=icon]:hidden">
+            <div className="w-full">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    className={`h-9 w-full justify-start gap-2 px-2 hover:text-foreground group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0 ${
+                      historyOpen
+                        ? "bg-sidebar-accent text-foreground"
+                        : "text-muted-foreground"
+                    }`}
+                    onClick={() => setHistoryOpen(true)}
+                    aria-label="Historial"
+                  >
+                    <Undo2 className="size-4" />
+                    <span className="truncate text-xs font-medium group-data-[collapsible=icon]:hidden">
+                      Historial
+                    </span>
+                  </Button>
+                </TooltipTrigger>
+                {showFooterTooltips ? (
+                  <TooltipContent side="right" sideOffset={8}>
                     Historial
-                  </span>
-                </Button>
-              </TooltipTrigger>
-              {showFooterTooltips ? (
-                <TooltipContent side="right" sideOffset={8}>
-                  Historial
-                </TooltipContent>
-              ) : null}
-            </Tooltip>
+                  </TooltipContent>
+                ) : null}
+              </Tooltip>
             </div>
           </TooltipProvider>
         </SidebarFooter>

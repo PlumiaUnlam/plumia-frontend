@@ -59,9 +59,9 @@ export function TextFontFamilyMenuOptions({
 
   return (
     <>
-      <div className="sticky top-0 z-10 border-b border-[#dadce0] bg-white p-2">
+      <div className="sticky top-0 z-10 border-b border-[#dadce0] bg-white p-2 dark:border-border dark:bg-popover">
         <div className="relative">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-[#5f6368]" />
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-[#5f6368] dark:text-muted-foreground" />
           <Input
             ref={searchInputRef}
             value={query}
@@ -72,7 +72,7 @@ export function TextFontFamilyMenuOptions({
             }}
             placeholder="Buscar fuente..."
             aria-label="Buscar familia tipográfica"
-            className="h-9 rounded-md border-[#dadce0] bg-white pl-9 pr-2 text-sm shadow-none focus-visible:ring-2 focus-visible:ring-[#a8c7fa]"
+            className="h-9 rounded-md border-[#dadce0] bg-white pl-9 pr-2 text-sm shadow-none focus-visible:ring-2 focus-visible:ring-[#a8c7fa] dark:border-border dark:bg-input/30 dark:text-foreground dark:focus-visible:ring-ring"
           />
         </div>
       </div>
