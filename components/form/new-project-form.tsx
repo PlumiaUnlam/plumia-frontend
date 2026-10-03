@@ -11,6 +11,13 @@ import {
 } from "@/components/ui/dialog"
 import { Spinner } from "@/components/ui/spinner"
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
   Field,
   FieldContent,
   FieldError,
@@ -23,10 +30,6 @@ import {
   updateProject,
   type ProjectResponse,
 } from "@/services/project.service"
-import {
-  NativeSelect,
-  NativeSelectOption,
-} from "@/components/ui/native-select"
 
 type NewProjectFormProps = {
   onCancel: () => void
@@ -198,16 +201,19 @@ export function NewProjectForm({
             <Field>
               <FieldLabel htmlFor="status">Estado</FieldLabel>
               <FieldContent>
-                <NativeSelect
-                  id="status"
-                  className="w-full"
+                <Select
                   value={values.status}
-                  onChange={(event) => setField("status", event.target.value)}
+                  onValueChange={(value) => setField("status", value)}
                 >
-                  <NativeSelectOption value="draft">Borrador</NativeSelectOption>
-                  <NativeSelectOption value="active">Activo</NativeSelectOption>
-                  <NativeSelectOption value="archived">Archivado</NativeSelectOption>
-                </NativeSelect>
+                  <SelectTrigger id="status" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent align="start">
+                    <SelectItem value="draft">Borrador</SelectItem>
+                    <SelectItem value="active">Activo</SelectItem>
+                    <SelectItem value="archived">Archivado</SelectItem>
+                  </SelectContent>
+                </Select>
               </FieldContent>
             </Field>
           ) : null}
