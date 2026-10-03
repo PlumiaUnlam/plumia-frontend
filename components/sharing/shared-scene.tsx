@@ -65,6 +65,12 @@ const SharedImage = Image.extend({
   HTMLAttributes: { class: "mx-auto my-6 max-w-full rounded-md" },
 })
 
+const SharedEntityLink = EntityLink.extend({
+  renderHTML() {
+    return ["span", 0]
+  },
+})
+
 const SharedSceneDivider = Node.create({
   name: "sceneDivider",
   group: "block",
@@ -148,7 +154,7 @@ export function SharedScene({
       ParagraphFormatting,
       SharedImage,
       SharedSceneDivider,
-      EntityLink,
+      SharedEntityLink,
       commentHighlights,
     ],
     content: content ?? { type: "doc", content: [] },
