@@ -22,12 +22,18 @@ type SharedSceneProps = {
   title: string | null
   content: ProseMirrorJSON | null
   comments: ReaderComment[]
+  activeCommentId: string | null
   canComment: boolean
   onSelection: (selection: TextSelectionAnchor) => void
   onCommentClick: (commentId: string) => void
 }
 
 const commentPluginKey = new PluginKey("sharedReaderComments")
+
+type CommentDecorationState = {
+  comments: ReaderComment[]
+  activeCommentId: string | null
+}
 
 const SharedImage = Image.extend({
   addAttributes() {
@@ -59,6 +65,12 @@ const SharedImage = Image.extend({
   HTMLAttributes: { class: "mx-auto my-6 max-w-full rounded-md" },
 })
 
+const SharedEntityLink = EntityLink.extend({
+  renderHTML() {
+    return ["span", 0]
+  },
+})
+
 const SharedSceneDivider = Node.create({
   name: "sceneDivider",
   group: "block",
@@ -87,6 +99,7 @@ export function SharedScene({
   title,
   content,
   comments,
+  activeCommentId,
   canComment,
   onSelection,
   onCommentClick,
@@ -101,13 +114,16 @@ export function SharedScene({
               key: commentPluginKey,
               state: {
                 init: (_config, state) =>
-                  buildCommentDecorations(state.doc, comments),
+                  buildCommentDecorations(state.doc, {
+                    comments,
+                    activeCommentId,
+                  }),
                 apply(transaction, current) {
-                  const updatedComments = transaction.getMeta(
+                  const updatedState = transaction.getMeta(
                     commentPluginKey,
-                  ) as ReaderComment[] | undefined
-                  return updatedComments
-                    ? buildCommentDecorations(transaction.doc, updatedComments)
+                  ) as CommentDecorationState | undefined
+                  return updatedState
+                    ? buildCommentDecorations(transaction.doc, updatedState)
                     : current.map(transaction.mapping, transaction.doc)
                 },
               },
@@ -127,7 +143,7 @@ export function SharedScene({
           ]
         },
       }),
-    [comments, onCommentClick],
+    [activeCommentId, comments, onCommentClick],
   )
 
   const editor = useEditor({
@@ -138,7 +154,7 @@ export function SharedScene({
       ParagraphFormatting,
       SharedImage,
       SharedSceneDivider,
-      EntityLink,
+      SharedEntityLink,
       commentHighlights,
     ],
     content: content ?? { type: "doc", content: [] },
@@ -152,8 +168,13 @@ export function SharedScene({
 
   useEffect(() => {
     if (!editor || editor.isDestroyed) return
-    editor.view.dispatch(editor.state.tr.setMeta(commentPluginKey, comments))
-  }, [comments, editor])
+    editor.view.dispatch(
+      editor.state.tr.setMeta(commentPluginKey, {
+        comments,
+        activeCommentId,
+      } satisfies CommentDecorationState),
+    )
+  }, [activeCommentId, comments, editor])
 
   const captureSelection = () => {
     if (!canComment || !editor) return
@@ -199,7 +220,7 @@ export function SharedScene({
 
 function buildCommentDecorations(
   document: ProseMirrorNode,
-  comments: ReaderComment[],
+  { comments, activeCommentId }: CommentDecorationState,
 ): DecorationSet {
   const maximum = document.content.size
   const decorations = comments.flatMap((comment) => {
@@ -209,9 +230,17 @@ function buildCommentDecorations(
     return [
       Decoration.inline(from, to, {
         class:
-          comment.status === "RESOLVED"
-            ? "shared-comment-highlight shared-comment-highlight--resolved"
-            : "shared-comment-highlight",
+          [
+            "shared-comment-highlight",
+            comment.status === "RESOLVED"
+              ? "shared-comment-highlight--resolved"
+              : "",
+            comment.id === activeCommentId
+              ? "shared-comment-highlight--active"
+              : "",
+          ]
+            .filter(Boolean)
+            .join(" "),
         "data-comment-id": comment.id,
       }),
     ]

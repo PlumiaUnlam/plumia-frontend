@@ -94,6 +94,12 @@
   background: color-mix(in srgb, #cbd5e1 25%, transparent);
 }
 
+.shared-comment-highlight--active {
+  border-bottom-color: #a16207;
+  background: color-mix(in srgb, #facc15 52%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, #facc15 18%, transparent);
+}
+
 .dark .shared-comment-highlight {
   border-bottom-color: #d8b4fe;
   background: color-mix(in srgb, #7e22ce 38%, transparent);
@@ -106,6 +112,12 @@
 .dark .shared-comment-highlight--resolved {
   border-bottom-color: #64748b;
   background: color-mix(in srgb, #475569 32%, transparent);
+}
+
+.dark .shared-comment-highlight--active {
+  border-bottom-color: #e9d5ff;
+  background: color-mix(in srgb, #9333ea 62%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, #c084fc 22%, transparent);
 }
 
 :root {
