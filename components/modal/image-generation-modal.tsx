@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, Sparkles } from "lucide-react";
+import { AlertTriangle, Loader2, Sparkles } from "lucide-react";
 
 import {
   Dialog,
@@ -15,8 +15,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Field, FieldContent, FieldLabel } from "@/components/ui/field";
+import { EntityImage } from "@/components/worldbuilding/entity-image";
+import {
+  formatAttributeValue,
+  getEntityAttributes,
+  getEntityVisualBase,
+  getEntityVisualSuggestion,
+} from "@/lib/entity-wiki";
 import type { GenerateImageInput } from "@/services/image-generation.service";
-import type { EntityType } from "@/types/entity";
+import type { EntityCategory, EntityType } from "@/types/entity";
+import { TYPE_TO_CATEGORY } from "@/types/entity";
+import type { ImageResponse } from "@/services/image-generation.service";
 
 type ImageGenerationModalProps = {
   readonly show: boolean;
@@ -24,6 +33,9 @@ type ImageGenerationModalProps = {
   readonly entityType: EntityType;
   readonly entityId: string;
   readonly referenceImageId?: string;
+  readonly entityDescription?: string | null;
+  readonly entityAttributes?: unknown;
+  readonly images: readonly ImageResponse[];
   readonly onClose: () => void;
   readonly onSubmit: (input: GenerateImageInput) => Promise<void>;
 };
@@ -37,6 +49,7 @@ type GenerationForm = Pick<
   | "lighting"
   | "style"
   | "additionalInstructions"
+  | "visualIdentity"
 >;
 
 type GenerationFieldName = Exclude<
@@ -240,12 +253,20 @@ export function ImageGenerationModal({
   entityType,
   entityId,
   referenceImageId,
+  entityDescription,
+  entityAttributes,
+  images,
   onClose,
   onSubmit,
 }: ImageGenerationModalProps) {
   const [form, setForm] = useState<GenerationForm>(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedReferenceImageId, setSelectedReferenceImageId] = useState(
+    referenceImageId ?? "",
+  );
+  const [acknowledgedMissingAppearance, setAcknowledgedMissingAppearance] =
+    useState(false);
   const dialogIdentity = `${entityId}:${entityType}:${show ? "open" : "closed"}`;
   const [lastDialogIdentity, setLastDialogIdentity] =
     useState(dialogIdentity);
@@ -257,12 +278,44 @@ export function ImageGenerationModal({
       setForm(EMPTY_FORM);
       setError(null);
       setSubmitting(false);
+      setSelectedReferenceImageId(referenceImageId ?? "");
+      setAcknowledgedMissingAppearance(false);
     }
   }
 
   const update = (field: keyof GenerationForm, value: string) => {
     setForm((current) => ({ ...current, [field]: value || undefined }));
   };
+  const attributes = getEntityAttributes(entityAttributes);
+  const visualBase = getEntityVisualBase(
+    entityType,
+    entityDescription,
+    attributes,
+  );
+  const visualSuggestion = getEntityVisualSuggestion(
+    entityType,
+    entityDescription,
+    attributes,
+  );
+  const hasSavedVisualIdentity =
+    typeof attributes.visualIdentity === "string" &&
+    attributes.visualIdentity.trim().length > 0;
+  const selectedReference = images.find(
+    (image) => image.id === selectedReferenceImageId,
+  );
+  const resolvedReferenceImageId = selectedReference?.id ?? "";
+  const category: EntityCategory = TYPE_TO_CATEGORY[entityType];
+  const isVariant = Boolean(selectedReference);
+  const generationTitle = isVariant
+    ? `Generar variante de ${entityName}`
+    : images.length > 0
+      ? `Generar imagen sin referencia de ${entityName}`
+      : `Generar primera imagen de ${entityName}`;
+  const characterNeedsAppearanceWarning =
+    entityType === "CHARACTER" &&
+    !selectedReference &&
+    !form.visualIdentity?.trim() &&
+    !hasCharacterAppearanceInfo(entityDescription, attributes);
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -271,7 +324,12 @@ export function ImageGenerationModal({
     try {
       await onSubmit({
         entityId,
-        ...(referenceImageId ? { referenceImageId } : {}),
+        ...(resolvedReferenceImageId
+          ? { referenceImageId: resolvedReferenceImageId }
+          : { skipReferenceImage: true }),
+        ...(form.visualIdentity?.trim()
+          ? { visualIdentity: form.visualIdentity.trim() }
+          : {}),
         ...form,
       });
       onClose();
@@ -293,18 +351,21 @@ export function ImageGenerationModal({
         if (!open && !submitting) onClose();
       }}
     >
-      <DialogContent className="z-[70] min-w-[600px] gap-0 overflow-hidden">
+      <DialogContent className="z-[70] w-[calc(100vw-2rem)] min-w-0 max-w-2xl gap-0 overflow-hidden">
         <DialogHeader className="border-b p-6 py-4">
           <div className="flex items-center justify-between">
-            <DialogTitle>Generar variante de {entityName}</DialogTitle>
+            <DialogTitle>{generationTitle}</DialogTitle>
           </div>
         </DialogHeader>
 
         <div className="max-h-[65vh] space-y-5 overflow-y-auto px-6 py-6">
           <DialogDescription>
             <span className="block">
-              La imagen de referencia y la identidad de la ficha se conservan.
-              Solo definí qué querés cambiar en esta variante.
+              {isVariant
+                ? "La imagen de referencia y la identidad visual de la ficha sirven como base. Definí solo los cambios que querés para esta variante."
+                : images.length > 0
+                  ? "La identidad visual de la ficha sirve como base. Podés generar sin enviar una imagen de referencia."
+                  : "La identidad visual de la ficha sirve como base para crear la primera imagen."}
             </span>
             <span className="mt-1 block text-xs">
               Todos los campos son opcionales: podés dejarlos en blanco y
@@ -321,6 +382,144 @@ export function ImageGenerationModal({
               <p className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
                 {error}
               </p>
+            )}
+
+            <section className="space-y-3 rounded-lg border border-border bg-muted/30 p-3">
+              <div>
+                <h3 className="text-sm font-semibold">Base tomada de la ficha</h3>
+                {visualBase ? (
+                  <p className="mt-1 whitespace-pre-wrap text-sm text-muted-foreground">
+                    {visualBase}
+                  </p>
+                ) : (
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    La ficha no tiene descripción ni datos visuales para usar como base.
+                  </p>
+                )}
+              </div>
+              <Field>
+                <FieldLabel htmlFor="image-visual-identity">
+                  Identidad visual para esta generación (opcional)
+                </FieldLabel>
+                <FieldContent>
+                  <Textarea
+                    id="image-visual-identity"
+                    value={form.visualIdentity ?? ""}
+                    onChange={(event) => update("visualIdentity", event.target.value)}
+                    placeholder={
+                      visualSuggestion
+                        ? `Sugerencia editable:\n${visualSuggestion}`
+                        : "Dejá vacío para usar solo los datos existentes de la ficha."
+                    }
+                    rows={3}
+                    maxLength={2000}
+                  />
+                </FieldContent>
+                <p className="text-xs text-muted-foreground">
+                  Este texto se aplica a esta imagen; no modifica la ficha.
+                </p>
+                {visualSuggestion && !hasSavedVisualIdentity && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => update("visualIdentity", visualSuggestion)}
+                  >
+                    Usar sugerencia en esta generación
+                  </Button>
+                )}
+              </Field>
+            </section>
+
+            <section className="space-y-3 rounded-lg border border-border p-3">
+              <div>
+                <h3 className="text-sm font-semibold">Imagen de referencia</h3>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {selectedReference
+                    ? selectedReference.isPrimary
+                      ? "Se usará la imagen principal."
+                      : "Se usará la imagen que seleccionaste."
+                    : images.length > 0
+                      ? "Sin imagen de referencia. Se usará solo la información de la ficha."
+                      : "Sin imagen de referencia. Se creará la primera imagen con los datos de la ficha."}
+                </p>
+              </div>
+              {selectedReference && (
+                <EntityImage
+                  src={selectedReference.imageUrl}
+                  alt={`Referencia de ${entityName}`}
+                  width={128}
+                  height={128}
+                  className="size-24 rounded-md border border-border object-cover"
+                  category={category}
+                  iconClassName="h-5 w-5"
+                />
+              )}
+              {images.length > 0 && (
+                <div
+                  className="flex flex-wrap items-start gap-2"
+                  role="group"
+                  aria-label="Elegir imagen de referencia"
+                >
+                  {images.map((image) => (
+                    <button
+                      key={image.id}
+                      type="button"
+                      aria-pressed={resolvedReferenceImageId === image.id}
+                      aria-label={`${image.isPrimary ? "Principal. " : ""}Usar esta imagen como referencia`}
+                      onClick={() => setSelectedReferenceImageId(image.id)}
+                      className={`rounded-md border p-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+                        resolvedReferenceImageId === image.id
+                          ? "border-primary ring-2 ring-primary/30"
+                          : "border-border"
+                      }`}
+                    >
+                      <EntityImage
+                        src={image.imageUrl}
+                        alt={image.prompt}
+                        width={64}
+                        height={64}
+                        className="size-16 rounded object-cover"
+                        category={category}
+                        iconClassName="h-4 w-4"
+                      />
+                      {image.isPrimary && (
+                        <span className="mt-1 block text-[10px] text-primary">
+                          Principal
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={!resolvedReferenceImageId ? "secondary" : "outline"}
+                    onClick={() => setSelectedReferenceImageId("")}
+                  >
+                    Sin referencia
+                  </Button>
+                </div>
+              )}
+            </section>
+
+            {characterNeedsAppearanceWarning && (
+              <div className="space-y-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+                <p className="flex items-start gap-2 font-medium">
+                  <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600" />
+                  La ficha no incluye rasgos físicos suficientes. El proveedor no puede conservar detalles que no están descritos.
+                </p>
+                <label className="flex items-start gap-2 text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    checked={acknowledgedMissingAppearance}
+                    onChange={(event) =>
+                      setAcknowledgedMissingAppearance(event.target.checked)
+                    }
+                    className="mt-1 accent-primary"
+                  />
+                  Entiendo y quiero generar con la información disponible.
+                </label>
+              </div>
             )}
 
             <div className="grid gap-4 md:grid-cols-2">
@@ -368,14 +567,18 @@ export function ImageGenerationModal({
           <Button
             type="submit"
             form="image-generation-form"
-            disabled={submitting}
+            disabled={submitting || (characterNeedsAppearanceWarning && !acknowledgedMissingAppearance)}
           >
             {submitting ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
               <Sparkles className="mr-2 h-4 w-4" />
             )}
-            Generar variante
+            {isVariant
+              ? "Generar variante"
+              : images.length > 0
+                ? "Generar sin referencia"
+                : "Generar primera imagen"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -409,5 +612,37 @@ function GenerationField({
         />
       </FieldContent>
     </Field>
+  );
+}
+
+function hasCharacterAppearanceInfo(
+  description: string | null | undefined,
+  attributes: Record<string, unknown>,
+): boolean {
+  const appearanceKeys = [
+    "visualIdentity",
+    "appearance",
+    "physicalDescription",
+    "hair",
+    "hairColor",
+    "eyes",
+    "eyeColor",
+    "skin",
+    "skinTone",
+    "height",
+    "build",
+    "distinctiveFeatures",
+    "clothing",
+  ];
+  if (
+    appearanceKeys.some(
+      (key) =>
+        formatAttributeValue(attributes[key]).trim().length > 0,
+    )
+  ) {
+    return true;
+  }
+  return /\b(ojos|cabello|pelo|piel|estatura|altura|cicatriz|complexión|barba|bigote|pecas|canas|calv[oa]|rubio|moreno|pelirrojo|delgad[oa]|robust[oa]|vestía|vestido|vestimenta)\b/i.test(
+    description ?? "",
   );
 }

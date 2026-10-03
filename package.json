@@ -12,6 +12,7 @@
     "start": "next start",
     "lint": "eslint",
     "test:spellcheck": "node --import tsx scripts/spellcheck.test.mts",
+    "test:entity-wiki": "node --import tsx --test scripts/entity-wiki.test.mts",
     "test:editor-save": "node --import tsx scripts/editor-save-protection.test.mts",
     "test:editor-paragraph": "node --import tsx scripts/editor-paragraph.test.mts",
     "pretest:e2e": "NEXT_PUBLIC_API_URL=http://127.0.0.1:3000 API_URL=http://127.0.0.1:3000 pnpm build",

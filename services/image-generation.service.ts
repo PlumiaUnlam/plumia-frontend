@@ -5,6 +5,8 @@ export interface GenerateImageInput {
   width?: number;
   height?: number;
   referenceImageId?: string;
+  skipReferenceImage?: boolean;
+  visualIdentity?: string;
   prompt?: string;
   expression?: string;
   pose?: string;

@@ -52,6 +52,11 @@ import {
   getRelationships,
   updateRelationship,
 } from "@/services/relationships.service";
+import { getTimelineEvents } from "@/services/timeline.service";
+import {
+  getWorldbuildingEntityHref,
+  getWorldbuildingTimelineEventHref,
+} from "@/lib/worldbuilding-links";
 import { uploadEntityImage } from "@/services/upload.service";
 import {
   generatePreviewImage,
@@ -80,6 +85,7 @@ import type {
   Relationship,
   UpdateRelationshipInput,
 } from "@/types/relationship";
+import type { TimelineEvent } from "@/types/timeline";
 
 type WorldbuildingTab = "wiki" | "relationships" | "timeline" | "summaries";
 
@@ -752,6 +758,9 @@ function WorldbuildingModals({
               entityName={editingEntity.canonicalName}
               entityType={editingEntity.type}
               referenceImageId={referenceImageId}
+              entityDescription={editingEntity.description}
+              entityAttributes={editingEntity.attributes}
+              images={entityImages}
               onClose={onCloseImageGeneration}
               onSubmit={onRequestImageGeneration}
             />
@@ -776,6 +785,9 @@ function WorldbuildingModals({
           entityName={selectedEntity.canonicalName}
           entityType={selectedEntity.type}
           referenceImageId={referenceImageId}
+          entityDescription={selectedEntity.description}
+          entityAttributes={selectedEntity.attributes}
+          images={entityImages}
           onClose={onCloseImageGeneration}
           onSubmit={onRequestImageGeneration}
         />
@@ -871,12 +883,17 @@ type WorldbuildingTabsProps = {
   relationships: Relationship[];
   isLoadingRelationships: boolean;
   relationshipError: Error | undefined;
+  timelineEventsError: Error | undefined;
+  timelineEvents: TimelineEvent[];
+  isLoadingTimelineEvents: boolean;
   onEditRelationship: (relationship: Relationship) => void;
   onDeleteRelationship: (relationship: Relationship) => void;
   chapters: WorldbuildingChapter[];
   isLoadingProject: boolean;
   projectError: Error | undefined;
   onRequestCreateEntity: (canonicalName: string) => void;
+  onOpenEntity: (entityId: string) => void;
+  onOpenTimelineEvent: (eventId: string) => void;
 };
 
 function WorldbuildingTabs({
@@ -908,12 +925,17 @@ function WorldbuildingTabs({
   relationships,
   isLoadingRelationships,
   relationshipError,
+  timelineEventsError,
+  timelineEvents,
+  isLoadingTimelineEvents,
   onEditRelationship,
   onDeleteRelationship,
   chapters,
   isLoadingProject,
   projectError,
   onRequestCreateEntity,
+  onOpenEntity,
+  onOpenTimelineEvent,
 }: Readonly<WorldbuildingTabsProps>) {
   return (
     <Tabs
@@ -961,6 +983,13 @@ function WorldbuildingTabs({
           onSetPrimaryImage={onSetPrimaryImage}
           onDeleteImage={onDeleteImage}
           imageActionError={imageActionError}
+          relationships={relationships}
+          timelineEvents={timelineEvents}
+          linksLoading={isLoadingRelationships || isLoadingTimelineEvents}
+          relationshipError={relationshipError}
+          timelineEventsError={timelineEventsError}
+          onOpenEntity={onOpenEntity}
+          onOpenTimelineEvent={onOpenTimelineEvent}
         />
       </TabsContent>
 
@@ -1173,9 +1202,25 @@ function getRelationshipsKey(
   projectId: string,
   shouldFetch: boolean,
   activeTab: WorldbuildingTab,
+  selectedEntityId: string | null,
 ) {
-  return shouldFetch && activeTab === "relationships"
-    ? `/knowledge/relationships?projectId=${projectId}`
+  return shouldFetch &&
+    (activeTab === "relationships" ||
+      (activeTab === "wiki" && Boolean(selectedEntityId)))
+    ? `/knowledge/relationships?projectId=${encodeURIComponent(projectId)}`
+    : null;
+}
+
+function getTimelineEventsKey(
+  projectId: string,
+  shouldFetch: boolean,
+  activeTab: WorldbuildingTab,
+  selectedEntityId: string | null,
+) {
+  return shouldFetch &&
+    (activeTab === "timeline" ||
+      (activeTab === "wiki" && Boolean(selectedEntityId)))
+    ? `/knowledge/timeline?projectId=${encodeURIComponent(projectId)}`
     : null;
 }
 
@@ -1293,8 +1338,17 @@ function useWorldbuildingData({
     isLoading: isLoadingRelationships,
     mutate: mutateRelationships,
   } = useSWR(
-    getRelationshipsKey(projectId, shouldFetch, activeTab),
+    getRelationshipsKey(projectId, shouldFetch, activeTab, selectedEntityId),
     () => getRelationships(projectId),
+  );
+
+  const {
+    data: timelineEvents,
+    error: timelineEventsError,
+    isLoading: isLoadingTimelineEvents,
+  } = useSWR(
+    getTimelineEventsKey(projectId, shouldFetch, activeTab, selectedEntityId),
+    () => getTimelineEvents(projectId),
   );
 
   const { trigger: triggerDelete } = useSWRMutation(
@@ -1379,7 +1433,10 @@ function useWorldbuildingData({
     isLoadingProject,
     relationships,
     relationshipsError,
+    timelineEventsError,
     isLoadingRelationships,
+    timelineEvents: timelineEvents ?? [],
+    isLoadingTimelineEvents,
     mutateRelationships,
     triggerDelete,
     worldbuildingEntities,
@@ -1434,6 +1491,21 @@ export function Worldbuilding({ projectId }: Readonly<WorldbuildingProps>) {
     },
     [projectId, router, setActiveTab],
   );
+  const handleOpenTimelineEvent = useCallback(
+    (eventId: string) => {
+      setActiveTab("timeline");
+      router.replace(getWorldbuildingTimelineEventHref(projectId, eventId));
+    },
+    [projectId, router, setActiveTab],
+  );
+  const handleOpenEntity = useCallback(
+    (entityId: string) => {
+      setSelectedEntityId(entityId);
+      setActiveTab("wiki");
+      router.replace(getWorldbuildingEntityHref(projectId, entityId));
+    },
+    [projectId, router, setActiveTab, setSelectedEntityId],
+  );
   const handleTimelineNewEventRequestHandled = useCallback(() => {
     setTimelineNewEventRequest(0);
   }, []);
@@ -1467,7 +1539,10 @@ export function Worldbuilding({ projectId }: Readonly<WorldbuildingProps>) {
     isLoadingProject,
     relationships,
     relationshipsError,
+    timelineEventsError,
     isLoadingRelationships,
+    timelineEvents,
+    isLoadingTimelineEvents,
     mutateRelationships,
     triggerDelete,
     worldbuildingEntities,
@@ -1633,6 +1708,9 @@ export function Worldbuilding({ projectId }: Readonly<WorldbuildingProps>) {
           relationships={relationships ?? []}
           isLoadingRelationships={isLoadingRelationships}
           relationshipError={relationshipsError}
+          timelineEventsError={timelineEventsError}
+          timelineEvents={timelineEvents}
+          isLoadingTimelineEvents={isLoadingTimelineEvents}
           onEditRelationship={(relationship) => {
             setEditingRelationship(relationship);
             setShowNewRelationModal(true);
@@ -1646,6 +1724,8 @@ export function Worldbuilding({ projectId }: Readonly<WorldbuildingProps>) {
             setTimelineEntityInitialName(canonicalName);
             setShowNewEntityModal(true);
           }}
+          onOpenTimelineEvent={handleOpenTimelineEvent}
+          onOpenEntity={handleOpenEntity}
         />
       </div>
 
