@@ -184,8 +184,8 @@ function createAnnotationMarker(
     "author-annotation-marker",
     "absolute -right-10 top-1 z-10 inline-flex size-6 items-center justify-center rounded-full border shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b98ad2]",
     annotation.resolvedAt
-      ? "border-slate-200 bg-slate-50 text-slate-400 hover:bg-slate-100"
-      : "border-[#dfc8ec] bg-[#fbf6ff] text-[#8246a0] hover:bg-[#f0e2f7]",
+      ? "border-slate-200 bg-slate-50 text-slate-400 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-500 dark:hover:bg-slate-800"
+      : "border-[#dfc8ec] bg-[#fbf6ff] text-[#8246a0] hover:bg-[#f0e2f7] dark:border-violet-800 dark:bg-[#2b1d33] dark:text-violet-300 dark:hover:bg-violet-950",
   ].join(" ")
   button.setAttribute(
     "aria-label",

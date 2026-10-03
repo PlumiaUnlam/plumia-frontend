@@ -498,7 +498,7 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
                     }`}
                     onClick={() => setActiveCommentId(comment.id)}
                   >
-                    <blockquote className="mb-2 border-l-2 border-amber-400 pl-2 text-xs italic text-muted-foreground">
+                    <blockquote className="mb-2 border-l-2 border-amber-400 pl-2 text-xs italic text-muted-foreground dark:border-amber-500">
                       “{comment.selectedText}”
                     </blockquote>
                     <p className="text-sm">{comment.body}</p>
@@ -508,7 +508,7 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
                         {new Date(comment.createdAt).toLocaleString("es-UY")}
                       </time>
                       {comment.status === "RESOLVED" && (
-                        <span className="flex items-center gap-1 text-emerald-700">
+                        <span className="flex items-center gap-1 text-emerald-700 dark:text-emerald-300">
                           <CheckCircle2 className="size-3" /> Resuelto
                         </span>
                       )}
@@ -600,7 +600,7 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
               El subrayado quedará anclado a esta versión congelada.
             </DialogDescription>
           </DialogHeader>
-          <blockquote className="max-h-28 overflow-y-auto rounded-lg bg-amber-50 p-3 text-sm italic text-amber-950">
+          <blockquote className="max-h-28 overflow-y-auto rounded-lg bg-amber-50 p-3 text-sm italic text-amber-950 dark:bg-amber-950/35 dark:text-amber-100">
             “{selection?.selectedText}”
           </blockquote>
           <Textarea

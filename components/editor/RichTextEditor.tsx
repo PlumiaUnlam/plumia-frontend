@@ -633,6 +633,8 @@ export function RichTextEditor({
                 [&_.author-annotation-anchor]:decoration-2
                 [&_.author-annotation-anchor]:decoration-[#9c61b6]
                 [&_.author-annotation-anchor]:underline
+                dark:[&_.author-annotation-anchor]:bg-violet-950/70
+                dark:[&_.author-annotation-anchor]:decoration-violet-400
 
                 text-[16px]
 
