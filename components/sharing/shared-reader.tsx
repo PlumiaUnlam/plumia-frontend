@@ -7,6 +7,7 @@ import {
   LogIn,
   MessageSquare,
   PanelLeftClose,
+  TextSearch,
 } from "lucide-react"
 
 import { SharedScene } from "@/components/sharing/shared-scene"
@@ -179,9 +180,21 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
 
   const openComment = useCallback((commentId: string) => {
     setActiveCommentId(commentId)
-    document
-      .getElementById(`reader-comment-${commentId}`)
-      ?.scrollIntoView({ behavior: "smooth", block: "center" })
+    window.requestAnimationFrame(() => {
+      const card = document.getElementById(`reader-comment-${commentId}`)
+      card?.scrollIntoView({ behavior: "smooth", block: "center" })
+      card?.focus({ preventScroll: true })
+    })
+  }, [])
+
+  const scrollToCommentAnchor = useCallback((commentId: string) => {
+    setActiveCommentId(commentId)
+    window.requestAnimationFrame(() => {
+      const anchor = Array.from(
+        document.querySelectorAll<HTMLElement>("[data-comment-id]"),
+      ).find((element) => element.dataset.commentId === commentId)
+      anchor?.scrollIntoView({ behavior: "smooth", block: "center" })
+    })
   }, [])
 
   const submitComment = async () => {
@@ -445,6 +458,7 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
                         comments={comments.filter(
                           (comment) => comment.snapshotSceneId === scene.id,
                         )}
+                        activeCommentId={activeCommentId}
                         canComment={view.viewer.canComment}
                         onSelection={setSelection}
                         onCommentClick={openComment}
@@ -491,28 +505,38 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
                   <article
                     key={comment.id}
                     id={`reader-comment-${comment.id}`}
+                    tabIndex={-1}
                     className={`rounded-lg border p-3 transition-colors ${
                       activeCommentId === comment.id
-                        ? "border-primary bg-primary/5"
-                        : "border-border"
+                        ? "border-primary bg-primary/5 ring-2 ring-primary/15"
+                        : "border-border hover:border-primary/40"
                     }`}
-                    onClick={() => setActiveCommentId(comment.id)}
                   >
-                    <blockquote className="mb-2 border-l-2 border-amber-400 pl-2 text-xs italic text-muted-foreground dark:border-amber-500">
-                      “{comment.selectedText}”
-                    </blockquote>
-                    <p className="text-sm">{comment.body}</p>
-                    <div className="mt-2 flex items-center gap-2 text-[11px] text-muted-foreground">
-                      <span>{comment.author.displayName}</span>
-                      <time dateTime={comment.createdAt}>
-                        {new Date(comment.createdAt).toLocaleString("es-UY")}
-                      </time>
-                      {comment.status === "RESOLVED" && (
-                        <span className="flex items-center gap-1 text-emerald-700 dark:text-emerald-300">
-                          <CheckCircle2 className="size-3" /> Resuelto
+                    <button
+                      type="button"
+                      className="group w-full rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                      onClick={() => scrollToCommentAnchor(comment.id)}
+                      aria-label={`Ir al texto del comentario de ${comment.author.displayName}`}
+                    >
+                      <blockquote className="mb-2 border-l-2 border-amber-400 pl-2 text-xs italic text-muted-foreground dark:border-amber-500">
+                        “{comment.selectedText}”
+                      </blockquote>
+                      <p className="text-sm">{comment.body}</p>
+                      <div className="mt-2 flex items-center gap-2 text-[11px] text-muted-foreground">
+                        <span>{comment.author.displayName}</span>
+                        <time dateTime={comment.createdAt}>
+                          {new Date(comment.createdAt).toLocaleString("es-UY")}
+                        </time>
+                        {comment.status === "RESOLVED" && (
+                          <span className="flex items-center gap-1 text-emerald-700 dark:text-emerald-300">
+                            <CheckCircle2 className="size-3" /> Resuelto
+                          </span>
+                        )}
+                        <span className="ml-auto flex items-center gap-1 text-primary opacity-70 transition-opacity group-hover:opacity-100">
+                          <TextSearch className="size-3" /> Ver en el texto
                         </span>
-                      )}
-                    </div>
+                      </div>
+                    </button>
                     {view.viewer.isOwner && (
                       <Button
                         type="button"
