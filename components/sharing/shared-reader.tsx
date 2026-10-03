@@ -1,15 +1,18 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
+import { useTheme } from "next-themes"
 import {
   BookOpen,
   Check,
   ChevronDown,
   LogIn,
   MessageSquare,
+  Moon,
   Reply,
   RotateCcw,
   Send,
+  Sun,
   X,
 } from "lucide-react"
 
@@ -59,6 +62,7 @@ function getViewerDescription(viewer: SharedManuscriptView["viewer"]) {
 }
 
 export function SharedReader({ slug, initialToken }: SharedReaderProps) {
+  const { resolvedTheme, setTheme } = useTheme()
   const {
     firebaseUser,
     loading: authLoading,
@@ -413,6 +417,25 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
           )}
           {getViewerDescription(view.viewer)}
         </div>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-xs"
+          className="ml-1"
+          aria-label={
+            resolvedTheme === "dark"
+              ? "Cambiar a tema claro"
+              : "Cambiar a tema oscuro"
+          }
+          title={resolvedTheme === "dark" ? "Tema claro" : "Tema oscuro"}
+          onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+        >
+          {resolvedTheme === "dark" ? (
+            <Sun className="size-3.5" />
+          ) : (
+            <Moon className="size-3.5" />
+          )}
+        </Button>
       </header>
 
       <div
