@@ -73,7 +73,7 @@ test("HU-annotations: ordena, enfoca, resuelve, reabre y elimina anotaciones pri
 
   await menuBar.getByRole("menuitem", { name: "Revisar" }).click()
   await page.getByRole("menuitem", { name: "Mostrar comentarios" }).click()
-  await expect(page.getByRole("heading", { name: "Comentarios" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Anotaciones" })).toBeVisible()
   const cards = page.locator('article[id^="author-annotation-"]')
   await expect(cards).toHaveCount(2)
   await expect
@@ -95,7 +95,7 @@ test("HU-annotations: ordena, enfoca, resuelve, reabre y elimina anotaciones pri
   await expectedMarker.click()
   await expect(editor.locator(".author-annotation-anchor")).toHaveText("esperado")
   await expectedMarker.click()
-  await expect(page.getByRole("heading", { name: "Comentarios" })).toHaveCount(0)
+  await expect(page.getByRole("heading", { name: "Anotaciones" })).toHaveCount(0)
   await expect(editor.locator(".author-annotation-anchor")).toHaveCount(0)
 
   await cityMarker.click()
@@ -107,7 +107,7 @@ test("HU-annotations: ordena, enfoca, resuelve, reabre y elimina anotaciones pri
     payload: { isResolved: true },
   })
 
-  await page.getByRole("button", { name: /Resueltos/ }).click()
+  await page.getByRole("button", { name: /Resueltas/ }).click()
   await expect(cityCard).toBeVisible()
   await cityCard.getByRole("button", { name: "Reabrir anotación" }).click()
   await expect.poll(() => backend.annotationUpdates.length).toBe(2)
@@ -116,17 +116,17 @@ test("HU-annotations: ordena, enfoca, resuelve, reabre y elimina anotaciones pri
     payload: { isResolved: false },
   })
 
-  await page.getByRole("button", { name: /Abiertos/ }).click()
+  await page.getByRole("button", { name: /Abiertas/ }).click()
   await expect(cityCard).toBeVisible()
   await cityCard.getByRole("button", { name: "Resolver anotación" }).click()
   await expect.poll(() => backend.annotationUpdates.length).toBe(3)
-  await page.getByRole("button", { name: /Resueltos/ }).click()
+  await page.getByRole("button", { name: /Resueltas/ }).click()
   await expect(cityCard).toBeVisible()
   await cityCard.getByRole("button", { name: "Eliminar anotación" }).click()
   await expect(cityCard).toHaveCount(0)
   await expect.poll(() => backend.annotationDeletes).toEqual(["annotation-city"])
 
-  await page.getByRole("button", { name: /Abiertos/ }).click()
+  await page.getByRole("button", { name: /Abiertas/ }).click()
   const expectedCard = page.locator("#author-annotation-annotation-expected")
   await expect(expectedCard).toBeVisible()
   await expectedCard.getByRole("button", { name: "Eliminar anotación" }).click()

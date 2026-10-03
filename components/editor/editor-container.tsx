@@ -193,7 +193,7 @@ function SceneEditor({
         onToggleSplit={onToggleSplit}
         isSplit={isSplit}
         canSplit={canSplit}
-        allowAnnotations={selectedVersionId === null}
+        allowAnnotations={selectedVersionId === null && !isZenMode}
       />
     </>
   )

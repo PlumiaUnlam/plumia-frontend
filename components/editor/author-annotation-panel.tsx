@@ -44,17 +44,6 @@ function formatDate(value: string) {
   }).format(new Date(value))
 }
 
-function getInitials(name: string) {
-  return (
-    name
-      .split(/\s+/)
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((part) => part[0]?.toLocaleUpperCase())
-      .join("") || "A"
-  )
-}
-
 export function AuthorAnnotationPanel({
   annotations,
   draftAnchor,
@@ -132,7 +121,7 @@ export function AuthorAnnotationPanel({
       <header className="flex shrink-0 items-center justify-between border-b border-[#eadcf1] px-4 py-3 dark:border-border">
         <div className="flex items-center gap-2">
           <MessageSquareText className="size-4 text-[#8246a0] dark:text-violet-300" />
-          <h2 className="font-semibold">Comentarios</h2>
+          <h2 className="font-semibold">Anotaciones</h2>
           <span className="rounded-full bg-[#eadcf1] px-2 py-0.5 text-xs text-[#70408a] dark:bg-violet-950/70 dark:text-violet-200">
             {annotations.length}
           </span>
@@ -150,9 +139,9 @@ export function AuthorAnnotationPanel({
 
       <div className="flex shrink-0 gap-1 border-b border-[#eadcf1] px-3 py-2 dark:border-border">
         {([
-          ["OPEN", "Abiertos", openCount],
-          ["RESOLVED", "Resueltos", resolvedCount],
-          ["ALL", "Todos", annotations.length],
+          ["OPEN", "Abiertas", openCount],
+          ["RESOLVED", "Resueltas", resolvedCount],
+          ["ALL", "Todas", annotations.length],
         ] as const).map(([value, label, count]) => (
           <button
             key={value}
@@ -226,9 +215,6 @@ export function AuthorAnnotationPanel({
         )}
 
         {visibleAnnotations.map((annotation) => {
-          const name =
-            annotation.author.displayName?.trim() ||
-            `${annotation.author.name} ${annotation.author.lastname}`.trim()
           const isResolved = Boolean(annotation.resolvedAt)
 
           return (
@@ -242,27 +228,13 @@ export function AuthorAnnotationPanel({
                   : "border-[#dfc8ec] dark:border-border"
               } ${isResolved ? "bg-white/70 dark:bg-card/70" : "bg-[#f6effa] dark:bg-violet-950/25"}`}
             >
-              <div className="mb-3 flex items-center gap-2.5">
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#e7d7ef] text-sm font-semibold text-[#7d3e9e] dark:bg-violet-900/70 dark:text-violet-200">
-                  {getInitials(name)}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-semibold">
-                    {name || "Autor"}
-                  </span>
-                  <span className="block text-xs text-[#8b68a3] dark:text-muted-foreground">
-                    {formatDate(annotation.updatedAt)}
-                  </span>
-                </span>
-                <span
-                  className={`hidden rounded-full px-2 py-1 text-[10px] font-medium sm:inline-flex ${
-                    isResolved
-                      ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
-                      : "bg-violet-100 text-violet-700 dark:bg-violet-950/70 dark:text-violet-200"
-                  }`}
+              <div className="mb-3 flex items-center gap-1">
+                <time
+                  dateTime={annotation.updatedAt}
+                  className="mr-auto text-xs text-[#8b68a3] dark:text-muted-foreground"
                 >
-                  {isResolved ? "Resuelta" : "Abierta"}
-                </span>
+                  {formatDate(annotation.updatedAt)}
+                </time>
                 <Button
                   type="button"
                   variant="ghost"

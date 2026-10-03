@@ -10,7 +10,17 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import Image from 'next/image';
-import { BarChart3, BookOpenText, Check, ChevronDown, Download, Earth, Layers3, Share2 } from "lucide-react";
+import {
+  ArrowLeft,
+  BarChart3,
+  BookOpenText,
+  Check,
+  ChevronDown,
+  Download,
+  Earth,
+  Layers3,
+  Share2,
+} from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -50,13 +60,32 @@ export function Header({ mode, onModeChange, onShareClick, onExportClick }: Head
         isStatisticsPage ? "sticky top-0 z-40" : "relative z-10"
       }`}
     >
-      <div className="mr-1 flex items-center gap-2.5">
+      <div className="mr-1 flex items-center gap-1">
+        {projectId && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  asChild
+                  size="icon-sm"
+                  variant="ghost"
+                  className="-ml-3 -mr-2 text-white hover:bg-white/10 hover:text-white"
+                >
+                  <Link href="/dashboard" aria-label="Volver al dashboard">
+                    <ArrowLeft className="size-4" />
+                  </Link>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Volver al dashboard</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
         <Image
           src="/dark-logo.png"
           alt="PlumIA Logo"
           width={729}
           height={816}
-          className="h-7 w-auto"
+          className="mr-1.5 h-7 w-auto"
         />
 
         <Link
@@ -65,7 +94,6 @@ export function Header({ mode, onModeChange, onShareClick, onExportClick }: Head
         >
           <span className="text-white">Plum</span><span className="text-primary-foreground opacity-75">IA</span>
         </Link>
-
       </div>
 
       {projectId && (
