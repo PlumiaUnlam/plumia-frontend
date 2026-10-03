@@ -374,7 +374,7 @@ export function RelationshipsPanel({
                     className={`cursor-pointer transition-colors focus-visible:ring-2 focus-visible:ring-primary ${
                       isSelected
                         ? "border-primary bg-primary/10"
-                        : "bg-white hover:bg-muted/50"
+                        : "bg-white hover:bg-muted/50 dark:bg-card"
                     }`}
                   >
                     <ItemMedia variant="icon">

@@ -496,16 +496,16 @@ export function SearchReplacePanel({
           if (!dialogOpen && !isReplacing) setPendingReplace(null)
         }}
       >
-        <DialogContent className="w-[min(30rem,calc(100vw-1.5rem))] max-w-none gap-0 overflow-hidden border-[#dadce0] p-0 sm:max-w-none">
-          <DialogHeader className="border-b border-[#dadce0] px-6 py-5 pr-12">
-            <DialogTitle className="text-[#202124]">Confirmar reemplazo</DialogTitle>
-            <DialogDescription className="text-[#5f6368]">
+        <DialogContent className="w-[min(30rem,calc(100vw-1.5rem))] max-w-none gap-0 overflow-hidden border-[#dadce0] p-0 dark:border-border sm:max-w-none">
+          <DialogHeader className="border-b border-[#dadce0] px-6 py-5 pr-12 dark:border-border">
+            <DialogTitle className="text-[#202124] dark:text-foreground">Confirmar reemplazo</DialogTitle>
+            <DialogDescription className="text-[#5f6368] dark:text-muted-foreground">
               Se reemplazarán {pendingReplace?.matches.length ?? 0} ocurrencias
               en {pendingReplace ? new Set(pendingReplace.matches.map((match) => match.sceneId)).size : 0} escenas.
               Esta acción modificará los borradores actuales.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="mx-0 mt-4 border-t border-[#dadce0] bg-[#f8fafd] px-6 py-4 sm:flex-row sm:justify-end">
+          <DialogFooter className="mx-0 mt-4 border-t border-[#dadce0] bg-[#f8fafd] px-6 py-4 dark:border-border dark:bg-muted/50 sm:flex-row sm:justify-end">
             <Button
               type="button"
               variant="outline"

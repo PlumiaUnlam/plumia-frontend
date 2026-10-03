@@ -22,7 +22,7 @@ export function Navbar({
   onCreateProject,
 }: Readonly<NavbarProps>) {
   return (
-    <header className="sticky top-0 z-40 border-b bg-white">
+    <header className="sticky top-0 z-40 border-b bg-background">
       <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-4 md:px-6">
         <Link
           href="/"

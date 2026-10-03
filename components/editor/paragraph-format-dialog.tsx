@@ -36,8 +36,8 @@ import {
 } from "./paragraph-formatting"
 
 const selectClass =
-  "h-9 w-full rounded-md border border-[#dadce0] bg-white px-3 text-sm text-[#3c4043] outline-none transition focus:border-[#1a73e8] focus:ring-2 focus:ring-[#d2e3fc]"
-const fieldLabelClass = "text-xs font-medium text-[#5f6368]"
+  "h-9 w-full rounded-md border border-[#dadce0] bg-white px-3 text-sm text-[#3c4043] outline-none transition focus:border-[#1a73e8] focus:ring-2 focus:ring-[#d2e3fc] dark:border-border dark:bg-input/30 dark:text-foreground dark:focus:border-ring dark:focus:ring-ring/50"
+const fieldLabelClass = "text-xs font-medium text-[#5f6368] dark:text-muted-foreground"
 
 function getLineHeightLabel(lineHeight: ParagraphLineHeight) {
   const labels: Record<ParagraphLineHeight, string> = {
@@ -152,10 +152,10 @@ export function ParagraphFormatDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="flex max-h-[min(85dvh,48rem)] w-[min(48rem,calc(100vw-3rem))] max-w-none flex-col gap-0 overflow-hidden border-[#dadce0] bg-white p-0 sm:max-w-none">
-        <DialogHeader className="shrink-0 border-b border-[#dadce0] px-4 py-4 pr-10 sm:px-6 sm:py-5 sm:pr-12">
-          <DialogTitle className="text-[#202124]">Opciones de párrafo</DialogTitle>
-          <DialogDescription className="text-[#5f6368]">
+      <DialogContent className="flex max-h-[min(85dvh,48rem)] w-[min(48rem,calc(100vw-3rem))] max-w-none flex-col gap-0 overflow-hidden border-[#dadce0] bg-white p-0 dark:border-border dark:bg-popover sm:max-w-none">
+        <DialogHeader className="shrink-0 border-b border-[#dadce0] px-4 py-4 pr-10 dark:border-border sm:px-6 sm:py-5 sm:pr-12">
+          <DialogTitle className="text-[#202124] dark:text-foreground">Opciones de párrafo</DialogTitle>
+          <DialogDescription className="text-[#5f6368] dark:text-muted-foreground">
             Configurá la alineación, sangría, espaciado y tabulaciones del párrafo actual.
           </DialogDescription>
         </DialogHeader>
@@ -333,7 +333,7 @@ export function ParagraphFormatDialog({
           </TabsContent>
         </Tabs>
 
-        <DialogFooter className="mx-0 mb-0 shrink-0 flex-col-reverse border-t border-[#dadce0] bg-[#f8fafd] px-4 py-3 sm:flex-row sm:justify-between sm:px-6">
+        <DialogFooter className="mx-0 mb-0 shrink-0 flex-col-reverse border-t border-[#dadce0] bg-[#f8fafd] px-4 py-3 dark:border-border dark:bg-muted/50 sm:flex-row sm:justify-between sm:px-6">
           <Button
             type="button"
             variant="ghost"

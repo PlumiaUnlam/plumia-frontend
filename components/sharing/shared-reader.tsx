@@ -215,7 +215,7 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
     (firebaseUser && (loading || loadedUserId !== firebaseUser.uid))
   ) {
     return (
-      <div className="flex min-h-screen items-center justify-center gap-3 bg-[#f4f0e8] text-muted-foreground">
+      <div className="flex min-h-screen items-center justify-center gap-3 bg-[#f4f0e8] text-muted-foreground dark:bg-[#18131d]">
         <Spinner className="size-5" /> Abriendo versión compartida…
       </div>
     )
@@ -223,7 +223,7 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
 
   if (!firebaseUser) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#f4f0e8] p-6">
+      <main className="flex min-h-screen items-center justify-center bg-[#f4f0e8] p-6 dark:bg-[#18131d]">
         <div className="max-w-md rounded-2xl bg-card p-8 text-center shadow-xl">
           <BookOpen className="mx-auto mb-4 size-10 text-primary" />
           <h1 className="text-xl font-semibold">Verificá tu invitación</h1>
@@ -251,7 +251,7 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
 
   if (error || !view) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#f4f0e8] p-6">
+      <main className="flex min-h-screen items-center justify-center bg-[#f4f0e8] p-6 dark:bg-[#18131d]">
         <div className="max-w-md rounded-2xl bg-card p-8 text-center shadow-xl">
           <BookOpen className="mx-auto mb-4 size-10 text-primary" />
           <h1 className="text-xl font-semibold">No pudimos abrir esta versión</h1>
@@ -281,8 +281,8 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
   }
 
   return (
-    <div className="min-h-screen bg-[#f4f0e8] text-foreground">
-      <header className="sticky top-0 z-30 flex h-14 items-center border-b border-black/10 bg-[#fffdf8]/95 px-4 backdrop-blur">
+    <div className="min-h-screen bg-[#f4f0e8] text-foreground dark:bg-[#18131d]">
+      <header className="sticky top-0 z-30 flex h-14 items-center border-b border-black/10 bg-[#fffdf8]/95 px-4 backdrop-blur dark:border-white/10 dark:bg-[#211827]/95">
         <BookOpen className="mr-2 size-5 text-primary" />
         <div className="min-w-0">
           <h1 className="truncate text-sm font-semibold">
@@ -326,7 +326,7 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
         }`}
       >
         <nav className="hidden lg:block">
-          <div className="sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto rounded-xl bg-[#fffdf8] p-4 shadow-sm">
+          <div className="sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto rounded-xl bg-[#fffdf8] p-4 shadow-sm dark:bg-[#211827]">
             <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Contenido
             </p>
@@ -353,7 +353,7 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
         </nav>
 
         <main className="min-w-0">
-          <section className="overflow-hidden rounded-sm bg-[#fffdf8] shadow-[0_18px_60px_-35px_rgba(50,35,20,0.55)] ring-1 ring-black/5">
+          <section className="overflow-hidden rounded-sm bg-[#fffdf8] shadow-[0_18px_60px_-35px_rgba(50,35,20,0.55)] ring-1 ring-black/5 dark:bg-[#211827] dark:ring-white/10">
             <div className="border-b border-black/5 px-8 py-12 text-center sm:px-16">
               <p className="mb-3 text-xs uppercase tracking-[0.35em] text-muted-foreground">
                 Manuscrito
@@ -407,7 +407,7 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
         </main>
 
         {view.viewer.canComment && <aside>
-          <div className="sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto rounded-xl bg-[#fffdf8] p-4 shadow-sm">
+          <div className="sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto rounded-xl bg-[#fffdf8] p-4 shadow-sm dark:bg-[#211827]">
             <div className="mb-4 flex items-center gap-2">
               <MessageSquare className="size-4 text-primary" />
               <h2 className="text-sm font-semibold">Comentarios</h2>

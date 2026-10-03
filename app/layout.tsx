@@ -35,6 +35,7 @@ export default function RootLayout({
   return (
     <html
       lang="es"
+      suppressHydrationWarning
       className={cn("h-full", "antialiased", poppins.variable, "font-sans")}
     >
       <body className="flex min-h-full flex-col">

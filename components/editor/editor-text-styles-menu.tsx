@@ -70,10 +70,10 @@ type StyleDraft = {
 }
 
 const dropdownContentClass =
-  "max-h-[min(75dvh,34rem)] w-72 overflow-x-hidden overflow-y-auto border-[#dadce0] bg-white text-[#3c4043] shadow-[0_3px_8px_rgba(60,64,67,0.24)]"
-const itemClass = "min-h-9 text-[#3c4043] focus:bg-[#f1f3f4] focus:text-[#202124]"
+  "max-h-[min(75dvh,34rem)] w-72 overflow-x-hidden overflow-y-auto border-[#dadce0] bg-white text-[#3c4043] shadow-[0_3px_8px_rgba(60,64,67,0.24)] dark:border-border dark:bg-popover dark:text-popover-foreground"
+const itemClass = "min-h-9 text-[#3c4043] focus:bg-[#f1f3f4] focus:text-[#202124] dark:text-foreground dark:focus:bg-accent dark:focus:text-accent-foreground"
 const fieldClass =
-  "h-9 py-0 rounded-md border-[#dadce0] bg-white px-2.5 text-sm text-[#3c4043]"
+  "h-9 py-0 rounded-md border-[#dadce0] bg-white px-2.5 text-sm text-[#3c4043] dark:border-border dark:bg-input/30 dark:text-foreground"
 
 function readDraft(
   editor: Editor,
@@ -463,7 +463,7 @@ export function EditorTextStylesMenu({
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="w-[min(48rem,calc(100vw-1.5rem))] max-w-none max-h-[min(90dvh,52rem)] overflow-x-hidden overflow-y-auto border-[#dadce0] bg-white p-5 sm:max-w-none sm:p-6">
+        <DialogContent className="w-[min(48rem,calc(100vw-1.5rem))] max-w-none max-h-[min(90dvh,52rem)] overflow-x-hidden overflow-y-auto border-[#dadce0] bg-white p-5 dark:border-border dark:bg-popover sm:max-w-none sm:p-6">
           <DialogHeader className="mb-1 pr-10 sm:pr-12">
             <DialogTitle className="text-[#202124]">
               {editingStyle ? "Editar estilo" : "Guardar estilo reutilizable"}
