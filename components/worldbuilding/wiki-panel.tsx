@@ -32,8 +32,6 @@ import { EntityIconTile } from "@/components/worldbuilding/entity-icon-tile";
 import { EntityImage } from "@/components/worldbuilding/entity-image";
 import { ImageGallery } from "@/components/worldbuilding/image-gallery";
 import {
-  formatAttributeValue,
-  getEntityAttributeRows,
   getEntityAttributes,
   VISUAL_IDENTITY_COPY,
 } from "@/lib/entity-wiki";
@@ -405,22 +403,12 @@ export function WikiTab({
               <section className="space-y-3">
                 <h3 className="text-lg font-semibold">Descripción</h3>
                 <Card className="min-w-0 w-full bg-muted/30">
-                  <CardContent className="space-y-5">
-                    {selectedEntity.description?.trim() ? (
-                      <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">
-                        {selectedEntity.description.trim()}
-                      </p>
-                    ) : (
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <span className="text-muted-foreground italic">
-                          Todavía no hay una descripción.
-                        </span>
-                        <Button variant="link" size="sm" onClick={() => onEdit(selectedEntity)}>
-                          Agregar descripción
-                        </Button>
-                      </div>
+                  <CardContent className="whitespace-pre-wrap break-words text-sm leading-relaxed">
+                    {selectedEntity.description || (
+                      <span className="text-muted-foreground italic">
+                        Sin descripción
+                      </span>
                     )}
-                    <EntityDataSection entity={selectedEntity} />
                   </CardContent>
                 </Card>
               </section>
@@ -562,29 +550,6 @@ export function WikiTab({
   );
 }
 
-function EntityDataSection({ entity }: Readonly<{ entity: Entity }>) {
-  const attributes = getEntityAttributes(entity.attributes);
-  const rows = getEntityAttributeRows(entity.type, attributes);
-  const knownRows = rows.filter((row) => row.known);
-  const otherRows = rows.filter((row) => !row.known);
-
-  if (rows.length === 0) {
-    return null;
-  }
-
-  return (
-    <div className="space-y-4 border-t border-border pt-4">
-        {knownRows.length > 0 && <AttributeList rows={knownRows} />}
-        {otherRows.length > 0 && (
-          <div className={knownRows.length > 0 ? "border-t border-border pt-3" : ""}>
-            <h4 className="mb-2 text-sm font-semibold">Otros datos</h4>
-            <AttributeList rows={otherRows} />
-          </div>
-        )}
-    </div>
-  );
-}
-
 function EntityVisualIdentitySection({
   entity,
   onEdit,
@@ -622,21 +587,6 @@ function EntityVisualIdentitySection({
         )}
       </div>
     </div>
-  );
-}
-
-function AttributeList({
-  rows,
-}: Readonly<{ rows: ReturnType<typeof getEntityAttributeRows> }>) {
-  return (
-    <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
-      {rows.map((row) => (
-        <div key={row.key} className="min-w-0">
-          <dt className="text-xs font-medium text-muted-foreground">{row.label}</dt>
-          <dd className="mt-0.5 whitespace-pre-wrap break-words text-sm">{formatAttributeValue(row.value)}</dd>
-        </div>
-      ))}
-    </dl>
   );
 }
 
