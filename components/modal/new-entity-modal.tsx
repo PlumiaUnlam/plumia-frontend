@@ -114,8 +114,6 @@ export function NewEntityModal({
   const [category, setCategory] = useState<EntityCategory>("Personaje");
   const [description, setDescription] = useState("");
   const [attributes, setAttributes] = useState<Record<string, unknown>>({});
-  const [visualSuggestionDraft, setVisualSuggestionDraft] = useState("");
-  const [oneTimeVisualIdentity, setOneTimeVisualIdentity] = useState("");
   const [proposalImageUrl, setProposalImageUrl] = useState<string | null>(null);
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
@@ -153,11 +151,6 @@ export function NewEntityModal({
 
   const updateVisualIdentity = (value: string) => {
     setAttributes((current) => withVisualIdentity(current, value));
-    if (!value.trim()) {
-      setVisualSuggestionDraft(
-        getEntityVisualSuggestion(CATEGORY_TO_TYPE[category], description, attributes),
-      );
-    }
   };
 
   useEffect(() => {
@@ -177,13 +170,6 @@ export function NewEntityModal({
         setDescription(values.description ?? "");
         setTags(values.aliases);
         setAttributes(isRecord(values.attributes) ? values.attributes : {});
-        setVisualSuggestionDraft(
-          getEntityVisualSuggestion(
-            values.type,
-            values.description,
-            values.attributes,
-          ),
-        );
         setProposalImageUrl(values.imageUrl ?? null);
       } else {
         setName(initialCanonicalName ?? "");
@@ -191,10 +177,8 @@ export function NewEntityModal({
         setDescription("");
         setTags([]);
         setAttributes({});
-        setVisualSuggestionDraft("");
         setProposalImageUrl(null);
       }
-      setOneTimeVisualIdentity("");
       setAiGenerating(false);
       setAiGeneratedUrl(null);
       setAiElapsed(0);
@@ -273,10 +257,7 @@ export function NewEntityModal({
         description: description.trim(),
         type: CATEGORY_TO_TYPE[category],
         aliases: tags,
-        attributes:
-          oneTimeVisualIdentity.trim() && !visualIdentity.trim()
-            ? { ...attributes, visualIdentity: oneTimeVisualIdentity.trim() }
-            : attributes,
+        attributes,
       });
       if (cancelRef.current) return;
       setAiGeneratedUrl(url);
@@ -461,7 +442,7 @@ export function NewEntityModal({
 
   return (
     <Dialog open={show} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="z-[60] w-[calc(100vw-2rem)] min-w-0 max-w-2xl gap-0 overflow-hidden">
+      <DialogContent size="large" className="z-[60] w-[calc(100vw-2rem)] min-w-0 gap-0 overflow-hidden">
         <DialogHeader className="p-6 py-4 border-b">
           <div className="flex items-center justify-between">
             <DialogTitle>
@@ -504,13 +485,6 @@ export function NewEntityModal({
                     type="button"
                     onClick={() => {
                       setCategory(id);
-                      setVisualSuggestionDraft(
-                        getEntityVisualSuggestion(
-                          CATEGORY_TO_TYPE[id],
-                          description,
-                          attributes,
-                        ),
-                      );
                     }}
                     className={`
                         flex items-center gap-2
@@ -543,16 +517,7 @@ export function NewEntityModal({
               <Textarea
                 id="entity-description"
                 value={description}
-                onChange={(e) => {
-                  setDescription(e.target.value);
-                  setVisualSuggestionDraft(
-                    getEntityVisualSuggestion(
-                      CATEGORY_TO_TYPE[category],
-                      e.target.value,
-                      attributes,
-                    ),
-                  );
-                }}
+                onChange={(e) => setDescription(e.target.value)}
                 placeholder="Describe la entidad..."
                 rows={4}
               />
@@ -579,58 +544,28 @@ export function NewEntityModal({
                 />
               </FieldContent>
             </Field>
-            {!visualIdentity.trim() && visualSuggestion && (
-              <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-3">
-                <Field>
-                  <FieldLabel htmlFor="entity-visual-suggestion">
-                    Sugerencia editable a partir de la ficha
-                  </FieldLabel>
-                  <FieldContent>
-                    <Textarea
-                      id="entity-visual-suggestion"
-                      value={visualSuggestionDraft || visualSuggestion}
-                      onChange={(event) =>
-                        setVisualSuggestionDraft(event.target.value)
-                      }
-                      rows={3}
-                      maxLength={2000}
-                    />
-                  </FieldContent>
-                </Field>
-                <div className="flex flex-wrap gap-2">
+            {!visualIdentity.trim() && (
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 p-3">
+                <p className="text-xs text-muted-foreground">
+                  {visualSuggestion
+                    ? "Hay una sugerencia basada en rasgos visuales de la ficha. Podés cargarla y editarla arriba."
+                    : "No encontramos datos visuales aprovechables. Agregá aquí los rasgos que deban mantenerse."}
+                </p>
+                {visualSuggestion && (
                   <Button
                     type="button"
                     size="sm"
                     variant="outline"
-                    onClick={() =>
-                      updateVisualIdentity(visualSuggestionDraft || visualSuggestion)
-                    }
+                    onClick={() => updateVisualIdentity(visualSuggestion)}
                   >
-                    Guardar como identidad visual
+                    Usar sugerencia
                   </Button>
-                  {!isEditing && (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant={oneTimeVisualIdentity ? "secondary" : "ghost"}
-                      onClick={() =>
-                        setOneTimeVisualIdentity((current) =>
-                          current ? "" : visualSuggestionDraft || visualSuggestion,
-                        )
-                      }
-                    >
-                      {oneTimeVisualIdentity
-                        ? "Quitar uso puntual"
-                        : "Usar solo en esta imagen"}
-                    </Button>
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  La sugerencia no se guarda salvo que elijas guardar como identidad visual.
-                  {oneTimeVisualIdentity ? " Se aplicará a esta generación únicamente." : ""}
-                </p>
+                )}
               </div>
             )}
+            <p className="text-xs text-muted-foreground">
+              Este campo se guarda con la ficha al confirmar los cambios. La descripción permanece separada.
+            </p>
           </FieldSet>
 
           <Field>
@@ -639,16 +574,6 @@ export function NewEntityModal({
             </FieldLabel>
 
             <FieldContent>
-              {isEditing && (
-                <div className="mb-3">
-                  <p className="text-sm font-semibold">Baúl de imágenes</p>
-                  <p className="text-xs text-muted-foreground">
-                    Estas variantes pertenecen a esta entidad y se guardan en
-                    su ficha.
-                  </p>
-                </div>
-              )}
-
               <input
                 id="entity-image"
                 ref={fileInputRef}

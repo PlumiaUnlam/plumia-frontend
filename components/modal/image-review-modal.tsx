@@ -86,7 +86,7 @@ export function ImageReviewModal({
         if (!open && !submitting) onClose();
       }}
     >
-      <DialogContent className="z-[70] min-w-[600px] gap-0 overflow-hidden">
+      <DialogContent size="wide" className="z-[70] w-[calc(100vw-2rem)] min-w-0 gap-0 overflow-hidden">
         <DialogHeader className="border-b p-6 py-4">
           <div className="flex items-center justify-between">
             <DialogTitle>Revisar imagen de {entityName}</DialogTitle>
@@ -95,8 +95,8 @@ export function ImageReviewModal({
 
         <div className="max-h-[65vh] space-y-5 overflow-y-auto px-6 py-6">
           <DialogDescription>
-            La variante ya quedó guardada en el baúl. Podés aceptarla como
-            principal, pedir un ajuste o dejarla como variante.
+            La imagen ya quedó guardada. Podés elegirla como imagen principal,
+            pedir un ajuste o conservarla como imagen secundaria.
           </DialogDescription>
 
           {image && (

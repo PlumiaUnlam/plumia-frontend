@@ -70,7 +70,21 @@ const ATTRIBUTE_LABELS: Record<EntityType, Record<string, string>> = {
 };
 
 const VISUAL_ATTRIBUTE_KEYS: Record<EntityType, readonly string[]> = {
-  CHARACTER: ["appearance", "physicalDescription"],
+  CHARACTER: [
+    "appearance",
+    "physicalDescription",
+    "hair",
+    "hairColor",
+    "eyes",
+    "eyeColor",
+    "skinTone",
+    "height",
+    "build",
+    "distinctiveFeatures",
+    "clothing",
+    "age",
+    "species",
+  ],
   LOCATION: ["terrain", "architecture", "landmarks"],
   OBJECT: ["shape", "material", "markings"],
   ORGANIZATION: ["emblem", "colors", "symbols"],
@@ -84,7 +98,7 @@ export const VISUAL_IDENTITY_COPY: Record<
 > = {
   CHARACTER: {
     label: "Rasgos físicos que deben mantenerse",
-    help: "Anota solo los rasgos estables del personaje. La pose, la expresión y el fondo se definen para cada imagen.",
+    help: "Anotá rasgos visibles y estables. La personalidad, el rol y la trama permanecen en Descripción; la pose, la expresión y el fondo se definen para cada imagen.",
     placeholder: "Ej.: ojos verdes, cabello negro ondulado y una cicatriz fina sobre la ceja izquierda.",
   },
   LOCATION: {
@@ -159,11 +173,35 @@ export function getEntityVisualSuggestion(
   const visualDetails = VISUAL_ATTRIBUTE_KEYS[type]
     .filter((key) => hasDisplayValue(attributes[key]))
     .map((key) => `${ATTRIBUTE_LABELS[type][key]}: ${formatAttributeValue(attributes[key])}`);
-  const parts = [
-    ...visualDetails,
-    ...(description?.trim() ? [`Descripción: ${description.trim()}`] : []),
-  ];
+  const visualDescription =
+    type === "CHARACTER"
+      ? extractCharacterVisualDescription(description)
+      : description?.trim();
+  const parts = [...visualDetails];
+  if (visualDescription) {
+    parts.push(
+      type === "CHARACTER"
+        ? `Rasgos visibles descritos: ${visualDescription}`
+        : `Contexto visual: ${visualDescription}`,
+    );
+  }
   return parts.join("\n");
+}
+
+export function extractCharacterVisualDescription(
+  description: string | null | undefined,
+): string {
+  if (!description?.trim()) return "";
+
+  const patterns = [
+    /\b(?:ojos?|mirada|cabello|pelo|piel|tono de piel|complexión|estatura|altura|rostro|cara|barba|bigote|pecas|canas|cicatrices?|vestimenta|ropa)\b(?:\s+(?:de|color|muy))?(?:\s+(?!y\b|pero\b|aunque\b|es\b|tiene\b|conoce\b)[\p{L}\p{M}\d-]+){1,3}/giu,
+    /\b(?:viste|lleva)\s+(?:un[oa]s?\s+)?[\p{L}\p{M}\d-]+(?:\s+(?!y\b|pero\b|aunque\b|es\b|tiene\b|conoce\b)[\p{L}\p{M}\d-]+){0,3}/giu,
+    /\b(?:es|mide)\s+(?:alto|alta|bajo|baja|delgado|delgada|robusto|robusta|musculoso|musculosa|\d+(?:[,.]\d+)?\s*(?:cm|m))\b/giu,
+  ];
+  const matches = patterns.flatMap((pattern) =>
+    [...description.matchAll(pattern)].map((match) => match[0].trim()),
+  );
+  return [...new Set(matches)].join(", ");
 }
 
 export function getEntityVisualBase(

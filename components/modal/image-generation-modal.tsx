@@ -17,10 +17,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Field, FieldContent, FieldLabel } from "@/components/ui/field";
 import { EntityImage } from "@/components/worldbuilding/entity-image";
 import {
-  formatAttributeValue,
   getEntityAttributes,
   getEntityVisualBase,
-  getEntityVisualSuggestion,
 } from "@/lib/entity-wiki";
 import type { GenerateImageInput } from "@/services/image-generation.service";
 import type { EntityCategory, EntityType } from "@/types/entity";
@@ -294,14 +292,6 @@ export function ImageGenerationModal({
     entityDescription,
     attributes,
   );
-  const visualSuggestion = getEntityVisualSuggestion(
-    entityType,
-    entityDescription,
-    attributes,
-  );
-  const hasSavedVisualIdentity =
-    typeof attributes.visualIdentity === "string" &&
-    attributes.visualIdentity.trim().length > 0;
   const effectiveReferenceImageId =
     selectedReferenceImageId ?? referenceImageId ?? "";
   const selectedReference = images.find(
@@ -313,15 +303,15 @@ export function ImageGenerationModal({
   const generationTitle = imagesLoading
     ? `Preparar generación de ${entityName}`
     : isVariant
-    ? `Generar variante de ${entityName}`
+    ? `Generar imagen secundaria de ${entityName}`
     : images.length > 0
-      ? `Generar imagen sin referencia de ${entityName}`
+      ? `Generar imagen secundaria sin referencia de ${entityName}`
       : `Generar primera imagen de ${entityName}`;
   const characterNeedsAppearanceWarning =
     entityType === "CHARACTER" &&
     !selectedReference &&
-    !form.visualIdentity?.trim() &&
-    !hasCharacterAppearanceInfo(entityDescription, attributes);
+    !visualBase &&
+    !form.visualIdentity?.trim();
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -357,7 +347,7 @@ export function ImageGenerationModal({
         if (!open && !submitting) onClose();
       }}
     >
-      <DialogContent className="z-[70] w-[calc(100vw-2rem)] min-w-0 max-w-2xl gap-0 overflow-hidden">
+      <DialogContent size="medium" className="z-[70] w-[calc(100vw-2rem)] min-w-0 gap-0 overflow-hidden">
         <DialogHeader className="border-b p-6 py-4">
           <div className="flex items-center justify-between">
             <DialogTitle>{generationTitle}</DialogTitle>
@@ -368,14 +358,17 @@ export function ImageGenerationModal({
           <DialogDescription>
             <span className="block">
               {isVariant
-                ? "La imagen de referencia y la identidad visual de la ficha sirven como base. Definí solo los cambios que querés para esta variante."
+                ? "La imagen de referencia y la identidad visual de la ficha sirven como base. Definí solo los cambios para esta imagen secundaria."
                 : images.length > 0
-                  ? "La identidad visual de la ficha sirve como base. Podés generar sin enviar una imagen de referencia."
+                  ? "La identidad visual de la ficha sirve como base. Podés crear una imagen secundaria sin referencia."
                   : "La identidad visual de la ficha sirve como base para crear la primera imagen."}
             </span>
             <span className="mt-1 block text-xs">
-              Todos los campos son opcionales: podés dejarlos en blanco y
-              generar la imagen con la configuración base.
+              Los rasgos estables vienen de la ficha; estos campos solo definen
+              esta imagen y podés dejarlos en blanco.
+              {entityType === "CHARACTER"
+                ? " La personalidad y el rol no se usan como rasgos físicos."
+                : ""}
             </span>
           </DialogDescription>
 
@@ -392,48 +385,34 @@ export function ImageGenerationModal({
 
             <section className="space-y-3 rounded-lg border border-border bg-muted/30 p-3">
               <div>
-                <h3 className="text-sm font-semibold">Base tomada de la ficha</h3>
+                <h3 className="text-sm font-semibold">Identidad visual de la ficha</h3>
                 {visualBase ? (
                   <p className="mt-1 whitespace-pre-wrap text-sm text-muted-foreground">
                     {visualBase}
                   </p>
                 ) : (
                   <p className="mt-1 text-sm text-muted-foreground">
-                    La ficha no tiene descripción ni datos visuales para usar como base.
+                    La ficha no tiene rasgos visuales para usar como base.
                   </p>
                 )}
               </div>
               <Field>
                 <FieldLabel htmlFor="image-visual-identity">
-                  Identidad visual para esta generación (opcional)
+                  Ajuste visual para esta imagen (opcional)
                 </FieldLabel>
                 <FieldContent>
                   <Textarea
                     id="image-visual-identity"
                     value={form.visualIdentity ?? ""}
                     onChange={(event) => update("visualIdentity", event.target.value)}
-                    placeholder={
-                      visualSuggestion
-                        ? `Sugerencia editable:\n${visualSuggestion}`
-                        : "Dejá vacío para usar solo los datos existentes de la ficha."
-                    }
+                    placeholder="Agregá aquí un cambio visual puntual; la identidad estable de la ficha se conserva."
                     rows={3}
                     maxLength={2000}
                   />
                 </FieldContent>
                 <p className="text-xs text-muted-foreground">
-                  Este texto se aplica a esta imagen; no modifica la ficha.
+                  Se agrega al prompt de esta generación y no modifica la ficha.
                 </p>
-                {visualSuggestion && !hasSavedVisualIdentity && (
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => update("visualIdentity", visualSuggestion)}
-                  >
-                    Usar sugerencia en esta generación
-                  </Button>
-                )}
               </Field>
             </section>
 
@@ -474,7 +453,7 @@ export function ImageGenerationModal({
                       key={image.id}
                       type="button"
                       aria-pressed={resolvedReferenceImageId === image.id}
-                      aria-label={`${image.isPrimary ? "Principal. " : ""}Usar esta imagen como referencia`}
+                      aria-label={`${image.isPrimary ? "Imagen principal" : "Imagen secundaria"}. Usar esta imagen como referencia`}
                       onClick={() => setSelectedReferenceImageId(image.id)}
                       className={`rounded-md border p-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
                         resolvedReferenceImageId === image.id
@@ -491,11 +470,9 @@ export function ImageGenerationModal({
                         category={category}
                         iconClassName="h-4 w-4"
                       />
-                      {image.isPrimary && (
-                        <span className="mt-1 block text-[10px] text-primary">
-                          Principal
-                        </span>
-                      )}
+                      <span className="mt-1 block text-[10px] text-primary">
+                        {image.isPrimary ? "Imagen principal" : "Imagen secundaria"}
+                      </span>
                     </button>
                   ))}
                   <Button
@@ -587,9 +564,9 @@ export function ImageGenerationModal({
               <Sparkles className="mr-2 h-4 w-4" />
             )}
             {isVariant
-              ? "Generar variante"
+              ? "Generar imagen secundaria"
               : images.length > 0
-                ? "Generar sin referencia"
+                ? "Generar imagen secundaria"
                 : "Generar primera imagen"}
           </Button>
         </DialogFooter>
@@ -624,37 +601,5 @@ function GenerationField({
         />
       </FieldContent>
     </Field>
-  );
-}
-
-function hasCharacterAppearanceInfo(
-  description: string | null | undefined,
-  attributes: Record<string, unknown>,
-): boolean {
-  const appearanceKeys = [
-    "visualIdentity",
-    "appearance",
-    "physicalDescription",
-    "hair",
-    "hairColor",
-    "eyes",
-    "eyeColor",
-    "skin",
-    "skinTone",
-    "height",
-    "build",
-    "distinctiveFeatures",
-    "clothing",
-  ];
-  if (
-    appearanceKeys.some(
-      (key) =>
-        formatAttributeValue(attributes[key]).trim().length > 0,
-    )
-  ) {
-    return true;
-  }
-  return /\b(ojos|cabello|pelo|piel|estatura|altura|cicatriz|complexión|barba|bigote|pecas|canas|calv[oa]|rubio|moreno|pelirrojo|delgad[oa]|robust[oa]|vestía|vestido|vestimenta)\b/i.test(
-    description ?? "",
   );
 }

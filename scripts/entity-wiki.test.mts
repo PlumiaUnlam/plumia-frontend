@@ -52,7 +52,7 @@ test("usa sólo texto disponible para sugerir identidad visual y prioriza la gua
 
   assert.equal(
     suggestion,
-    "Material: bronce\nMarcas y detalles: estrella de ocho puntas\nDescripción: Una brújula heredada con la aguja rota.",
+    "Material: bronce\nMarcas y detalles: estrella de ocho puntas\nContexto visual: Una brújula heredada con la aguja rota.",
   );
   assert.equal(
     getEntityVisualBase("OBJECT", "Descripción existente", {
@@ -61,6 +61,20 @@ test("usa sólo texto disponible para sugerir identidad visual y prioriza la gua
     }),
     "Disco de bronce con tres muescas",
   );
+});
+
+test("la identidad del personaje conserva rasgos visibles y excluye personalidad y trama", () => {
+  const suggestion = getEntityVisualSuggestion(
+    "CHARACTER",
+    "Archivista paciente. Tiene ojos verdes y cabello negro. Conoce los documentos censurados del valle.",
+    { personality: "reservada", occupation: "archivista" },
+  );
+
+  assert.equal(
+    suggestion,
+    "Rasgos visibles descritos: ojos verdes, cabello negro",
+  );
+  assert.doesNotMatch(suggestion, /paciente|reservada|archivista|documentos/i);
 });
 
 test("una entidad sin descripción ni atributos no recibe datos visuales inventados", () => {

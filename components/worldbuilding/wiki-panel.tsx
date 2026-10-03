@@ -35,6 +35,7 @@ import {
   formatAttributeValue,
   getEntityAttributeRows,
   getEntityAttributes,
+  VISUAL_IDENTITY_COPY,
 } from "@/lib/entity-wiki";
 import type { Relationship } from "@/types/relationship";
 import type { TimelineEvent } from "@/types/timeline";
@@ -402,14 +403,12 @@ export function WikiTab({
 
             <div className="min-w-0 flex-1 space-y-5">
               <section className="space-y-3">
-                <h3 className="text-sm font-semibold uppercase text-muted-foreground">
-                  EN POCAS PALABRAS
-                </h3>
+                <h3 className="text-lg font-semibold">Descripción</h3>
                 <Card className="min-w-0 w-full bg-muted/30">
-                  <CardContent className="space-y-2 whitespace-pre-wrap break-words text-sm leading-relaxed">
+                  <CardContent className="space-y-5">
                     {selectedEntity.description?.trim() ? (
-                      <p className="line-clamp-3">
-                        {getDescriptionExcerpt(selectedEntity.description)}
+                      <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">
+                        {selectedEntity.description.trim()}
                       </p>
                     ) : (
                       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -421,122 +420,109 @@ export function WikiTab({
                         </Button>
                       </div>
                     )}
+                    <EntityDataSection entity={selectedEntity} />
                   </CardContent>
                 </Card>
               </section>
 
               <section className="space-y-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h3 className="text-sm font-semibold uppercase text-muted-foreground">
-                    DATOS E IDENTIDAD VISUAL
-                  </h3>
-                  <Button variant="ghost" size="sm" onClick={() => onEdit(selectedEntity)}>
-                    <PenLine className="mr-1.5 size-3.5" />
-                    Editar
-                  </Button>
-                </div>
-                <EntityDataSection entity={selectedEntity} />
+                <h3 className="text-lg font-semibold">Historia</h3>
+                <Card className="min-w-0 w-full bg-muted/30">
+                  <CardContent>
+                    {timelineEventsError ? (
+                      <p role="alert" className="text-sm text-destructive">
+                        No se pudieron cargar los eventos: {timelineEventsError.message}
+                      </p>
+                    ) : linksLoading ? (
+                      <p className="text-sm text-muted-foreground">Cargando eventos…</p>
+                    ) : linkedTimelineEvents.length > 0 ? (
+                      <ul className="space-y-4">
+                        {linkedTimelineEvents.map((event) => (
+                          <li key={event.id}>
+                            <button
+                              type="button"
+                              onClick={() => onOpenTimelineEvent(event.id)}
+                              className="flex max-w-full items-start gap-2 text-left text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                            >
+                              <CalendarDays className="mt-0.5 size-4 shrink-0" />
+                              <span>
+                                <span className="font-medium">{event.title}</span>
+                                {(event.temporalLabel || event.date) && (
+                                  <span className="ml-2 text-sm text-muted-foreground">
+                                    {event.temporalLabel || event.date}
+                                  </span>
+                                )}
+                                {event.description && (
+                                  <span className="mt-1 block whitespace-pre-wrap text-sm text-muted-foreground">
+                                    {event.description}
+                                  </span>
+                                )}
+                              </span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        No hay eventos históricos vinculados a esta ficha.
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
               </section>
 
               <section className="space-y-3">
-                <h3 className="text-sm font-semibold uppercase text-muted-foreground">
-                  HISTORIA Y VÍNCULOS
-                </h3>
+                <h3 className="text-lg font-semibold">Vínculos</h3>
                 <Card className="min-w-0 w-full bg-muted/30">
-                  <CardContent className="space-y-4">
-                    {selectedEntity.description?.trim() && (
-                      <details className="group">
-                        <summary className="cursor-pointer text-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
-                          Leer descripción completa
-                        </summary>
-                        <p className="mt-3 whitespace-pre-wrap break-words text-sm leading-relaxed">
-                          {selectedEntity.description}
-                        </p>
-                      </details>
-                    )}
-
-                    <div className="space-y-2">
-                      <h4 className="text-sm font-semibold">Relaciones</h4>
-                      {relationshipError ? (
-                        <p role="alert" className="text-sm text-destructive">
-                          No se pudieron cargar las relaciones: {relationshipError.message}
-                        </p>
-                      ) : linksLoading ? (
-                        <p className="text-sm text-muted-foreground">Cargando relaciones…</p>
-                      ) : selectedEntityRelationships.length > 0 ? (
-                        <ul className="space-y-2">
-                          {selectedEntityRelationships.map((relationship) => {
-                            const isSource = relationship.sourceEntityId === selectedEntity.id;
-                            const otherEntityId = isSource
-                              ? relationship.targetEntityId
-                              : relationship.sourceEntityId;
-                            const otherEntity = entities.find((item) => item.id === otherEntityId);
-                            if (!otherEntity) return null;
-                            return (
-                              <li key={relationship.id}>
-                                <button
-                                  type="button"
-                                  onClick={() => onOpenEntity(otherEntity.id)}
-                                  className="flex max-w-full flex-wrap items-center gap-x-2 gap-y-1 text-left text-sm text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                                >
-                                  <span className="font-medium">{otherEntity.canonicalName}</span>
-                                  <span className="text-muted-foreground">
-                                    {getRelationshipLabel(relationship.relationType, isSource)}
-                                    {relationship.description ? ` · ${relationship.description}` : ""}
-                                  </span>
-                                  <ArrowUpRight className="size-3.5 shrink-0" />
-                                </button>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      ) : (
-                        <p className="text-sm text-muted-foreground">No hay relaciones registradas.</p>
-                      )}
-                    </div>
-
-                    <div className="space-y-2 border-t border-border pt-4">
-                      <h4 className="text-sm font-semibold">Línea Temporal</h4>
-                      {timelineEventsError ? (
-                        <p role="alert" className="text-sm text-destructive">
-                          No se pudieron cargar los eventos: {timelineEventsError.message}
-                        </p>
-                      ) : linksLoading ? (
-                        <p className="text-sm text-muted-foreground">Cargando eventos…</p>
-                      ) : linkedTimelineEvents.length > 0 ? (
-                        <ul className="space-y-2">
-                          {linkedTimelineEvents.map((event) => (
-                            <li key={event.id}>
+                  <CardContent>
+                    {relationshipError ? (
+                      <p role="alert" className="text-sm text-destructive">
+                        No se pudieron cargar los vínculos: {relationshipError.message}
+                      </p>
+                    ) : linksLoading ? (
+                      <p className="text-sm text-muted-foreground">Cargando vínculos…</p>
+                    ) : selectedEntityRelationships.length > 0 ? (
+                      <ul className="space-y-3">
+                        {selectedEntityRelationships.map((relationship) => {
+                          const isSource = relationship.sourceEntityId === selectedEntity.id;
+                          const otherEntityId = isSource
+                            ? relationship.targetEntityId
+                            : relationship.sourceEntityId;
+                          const otherEntity = entities.find((item) => item.id === otherEntityId);
+                          if (!otherEntity) return null;
+                          return (
+                            <li key={relationship.id}>
                               <button
                                 type="button"
-                                onClick={() => onOpenTimelineEvent(event.id)}
-                                className="flex max-w-full items-start gap-2 text-left text-sm text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                                onClick={() => onOpenEntity(otherEntity.id)}
+                                className="flex max-w-full flex-wrap items-center gap-x-2 gap-y-1 text-left text-sm text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                               >
-                                <CalendarDays className="mt-0.5 size-4 shrink-0" />
-                                <span>
-                                  <span className="font-medium">{event.title}</span>
-                                  {(event.temporalLabel || event.date) && (
-                                    <span className="ml-2 text-muted-foreground">
-                                      {event.temporalLabel || event.date}
-                                    </span>
-                                  )}
+                                <span className="font-medium">{otherEntity.canonicalName}</span>
+                                <span className="text-muted-foreground">
+                                  {getRelationshipLabel(relationship.relationType, isSource)}
+                                  {relationship.description ? ` · ${relationship.description}` : ""}
                                 </span>
+                                <ArrowUpRight className="size-3.5 shrink-0" />
                               </button>
                             </li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <p className="text-sm text-muted-foreground">No hay eventos vinculados.</p>
-                      )}
-                    </div>
+                          );
+                        })}
+                      </ul>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        No hay vínculos registrados para esta ficha.
+                      </p>
+                    )}
                   </CardContent>
                 </Card>
               </section>
 
               <section className="space-y-3">
-                <h3 className="text-sm font-semibold uppercase text-muted-foreground">
-                  IMÁGENES
-                </h3>
+                <h3 className="text-lg font-semibold">Baúl de imágenes</h3>
+                <EntityVisualIdentitySection
+                  entity={selectedEntity}
+                  onEdit={() => onEdit(selectedEntity)}
+                />
                 <ImageGallery
                   images={images}
                   loading={imagesLoading}
@@ -578,42 +564,64 @@ export function WikiTab({
 
 function EntityDataSection({ entity }: Readonly<{ entity: Entity }>) {
   const attributes = getEntityAttributes(entity.attributes);
-  const identity =
-    typeof attributes.visualIdentity === "string"
-      ? attributes.visualIdentity.trim()
-      : "";
   const rows = getEntityAttributeRows(entity.type, attributes);
   const knownRows = rows.filter((row) => row.known);
   const otherRows = rows.filter((row) => !row.known);
 
-  if (!identity && rows.length === 0) {
-    return (
-      <Card className="bg-muted/30">
-        <CardContent className="flex flex-wrap items-center justify-between gap-2 text-sm">
-          <span className="text-muted-foreground">Todavía no hay datos adicionales.</span>
-        </CardContent>
-      </Card>
-    );
+  if (rows.length === 0) {
+    return null;
   }
 
   return (
-    <Card className="bg-muted/30">
-      <CardContent className="space-y-4">
-        {identity && (
-          <div>
-            <h4 className="mb-1 text-sm font-semibold">Identidad visual</h4>
-            <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">{identity}</p>
-          </div>
-        )}
+    <div className="space-y-4 border-t border-border pt-4">
         {knownRows.length > 0 && <AttributeList rows={knownRows} />}
         {otherRows.length > 0 && (
-          <div className="border-t border-border pt-3">
+          <div className={knownRows.length > 0 ? "border-t border-border pt-3" : ""}>
             <h4 className="mb-2 text-sm font-semibold">Otros datos</h4>
             <AttributeList rows={otherRows} />
           </div>
         )}
-      </CardContent>
-    </Card>
+    </div>
+  );
+}
+
+function EntityVisualIdentitySection({
+  entity,
+  onEdit,
+}: Readonly<{ entity: Entity; onEdit: () => void }>) {
+  const attributes = getEntityAttributes(entity.attributes);
+  const identity =
+    typeof attributes.visualIdentity === "string"
+      ? attributes.visualIdentity.trim()
+      : "";
+  const copy = VISUAL_IDENTITY_COPY[entity.type];
+
+  return (
+    <div className="rounded-lg border border-border bg-muted/30 p-4">
+      <div className="space-y-3">
+        <div>
+          <h4 className="text-sm font-semibold">Identidad visual</h4>
+          <p className="mt-1 text-xs font-medium text-muted-foreground">
+            {copy.label}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">{copy.help}</p>
+        </div>
+        {identity ? (
+          <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">
+            {identity}
+          </p>
+        ) : (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-muted-foreground">
+              Todavía no hay una identidad visual guardada.
+            </p>
+            <Button variant="outline" size="sm" onClick={onEdit}>
+              Completar identidad visual
+            </Button>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -630,12 +638,6 @@ function AttributeList({
       ))}
     </dl>
   );
-}
-
-function getDescriptionExcerpt(description: string, maxLength = 280): string {
-  const trimmed = description.trim();
-  if (trimmed.length <= maxLength) return trimmed;
-  return `${trimmed.slice(0, maxLength).trimEnd()}…`;
 }
 
 function getRelationshipLabel(
