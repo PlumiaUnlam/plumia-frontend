@@ -761,6 +761,7 @@ function WorldbuildingModals({
               entityDescription={editingEntity.description}
               entityAttributes={editingEntity.attributes}
               images={entityImages}
+              imagesLoading={isLoadingImages}
               onClose={onCloseImageGeneration}
               onSubmit={onRequestImageGeneration}
             />
@@ -788,6 +789,7 @@ function WorldbuildingModals({
           entityDescription={selectedEntity.description}
           entityAttributes={selectedEntity.attributes}
           images={entityImages}
+          imagesLoading={isLoadingImages}
           onClose={onCloseImageGeneration}
           onSubmit={onRequestImageGeneration}
         />

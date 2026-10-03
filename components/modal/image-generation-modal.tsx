@@ -36,6 +36,7 @@ type ImageGenerationModalProps = {
   readonly entityDescription?: string | null;
   readonly entityAttributes?: unknown;
   readonly images: readonly ImageResponse[];
+  readonly imagesLoading: boolean;
   readonly onClose: () => void;
   readonly onSubmit: (input: GenerateImageInput) => Promise<void>;
 };
@@ -256,15 +257,16 @@ export function ImageGenerationModal({
   entityDescription,
   entityAttributes,
   images,
+  imagesLoading,
   onClose,
   onSubmit,
 }: ImageGenerationModalProps) {
   const [form, setForm] = useState<GenerationForm>(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedReferenceImageId, setSelectedReferenceImageId] = useState(
-    referenceImageId ?? "",
-  );
+  const [selectedReferenceImageId, setSelectedReferenceImageId] = useState<
+    string | null
+  >(null);
   const [acknowledgedMissingAppearance, setAcknowledgedMissingAppearance] =
     useState(false);
   const dialogIdentity = `${entityId}:${entityType}:${show ? "open" : "closed"}`;
@@ -278,7 +280,7 @@ export function ImageGenerationModal({
       setForm(EMPTY_FORM);
       setError(null);
       setSubmitting(false);
-      setSelectedReferenceImageId(referenceImageId ?? "");
+      setSelectedReferenceImageId(null);
       setAcknowledgedMissingAppearance(false);
     }
   }
@@ -300,13 +302,17 @@ export function ImageGenerationModal({
   const hasSavedVisualIdentity =
     typeof attributes.visualIdentity === "string" &&
     attributes.visualIdentity.trim().length > 0;
+  const effectiveReferenceImageId =
+    selectedReferenceImageId ?? referenceImageId ?? "";
   const selectedReference = images.find(
-    (image) => image.id === selectedReferenceImageId,
+    (image) => image.id === effectiveReferenceImageId,
   );
   const resolvedReferenceImageId = selectedReference?.id ?? "";
   const category: EntityCategory = TYPE_TO_CATEGORY[entityType];
   const isVariant = Boolean(selectedReference);
-  const generationTitle = isVariant
+  const generationTitle = imagesLoading
+    ? `Preparar generación de ${entityName}`
+    : isVariant
     ? `Generar variante de ${entityName}`
     : images.length > 0
       ? `Generar imagen sin referencia de ${entityName}`
@@ -435,7 +441,9 @@ export function ImageGenerationModal({
               <div>
                 <h3 className="text-sm font-semibold">Imagen de referencia</h3>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {selectedReference
+                  {imagesLoading
+                    ? "Cargando imágenes de la ficha para elegir una referencia…"
+                    : selectedReference
                     ? selectedReference.isPrimary
                       ? "Se usará la imagen principal."
                       : "Se usará la imagen que seleccionaste."
@@ -455,7 +463,7 @@ export function ImageGenerationModal({
                   iconClassName="h-5 w-5"
                 />
               )}
-              {images.length > 0 && (
+              {!imagesLoading && images.length > 0 && (
                 <div
                   className="flex flex-wrap items-start gap-2"
                   role="group"
@@ -567,7 +575,11 @@ export function ImageGenerationModal({
           <Button
             type="submit"
             form="image-generation-form"
-            disabled={submitting || (characterNeedsAppearanceWarning && !acknowledgedMissingAppearance)}
+            disabled={
+              submitting ||
+              imagesLoading ||
+              (characterNeedsAppearanceWarning && !acknowledgedMissingAppearance)
+            }
           >
             {submitting ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
