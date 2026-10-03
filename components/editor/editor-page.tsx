@@ -387,6 +387,7 @@ export function EditorLayout({ projectId }: Readonly<EditorLayoutProps>) {
         onOpenChange={setIsSpellcheckSettingsOpen}
         onSave={handleSaveSpellcheckSettings}
       />
+
     </div>
   )
 }
