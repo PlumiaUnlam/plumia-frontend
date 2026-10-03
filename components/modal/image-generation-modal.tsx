@@ -597,6 +597,8 @@ function GenerationField({
           value={value ?? ""}
           onChange={(event) => onChange(event.target.value)}
           placeholder={placeholder}
+          title={placeholder}
+          className="placeholder:text-ellipsis"
           maxLength={300}
         />
       </FieldContent>
