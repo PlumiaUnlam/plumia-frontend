@@ -25,6 +25,8 @@ import {
   TextSelect,
   Underline,
   Undo2,
+  ZoomIn,
+  ZoomOut,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -55,6 +57,7 @@ import {
   toggleTextMark,
 } from "./text-extra-formatting"
 import { toggleFormatPainter, useFormatPainterState } from "./format-painter"
+import { useEditorZoom } from "./editor-zoom"
 
 const menuButtonClass =
   "h-8 shrink-0 rounded-md px-2.5 text-sm font-medium text-[#3c4043] hover:bg-[#eee3f5] hover:text-[#70348c] data-[state=open]:bg-[#eee3f5] data-[state=open]:text-[#70348c] focus-visible:ring-2 focus-visible:ring-[#b98ad2] dark:text-foreground dark:hover:bg-muted dark:hover:text-foreground dark:data-[state=open]:bg-muted dark:data-[state=open]:text-foreground dark:focus-visible:ring-ring max-[640px]:px-2"
@@ -109,6 +112,14 @@ export function EditorMenuBar({
   toolbarExpanded,
   onToggleToolbar,
 }: Readonly<EditorMenuBarProps>) {
+  const {
+    zoom,
+    canZoomIn,
+    canZoomOut,
+    zoomIn,
+    zoomOut,
+    resetZoom,
+  } = useEditorZoom()
   const formatPainterActive = useFormatPainterState(editor)
   const editorState = useEditorState({
     editor,
@@ -398,11 +409,56 @@ export function EditorMenuBar({
         </>,
       )}
 
+      <div
+        className="ml-auto flex shrink-0 items-center rounded-md border border-[#dadce0] bg-white dark:border-border dark:bg-background"
+        role="group"
+        aria-label="Zoom del editor"
+      >
+        <Button
+          type="button"
+          size="icon-sm"
+          variant="ghost"
+          className="size-8 rounded-r-none text-[#3c4043] hover:bg-[#eee3f5] hover:text-[#70348c] dark:text-foreground dark:hover:bg-muted dark:hover:text-foreground"
+          disabled={!canZoomOut}
+          aria-label="Alejar editor"
+          title="Alejar (Ctrl/Cmd+-)"
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={zoomOut}
+        >
+          <ZoomOut className="size-4" />
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          className="h-8 min-w-14 rounded-none border-x border-[#dadce0] px-2 text-xs tabular-nums text-[#3c4043] hover:bg-[#eee3f5] hover:text-[#70348c] dark:border-border dark:text-foreground dark:hover:bg-muted dark:hover:text-foreground"
+          aria-label={`Restablecer zoom del editor, actual ${zoom}%`}
+          title="Restablecer zoom (Ctrl/Cmd+0)"
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={resetZoom}
+        >
+          <span aria-live="polite">{zoom}%</span>
+        </Button>
+        <Button
+          type="button"
+          size="icon-sm"
+          variant="ghost"
+          className="size-8 rounded-l-none text-[#3c4043] hover:bg-[#eee3f5] hover:text-[#70348c] dark:text-foreground dark:hover:bg-muted dark:hover:text-foreground"
+          disabled={!canZoomIn}
+          aria-label="Acercar editor"
+          title="Acercar (Ctrl/Cmd++)"
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={zoomIn}
+        >
+          <ZoomIn className="size-4" />
+        </Button>
+      </div>
+
       <Button
         type="button"
         size="icon-sm"
         variant="ghost"
-        className="ml-auto size-8 shrink-0 rounded-md text-[#3c4043] hover:bg-[#eee3f5] hover:text-[#70348c] focus-visible:ring-2 focus-visible:ring-[#b98ad2] dark:text-foreground dark:hover:bg-muted dark:hover:text-foreground dark:focus-visible:ring-ring"
+        className="size-8 shrink-0 rounded-md text-[#3c4043] hover:bg-[#eee3f5] hover:text-[#70348c] focus-visible:ring-2 focus-visible:ring-[#b98ad2] dark:text-foreground dark:hover:bg-muted dark:hover:text-foreground dark:focus-visible:ring-ring"
         aria-expanded={toolbarExpanded}
         aria-controls="editor-formatting-toolbar"
         aria-label={
