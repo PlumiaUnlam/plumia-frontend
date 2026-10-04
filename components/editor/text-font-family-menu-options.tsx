@@ -22,6 +22,9 @@ type TextFontFamilyMenuOptionsProps = {
   itemClassName: string
 }
 
+const INITIAL_FONT_LIMIT = 16
+const FONT_LOAD_STEP = 16
+
 function normalizeSearch(value: string) {
   return value
     .trim()
@@ -36,8 +39,9 @@ export function TextFontFamilyMenuOptions({
   itemClassName,
 }: Readonly<TextFontFamilyMenuOptionsProps>) {
   const [query, setQuery] = useState("")
+  const [visibleLimit, setVisibleLimit] = useState(INITIAL_FONT_LIMIT)
   const searchInputRef = useRef<HTMLInputElement>(null)
-  const visibleGroups = useMemo(() => {
+  const filteredGroups = useMemo(() => {
     const search = normalizeSearch(query)
 
     return TEXT_FONT_FAMILY_GROUPS.map((group) => ({
@@ -47,7 +51,24 @@ export function TextFontFamilyMenuOptions({
       ),
     })).filter((group) => group.options.length > 0)
   }, [query])
+  const resultCount = filteredGroups.reduce(
+    (total, group) => total + group.options.length,
+    0,
+  )
+  const visibleGroups = useMemo(() => {
+    return filteredGroups.flatMap((group, index) => {
+      const precedingOptions = filteredGroups
+        .slice(0, index)
+        .reduce((total, precedingGroup) => total + precedingGroup.options.length, 0)
+      const options = group.options.slice(
+        0,
+        Math.max(0, visibleLimit - precedingOptions),
+      )
+      return options.length > 0 ? [{ ...group, options }] : []
+    })
+  }, [filteredGroups, visibleLimit])
   const hasResults = visibleGroups.length > 0
+  const hasMoreResults = visibleLimit < resultCount
 
   useEffect(() => {
     const animationFrame = requestAnimationFrame(() => {
@@ -65,7 +86,10 @@ export function TextFontFamilyMenuOptions({
           <Input
             ref={searchInputRef}
             value={query}
-            onChange={(event) => setQuery(event.currentTarget.value)}
+            onChange={(event) => {
+              setQuery(event.currentTarget.value)
+              setVisibleLimit(INITIAL_FONT_LIMIT)
+            }}
             onPointerDown={(event) => event.stopPropagation()}
             onKeyDown={(event) => {
               if (event.key.length === 1) event.stopPropagation()
@@ -84,7 +108,18 @@ export function TextFontFamilyMenuOptions({
             onValueChange(nextValue as TextFontFamily)
           }
         >
-          <div className="max-h-[min(60vh,32rem)] overflow-y-auto p-1">
+          <div
+            className="max-h-[min(60vh,32rem)] overflow-y-auto p-1"
+            onScroll={(event) => {
+              if (!hasMoreResults) return
+              const target = event.currentTarget
+              const distanceToBottom =
+                target.scrollHeight - target.scrollTop - target.clientHeight
+              if (distanceToBottom < 80) {
+                setVisibleLimit((current) => current + FONT_LOAD_STEP)
+              }
+            }}
+          >
             {visibleGroups.map((group, index) => (
               <div key={group.label}>
                 {index > 0 && <DropdownMenuSeparator />}
@@ -103,6 +138,11 @@ export function TextFontFamilyMenuOptions({
                 ))}
               </div>
             ))}
+            {hasMoreResults ? (
+              <p className="px-2 py-3 text-center text-xs text-[#5f6368] dark:text-muted-foreground">
+                Desplazate para cargar más fuentes
+              </p>
+            ) : null}
           </div>
         </DropdownMenuRadioGroup>
       ) : (

@@ -641,14 +641,21 @@ export function StatisticsDashboard({ projectId }: Readonly<{ projectId: string 
       () => void loadDashboard(controller.signal),
       0,
     );
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") {
+        void loadDashboard(controller.signal, true);
+      }
+    };
     const intervalId = window.setInterval(
-      () => void loadDashboard(controller.signal, true),
+      refreshWhenVisible,
       REFRESH_INTERVAL_MS,
     );
+    document.addEventListener("visibilitychange", refreshWhenVisible);
     return () => {
       controller.abort();
       window.clearTimeout(initialLoadId);
       window.clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
     };
   }, [loadDashboard]);
 

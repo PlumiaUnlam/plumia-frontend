@@ -1,22 +1,41 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import dynamic from "next/dynamic"
 import { Header } from "../header"
 import { LeftSidebar, type SidebarBook } from "../left-sidebar"
 import { getProject } from "@/services/project.service"
 import { SidebarProvider } from "@/components/ui/sidebar"
 import { EditorRightPanel } from "@/components/editor-right-panel"
-import { useEditorStore } from "@/stores/editor.store"
+import {
+  getLivePrimaryContent,
+  useEditorStore,
+} from "@/stores/editor.store"
 import { EditorContainer } from "./editor-container"
 import { SaveStatusIndicator } from "./save-status-indicator"
-import { SearchReplacePanel } from "./search-replace-panel"
-import { SpellcheckSettingsDialog } from "./spellcheck-settings-dialog"
 import type { WritingMode } from "@/types/writing-mode"
 import type { EditorSectionOption } from "./editor-types"
 import type { EditorSearchMatch, SpellcheckLanguage } from "@/types/editor-search"
 import type { ProseMirrorJSON } from "@/types/scene"
-import { ExportDialog } from "@/components/export/export-dialog"
-import { ShareDialog } from "@/components/sharing/share-dialog"
+
+const SearchReplacePanel = dynamic(() =>
+  import("./search-replace-panel").then((module) => module.SearchReplacePanel),
+)
+const SpellcheckSettingsDialog = dynamic(() =>
+  import("./spellcheck-settings-dialog").then(
+    (module) => module.SpellcheckSettingsDialog,
+  ),
+)
+const ExportDialog = dynamic(() =>
+  import("@/components/export/export-dialog").then(
+    (module) => module.ExportDialog,
+  ),
+)
+const ShareDialog = dynamic(() =>
+  import("@/components/sharing/share-dialog").then(
+    (module) => module.ShareDialog,
+  ),
+)
 
 const blockTypes = new Set([
   "doc",
@@ -309,17 +328,19 @@ export function EditorLayout({ projectId }: Readonly<EditorLayoutProps>) {
             )}
           </main>
 
-          <SearchReplacePanel
-            open={isSearchPanelOpen}
-            onOpenChange={handleSearchPanelChange}
-            sections={sections}
-            activeSceneId={activeSceneId}
-            currentContent={currentContent}
-            selectedSceneVersionId={selectedSceneVersionId}
-            onNavigateToMatch={handleNavigateToMatch}
-            onPrepareWrite={saveBeforeExport}
-            onScenesUpdated={handleScenesUpdated}
-          />
+          {isSearchPanelOpen ? (
+            <SearchReplacePanel
+              open
+              onOpenChange={handleSearchPanelChange}
+              sections={sections}
+              activeSceneId={activeSceneId}
+              currentContent={getLivePrimaryContent() ?? currentContent}
+              selectedSceneVersionId={selectedSceneVersionId}
+              onNavigateToMatch={handleNavigateToMatch}
+              onPrepareWrite={saveBeforeExport}
+              onScenesUpdated={handleScenesUpdated}
+            />
+          ) : null}
 
           {writingMode !== "zen" && (
             <EditorRightPanel
@@ -362,31 +383,37 @@ export function EditorLayout({ projectId }: Readonly<EditorLayoutProps>) {
         </div>
       </footer>
 
-      <ExportDialog
-        projectId={projectId}
-        books={exportBooks}
-        defaultBookId={defaultExportBookId}
-        open={isExportDialogOpen}
-        isHistoricalVersion={Boolean(selectedSceneVersionId)}
-        onOpenChange={setIsExportDialogOpen}
-        onBeforeExport={saveBeforeExport}
-      />
+      {isExportDialogOpen ? (
+        <ExportDialog
+          projectId={projectId}
+          books={exportBooks}
+          defaultBookId={defaultExportBookId}
+          open
+          isHistoricalVersion={Boolean(selectedSceneVersionId)}
+          onOpenChange={setIsExportDialogOpen}
+          onBeforeExport={saveBeforeExport}
+        />
+      ) : null}
 
-      <ShareDialog
-        books={books}
-        activeBookId={activeBookId}
-        open={isShareDialogOpen}
-        onOpenChange={setIsShareDialogOpen}
-        onBeforeShare={saveBeforeExport}
-      />
+      {isShareDialogOpen ? (
+        <ShareDialog
+          books={books}
+          activeBookId={activeBookId}
+          open
+          onOpenChange={setIsShareDialogOpen}
+          onBeforeShare={saveBeforeExport}
+        />
+      ) : null}
 
-      <SpellcheckSettingsDialog
-        open={isSpellcheckSettingsOpen}
-        language={draftSpellcheckLanguage}
-        onLanguageChange={setDraftSpellcheckLanguage}
-        onOpenChange={setIsSpellcheckSettingsOpen}
-        onSave={handleSaveSpellcheckSettings}
-      />
+      {isSpellcheckSettingsOpen ? (
+        <SpellcheckSettingsDialog
+          open
+          language={draftSpellcheckLanguage}
+          onLanguageChange={setDraftSpellcheckLanguage}
+          onOpenChange={setIsSpellcheckSettingsOpen}
+          onSave={handleSaveSpellcheckSettings}
+        />
+      ) : null}
 
     </div>
   )

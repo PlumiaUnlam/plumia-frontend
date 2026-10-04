@@ -17,7 +17,7 @@ import type {
 } from "@/types/sharing"
 import type { ProseMirrorJSON } from "@/types/scene"
 
-type SharedSceneProps = {
+export type SharedSceneProps = {
   sceneId: string
   title: string | null
   content: ProseMirrorJSON | null

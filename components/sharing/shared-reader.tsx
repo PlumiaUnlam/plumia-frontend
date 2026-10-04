@@ -1,7 +1,14 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react"
 import { useTheme } from "next-themes"
+import dynamic from "next/dynamic"
 import {
   BookOpen,
   Check,
@@ -16,7 +23,7 @@ import {
   X,
 } from "lucide-react"
 
-import { SharedScene } from "@/components/sharing/shared-scene"
+import type { SharedSceneProps } from "@/components/sharing/shared-scene"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -52,6 +59,12 @@ import type {
   TextSelectionAnchor,
 } from "@/types/sharing"
 
+const InteractiveSharedScene = dynamic(() =>
+  import("@/components/sharing/shared-scene").then(
+    (module) => module.SharedScene,
+  ),
+)
+
 type SharedReaderProps = {
   slug: string
   initialToken?: string
@@ -59,6 +72,66 @@ type SharedReaderProps = {
 
 function getViewerDescription(viewer: SharedManuscriptView["viewer"]) {
   return viewer.canComment ? "Modo revisión" : "Modo lectura"
+}
+
+function getScenePlainText(content: ProseMirrorJSON | null): string {
+  if (!content) return ""
+
+  const parts: string[] = []
+  const visit = (node: ProseMirrorJSON) => {
+    if (node.type === "text" && node.text) parts.push(node.text)
+    if (node.type === "hardBreak") parts.push("\n")
+    node.content?.forEach(visit)
+    if (node.type === "paragraph" || node.type === "heading") parts.push("\n\n")
+  }
+  visit(content)
+  return parts.join("").trim()
+}
+
+function LazySharedScene(props: Readonly<SharedSceneProps>) {
+  const placeholderRef = useRef<HTMLDivElement>(null)
+  const [isNearViewport, setIsNearViewport] = useState(false)
+  const containsActiveComment = props.comments.some(
+    (comment) => comment.id === props.activeCommentId,
+  )
+  const shouldRender = isNearViewport || containsActiveComment
+
+  useEffect(() => {
+    if (shouldRender) return
+    const element = placeholderRef.current
+    if (!element) return
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry?.isIntersecting) return
+        setIsNearViewport(true)
+        observer.disconnect()
+      },
+      { rootMargin: "1000px 0px" },
+    )
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [shouldRender])
+
+  if (shouldRender) {
+    return <InteractiveSharedScene {...props} />
+  }
+
+  return (
+    <div
+      ref={placeholderRef}
+      className="border-b border-border/60 py-8 last:border-b-0"
+    >
+      {props.title ? (
+        <h3 className="mb-5 text-center font-serif text-xl font-semibold text-foreground/90">
+          {props.title}
+        </h3>
+      ) : null}
+      <div className="shared-reader-prose min-h-12 whitespace-pre-wrap text-foreground/90">
+        {getScenePlainText(props.content)}
+      </div>
+    </div>
+  )
 }
 
 export function SharedReader({ slug, initialToken }: SharedReaderProps) {
@@ -161,6 +234,15 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
       ) ?? [],
     [view],
   )
+  const commentsByScene = useMemo(() => {
+    const grouped = new Map<string, ReaderComment[]>()
+    for (const comment of comments) {
+      const current = grouped.get(comment.snapshotSceneId)
+      if (current) current.push(comment)
+      else grouped.set(comment.snapshotSceneId, [comment])
+    }
+    return grouped
+  }, [comments])
 
   useEffect(() => {
     if (chapters.length === 0) return
@@ -506,14 +588,12 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
                       {chapter.title}
                     </h2>
                     {chapter.scenes.map((scene) => (
-                      <SharedScene
+                      <LazySharedScene
                         key={scene.id}
                         sceneId={scene.id}
                         title={scene.title}
                         content={scene.content}
-                        comments={comments.filter(
-                          (comment) => comment.snapshotSceneId === scene.id,
-                        )}
+                        comments={commentsByScene.get(scene.id) ?? []}
                         activeCommentId={activeCommentId}
                         canComment={view.viewer.canComment}
                         onSelection={setSelection}

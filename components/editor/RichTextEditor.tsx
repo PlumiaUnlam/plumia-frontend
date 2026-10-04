@@ -1,6 +1,6 @@
 
 import { useEffect, useMemo, useState } from "react"
-import { EditorContent, useEditor } from "@tiptap/react"
+import { EditorContent, useEditor, type Editor } from "@tiptap/react"
 import StarterKit from "@tiptap/starter-kit"
 
 import type { ProseMirrorJSON } from "@/types/scene"
@@ -64,6 +64,7 @@ import type {
   EditorToolbarActions,
 } from "./editor-types"
 import type { SceneDividerVariant } from "./scene-divider"
+import { useEditorZoom } from "./editor-zoom"
 
 type RichTextEditorProps = {
   title: string
@@ -71,7 +72,7 @@ type RichTextEditorProps = {
   sceneId: string
   projectId: string
   content?: ProseMirrorJSON | null
-  onChange?: (json: ProseMirrorJSON) => void
+  onChange?: (editor: Editor) => void
   onSave?: () => void
   onAnalyzeChanges?: () => void
   isAnalysisSaving?: boolean
@@ -116,6 +117,7 @@ export function RichTextEditor({
   canSplit = true,
   allowAnnotations = true,
 }: Readonly<RichTextEditorProps>) {
+  const { zoom, zoomFactor } = useEditorZoom()
   const [paragraphDialogOpen, setParagraphDialogOpen] = useState(false)
   const [annotations, setAnnotations] = useState<AuthorAnnotation[]>([])
   const [isAnnotationsOpen, setIsAnnotationsOpen] = useState(false)
@@ -195,7 +197,7 @@ export function RichTextEditor({
     },
     onFocus: () => onEditorFocus?.(),
     onUpdate: ({ editor: nextEditor }) => {
-      onChange?.(nextEditor.getJSON())
+      onChange?.(nextEditor)
     },
   })
 
@@ -569,8 +571,13 @@ export function RichTextEditor({
       )}
 
       <div className="flex min-h-0 flex-1">
-        <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">
-          <div className="mx-auto max-w-3xl px-6 pb-10 pt-4">
+        <div className="min-h-0 min-w-0 flex-1 overflow-auto">
+          <div
+            className="mx-auto max-w-3xl px-6 pb-10 pt-4"
+            data-editor-canvas
+            data-editor-zoom={zoom}
+            style={{ zoom: zoomFactor }}
+          >
           <div
             className="
               flex

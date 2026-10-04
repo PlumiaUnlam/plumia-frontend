@@ -148,6 +148,39 @@ test("HU-04 CA-011/012: reemplaza todas las coincidencias y persiste el manuscri
   expect(JSON.stringify(backend.getSceneContent())).not.toContain("noche")
 })
 
+test("permite acercar, alejar y restablecer el zoom visual del editor", async ({
+  page,
+}) => {
+  await installMockBackend(page)
+
+  await page.goto(`/projects/${e2eProjectId}/editor`)
+  await page.getByRole("button", { name: "El umbral 10 palabras" }).click()
+
+  const canvas = page.locator("[data-editor-canvas]")
+  const firstParagraph = page.locator(".ProseMirror p").first()
+  await expect(canvas).toHaveAttribute("data-editor-zoom", "100")
+  const initialTextBox = await firstParagraph.boundingBox()
+
+  await page.getByRole("button", { name: "Acercar editor" }).click()
+  await expect(canvas).toHaveAttribute("data-editor-zoom", "110")
+  const zoomedTextBox = await firstParagraph.boundingBox()
+
+  expect(initialTextBox).not.toBeNull()
+  expect(zoomedTextBox).not.toBeNull()
+  expect(zoomedTextBox!.height).toBeGreaterThan(initialTextBox!.height)
+
+  await page.locator(".ProseMirror").focus()
+  await page.keyboard.press("ControlOrMeta+-")
+  await expect(canvas).toHaveAttribute("data-editor-zoom", "100")
+
+  await page.getByRole("button", { name: "Alejar editor" }).click()
+  await expect(canvas).toHaveAttribute("data-editor-zoom", "90")
+  await page
+    .getByRole("button", { name: /Restablecer zoom del editor/ })
+    .click()
+  await expect(canvas).toHaveAttribute("data-editor-zoom", "100")
+})
+
 test("HU-37/38 CA-112/117: crea una tarjeta de idea y la deja en su columna", async ({
   page,
 }) => {
