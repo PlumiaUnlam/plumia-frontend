@@ -23,7 +23,7 @@ import { usePathname } from "next/navigation"
 import { auth } from "@/lib/firebase"
 import { api } from "@/services/api.service"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000"
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "/api"
 
 export interface BackendUser {
   id: string

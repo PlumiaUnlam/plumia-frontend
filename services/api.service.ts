@@ -1,6 +1,6 @@
 import { auth } from "@/lib/firebase"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000"
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "/api"
 
 async function getToken(): Promise<string> {
   await auth.authStateReady()
