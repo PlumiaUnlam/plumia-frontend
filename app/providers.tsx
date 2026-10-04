@@ -4,7 +4,6 @@ import { type ReactNode } from "react"
 import { ThemeProvider } from "next-themes"
 
 import { AuthProvider } from "@/contexts/AuthContext"
-import { ProjectProvider } from "@/contexts/ProjectContext"
 
 export function Providers({ children }: { readonly children: ReactNode }) {
   return (
@@ -16,9 +15,7 @@ export function Providers({ children }: { readonly children: ReactNode }) {
       storageKey="plumia-theme"
     >
       <AuthProvider>
-        <ProjectProvider>
-          {children}
-        </ProjectProvider>
+        {children}
       </AuthProvider>
     </ThemeProvider>
   )

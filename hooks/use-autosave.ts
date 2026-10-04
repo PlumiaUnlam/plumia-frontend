@@ -24,7 +24,7 @@ type UseAutosaveArgs = {
   sceneId: string
   versionId?: string | null
   paneId?: EditorPaneId
-  content: ProseMirrorJSON | null
+  initialContent: ProseMirrorJSON | null
   onSaveComplete?: (result: SavedSceneResult) => void
 }
 
@@ -36,7 +36,7 @@ export function useAutosave({
   sceneId,
   versionId,
   paneId = "primary",
-  content,
+  initialContent,
   onSaveComplete,
 }: UseAutosaveArgs) {
   const setPaneSaveStatus = useEditorStore((state) => state.setPaneSaveStatus)
@@ -44,9 +44,12 @@ export function useAutosave({
   const setPaneError = useEditorStore((state) => state.setPaneError)
   const saveStatus = useEditorStore((state) => state.saveStatusByPane[paneId])
 
-  const latestRef = useRef<ProseMirrorJSON | null>(content)
+  const latestRef = useRef<ProseMirrorJSON | null>(initialContent)
+  const latestContentReaderRef = useRef<(() => ProseMirrorJSON) | null>(null)
   const lastSavedSerializedRef = useRef<string | null>(null)
   const savingRef = useRef(false)
+  const dirtyRef = useRef(false)
+  const changeVersionRef = useRef(0)
   const retriesRef = useRef(0)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const inFlightRef = useRef<Promise<AutosaveResult> | null>(null)
@@ -56,8 +59,13 @@ export function useAutosave({
 
   // The loaded content is the saved baseline for this scene or version.
   useEffect(() => {
-    lastSavedSerializedRef.current = content ? JSON.stringify(content) : null
-    latestRef.current = content
+    lastSavedSerializedRef.current = initialContent
+      ? JSON.stringify(initialContent)
+      : null
+    latestRef.current = initialContent
+    latestContentReaderRef.current = null
+    dirtyRef.current = false
+    changeVersionRef.current = 0
     retriesRef.current = 0
     setPaneSaveStatus(paneId, "idle")
     // Only reset the baseline when changing the document being edited.
@@ -69,14 +77,18 @@ export function useAutosave({
       return inFlightRef.current ?? { status: "unchanged" }
     }
 
-    const current = latestRef.current
+    const current = latestContentReaderRef.current?.() ?? latestRef.current
     if (current == null) return { status: "unchanged" }
+    latestRef.current = current
 
     const serialized = JSON.stringify(current)
     if (serialized === lastSavedSerializedRef.current) {
+      dirtyRef.current = false
+      setPaneSaveStatus(paneId, "idle")
       return { status: "unchanged" }
     }
 
+    const savedChangeVersion = changeVersionRef.current
     savingRef.current = true
     setPaneSaveStatus(paneId, "saving")
 
@@ -92,10 +104,11 @@ export function useAutosave({
         savingRef.current = false
         onSaveComplete?.(result)
 
-        if (JSON.stringify(latestRef.current) !== serialized) {
+        if (changeVersionRef.current !== savedChangeVersion) {
           return runSaveRef.current()
         }
 
+        dirtyRef.current = false
         return { status: "saved", result }
       } catch (error) {
         savingRef.current = false
@@ -131,21 +144,16 @@ export function useAutosave({
     runSaveRef.current = runSave
   }, [runSave])
 
-  useEffect(() => {
-    latestRef.current = content
-    if (content == null) return
-
-    const serialized = JSON.stringify(content)
-    if (serialized === lastSavedSerializedRef.current) return
-
-    setPaneSaveStatus(paneId, "dirty")
+  const queueSave = useCallback((readContent: () => ProseMirrorJSON) => {
+    latestContentReaderRef.current = readContent
+    changeVersionRef.current += 1
+    if (!dirtyRef.current) {
+      dirtyRef.current = true
+      setPaneSaveStatus(paneId, "dirty")
+    }
     if (timerRef.current) clearTimeout(timerRef.current)
     timerRef.current = setTimeout(() => void runSaveRef.current(), DEBOUNCE_MS)
-
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current)
-    }
-  }, [content, paneId, setPaneSaveStatus])
+  }, [paneId, setPaneSaveStatus])
 
   const saveNow = useCallback(() => {
     if (timerRef.current) {
@@ -166,7 +174,7 @@ export function useAutosave({
   useEffect(() => {
     if (saveStatus !== "dirty" && saveStatus !== "saving" && saveStatus !== "error") return
     return protectPendingEditorChanges(window, document, () => (
-      latestRef.current !== null && JSON.stringify(latestRef.current) !== lastSavedSerializedRef.current
+      dirtyRef.current
     ), flush)
   }, [flush, saveStatus])
 
@@ -181,5 +189,5 @@ export function useAutosave({
     return () => window.removeEventListener("online", retryWhenOnline)
   }, [])
 
-  return { saveNow }
+  return { queueSave, saveNow }
 }

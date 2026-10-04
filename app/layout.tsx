@@ -4,7 +4,6 @@ import localFont from "next/font/local"
 import { cn } from "@/lib/utils"
 
 import "./globals.css"
-import "./editor-fonts.css"
 import { Providers } from "./providers"
 
 const poppins = localFont({

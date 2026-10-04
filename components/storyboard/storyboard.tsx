@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
+import dynamic from "next/dynamic"
 import {
   DndContext,
   DragOverlay,
@@ -15,11 +16,9 @@ import { Columns3, Grid3x3, Loader2 } from "lucide-react"
 import useSWR from "swr"
 
 import { Header } from "@/components/header"
-import { CardDialog } from "@/components/storyboard/card-dialog"
 import { StoryboardCardPreview } from "@/components/storyboard/storyboard-card-preview"
 import { StoryboardColumn } from "@/components/storyboard/storyboard-column"
 import { STORYBOARD_COLUMNS } from "@/components/storyboard/storyboard-config"
-import { StoryboardMatrix } from "@/components/storyboard/storyboard-matrix"
 import type { CardDialogState } from "@/components/storyboard/storyboard-types"
 import { Button } from "@/components/ui/button"
 import {
@@ -48,6 +47,17 @@ import type {
   StoryboardCard,
   StoryboardCardStatus,
 } from "@/types/storyboard"
+
+const CardDialog = dynamic(() =>
+  import("@/components/storyboard/card-dialog").then(
+    (module) => module.CardDialog,
+  ),
+)
+const StoryboardMatrix = dynamic(() =>
+  import("@/components/storyboard/storyboard-matrix").then(
+    (module) => module.StoryboardMatrix,
+  ),
+)
 
 type StoryboardProps = {
   projectId: string
@@ -452,13 +462,15 @@ export function Storyboard({ projectId }: Readonly<StoryboardProps>) {
         )}
       </div>
 
-      <CardDialog
-        state={dialogState}
-        entities={entities ?? []}
-        submitting={submitting}
-        onClose={() => setDialogState(null)}
-        onSave={handleSave}
-      />
+      {dialogState ? (
+        <CardDialog
+          state={dialogState}
+          entities={entities ?? []}
+          submitting={submitting}
+          onClose={() => setDialogState(null)}
+          onSave={handleSave}
+        />
+      ) : null}
 
       <Dialog
         open={!!cardToDelete}

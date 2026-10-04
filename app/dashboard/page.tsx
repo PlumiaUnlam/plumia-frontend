@@ -12,8 +12,8 @@ import {
   TriangleAlert,
 } from "lucide-react"
 import Link from "next/link"
+import dynamic from "next/dynamic"
 
-import { NewProjectForm } from "@/components/form/new-project-form"
 import { Navbar } from "@/components/navbar"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -58,6 +58,12 @@ import {
   getDashboardProjects,
   type ProjectResponse,
 } from "@/services/project.service"
+
+const NewProjectForm = dynamic(() =>
+  import("@/components/form/new-project-form").then(
+    (module) => module.NewProjectForm,
+  ),
+)
 
 function formatWordCount(value: number) {
   return new Intl.NumberFormat("es-ES").format(value)
@@ -342,10 +348,12 @@ export default function DashboardPage() {
       </main>
 
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <NewProjectForm
-          onCancel={() => setIsCreateDialogOpen(false)}
-          onSuccess={handleCreateSuccess}
-        />
+        {isCreateDialogOpen ? (
+          <NewProjectForm
+            onCancel={() => setIsCreateDialogOpen(false)}
+            onSuccess={handleCreateSuccess}
+          />
+        ) : null}
       </Dialog>
 
       <Dialog
