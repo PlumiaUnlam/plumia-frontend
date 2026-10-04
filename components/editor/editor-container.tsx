@@ -860,13 +860,13 @@ function EditorWorkspace({
       if (!canSplit) return
 
       const currentIndex = sections.findIndex((section) => section.id === sceneId)
-      const nextIndex =
-        sections.length > 1
-          ? currentIndex < 0
-            ? 0
-            : (currentIndex + 1) % sections.length
-          : currentIndex
-      const nextSection = sections[nextIndex] ?? sections[0]
+      const currentSection = sections[currentIndex]
+      const nextSection =
+        primaryVersionList.versions.length > 0
+          ? currentSection
+          : sections[
+              currentIndex < 0 ? 0 : (currentIndex + 1) % sections.length
+            ]
       if (!nextSection) return
 
       setSecondarySceneId(nextSection.id)
