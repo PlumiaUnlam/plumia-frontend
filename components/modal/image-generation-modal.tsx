@@ -74,32 +74,32 @@ const GENERATION_FORM_CONFIGS: Record<EntityType, GenerationFormConfig> = {
       {
         field: "expression",
         label: "Expresión",
-        placeholder: "Sereno, sonriente, preocupado...",
+        placeholder: "Sereno o sonriente",
       },
       {
         field: "pose",
         label: "Pose",
-        placeholder: "De pie, mirando de perfil...",
+        placeholder: "De pie, de perfil",
       },
       {
         field: "background",
         label: "Fondo",
-        placeholder: "Bosque al atardecer, neutro...",
+        placeholder: "Bosque al atardecer",
       },
       {
         field: "framing",
         label: "Plano / encuadre",
-        placeholder: "Primer plano, cuerpo entero...",
+        placeholder: "Primer plano o cuerpo entero",
       },
       {
         field: "lighting",
         label: "Iluminación",
-        placeholder: "Luz cálida lateral, dramática...",
+        placeholder: "Luz cálida lateral",
       },
       {
         field: "style",
         label: "Estilo visual",
-        placeholder: "Realista, cinematográfico...",
+        placeholder: "Realista, estilo cine",
       },
     ],
     additionalLabel: "Detalles de identidad",
@@ -111,22 +111,22 @@ const GENERATION_FORM_CONFIGS: Record<EntityType, GenerationFormConfig> = {
       {
         field: "background",
         label: "Entorno",
-        placeholder: "Ruinas cubiertas de musgo, plaza amurallada...",
+        placeholder: "Ruinas cubiertas de musgo",
       },
       {
         field: "framing",
         label: "Perspectiva",
-        placeholder: "Vista aérea, desde la entrada, panorámica...",
+        placeholder: "Vista aérea o panorámica",
       },
       {
         field: "lighting",
         label: "Momento y atmósfera",
-        placeholder: "Amanecer con niebla, noche de tormenta...",
+        placeholder: "Amanecer con niebla",
       },
       {
         field: "style",
         label: "Estilo visual",
-        placeholder: "Realista, concept art, arquitectura detallada...",
+        placeholder: "Realista, concept art",
       },
     ],
     additionalLabel: "Detalles del lugar",
@@ -138,22 +138,22 @@ const GENERATION_FORM_CONFIGS: Record<EntityType, GenerationFormConfig> = {
       {
         field: "background",
         label: "Contexto",
-        placeholder: "Sobre una mesa de piedra, en un taller...",
+        placeholder: "Sobre una mesa de piedra",
       },
       {
         field: "framing",
         label: "Vista",
-        placeholder: "Primer plano, vista lateral, objeto completo...",
+        placeholder: "Primer plano o vista lateral",
       },
       {
         field: "lighting",
         label: "Iluminación",
-        placeholder: "Luz de museo, contraluz, reflejos intensos...",
+        placeholder: "Luz de museo o contraluz",
       },
       {
         field: "style",
         label: "Material y acabado",
-        placeholder: "Metal envejecido, madera tallada, brillante...",
+        placeholder: "Metal envejecido, madera tallada",
       },
     ],
     additionalLabel: "Detalles del objeto",
@@ -165,22 +165,22 @@ const GENERATION_FORM_CONFIGS: Record<EntityType, GenerationFormConfig> = {
       {
         field: "background",
         label: "Contexto",
-        placeholder: "Sala de reuniones, fortaleza, calle llena...",
+        placeholder: "Sala de reuniones o fortaleza",
       },
       {
         field: "framing",
         label: "Composición",
-        placeholder: "Emblema central, estandartes, grupo reunido...",
+        placeholder: "Emblema central, estandartes",
       },
       {
         field: "lighting",
         label: "Iluminación",
-        placeholder: "Ceremonial, sombría, luz de antorchas...",
+        placeholder: "Ceremonial, luz de antorchas",
       },
       {
         field: "style",
         label: "Identidad visual",
-        placeholder: "Militar, noble, clandestina, minimalista...",
+        placeholder: "Militar, noble o clandestina",
       },
     ],
     additionalLabel: "Símbolos o elementos clave",
@@ -192,22 +192,22 @@ const GENERATION_FORM_CONFIGS: Record<EntityType, GenerationFormConfig> = {
       {
         field: "background",
         label: "Escenario",
-        placeholder: "Batalla en el valle, salón en ruinas...",
+        placeholder: "Batalla en un valle",
       },
       {
         field: "framing",
         label: "Composición",
-        placeholder: "Momento central, vista amplia, acción en primer plano...",
+        placeholder: "Momento central, vista amplia",
       },
       {
         field: "lighting",
         label: "Atmósfera",
-        placeholder: "Tensión, caos, celebración, humo y contraluces...",
+        placeholder: "Tensión, humo, contraluces",
       },
       {
         field: "style",
         label: "Estilo visual",
-        placeholder: "Épico, documental, cinematográfico...",
+        placeholder: "Épico, documental, cinematográfico",
       },
     ],
     additionalLabel: "Momento a representar",
@@ -219,23 +219,23 @@ const GENERATION_FORM_CONFIGS: Record<EntityType, GenerationFormConfig> = {
       {
         field: "background",
         label: "Contexto",
-        placeholder: "Vacío cósmico, biblioteca, paisaje onírico...",
+        placeholder: "Vacío cósmico o biblioteca",
       },
       {
         field: "framing",
         label: "Forma de representación",
         placeholder:
-          "Símbolo central, escena alegórica, composición abstracta...",
+          "Símbolo central, escena alegórica",
       },
       {
         field: "lighting",
         label: "Atmósfera",
-        placeholder: "Serena, inquietante, luminosa, opresiva...",
+        placeholder: "Serena, inquietante, opresiva",
       },
       {
         field: "style",
         label: "Lenguaje visual",
-        placeholder: "Abstracto, simbólico, surrealista, realista...",
+        placeholder: "Abstracto, simbólico, surrealista",
       },
     ],
     additionalLabel: "Elementos conceptuales",
@@ -597,8 +597,6 @@ function GenerationField({
           value={value ?? ""}
           onChange={(event) => onChange(event.target.value)}
           placeholder={placeholder}
-          title={placeholder}
-          className="placeholder:text-ellipsis"
           maxLength={300}
         />
       </FieldContent>
