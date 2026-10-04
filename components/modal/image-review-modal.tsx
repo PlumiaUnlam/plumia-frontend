@@ -101,15 +101,16 @@ export function ImageReviewModal({
 
           {image && (
             <div className="space-y-5">
-              <div className="overflow-hidden rounded-lg border border-border bg-muted">
+              <div className="relative h-80 overflow-hidden rounded-lg border border-border bg-muted">
                 <EntityImage
                   src={image.imageUrl}
                   alt={image.prompt}
                   width={768}
                   height={768}
-                  className="max-h-80 w-full object-contain"
+                  className="h-full w-full object-contain"
                   category={category}
                   iconClassName="h-12 w-12"
+                  fill
                 />
               </div>
 

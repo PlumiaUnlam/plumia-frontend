@@ -97,34 +97,34 @@ export const VISUAL_IDENTITY_COPY: Record<
   { label: string; help: string; placeholder: string }
 > = {
   CHARACTER: {
-    label: "Rasgos físicos que deben mantenerse",
-    help: "Anotá rasgos visibles y estables. La personalidad, el rol y la trama permanecen en Descripción; la pose, la expresión y el fondo se definen para cada imagen.",
-    placeholder: "Ej.: ojos verdes, cabello negro ondulado y una cicatriz fina sobre la ceja izquierda.",
+    label: "Rasgos físicos que se mantienen",
+    help: "Anotá los rasgos físicos que deben repetirse en sus imágenes.",
+    placeholder: "Ej.: ojos verdes, pelo negro y una cicatriz en la ceja.",
   },
   LOCATION: {
-    label: "Elementos que hacen reconocible el lugar",
-    help: "Describe el terreno, la arquitectura o los detalles que deberían repetirse entre imágenes.",
-    placeholder: "Ej.: acantilado blanco, torre inclinada y puente de madera rojiza.",
+    label: "Detalles que identifican el lugar",
+    help: "Anotá el terreno, la arquitectura o los detalles que deben repetirse.",
+    placeholder: "Ej.: acantilado blanco y torre inclinada.",
   },
   OBJECT: {
-    label: "Forma, material o marcas distintivas",
-    help: "Indica qué rasgos del objeto deben conservarse en sus distintas imágenes.",
-    placeholder: "Ej.: disco de bronce oscuro con tres muescas y una piedra azul en el centro.",
+    label: "Detalles que identifican el objeto",
+    help: "Anotá su forma, material y marcas distintivas.",
+    placeholder: "Ej.: disco de bronce con tres muescas y una piedra azul.",
   },
   ORGANIZATION: {
-    label: "Emblema, colores o símbolos identificatorios",
-    help: "Registra los elementos visuales que identifican a la facción u organización.",
-    placeholder: "Ej.: halcón plateado sobre fondo azul y una franja diagonal blanca.",
+    label: "Símbolos y colores de la organización",
+    help: "Anotá los colores, emblemas o símbolos que la identifican.",
+    placeholder: "Ej.: halcón plateado sobre fondo azul.",
   },
   EVENT: {
-    label: "Momento o elementos que conviene representar",
-    help: "Describe los elementos visuales que identifican este evento; fecha y participantes pueden quedar en los datos de la ficha.",
-    placeholder: "Ej.: el portal abierto y las antorchas apagándose alrededor.",
+    label: "Elementos que representan el evento",
+    help: "Anotá qué momento o detalles deberían verse en sus imágenes.",
+    placeholder: "Ej.: el portal abierto y las antorchas apagadas.",
   },
   CONCEPT: {
-    label: "Símbolo o representación preferida",
-    help: "Anota una representación existente o preferida para este concepto.",
-    placeholder: "Ej.: una llave rota rodeada por un círculo de ceniza.",
+    label: "Símbolo o representación del concepto",
+    help: "Anotá qué imagen o símbolo representa este concepto.",
+    placeholder: "Ej.: una llave rota rodeada de ceniza.",
   },
 };
 

@@ -330,14 +330,13 @@ export function NewEntityModal({
   const renderImagePreview = () => {
     if (previewUrl) {
       return (
-        <div className="relative rounded-lg overflow-hidden border border-border">
+        <div className="relative h-48 rounded-lg overflow-hidden border border-border">
           <Image
             src={previewUrl}
             alt="Preview"
-            width={384}
-            height={192}
+            fill
             unoptimized
-            className="w-full h-48 object-contain bg-muted"
+            className="object-contain bg-muted"
           />
           <button
             type="button"
@@ -352,14 +351,13 @@ export function NewEntityModal({
 
     if (aiGeneratedUrl) {
       return (
-        <div className="relative rounded-lg overflow-hidden border border-border">
+        <div className="relative h-48 rounded-lg overflow-hidden border border-border">
           <Image
             src={aiGeneratedUrl}
             alt="AI Generated"
-            width={384}
-            height={192}
+            fill
             unoptimized
-            className="w-full h-48 object-contain bg-muted"
+            className="object-contain bg-muted"
           />
           <button
             type="button"
@@ -396,15 +394,16 @@ export function NewEntityModal({
       }
 
       return (
-        <div className="relative overflow-hidden rounded-lg border border-border">
+        <div className="relative h-48 overflow-hidden rounded-lg border border-border">
           <EntityImage
             src={savedImageUrl}
             alt={entity.canonicalName}
-            className="h-48 w-full bg-muted object-contain"
+            className="h-full w-full bg-muted object-contain"
             category={TYPE_TO_CATEGORY[entity.type]}
             iconClassName="h-12 w-12"
             width={384}
             height={192}
+            fill
           />
           {primaryImage ? (
             <p className="absolute bottom-2 left-2 rounded-md bg-background/85 px-2 py-1 text-xs text-muted-foreground">
@@ -548,8 +547,8 @@ export function NewEntityModal({
               <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 p-3">
                 <p className="text-xs text-muted-foreground">
                   {visualSuggestion
-                    ? "Hay una sugerencia basada en rasgos visuales de la ficha. Podés cargarla y editarla arriba."
-                    : "No encontramos datos visuales aprovechables. Agregá aquí los rasgos que deban mantenerse."}
+                    ? "Sugerencia basada en los datos visuales de la ficha."
+                    : "Agregá los rasgos visuales que deban mantenerse."}
                 </p>
                 {visualSuggestion && (
                   <Button
@@ -564,7 +563,7 @@ export function NewEntityModal({
               </div>
             )}
             <p className="text-xs text-muted-foreground">
-              Este campo se guarda con la ficha al confirmar los cambios. La descripción permanece separada.
+              Se guarda en la ficha y no reemplaza la descripción.
             </p>
           </FieldSet>
 

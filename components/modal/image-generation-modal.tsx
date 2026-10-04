@@ -47,13 +47,12 @@ type GenerationForm = Pick<
   | "framing"
   | "lighting"
   | "style"
-  | "additionalInstructions"
   | "visualIdentity"
 >;
 
 type GenerationFieldName = Exclude<
   keyof GenerationForm,
-  "additionalInstructions"
+  "visualIdentity"
 >;
 
 type GenerationFieldConfig = {
@@ -64,8 +63,7 @@ type GenerationFieldConfig = {
 
 type GenerationFormConfig = {
   readonly fields: readonly GenerationFieldConfig[];
-  readonly additionalLabel: string;
-  readonly additionalPlaceholder: string;
+  readonly promptPlaceholder: string;
 };
 
 const GENERATION_FORM_CONFIGS: Record<EntityType, GenerationFormConfig> = {
@@ -73,13 +71,13 @@ const GENERATION_FORM_CONFIGS: Record<EntityType, GenerationFormConfig> = {
     fields: [
       {
         field: "expression",
-        label: "Expresión",
+        label: "Expresión del rostro",
         placeholder: "Sereno o sonriente",
       },
       {
         field: "pose",
-        label: "Pose",
-        placeholder: "De pie, de perfil",
+        label: "Pose o movimiento",
+        placeholder: "De pie o caminando",
       },
       {
         field: "background",
@@ -88,7 +86,7 @@ const GENERATION_FORM_CONFIGS: Record<EntityType, GenerationFormConfig> = {
       },
       {
         field: "framing",
-        label: "Plano / encuadre",
+        label: "Tipo de plano",
         placeholder: "Primer plano o cuerpo entero",
       },
       {
@@ -102,21 +100,19 @@ const GENERATION_FORM_CONFIGS: Record<EntityType, GenerationFormConfig> = {
         placeholder: "Realista, estilo cine",
       },
     ],
-    additionalLabel: "Detalles de identidad",
-    additionalPlaceholder:
-      "Por ejemplo: conservar el peinado y la cicatriz del retrato de referencia.",
+    promptPlaceholder: "Ej.: mostrarlo cruzando el bosque bajo la lluvia.",
   },
   LOCATION: {
     fields: [
       {
         field: "background",
         label: "Entorno",
-        placeholder: "Ruinas cubiertas de musgo",
+        placeholder: "Ruinas con musgo",
       },
       {
         field: "framing",
         label: "Perspectiva",
-        placeholder: "Vista aérea o panorámica",
+        placeholder: "Aérea o panorámica",
       },
       {
         field: "lighting",
@@ -126,12 +122,10 @@ const GENERATION_FORM_CONFIGS: Record<EntityType, GenerationFormConfig> = {
       {
         field: "style",
         label: "Estilo visual",
-        placeholder: "Realista, concept art",
+        placeholder: "Realista o concept art",
       },
     ],
-    additionalLabel: "Detalles del lugar",
-    additionalPlaceholder:
-      "Por ejemplo: destacar la torre derrumbada y las marcas antiguas de la entrada.",
+    promptPlaceholder: "Ej.: destacar la torre y las marcas de la entrada.",
   },
   OBJECT: {
     fields: [
@@ -153,12 +147,10 @@ const GENERATION_FORM_CONFIGS: Record<EntityType, GenerationFormConfig> = {
       {
         field: "style",
         label: "Material y acabado",
-        placeholder: "Metal envejecido, madera tallada",
+        placeholder: "Metal envejecido o madera tallada",
       },
     ],
-    additionalLabel: "Detalles del objeto",
-    additionalPlaceholder:
-      "Por ejemplo: mostrar la inscripción, el desgaste y la gema incrustada.",
+    promptPlaceholder: "Ej.: mostrar la inscripción y la gema incrustada.",
   },
   ORGANIZATION: {
     fields: [
@@ -179,13 +171,11 @@ const GENERATION_FORM_CONFIGS: Record<EntityType, GenerationFormConfig> = {
       },
       {
         field: "style",
-        label: "Identidad visual",
-        placeholder: "Militar, noble o clandestina",
+        label: "Estilo visual",
+        placeholder: "Solemne, militar o clandestino",
       },
     ],
-    additionalLabel: "Símbolos o elementos clave",
-    additionalPlaceholder:
-      "Por ejemplo: incluir el estandarte azul con el halcón plateado.",
+    promptPlaceholder: "Ej.: incluir el estandarte azul con el halcón.",
   },
   EVENT: {
     fields: [
@@ -210,9 +200,7 @@ const GENERATION_FORM_CONFIGS: Record<EntityType, GenerationFormConfig> = {
         placeholder: "Épico, documental, cinematográfico",
       },
     ],
-    additionalLabel: "Momento a representar",
-    additionalPlaceholder:
-      "Por ejemplo: mostrar el instante en que se abre el portal frente al ejército.",
+    promptPlaceholder: "Ej.: mostrar el instante en que se abre el portal.",
   },
   CONCEPT: {
     fields: [
@@ -224,8 +212,7 @@ const GENERATION_FORM_CONFIGS: Record<EntityType, GenerationFormConfig> = {
       {
         field: "framing",
         label: "Forma de representación",
-        placeholder:
-          "Símbolo central, escena alegórica",
+        placeholder: "Símbolo central o escena alegórica",
       },
       {
         field: "lighting",
@@ -238,9 +225,7 @@ const GENERATION_FORM_CONFIGS: Record<EntityType, GenerationFormConfig> = {
         placeholder: "Abstracto, simbólico, surrealista",
       },
     ],
-    additionalLabel: "Elementos conceptuales",
-    additionalPlaceholder:
-      "Por ejemplo: representar la memoria como hilos dorados que conectan varias escenas.",
+    promptPlaceholder: "Ej.: representar la memoria como hilos dorados.",
   },
 };
 
@@ -317,16 +302,17 @@ export function ImageGenerationModal({
     event.preventDefault();
     setSubmitting(true);
     setError(null);
+    const { visualIdentity, ...otherInstructions } = form;
     try {
       await onSubmit({
         entityId,
         ...(resolvedReferenceImageId
           ? { referenceImageId: resolvedReferenceImageId }
           : { skipReferenceImage: true }),
-        ...(form.visualIdentity?.trim()
-          ? { visualIdentity: form.visualIdentity.trim() }
+        ...(visualIdentity?.trim()
+          ? { visualIdentity: visualIdentity.trim() }
           : {}),
-        ...form,
+        ...otherInstructions,
       });
       onClose();
     } catch (submitError) {
@@ -356,20 +342,9 @@ export function ImageGenerationModal({
 
         <div className="max-h-[65vh] space-y-5 overflow-y-auto px-6 py-6">
           <DialogDescription>
-            <span className="block">
-              {isVariant
-                ? "La imagen de referencia y la identidad visual de la ficha sirven como base. Definí solo los cambios para esta imagen secundaria."
-                : images.length > 0
-                  ? "La identidad visual de la ficha sirve como base. Podés crear una imagen secundaria sin referencia."
-                  : "La identidad visual de la ficha sirve como base para crear la primera imagen."}
-            </span>
-            <span className="mt-1 block text-xs">
-              Los rasgos estables vienen de la ficha; estos campos solo definen
-              esta imagen y podés dejarlos en blanco.
-              {entityType === "CHARACTER"
-                ? " La personalidad y el rol no se usan como rasgos físicos."
-                : ""}
-            </span>
+            {selectedReference
+              ? "La ficha y la imagen de referencia definen la base visual. Lo que indiques acá solo afecta esta imagen."
+              : "La ficha define la base visual. Lo que indiques acá solo afecta esta imagen."}
           </DialogDescription>
 
           <form
@@ -383,37 +358,19 @@ export function ImageGenerationModal({
               </p>
             )}
 
-            <section className="space-y-3 rounded-lg border border-border bg-muted/30 p-3">
+            <section className="rounded-lg border border-border bg-muted/30 p-3">
               <div>
-                <h3 className="text-sm font-semibold">Identidad visual de la ficha</h3>
+                <h3 className="text-sm font-semibold">Base visual de la ficha</h3>
                 {visualBase ? (
                   <p className="mt-1 whitespace-pre-wrap text-sm text-muted-foreground">
                     {visualBase}
                   </p>
                 ) : (
                   <p className="mt-1 text-sm text-muted-foreground">
-                    La ficha no tiene rasgos visuales para usar como base.
+                    Sin rasgos visuales cargados.
                   </p>
                 )}
               </div>
-              <Field>
-                <FieldLabel htmlFor="image-visual-identity">
-                  Ajuste visual para esta imagen (opcional)
-                </FieldLabel>
-                <FieldContent>
-                  <Textarea
-                    id="image-visual-identity"
-                    value={form.visualIdentity ?? ""}
-                    onChange={(event) => update("visualIdentity", event.target.value)}
-                    placeholder="Agregá aquí un cambio visual puntual; la identidad estable de la ficha se conserva."
-                    rows={3}
-                    maxLength={2000}
-                  />
-                </FieldContent>
-                <p className="text-xs text-muted-foreground">
-                  Se agrega al prompt de esta generación y no modifica la ficha.
-                </p>
-              </Field>
             </section>
 
             <section className="space-y-3 rounded-lg border border-border p-3">
@@ -421,14 +378,14 @@ export function ImageGenerationModal({
                 <h3 className="text-sm font-semibold">Imagen de referencia</h3>
                 <p className="mt-1 text-xs text-muted-foreground">
                   {imagesLoading
-                    ? "Cargando imágenes de la ficha para elegir una referencia…"
+                    ? "Cargando imágenes…"
                     : selectedReference
                     ? selectedReference.isPrimary
                       ? "Se usará la imagen principal."
-                      : "Se usará la imagen que seleccionaste."
+                      : "Se usará la imagen seleccionada."
                     : images.length > 0
-                      ? "Sin imagen de referencia. Se usará solo la información de la ficha."
-                      : "Sin imagen de referencia. Se creará la primera imagen con los datos de la ficha."}
+                      ? "Sin referencia; se usará la ficha como base."
+                      : "Sin referencia; la ficha será la base visual."}
                 </p>
               </div>
               {selectedReference && (
@@ -487,6 +444,45 @@ export function ImageGenerationModal({
               )}
             </section>
 
+            <Field>
+              <FieldLabel htmlFor="image-visual-instructions">
+                ¿Qué querés mostrar en esta imagen? (opcional)
+              </FieldLabel>
+              <FieldContent>
+                <Textarea
+                  id="image-visual-instructions"
+                  value={form.visualIdentity ?? ""}
+                  onChange={(event) =>
+                    update("visualIdentity", event.target.value)
+                  }
+                  placeholder={formConfig.promptPlaceholder}
+                  rows={3}
+                  maxLength={2000}
+                />
+              </FieldContent>
+              <p className="text-xs text-muted-foreground">
+                Podés describir la escena o un cambio puntual.
+              </p>
+            </Field>
+
+            <details className="rounded-lg border border-border p-3">
+              <summary className="cursor-pointer text-sm font-medium">
+                Ajustes por aspecto (opcional)
+              </summary>
+              <div className="mt-3 grid gap-4 md:grid-cols-2">
+                {formConfig.fields.map((field) => (
+                  <GenerationField
+                    key={field.field}
+                    id={`image-${field.field}`}
+                    label={field.label}
+                    placeholder={field.placeholder}
+                    value={form[field.field]}
+                    onChange={(value) => update(field.field, value)}
+                  />
+                ))}
+              </div>
+            </details>
+
             {characterNeedsAppearanceWarning && (
               <div className="space-y-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
                 <p className="flex items-start gap-2 font-medium">
@@ -507,36 +503,6 @@ export function ImageGenerationModal({
               </div>
             )}
 
-            <div className="grid gap-4 md:grid-cols-2">
-              {formConfig.fields.map((field) => (
-                <GenerationField
-                  key={field.field}
-                  id={`image-${field.field}`}
-                  label={field.label}
-                  placeholder={field.placeholder}
-                  value={form[field.field]}
-                  onChange={(value) => update(field.field, value)}
-                />
-              ))}
-            </div>
-
-            <Field>
-              <FieldLabel htmlFor="image-additional-instructions">
-                {formConfig.additionalLabel}
-              </FieldLabel>
-              <FieldContent>
-                <Textarea
-                  id="image-additional-instructions"
-                  value={form.additionalInstructions ?? ""}
-                  onChange={(event) =>
-                    update("additionalInstructions", event.target.value)
-                  }
-                  placeholder={formConfig.additionalPlaceholder}
-                  rows={4}
-                  maxLength={1000}
-                />
-              </FieldContent>
-            </Field>
           </form>
         </div>
 
