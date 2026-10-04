@@ -158,7 +158,7 @@ function getIndentDisabled(
 
 function getSplitButtonTitle(canSplit: boolean, isSplit: boolean) {
   if (canSplit || isSplit) return undefined
-  return "Necesitás al menos dos secciones para dividir la pantalla"
+  return "Necesitás otra sección o una versión guardada para dividir la pantalla"
 }
 
 function getSplitButtonLabel(isSplit: boolean) {

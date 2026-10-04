@@ -8,6 +8,7 @@ import {
   getScene,
   resolveSceneContentImages,
   getSceneVersion,
+  getSceneVersions,
 } from "@/services/scene.service"
 import {
   setLivePrimaryContent,
@@ -17,6 +18,7 @@ import {
 import type {
   SceneDocument,
   SceneVersionDocument,
+  SceneVersionSummary,
 } from "@/types/scene"
 import {
   useAutosave,
@@ -38,6 +40,7 @@ import { EditorMenuBar } from "./editor-menu-bar"
 import { EditorToolbar } from "./toolbar"
 import { RichTextEditor } from "./RichTextEditor"
 import { AnalysisToast } from "./analysis/analysis-toast"
+import { EditorZoomProvider } from "./editor-zoom"
 import type {
   EditorPaneId,
   EditorSectionOption,
@@ -345,17 +348,33 @@ function SceneDocumentLoader({
   )
 }
 
-function SceneSelector({
-  value,
+const DRAFT_VERSION_VALUE = "draft"
+
+function getVersionOptionLabel(version: SceneVersionSummary) {
+  return version.label || "Versión sin título"
+}
+
+function PanelSelectors({
+  sceneId,
+  selectedVersionId,
   sections,
   label,
-  onChange,
+  versions,
+  versionsLoading,
+  versionsError,
+  onSceneChange,
+  onVersionChange,
   disabled,
 }: Readonly<{
-  value: string
+  sceneId: string
+  selectedVersionId: string | null
   sections: EditorSectionOption[]
   label: string
-  onChange: (sceneId: string) => void
+  versions: SceneVersionSummary[]
+  versionsLoading: boolean
+  versionsError: string | null
+  onSceneChange: (sceneId: string) => void
+  onVersionChange: (versionId: string | null) => void
   disabled: boolean
 }>) {
   const groups = useMemo(() => {
@@ -381,44 +400,88 @@ function SceneSelector({
     return [...grouped.values()]
   }, [sections])
 
+  const selectorId = label.replaceAll(" ", "-").toLowerCase()
+
   return (
-    <div className="flex shrink-0 items-center gap-2 border-b border-border bg-background px-3 py-2">
-      <label
-        htmlFor={`editor-section-${label.replaceAll(" ", "-").toLowerCase()}`}
-        className="shrink-0 text-xs font-medium text-muted-foreground"
-      >
+    <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-background px-3 py-2">
+      <span className="shrink-0 text-xs font-semibold text-foreground">
         {label}
-      </label>
-      <Select
-        value={value}
-        disabled={disabled}
-        onValueChange={onChange}
-      >
-        <SelectTrigger
-          id={`editor-section-${label.replaceAll(" ", "-").toLowerCase()}`}
-          aria-label={`Seleccionar ${label.toLowerCase()}`}
-          size="sm"
-          className="min-w-0 flex-1 text-xs"
+      </span>
+      <div className="flex min-w-40 flex-1 items-center gap-2">
+        <label
+          htmlFor={`editor-section-${selectorId}`}
+          className="sr-only"
         >
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent align="start">
-          {groups.map((group) => (
-            <SelectGroup
-              key={`${group.bookTitle}\u0000${group.chapterTitle}`}
-            >
-              <SelectLabel>
-                {group.bookTitle} · {group.chapterTitle}
-              </SelectLabel>
-              {group.sections.map((section) => (
-                <SelectItem key={section.id} value={section.id}>
-                  {section.title}
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          ))}
-        </SelectContent>
-      </Select>
+          Sección de {label.toLowerCase()}
+        </label>
+        <Select
+          value={sceneId}
+          disabled={disabled}
+          onValueChange={onSceneChange}
+        >
+          <SelectTrigger
+            id={`editor-section-${selectorId}`}
+            aria-label={`Seleccionar sección de ${label.toLowerCase()}`}
+            size="sm"
+            className="min-w-0 flex-1 text-xs"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent align="start">
+            {groups.map((group) => (
+              <SelectGroup
+                key={`${group.bookTitle}\u0000${group.chapterTitle}`}
+              >
+                <SelectLabel>
+                  {group.bookTitle} · {group.chapterTitle}
+                </SelectLabel>
+                {group.sections.map((section) => (
+                  <SelectItem key={section.id} value={section.id}>
+                    {section.title}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="flex min-w-40 flex-1 items-center gap-2">
+        <label
+          htmlFor={`editor-version-${selectorId}`}
+          className="shrink-0 text-xs text-muted-foreground"
+        >
+          Versión
+        </label>
+        <Select
+          value={selectedVersionId ?? DRAFT_VERSION_VALUE}
+          disabled={disabled || versionsLoading}
+          onValueChange={(value) =>
+            onVersionChange(value === DRAFT_VERSION_VALUE ? null : value)
+          }
+        >
+          <SelectTrigger
+            id={`editor-version-${selectorId}`}
+            aria-label={`Seleccionar versión de ${label.toLowerCase()}`}
+            size="sm"
+            className="min-w-0 flex-1 text-xs"
+            title={versionsError ?? undefined}
+          >
+            <SelectValue
+              placeholder={versionsLoading ? "Cargando versiones…" : undefined}
+            />
+          </SelectTrigger>
+          <SelectContent align="start">
+            <SelectItem value={DRAFT_VERSION_VALUE}>
+              Borrador principal
+            </SelectItem>
+            {versions.map((version) => (
+              <SelectItem key={version.id} value={version.id}>
+                {getVersionOptionLabel(version)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
     </div>
   )
 }
@@ -483,6 +546,76 @@ function EditorPanel({
   )
 }
 
+type SceneVersionList = {
+  versions: SceneVersionSummary[]
+  loading: boolean
+  error: string | null
+}
+
+const EMPTY_SCENE_VERSION_LIST: SceneVersionList = {
+  versions: [],
+  loading: false,
+  error: null,
+}
+
+function useSceneVersionList(
+  sceneId: string | null,
+  refreshKey: string | number,
+): SceneVersionList {
+  const [state, setState] = useState<SceneVersionList & {
+    sceneId: string | null
+  }>({
+    sceneId: null,
+    versions: [],
+    loading: true,
+    error: null,
+  })
+
+  useEffect(() => {
+    let cancelled = false
+
+    if (!sceneId) {
+      return () => {
+        cancelled = true
+      }
+    }
+
+    void getSceneVersions(sceneId)
+      .then((versions) => {
+        if (!cancelled) {
+          setState({ sceneId, versions, loading: false, error: null })
+        }
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return
+        console.error("Error loading scene versions:", error)
+        setState({
+          sceneId,
+          versions: [],
+          loading: false,
+          error: "No se pudieron cargar las versiones.",
+        })
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [refreshKey, sceneId])
+
+  if (!sceneId) return EMPTY_SCENE_VERSION_LIST
+  if (state.sceneId !== sceneId) {
+    return { versions: [], loading: true, error: null }
+  }
+  return state
+}
+
+function getAlternativeVersionId(
+  selectedVersionId: string | null,
+  versions: SceneVersionSummary[],
+) {
+  return selectedVersionId === null ? (versions[0]?.id ?? null) : null
+}
+
 function EditorWorkspace({
   sceneId,
   selectedVersionId,
@@ -507,8 +640,15 @@ function EditorWorkspace({
   onBeforeExportChange?: (handler: (() => Promise<void>) | null) => void
 }>) {
   const setActiveScene = useEditorStore((s) => s.setActiveScene)
+  const setSelectedSceneVersion = useEditorStore(
+    (s) => s.setSelectedSceneVersion,
+  )
+  const documentReloadToken = useEditorStore((s) => s.documentReloadToken)
   const [isSplit, setIsSplit] = useState(false)
   const [secondarySceneId, setSecondarySceneId] = useState<string | null>(
+    null,
+  )
+  const [secondaryVersionId, setSecondaryVersionId] = useState<string | null>(
     null,
   )
   const [focusedPane, setFocusedPane] = useState<EditorPaneId>("primary")
@@ -521,9 +661,14 @@ function EditorWorkspace({
   const [isSavingBeforeChange, setIsSavingBeforeChange] = useState(false)
   const [saveChangeError, setSaveChangeError] = useState<string | null>(null)
 
-  const canSplit = sections.length > 1
+  const primaryVersionList = useSceneVersionList(
+    sceneId,
+    `${documentReloadToken}:${selectedVersionId ?? DRAFT_VERSION_VALUE}:${isSplit}`,
+  )
+  const canSplit = sections.length > 1 || primaryVersionList.versions.length > 0
   const fallbackSecondarySceneId =
-    sections.find((section) => section.id !== sceneId)?.id ?? null
+    sections.find((section) => section.id !== sceneId)?.id ??
+    (primaryVersionList.versions.length > 0 ? sceneId : null)
   let activeSecondarySceneId: string | null = null
   if (isSplit && canSplit) {
     const secondarySceneIsAvailable =
@@ -538,6 +683,22 @@ function EditorWorkspace({
   const secondarySection = sections.find(
     (section) => section.id === activeSecondarySceneId,
   )
+  const loadedSecondaryVersionList = useSceneVersionList(
+    activeSecondarySceneId === sceneId ? null : activeSecondarySceneId,
+    `${documentReloadToken}:${isSplit}`,
+  )
+  const secondaryVersionList =
+    activeSecondarySceneId === sceneId
+      ? primaryVersionList
+      : loadedSecondaryVersionList
+  const activeSecondaryVersionId =
+    secondaryVersionId === null ||
+    secondaryVersionList.loading ||
+    secondaryVersionList.versions.some(
+      (version) => version.id === secondaryVersionId,
+    )
+      ? secondaryVersionId
+      : null
 
   const registerPrimaryActions = useCallback(
     (actions: EditorToolbarActions | null) => {
@@ -598,6 +759,35 @@ function EditorWorkspace({
     ],
   )
 
+  const handlePrimaryVersionChange = useCallback(
+    async (nextVersionId: string | null) => {
+      if (nextVersionId === selectedVersionId || isSavingBeforeChange) return
+
+      setIsSavingBeforeChange(true)
+      setSaveChangeError(null)
+      try {
+        await saveBeforeChange(primaryActions)
+        setFocusedPane("primary")
+        setSelectedSceneVersion(nextVersionId)
+      } catch (error) {
+        setSaveChangeError(
+          error instanceof Error
+            ? error.message
+            : "No se pudieron guardar los cambios.",
+        )
+      } finally {
+        setIsSavingBeforeChange(false)
+      }
+    },
+    [
+      isSavingBeforeChange,
+      primaryActions,
+      saveBeforeChange,
+      selectedVersionId,
+      setSelectedSceneVersion,
+    ],
+  )
+
   const handleSecondarySceneChange = useCallback(
     async (nextSceneId: string) => {
       if (nextSceneId === activeSecondarySceneId || isSavingBeforeChange) return
@@ -608,6 +798,14 @@ function EditorWorkspace({
         await saveBeforeChange(secondaryActions)
         setFocusedPane("secondary")
         setSecondarySceneId(nextSceneId)
+        setSecondaryVersionId(
+          nextSceneId === sceneId
+            ? getAlternativeVersionId(
+                selectedVersionId,
+                primaryVersionList.versions,
+              )
+            : null,
+        )
       } catch (error) {
         setSaveChangeError(error instanceof Error ? error.message : "No se pudieron guardar los cambios.")
       } finally {
@@ -619,6 +817,39 @@ function EditorWorkspace({
       saveBeforeChange,
       secondaryActions,
       activeSecondarySceneId,
+      sceneId,
+      selectedVersionId,
+      primaryVersionList.versions,
+    ],
+  )
+
+  const handleSecondaryVersionChange = useCallback(
+    async (nextVersionId: string | null) => {
+      if (nextVersionId === activeSecondaryVersionId || isSavingBeforeChange) {
+        return
+      }
+
+      setIsSavingBeforeChange(true)
+      setSaveChangeError(null)
+      try {
+        await saveBeforeChange(secondaryActions)
+        setFocusedPane("secondary")
+        setSecondaryVersionId(nextVersionId)
+      } catch (error) {
+        setSaveChangeError(
+          error instanceof Error
+            ? error.message
+            : "No se pudieron guardar los cambios.",
+        )
+      } finally {
+        setIsSavingBeforeChange(false)
+      }
+    },
+    [
+      isSavingBeforeChange,
+      saveBeforeChange,
+      secondaryActions,
+      activeSecondaryVersionId,
     ],
   )
 
@@ -628,14 +859,25 @@ function EditorWorkspace({
     if (!effectiveIsSplit) {
       if (!canSplit) return
 
-      const currentIndex = sections.findIndex(
-        (section) => section.id === sceneId,
-      )
-      const nextIndex = currentIndex < 0 ? 0 : (currentIndex + 1) % sections.length
-      const nextSection = sections[nextIndex]
+      const currentIndex = sections.findIndex((section) => section.id === sceneId)
+      const currentSection = sections[currentIndex]
+      const nextSection =
+        primaryVersionList.versions.length > 0
+          ? currentSection
+          : sections[
+              currentIndex < 0 ? 0 : (currentIndex + 1) % sections.length
+            ]
       if (!nextSection) return
 
       setSecondarySceneId(nextSection.id)
+      setSecondaryVersionId(
+        nextSection.id === sceneId
+          ? getAlternativeVersionId(
+              selectedVersionId,
+              primaryVersionList.versions,
+            )
+          : null,
+      )
       setFocusedPane("primary")
       setIsSplit(true)
       return
@@ -647,6 +889,7 @@ function EditorWorkspace({
       await saveBeforeChange(secondaryActions)
       setIsSplit(false)
       setSecondarySceneId(null)
+      setSecondaryVersionId(null)
       setSecondaryActions(null)
       setFocusedPane("primary")
     } catch (error) {
@@ -662,6 +905,8 @@ function EditorWorkspace({
     sceneId,
     secondaryActions,
     sections,
+    selectedVersionId,
+    primaryVersionList.versions,
   ])
 
   const focusedActions =
@@ -688,7 +933,10 @@ function EditorWorkspace({
   const selectedPrimarySection = primarySection ?? primarySectionFallback
 
   return (
-    <div className="relative flex h-full min-h-0 flex-col">
+    <div
+      className="relative flex h-full min-h-0 flex-col"
+      data-editor-workspace
+    >
       {saveChangeError && <p role="alert" className="mx-2 my-1 rounded-md border border-destructive/25 bg-destructive/5 px-3 py-2 text-sm text-destructive">{saveChangeError}</p>}
       {effectiveIsSplit && focusedActions && !isZenMode && (
         <EditorMenuBar
@@ -754,13 +1002,20 @@ function EditorWorkspace({
           onFocusCapture={() => setFocusedPane("primary")}
         >
           {effectiveIsSplit && (
-            <SceneSelector
-              value={sceneId}
+            <PanelSelectors
+              sceneId={sceneId}
+              selectedVersionId={selectedVersionId}
               sections={sections}
               label="Pantalla 1"
+              versions={primaryVersionList.versions}
+              versionsLoading={primaryVersionList.loading}
+              versionsError={primaryVersionList.error}
               disabled={isSavingBeforeChange}
-              onChange={(nextSceneId) => {
+              onSceneChange={(nextSceneId) => {
                 void handlePrimarySceneChange(nextSceneId)
+              }}
+              onVersionChange={(nextVersionId) => {
+                void handlePrimaryVersionChange(nextVersionId)
               }}
             />
           )}
@@ -791,20 +1046,27 @@ function EditorWorkspace({
             className="flex min-h-0 min-w-0 flex-col overflow-hidden"
             onFocusCapture={() => setFocusedPane("secondary")}
           >
-            <SceneSelector
-              value={activeSecondarySceneId}
+            <PanelSelectors
+              sceneId={activeSecondarySceneId}
+              selectedVersionId={activeSecondaryVersionId}
               sections={sections}
               label="Pantalla 2"
+              versions={secondaryVersionList.versions}
+              versionsLoading={secondaryVersionList.loading}
+              versionsError={secondaryVersionList.error}
               disabled={isSavingBeforeChange}
-              onChange={(nextSceneId) => {
+              onSceneChange={(nextSceneId) => {
                 void handleSecondarySceneChange(nextSceneId)
+              }}
+              onVersionChange={(nextVersionId) => {
+                void handleSecondaryVersionChange(nextVersionId)
               }}
             />
             <div className="min-h-0 flex-1">
               <EditorPanel
                 sceneId={activeSecondarySceneId}
                 section={secondarySection}
-                selectedVersionId={null}
+                selectedVersionId={activeSecondaryVersionId}
                 projectId={projectId}
                 paneId="secondary"
                 isZenMode={isZenMode}
@@ -848,18 +1110,20 @@ export function EditorContainer({
   const selectedVersionId = useEditorStore((s) => s.selectedSceneVersionId)
 
   return (
-    <EditorWorkspace
-      sceneId={sceneId}
-      selectedVersionId={selectedVersionId}
-      projectId={projectId}
-      sections={sections}
-      isZenMode={isZenMode}
-      onToggleZenMode={onToggleZenMode}
-      onOpenSearch={onOpenSearch}
-      onOpenSpellcheckSettings={onOpenSpellcheckSettings}
-      onExportClick={onExportClick}
-      onBeforeExportChange={onBeforeExportChange}
-    />
+    <EditorZoomProvider>
+      <EditorWorkspace
+        sceneId={sceneId}
+        selectedVersionId={selectedVersionId}
+        projectId={projectId}
+        sections={sections}
+        isZenMode={isZenMode}
+        onToggleZenMode={onToggleZenMode}
+        onOpenSearch={onOpenSearch}
+        onOpenSpellcheckSettings={onOpenSpellcheckSettings}
+        onExportClick={onExportClick}
+        onBeforeExportChange={onBeforeExportChange}
+      />
+    </EditorZoomProvider>
   )
 }
 
