@@ -1,5 +1,4 @@
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 
 import {
   Sidebar,
@@ -9,6 +8,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   Tooltip,
   TooltipContent,
@@ -16,13 +16,10 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
-  Earth,
-  Layers3,
-  TrendingUp,
   Plus,
-  ChevronLeft,
+  PanelLeftClose,
   Undo2,
-  ChevronRight,
+  PanelLeftOpen,
 } from "lucide-react";
 
 import {
@@ -61,6 +58,7 @@ type LeftSidebarProps = {
   books: SidebarBook[];
   projectId: string;
   onRefresh: () => Promise<void>;
+  onBeforeDocumentChange?: () => Promise<void>;
 };
 
 function nextSortKey(items: Array<{ sortKey?: string }>) {
@@ -85,14 +83,29 @@ export function LeftSidebar({
   books,
   projectId,
   onRefresh,
-}: LeftSidebarProps) {
+  onBeforeDocumentChange,
+}: Readonly<LeftSidebarProps>) {
+  const navigationPendingRef = useRef(false);
+  const [navigationError, setNavigationError] = useState<string | null>(null);
+  const changeDocument = async (change: () => void) => {
+    if (navigationPendingRef.current) return;
+    navigationPendingRef.current = true;
+    setNavigationError(null);
+    try {
+      await onBeforeDocumentChange?.();
+      change();
+    } catch (error) {
+      setNavigationError(error instanceof Error ? error.message : "No se pudieron guardar los cambios. Reintentá antes de continuar.");
+    } finally {
+      navigationPendingRef.current = false;
+    }
+  };
   const [modalType, setModalType] = useState<SidebarModalState | null>(null);
   const [editingItem, setEditingItem] = useState<EditableItem | null>(null);
   const [itemToDelete, setItemToDelete] = useState<EditableItem | null>(null);
   const [editName, setEditName] = useState("");
   const [isItemActionSubmitting, setIsItemActionSubmitting] = useState(false);
 
-  const router = useRouter();
   const setActiveScene = useEditorStore((s) => s.setActiveScene)
   const activeSceneId = useEditorStore((s) => s.activeSceneId)
   const selectedSceneVersionId = useEditorStore((s) => s.selectedSceneVersionId)
@@ -301,18 +314,18 @@ export function LeftSidebar({
     <div className="flex h-full min-h-0">
       <Sidebar
         collapsible="icon"
-        className="relative flex h-full min-h-0 flex-col border-r bg-background"
+        className="relative flex h-full min-h-0 flex-col border-r border-border bg-card [&_[data-slot=sidebar-inner]]:bg-card"
       >
-        <SidebarHeader className="h-12 shrink-0 justify-center border-b bg-background p-2">
-          <div className="flex w-full items-center gap-1 group-data-[collapsible=icon]:hidden">
-            <h2 className="min-w-0 flex-1 truncate font-semibold center text-sm justify-center">
+        <SidebarHeader className="h-12 shrink-0 justify-center border-b border-border bg-card p-0">
+          <div className="flex h-full w-full items-center group-data-[collapsible=icon]:hidden">
+            <h2 className="flex min-w-0 flex-1 items-center truncate px-3 text-sm font-semibold">
               {projectTitle}
             </h2>
 
             <Button
-              size="icon-xs"
+              size="icon-sm"
               variant="ghost"
-              className="size-6"
+              className="h-full w-10 rounded-none text-muted-foreground hover:bg-muted/40 hover:text-foreground"
               onClick={() =>
                 setModalType({
                   type: "book",
@@ -320,28 +333,29 @@ export function LeftSidebar({
                   sortKey: nextSortKey(books),
                 })
               }
+              aria-label="Agregar libro"
             >
-              <Plus className="size-3" />
+              <Plus className="size-4" />
             </Button>
 
             <Button
-              size="icon-xs"
+              size="icon-sm"
               variant="ghost"
-              className="size-6"
+              className="h-full w-10 rounded-none border-l border-border text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
               onClick={toggleSidebar}
               aria-label="Cerrar estructura del proyecto"
             >
-              <ChevronLeft className="size-3.5" />
+              <PanelLeftClose className="size-4" />
             </Button>
           </div>
           <Button
-            size="icon-xs"
+            size="icon-sm"
             variant="ghost"
-            className="mx-auto hidden size-6 group-data-[collapsible=icon]:flex"
+            className="mx-auto hidden size-8 rounded-md text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground group-data-[collapsible=icon]:flex"
             onClick={toggleSidebar}
             aria-label="Abrir estructura del proyecto"
           >
-            <ChevronRight className="size-3.5" />
+            <PanelLeftOpen className="size-4" />
           </Button>
         </SidebarHeader>
         <LeftSidebarTree
@@ -361,113 +375,56 @@ export function LeftSidebar({
               order: nextOrder(chapter.scenes),
             })
           }
-          onSelectScene={setActiveScene}
+          onSelectScene={(id) => {
+            if (id !== activeSceneId) void changeDocument(() => setActiveScene(id));
+          }}
           onEditItem={openEditItem}
           onDeleteItem={setItemToDelete}
         />
-        <SidebarFooter className="border-t bg-background p-2">
+        <SidebarFooter className="border-t border-border bg-card p-2 group-data-[collapsible=icon]:border-t-0 group-data-[collapsible=icon]:p-1.5">
           <TooltipProvider>
-            <div className="grid w-full grid-cols-4 gap-0.5 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:gap-1">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  className="h-10 w-full flex-col gap-0.5 px-0 text-muted-foreground hover:text-foreground group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:w-8"
-                  onClick={() =>
-                    router.push(
-                      `/projects/${encodeURIComponent(projectId)}/worldbuilding`,
-                    )
-                  }
-                  aria-label="Worldbuilding"
-                >
-                  <Earth className="size-4" />
-                  <span className="max-w-full truncate text-[7.5px] font-medium leading-none group-data-[collapsible=icon]:hidden">
-                    Worldbuilding
-                  </span>
-                </Button>
-              </TooltipTrigger>
-              {showFooterTooltips ? (
-                <TooltipContent side="right" sideOffset={8}>
-                  Worldbuilding
-                </TooltipContent>
-              ) : null}
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  className="h-10 w-full flex-col gap-0.5 px-0 text-muted-foreground hover:text-foreground group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:w-8"
-                  onClick={() =>
-                    router.push(
-                      `/projects/${encodeURIComponent(projectId)}/storyboard`,
-                    )
-                  }
-                  aria-label="Tablero"
-                >
-                  <Layers3 className="size-4" />
-                  <span className="max-w-full truncate text-[7.5px] font-medium leading-none group-data-[collapsible=icon]:hidden">
-                    Tablero
-                  </span>
-                </Button>
-              </TooltipTrigger>
-              {showFooterTooltips ? (
-                <TooltipContent side="right" sideOffset={8}>
-                  Tablero
-                </TooltipContent>
-              ) : null}
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  className="h-10 w-full flex-col gap-0.5 px-0 text-muted-foreground hover:text-foreground group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:w-8"
-                  aria-label="Estadisticas"
-                >
-                  <TrendingUp className="size-4" />
-                  <span className="max-w-full truncate text-[7.5px] font-medium leading-none group-data-[collapsible=icon]:hidden">
-                    Estadisticas
-                  </span>
-                </Button>
-              </TooltipTrigger>
-              {showFooterTooltips ? (
-                <TooltipContent side="right" sideOffset={8}>
-                  Estadisticas
-                </TooltipContent>
-              ) : null}
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  className={`h-10 w-full flex-col gap-0.5 px-0 hover:text-foreground group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:w-8 ${
-                    historyOpen
-                      ? "bg-sidebar-accent text-foreground"
-                      : "text-muted-foreground"
-                  }`}
-                  onClick={() => setHistoryOpen(true)}
-                  aria-label="Historial"
-                >
-                  <Undo2 className="size-4" />
-                  <span className="max-w-full truncate text-[7.5px] font-medium leading-none group-data-[collapsible=icon]:hidden">
+            <div className="w-full">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    className={`h-9 w-full justify-start gap-2 px-2 hover:text-foreground group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0 ${
+                      historyOpen
+                        ? "bg-sidebar-accent text-foreground"
+                        : "text-muted-foreground"
+                    }`}
+                    onClick={() => setHistoryOpen(true)}
+                    aria-label="Historial"
+                  >
+                    <Undo2 className="size-4" />
+                    <span className="truncate text-xs font-medium group-data-[collapsible=icon]:hidden">
+                      Historial
+                    </span>
+                  </Button>
+                </TooltipTrigger>
+                {showFooterTooltips ? (
+                  <TooltipContent side="right" sideOffset={8}>
                     Historial
-                  </span>
-                </Button>
-              </TooltipTrigger>
-              {showFooterTooltips ? (
-                <TooltipContent side="right" sideOffset={8}>
-                  Historial
-                </TooltipContent>
-              ) : null}
-            </Tooltip>
+                  </TooltipContent>
+                ) : null}
+              </Tooltip>
             </div>
           </TooltipProvider>
         </SidebarFooter>
         <SidebarRail />
       </Sidebar>
+      <Dialog open={navigationError !== null} onOpenChange={(open) => { if (!open) setNavigationError(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>No se pudo guardar</DialogTitle>
+            <DialogDescription>{navigationError}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={() => setNavigationError(null)}>Volver al documento</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <LeftSidebarHistory
         activeSceneId={activeSceneId}
         activeSceneTitle={activeScene?.title}
@@ -498,8 +455,12 @@ export function LeftSidebar({
         }}
         onCreateVersionNameChange={setNewVersionName}
         onCreateVersion={handleCreateVersion}
-        onSelectDraft={() => setSelectedSceneVersion(null)}
-        onSelectVersion={setSelectedSceneVersion}
+        onSelectDraft={() => {
+          if (selectedSceneVersionId !== null) void changeDocument(() => setSelectedSceneVersion(null));
+        }}
+        onSelectVersion={(id) => {
+          if (id !== selectedSceneVersionId) void changeDocument(() => setSelectedSceneVersion(id));
+        }}
         onOpenRestore={setRestoreTarget}
         onRestoreVersion={handleRestoreVersion}
         onOpenRename={(version) => {

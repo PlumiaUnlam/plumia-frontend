@@ -21,7 +21,7 @@ export function StoryboardCardBody({
   entitiesById,
   dragHandle,
   actions,
-}: StoryboardCardBodyProps) {
+}: Readonly<StoryboardCardBodyProps>) {
   const selectedEntities = card.entityIds
     .map((entityId) => entitiesById[entityId])
     .filter((entity): entity is Entity => !!entity)

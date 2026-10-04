@@ -52,6 +52,23 @@ type RelationshipsPanelProps = {
   readonly onDeleteRelationship: (relationship: Relationship) => void;
 };
 
+function getNodeRadius(total: number) {
+  if (total > 5) return 320
+  if (total > 2) return 230
+  return 150
+}
+
+function preserveNodePositions(nodes: Node[], currentNodes: Node[]) {
+  const positionsById = new Map(
+    currentNodes.map((node) => [node.id, node.position]),
+  )
+
+  return nodes.map((node) => ({
+    ...node,
+    position: positionsById.get(node.id) ?? node.position,
+  }))
+}
+
 export function RelationshipsPanel({
   projectId,
   entities,
@@ -131,7 +148,7 @@ export function RelationshipsPanel({
       entities.map((entity, index) => {
         const total = Math.max(entities.length, 1);
         const angle = (index / total) * Math.PI * 2;
-        const radius = total > 5 ? 320 : total > 2 ? 230 : 150;
+        const radius = getNodeRadius(total);
         const isSelected = selectedEntityIds.has(entity.id);
 
         return {
@@ -226,18 +243,8 @@ export function RelationshipsPanel({
 
     queueMicrotask(() => {
       if (!isCurrent) return;
-
       setNodes((currentNodes) =>
-        layoutedNodes.map((node) => {
-          const existingNode = currentNodes.find(
-            (currentNode) => currentNode.id === node.id,
-          );
-
-          return {
-            ...node,
-            position: existingNode?.position ?? node.position,
-          };
-        }),
+        preserveNodePositions(layoutedNodes, currentNodes),
       );
     });
 
@@ -402,7 +409,7 @@ export function RelationshipsPanel({
                     className={`cursor-pointer transition-colors focus-visible:ring-2 focus-visible:ring-primary ${
                       isSelected
                         ? "border-primary bg-primary/10"
-                        : "bg-white hover:bg-muted/50"
+                        : "bg-white hover:bg-muted/50 dark:bg-card"
                     }`}
                   >
                     <ItemMedia variant="icon">

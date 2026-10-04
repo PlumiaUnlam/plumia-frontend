@@ -26,7 +26,7 @@ export const EditorImage = Image.extend({
       ...this.parent?.(),
       storageKey: {
         default: null,
-        parseHTML: (element) => element.getAttribute("data-storage-key"),
+        parseHTML: (element: HTMLElement) => element.dataset.storageKey ?? null,
         renderHTML: (attributes) => {
           if (typeof attributes.storageKey !== "string") {
             return {}
@@ -40,7 +40,7 @@ export const EditorImage = Image.extend({
       width: {
         default: null,
         parseHTML: (element) =>
-          parseWidth(element.getAttribute("data-width")) ??
+          parseWidth(element.dataset.width ?? null) ??
           parseWidth(element.getAttribute("width")) ??
           parseWidth(element.style.width),
         renderHTML: (attributes) => {

@@ -6,7 +6,7 @@ type ProjectEditorPageProps = {
   }>
 }
 
-export default async function ProjectEditorPage({ params }: ProjectEditorPageProps) {
+export default async function ProjectEditorPage({ params }: Readonly<ProjectEditorPageProps>) {
   const { projectId } = await params
 
   return <EditorLayout projectId={projectId} />

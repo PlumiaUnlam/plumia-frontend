@@ -89,7 +89,7 @@ export function LeftSidebarHistory({
   onRenameVersion,
   onOpenDelete,
   onDeleteVersion,
-}: LeftSidebarHistoryProps) {
+}: Readonly<LeftSidebarHistoryProps>) {
   return (
     <>
       <Sheet open={historyOpen} onOpenChange={onHistoryOpenChange}>

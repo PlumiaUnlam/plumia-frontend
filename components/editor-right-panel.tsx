@@ -1,10 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BarChart2, GitBranch, MessageSquare } from "lucide-react";
+import {
+  BarChart2,
+  GitBranch,
+  MessageSquare,
+  PanelRightClose,
+  PanelRightOpen,
+} from "lucide-react";
 import useSWR from "swr";
 
 import { ChatPanel } from "@/components/chat-panel";
+import { StatsSidebarPanel } from "@/components/statistics/stats-sidebar-panel";
 import { WikiPanel } from "@/components/wiki-panel";
 import { getEntities } from "@/services/entities.service";
 import {
@@ -74,6 +81,7 @@ export function EditorRightPanel({
   );
   const refreshTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [activeTab, setActiveTab] = useState<RightTab>("wiki");
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const [acceptingProposalId, setAcceptingProposalId] = useState<string | null>(
     null,
   );
@@ -453,81 +461,138 @@ export function EditorRightPanel({
   };
 
   return (
-    <aside className="flex w-80 min-w-0 shrink-0 flex-col overflow-hidden border-l border-border bg-card xl:w-96">
-      <div className="flex h-12 shrink-0 border-b border-border">
-        {tabs.map(({ id, label, icon: Icon }) => (
+    <aside
+      className={`flex min-w-0 shrink-0 flex-col overflow-hidden border-l border-border bg-card transition-[width] duration-200 ${
+        isCollapsed ? "w-12" : "w-80 xl:w-96"
+      }`}
+    >
+      <div className={isCollapsed ? "hidden" : "flex h-full min-h-0 flex-col"}>
+        <div className="flex h-12 shrink-0 items-center gap-1 border-b border-border bg-card px-1.5">
+          {tabs.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setActiveTab(id)}
+              aria-pressed={activeTab === id}
+              className={`flex h-8 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-md px-2 text-xs font-medium transition-colors ${
+                activeTab === id
+                  ? "bg-primary/10 text-primary shadow-sm"
+                  : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+              }`}
+            >
+              <Icon size={14} />
+              <span className="truncate">{label}</span>
+            </button>
+          ))}
           <button
-            key={id}
             type="button"
-            onClick={() => setActiveTab(id)}
-            className={`flex min-w-0 flex-1 items-center justify-center gap-1.5 border-b-2 px-2 text-[11px] font-medium transition-colors ${
-              activeTab === id
-                ? "border-primary bg-primary/5 text-primary"
-                : "border-transparent text-muted-foreground hover:bg-muted/40 hover:text-foreground"
-            }`}
+            onClick={() => setIsCollapsed(true)}
+            className="ml-0.5 flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+            title="Colapsar panel derecho"
+            aria-label="Colapsar panel derecho"
           >
-            <Icon size={12} />
-            <span className="truncate">{label}</span>
+            <PanelRightClose size={16} />
           </button>
-        ))}
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-hidden bg-card">
+          {activeTab === "wiki" && (
+            <WikiPanel
+              entities={entities ?? []}
+              proposals={proposals ?? []}
+              relationshipProposals={relationshipProposals ?? []}
+              stateProposals={stateProposals ?? []}
+              auditAlerts={auditAlerts ?? []}
+              loading={isLoading}
+              proposalsLoading={isLoadingProposals}
+              entitiesError={error}
+              proposalsError={proposalsError}
+              relationshipProposalsError={relationshipProposalsError}
+              relationshipProposalsLoading={isLoadingRelationshipProposals}
+              stateProposalsError={stateProposalsError}
+              stateProposalsLoading={isLoadingStateProposals}
+              auditAlertsError={auditAlertsError}
+              auditAlertsLoading={isLoadingAuditAlerts}
+              primaryImageUrls={primaryImageUrls}
+              acceptingProposalId={acceptingProposalId}
+              rejectingProposalId={rejectingProposalId}
+              onAcceptProposal={handleAcceptProposal}
+              onRejectProposal={handleRejectProposal}
+              acceptingRelationshipProposalId={acceptingRelationshipProposalId}
+              rejectingRelationshipProposalId={rejectingRelationshipProposalId}
+              onAcceptRelationshipProposal={handleAcceptRelationshipProposal}
+              onRejectRelationshipProposal={handleRejectRelationshipProposal}
+              acceptingStateProposalId={acceptingStateProposalId}
+              rejectingStateProposalId={rejectingStateProposalId}
+              onAcceptStateProposal={handleAcceptStateProposal}
+              onRejectStateProposal={handleRejectStateProposal}
+              creatingStateForEntityId={creatingStateForEntityId}
+              onCreateEntityState={handleCreateEntityState}
+              temporalKnowledgeView={temporalKnowledgeView ?? null}
+              temporalKnowledgeViewError={temporalKnowledgeViewError}
+              temporalKnowledgeViewLoading={isLoadingTemporalKnowledgeView}
+              selectedTemporalSceneId={selectedTemporalSceneId}
+              onSelectTemporalScene={setTemporalSceneId}
+              updatingAuditAlertId={updatingAuditAlertId}
+              onUpdateAuditAlert={handleUpdateAuditAlert}
+              onFocusAuditAlert={handleFocusAuditAlert}
+              onApplyAuditKnowledgeUpdate={handleApplyAuditKnowledgeUpdate}
+              actionError={actionError}
+              entityActionFeedback={entityActionFeedback}
+              showReviewSections={mode === "review"}
+            />
+          )}
+
+          {activeTab === "chat" && (
+            <ChatPanel
+              key={projectId}
+              projectId={projectId}
+              primaryImageUrls={primaryImageUrls}
+            />
+          )}
+
+          {activeTab === "stats" && (
+            <StatsSidebarPanel projectId={projectId} />
+          )}
+        </div>
       </div>
 
-      {activeTab === "wiki" && (
-        <WikiPanel
-          entities={entities ?? []}
-          proposals={proposals ?? []}
-          relationshipProposals={relationshipProposals ?? []}
-          stateProposals={stateProposals ?? []}
-          auditAlerts={auditAlerts ?? []}
-          loading={isLoading}
-          proposalsLoading={isLoadingProposals}
-          entitiesError={error}
-          proposalsError={proposalsError}
-          relationshipProposalsError={relationshipProposalsError}
-          relationshipProposalsLoading={isLoadingRelationshipProposals}
-          stateProposalsError={stateProposalsError}
-          stateProposalsLoading={isLoadingStateProposals}
-          auditAlertsError={auditAlertsError}
-          auditAlertsLoading={isLoadingAuditAlerts}
-          primaryImageUrls={primaryImageUrls}
-          acceptingProposalId={acceptingProposalId}
-          rejectingProposalId={rejectingProposalId}
-          onAcceptProposal={handleAcceptProposal}
-          onRejectProposal={handleRejectProposal}
-          acceptingRelationshipProposalId={acceptingRelationshipProposalId}
-          rejectingRelationshipProposalId={rejectingRelationshipProposalId}
-          onAcceptRelationshipProposal={handleAcceptRelationshipProposal}
-          onRejectRelationshipProposal={handleRejectRelationshipProposal}
-          acceptingStateProposalId={acceptingStateProposalId}
-          rejectingStateProposalId={rejectingStateProposalId}
-          onAcceptStateProposal={handleAcceptStateProposal}
-          onRejectStateProposal={handleRejectStateProposal}
-          creatingStateForEntityId={creatingStateForEntityId}
-          onCreateEntityState={handleCreateEntityState}
-          temporalKnowledgeView={temporalKnowledgeView ?? null}
-          temporalKnowledgeViewError={temporalKnowledgeViewError}
-          temporalKnowledgeViewLoading={isLoadingTemporalKnowledgeView}
-          selectedTemporalSceneId={selectedTemporalSceneId}
-          onSelectTemporalScene={setTemporalSceneId}
-          updatingAuditAlertId={updatingAuditAlertId}
-          onUpdateAuditAlert={handleUpdateAuditAlert}
-          onFocusAuditAlert={handleFocusAuditAlert}
-          onApplyAuditKnowledgeUpdate={handleApplyAuditKnowledgeUpdate}
-          actionError={actionError}
-          entityActionFeedback={entityActionFeedback}
-          showReviewSections={mode === "review"}
-        />
-      )}
+      <div className={isCollapsed ? "flex h-full min-h-0 flex-col items-center" : "hidden"}>
+        <div className="flex h-12 w-full shrink-0 items-center justify-center border-b border-border">
+          <button
+            type="button"
+            onClick={() => setIsCollapsed(false)}
+            className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+            title="Expandir panel derecho"
+            aria-label="Expandir panel derecho"
+          >
+            <PanelRightOpen size={16} />
+          </button>
+      </div>
 
-      {activeTab === "chat" && (
-        <ChatPanel
-          key={projectId}
-          projectId={projectId}
-          primaryImageUrls={primaryImageUrls}
-        />
-      )}
-
-      {activeTab === "stats" && <div className="min-h-0 flex-1" />}
+        <div className="flex min-h-0 flex-1 flex-col items-center gap-1 p-1.5">
+          {tabs.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => {
+                setActiveTab(id);
+                setIsCollapsed(false);
+              }}
+              className={`flex h-8 w-8 items-center justify-center rounded-md transition-colors ${
+                activeTab === id
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:bg-muted/40 hover:text-foreground"
+              }`}
+              title={label}
+              aria-label={`Mostrar ${label}`}
+              aria-pressed={activeTab === id}
+            >
+              <Icon size={15} />
+            </button>
+          ))}
+        </div>
+      </div>
     </aside>
   );
 }

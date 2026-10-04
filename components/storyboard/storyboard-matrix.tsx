@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useRef, useState } from "react"
+import { useId, useMemo, useRef, useState } from "react"
 import {
   BookOpen,
   Grid3x3,
@@ -31,6 +31,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import {
   Table,
   TableBody,
@@ -79,6 +86,8 @@ const SOURCE_LABELS: Record<StoryboardArcSourceType, string> = {
   relationship: "Relación",
 }
 
+const UNASSIGNED_VALUE = "__unassigned__"
+
 const RELATION_LABELS: Record<Relationship["relationType"], string> = {
   ALLY: "Aliado",
   ENEMY: "Enemigo",
@@ -90,13 +99,6 @@ const RELATION_LABELS: Record<Relationship["relationType"], string> = {
   LOCATED_IN: "Ubicado en",
   OWNS: "Posee",
   KNOWS: "Conoce",
-}
-
-function selectClassName(className?: string) {
-  return cn(
-    "h-10 w-full min-w-0 rounded-lg border border-border bg-background px-3.5 py-2 text-sm text-foreground transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30",
-    className,
-  )
 }
 
 function getRelationshipLabel(
@@ -129,10 +131,10 @@ function getArcSubtitle(
 function ArcIcon({
   arc,
   entitiesById,
-}: {
+}: Readonly<{
   arc: StoryboardArc
   entitiesById: Record<string, Entity>
-}) {
+}>) {
   if (arc.sourceType === "entity" && arc.entityId) {
     const entity = entitiesById[arc.entityId]
 
@@ -165,7 +167,7 @@ function ArcDialog({
   submitting,
   onOpenChange,
   onSubmit,
-}: {
+}: Readonly<{
   open: boolean
   entities: Entity[]
   relationships: Relationship[]
@@ -173,7 +175,12 @@ function ArcDialog({
   submitting: boolean
   onOpenChange: (open: boolean) => void
   onSubmit: (input: CreateStoryboardArcInput) => Promise<void>
-}) {
+}>) {
+  const sourceTypeInputId = useId()
+  const nameInputId = useId()
+  const customTypeInputId = useId()
+  const entitySelectId = useId()
+  const relationshipSelectId = useId()
   const [sourceType, setSourceType] =
     useState<StoryboardArcSourceType>("custom")
   const [title, setTitle] = useState("")
@@ -201,24 +208,26 @@ function ArcDialog({
     const selectedRelationship = relationships.find(
       (relationship) => relationship.id === relationshipId,
     )
-    const input: CreateStoryboardArcInput =
-      sourceType === "entity" && selectedEntity
-        ? {
-            title: selectedEntity.canonicalName,
-            sourceType,
-            entityId: selectedEntity.id,
-          }
-        : sourceType === "relationship" && selectedRelationship
-          ? {
-              title: getRelationshipLabel(selectedRelationship, entitiesById),
-              sourceType,
-              relationshipId: selectedRelationship.id,
-            }
-          : {
-              title: title.trim(),
-              sourceType: "custom",
-              customType: customType.trim(),
-            }
+    let input: CreateStoryboardArcInput
+    if (sourceType === "entity" && selectedEntity) {
+      input = {
+        title: selectedEntity.canonicalName,
+        sourceType,
+        entityId: selectedEntity.id,
+      }
+    } else if (sourceType === "relationship" && selectedRelationship) {
+      input = {
+        title: getRelationshipLabel(selectedRelationship, entitiesById),
+        sourceType,
+        relationshipId: selectedRelationship.id,
+      }
+    } else {
+      input = {
+        title: title.trim(),
+        sourceType: "custom",
+        customType: customType.trim(),
+      }
+    }
 
     await onSubmit(input)
     reset()
@@ -242,30 +251,38 @@ function ArcDialog({
 
         <div className="grid gap-4">
           <div className="grid gap-2">
-            <label className="text-sm font-medium">Tipo de arco</label>
-            <select
+            <label htmlFor={sourceTypeInputId} className="text-sm font-medium">Tipo de arco</label>
+            <Select
               value={sourceType}
-              onChange={(event) => setSourceType(event.target.value as StoryboardArcSourceType)}
-              className={selectClassName()}
+              onValueChange={(value) =>
+                setSourceType(value as StoryboardArcSourceType)
+              }
             >
-              {Object.entries(SOURCE_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger id={sourceTypeInputId} className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent align="start">
+                {Object.entries(SOURCE_LABELS).map(([value, label]) => (
+                  <SelectItem key={value} value={value}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {sourceType === "custom" ? (
             <div className="grid gap-2">
-              <label className="text-sm font-medium">Nombre</label>
+              <label htmlFor={nameInputId} className="text-sm font-medium">Nombre</label>
               <Input
+                id={nameInputId}
                 value={title}
                 onChange={(event) => setTitle(event.target.value)}
                 placeholder="Ej: Traición y confianza"
               />
-              <label className="text-sm font-medium">Tipo</label>
+              <label htmlFor={customTypeInputId} className="text-sm font-medium">Tipo</label>
               <Input
+                id={customTypeInputId}
                 value={customType}
                 onChange={(event) => setCustomType(event.target.value)}
                 placeholder="Ej: Arco emocional, Subtrama, Conflicto"
@@ -275,37 +292,53 @@ function ArcDialog({
 
           {sourceType === "entity" ? (
             <div className="grid gap-2">
-              <label className="text-sm font-medium">Entidad</label>
-              <select
-                value={entityId}
-                onChange={(event) => setEntityId(event.target.value)}
-                className={selectClassName()}
+              <label htmlFor={entitySelectId} className="text-sm font-medium">Entidad</label>
+              <Select
+                value={entityId || UNASSIGNED_VALUE}
+                onValueChange={(value) =>
+                  setEntityId(value === UNASSIGNED_VALUE ? "" : value)
+                }
               >
-                <option value="">Selecciona una entidad</option>
-                {entities.map((entity) => (
-                  <option key={entity.id} value={entity.id}>
-                    {entity.canonicalName}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger id={entitySelectId} className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent align="start">
+                  <SelectItem value={UNASSIGNED_VALUE}>
+                    Selecciona una entidad
+                  </SelectItem>
+                  {entities.map((entity) => (
+                    <SelectItem key={entity.id} value={entity.id}>
+                      {entity.canonicalName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           ) : null}
 
           {sourceType === "relationship" ? (
             <div className="grid gap-2">
-              <label className="text-sm font-medium">Relación</label>
-              <select
-                value={relationshipId}
-                onChange={(event) => setRelationshipId(event.target.value)}
-                className={selectClassName()}
+              <label htmlFor={relationshipSelectId} className="text-sm font-medium">Relación</label>
+              <Select
+                value={relationshipId || UNASSIGNED_VALUE}
+                onValueChange={(value) =>
+                  setRelationshipId(value === UNASSIGNED_VALUE ? "" : value)
+                }
               >
-                <option value="">Selecciona una relación</option>
-                {relationships.map((relationship) => (
-                  <option key={relationship.id} value={relationship.id}>
-                    {getRelationshipLabel(relationship, entitiesById)}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger id={relationshipSelectId} className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent align="start">
+                  <SelectItem value={UNASSIGNED_VALUE}>
+                    Selecciona una relación
+                  </SelectItem>
+                  {relationships.map((relationship) => (
+                    <SelectItem key={relationship.id} value={relationship.id}>
+                      {getRelationshipLabel(relationship, entitiesById)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           ) : null}
         </div>
@@ -340,7 +373,7 @@ function NoteDialog({
   submitting,
   onOpenChange,
   onSubmit,
-}: {
+}: Readonly<{
   open: boolean
   arcs: StoryboardArc[]
   chapters: StoryboardChapter[]
@@ -348,7 +381,10 @@ function NoteDialog({
   submitting: boolean
   onOpenChange: (open: boolean) => void
   onSubmit: (arcId: string, chapterId: string, content: string) => Promise<void>
-}) {
+}>) {
+  const arcInputId = useId()
+  const chapterInputId = useId()
+  const noteInputId = useId()
   const portalContainerRef = useRef<HTMLDivElement | null>(null)
   const [arcId, setArcId] = useState("")
   const [chapterId, setChapterId] = useState("")
@@ -391,7 +427,7 @@ function NoteDialog({
         <div className="grid gap-4">
           <div ref={portalContainerRef} />
           <div className="grid gap-2">
-            <label className="text-sm font-medium">Arco narrativo</label>
+            <label htmlFor={arcInputId} className="text-sm font-medium">Arco narrativo</label>
             <Combobox<StoryboardArc>
               items={arcs}
               value={selectedArc}
@@ -403,6 +439,7 @@ function NoteDialog({
               isItemEqualToValue={(arc, value) => arc.id === value.id}
             >
               <ComboboxInput
+                id={arcInputId}
                 placeholder="Buscar arco..."
                 showClear
                 className="h-10 w-full rounded-lg border-border bg-background text-base md:text-sm dark:bg-input/30 [&_[data-slot=input-group-control]]:h-full [&_[data-slot=input-group-control]]:text-base md:[&_[data-slot=input-group-control]]:text-sm"
@@ -434,7 +471,7 @@ function NoteDialog({
           </div>
 
           <div className="grid gap-2">
-            <label className="text-sm font-medium">Capítulo</label>
+            <label htmlFor={chapterInputId} className="text-sm font-medium">Capítulo</label>
             <Combobox<StoryboardChapter>
               items={chapters}
               value={selectedChapter}
@@ -444,6 +481,7 @@ function NoteDialog({
               isItemEqualToValue={(chapter, value) => chapter.id === value.id}
             >
               <ComboboxInput
+                id={chapterInputId}
                 placeholder="Buscar capítulo..."
                 showClear
                 className="h-10 w-full rounded-lg border-border bg-background text-base md:text-sm dark:bg-input/30 [&_[data-slot=input-group-control]]:h-full [&_[data-slot=input-group-control]]:text-base md:[&_[data-slot=input-group-control]]:text-sm"
@@ -468,8 +506,9 @@ function NoteDialog({
           </div>
 
           <div className="grid gap-2">
-            <label className="text-sm font-medium">Nota</label>
+            <label htmlFor={noteInputId} className="text-sm font-medium">Nota</label>
             <Textarea
+              id={noteInputId}
               value={content}
               onChange={(event) => setContent(event.target.value)}
               onKeyDown={(event) => {
@@ -512,7 +551,7 @@ export function StoryboardMatrix({
   entities,
   relationships,
   loadingSources,
-}: StoryboardMatrixProps) {
+}: Readonly<StoryboardMatrixProps>) {
   const [arcDialogOpen, setArcDialogOpen] = useState(false)
   const [noteDialogOpen, setNoteDialogOpen] = useState(false)
   const [arcToDelete, setArcToDelete] = useState<StoryboardArc | null>(null)

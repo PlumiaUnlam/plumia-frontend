@@ -23,6 +23,7 @@ import {
   CalendarDays,
   ChevronDown,
   ChevronUp,
+  Funnel,
   GripVertical,
   ListOrdered,
   Loader2,
@@ -38,7 +39,6 @@ import {
 import { EntitySelector } from "@/components/storyboard/entity-selector"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
 import {
   Dialog,
   DialogContent,
@@ -49,6 +49,13 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { getTimelineDateWarning } from "@/lib/timeline-date-warning"
 import {
@@ -75,14 +82,9 @@ type TimelinePanelProps = {
   entities: Entity[]
   focusEventId?: string | null
   newEventRequest: number
+  onNewEventRequestHandled: () => void
   createdEntity: { id: string; revision: number } | null
   onRequestCreateEntity: (canonicalName: string) => void
-}
-
-type FilterButtonProps = {
-  active: boolean
-  children: ReactNode
-  onClick: () => void
 }
 
 type TimelineEventListItemProps = {
@@ -165,6 +167,8 @@ type PendingMove = {
 }
 
 const generalArcFilter = "__general_events__"
+const allFilterValue = "__all__"
+const noArcValue = "__no_arc__"
 
 const impactLabels: Record<TimelineImpact, string> = {
   HIGH: "Alto",
@@ -173,9 +177,21 @@ const impactLabels: Record<TimelineImpact, string> = {
 }
 
 const impactStyles: Record<TimelineImpact, string> = {
-  HIGH: "border-red-500 bg-red-50/70 dark:bg-red-950/20",
-  MEDIUM: "border-amber-500 bg-amber-50/70 dark:bg-amber-950/20",
-  LOW: "border-primary/45 bg-card",
+  HIGH: "border-violet-600 border-l-[6px] bg-violet-100/80 dark:border-violet-400 dark:bg-violet-950/40",
+  MEDIUM: "border-violet-400 border-l-4 bg-violet-50/80 dark:border-violet-600 dark:bg-violet-950/20",
+  LOW: "border-violet-200 border-l-4 bg-card dark:border-violet-800",
+}
+
+const impactIndicatorStyles: Record<TimelineImpact, string> = {
+  HIGH: "bg-violet-600 text-white dark:bg-violet-400 dark:text-violet-950",
+  MEDIUM: "bg-violet-200 text-violet-800 dark:bg-violet-800 dark:text-violet-100",
+  LOW: "border border-violet-200 bg-background text-violet-500 dark:border-violet-800 dark:text-violet-300",
+}
+
+const impactDotStyles: Record<TimelineImpact, string> = {
+  HIGH: "bg-violet-600 dark:bg-violet-400",
+  MEDIUM: "bg-violet-400 dark:bg-violet-600",
+  LOW: "bg-violet-200 ring-1 ring-violet-300 dark:bg-violet-800 dark:ring-violet-700",
 }
 
 function createEmptyDraft(): TimelineDraft {
@@ -220,12 +236,10 @@ export function TimelinePanel({
   entities,
   focusEventId = null,
   newEventRequest,
+  onNewEventRequestHandled,
   createdEntity,
   onRequestCreateEntity,
 }: Readonly<TimelinePanelProps>) {
-  const [isParticipantFilterOpen, setIsParticipantFilterOpen] =
-    useState(false)
-  const [isArcFilterOpen, setIsArcFilterOpen] = useState(false)
   const [selectedImpacts, setSelectedImpacts] = useState<TimelineImpact[]>([
     "HIGH",
     "MEDIUM",
@@ -376,12 +390,13 @@ export function TimelinePanel({
       setEditingEvent(null)
       setCreationPlacement(null)
       setIsDialogOpen(true)
+      onNewEventRequestHandled()
     })
 
     return () => {
       isCurrent = false
     }
-  }, [newEventRequest])
+  }, [newEventRequest, onNewEventRequestHandled])
 
   const toggleImpact = (impact: TimelineImpact) => {
     setSelectedImpacts((current) =>
@@ -571,81 +586,123 @@ export function TimelinePanel({
   }
 
   return (
-    <div className="flex h-full min-h-0 w-full min-w-0 overflow-hidden bg-muted/30">
-      <aside className="flex h-full w-72 shrink-0 flex-col overflow-y-auto border-r border-border bg-muted/35 p-4 sm:w-80">
-        <p className="mb-6 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          Filtrar por
-        </p>
+    <div className="flex h-full min-h-0 w-full min-w-0 overflow-hidden">
+      <aside className="flex h-full min-h-0 w-80 shrink-0 flex-col overflow-hidden border-r border-border bg-muted/30">
+        <div className="space-y-4 border-b border-border bg-card/50 p-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-1">
+              <Funnel className="size-4 text-muted-foreground" />
+              <p className="text-sm font-semibold text-muted-foreground">
+                FILTROS
+              </p>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-xs text-muted-foreground"
+              onClick={resetFilters}
+            >
+              Restablecer
+            </Button>
+          </div>
 
-        <div className="space-y-3">
-          <button
-            type="button"
-            className="w-full rounded-lg border border-border bg-card px-4 py-3 text-left text-sm font-semibold text-foreground transition-colors hover:border-primary/35 hover:bg-primary/5"
-            onClick={resetFilters}
-          >
-            Todos los eventos
-          </button>
-          <FilterButton
-            active={isParticipantFilterOpen}
-            onClick={() => setIsParticipantFilterOpen((current) => !current)}
-          >
-            Por personaje
-          </FilterButton>
-          {isParticipantFilterOpen && (
-            <select
-              aria-label="Filtrar por personaje"
-              className="h-9 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-              value={selectedEntityId ?? ""}
-              onChange={(event) => setSelectedEntityId(event.target.value || null)}
+          <div className="space-y-2">
+            <Label htmlFor="timeline-character-filter" className="text-xs text-muted-foreground">
+              Personaje
+            </Label>
+            <Select
+              value={selectedEntityId ?? allFilterValue}
+              onValueChange={(value) =>
+                setSelectedEntityId(value === allFilterValue ? null : value)
+              }
             >
-              <option value="">Todos los personajes</option>
-              {participantEntities.map((entity) => (
-                <option key={entity.id} value={entity.id}>
-                  {entity.canonicalName}
-                </option>
-              ))}
-            </select>
-          )}
-          <FilterButton
-            active={isArcFilterOpen}
-            onClick={() => setIsArcFilterOpen((current) => !current)}
-          >
-            Por arco narrativo
-          </FilterButton>
-          {isArcFilterOpen && (
-            <select
-              aria-label="Filtrar por arco narrativo"
-              className="h-9 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-              value={selectedArcId ?? ""}
-              onChange={(event) => setSelectedArcId(event.target.value || null)}
+              <SelectTrigger id="timeline-character-filter" className="w-full bg-background">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent align="start">
+                <SelectItem value={allFilterValue}>Todos los personajes</SelectItem>
+                {participantEntities.map((entity) => (
+                  <SelectItem key={entity.id} value={entity.id}>
+                    {entity.canonicalName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="timeline-arc-filter" className="text-xs text-muted-foreground">
+              Arco narrativo
+            </Label>
+            <Select
+              value={selectedArcId ?? allFilterValue}
+              onValueChange={(value) =>
+                setSelectedArcId(value === allFilterValue ? null : value)
+              }
             >
-              <option value="">Todos los arcos</option>
-              <option value={generalArcFilter}>Hechos generales (sin arco)</option>
-              {(arcs ?? []).map((arc) => (
-                <option key={arc.id} value={arc.id}>
-                  {arc.title}
-                </option>
-              ))}
-            </select>
-          )}
+              <SelectTrigger id="timeline-arc-filter" className="w-full bg-background">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent align="start">
+                <SelectItem value={allFilterValue}>Todos los arcos</SelectItem>
+                <SelectItem value={generalArcFilter}>
+                  Hechos generales (sin arco)
+                </SelectItem>
+                {(arcs ?? []).map((arc) => (
+                  <SelectItem key={arc.id} value={arc.id}>
+                    {arc.title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
-        <div className="mt-7 space-y-3">
-          <p className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-            Impacto
-          </p>
-          {(Object.keys(impactLabels) as TimelineImpact[]).map((impact) => (
-            <label key={impact} className="flex cursor-pointer items-center gap-3 text-sm font-medium text-foreground">
-              <Checkbox checked={selectedImpacts.includes(impact)} onCheckedChange={() => toggleImpact(impact)} />
-              {impactLabels[impact]}
-            </label>
-          ))}
+        <div className="space-y-3 border-b border-border bg-card/50 p-3">
+          <div className="flex items-center gap-1">
+            <Zap className="size-4 text-muted-foreground" />
+            <p className="text-sm font-semibold text-muted-foreground">
+              IMPACTO
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {(Object.keys(impactLabels) as TimelineImpact[]).map((impact) => {
+              const isSelected = selectedImpacts.includes(impact)
+              return (
+                <button
+                  key={impact}
+                  type="button"
+                  aria-pressed={isSelected}
+                  className={`flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors ${isSelected ? "border-primary bg-primary/10 text-primary" : "border-border bg-background text-foreground hover:border-primary/40 hover:bg-muted"}`}
+                  onClick={() => toggleImpact(impact)}
+                >
+                  <span className={`size-2 rounded-full ${impactDotStyles[impact]}`} />
+                  {impactLabels[impact]}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        <div className="min-h-0 flex-1 p-3">
+          <div className="rounded-lg border border-dashed border-border bg-background p-4 text-sm text-muted-foreground">
+            Mostrando {displayedEvents.length} de {events?.length ?? 0} eventos.
+          </div>
         </div>
       </aside>
 
-      <main className="min-w-0 flex-1 overflow-y-scroll [scrollbar-gutter:stable] px-5 py-8 sm:px-10 lg:px-16">
-        <div className="mx-auto max-w-6xl">
-          <div className="mb-5 flex flex-wrap justify-end gap-3">
+      <main className="flex min-w-0 flex-1 flex-col bg-muted/30">
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-4 border-b border-border bg-card/30 px-8 py-4">
+          <div>
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-primary/70">
+              <CalendarDays className="size-3.5" />
+              Cronología
+            </div>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Ordená y conectá los momentos clave de la obra.
+            </p>
+          </div>
+          <div className="flex flex-wrap justify-end gap-2">
             <Button
               variant={isInsertMode ? "default" : "outline"}
               size="sm"
@@ -680,6 +737,10 @@ export function TimelinePanel({
               {isCompact ? "Mostrar detalle" : "Vista global"}
             </Button>
           </div>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-scroll [scrollbar-gutter:stable] px-5 py-8 sm:px-10 lg:px-16">
+          <div className="mx-auto max-w-6xl">
           {actionError && <p className="mb-5 text-sm text-destructive">{actionError}</p>}
           {isReordering && (
             <p className="mb-5 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-primary">
@@ -748,6 +809,7 @@ export function TimelinePanel({
               <p className="text-sm text-muted-foreground">Modificá los filtros o agregá un nuevo evento narrativo.</p>
             </div>
           )}
+          </div>
         </div>
       </main>
 
@@ -823,14 +885,6 @@ export function TimelinePanel({
   )
 }
 
-function FilterButton({ active, children, onClick }: Readonly<FilterButtonProps>) {
-  return (
-    <button type="button" className={`flex w-full items-center justify-between rounded-lg border px-4 py-3 text-left text-sm font-semibold transition-colors ${active ? "border-primary/35 bg-primary/10 text-primary" : "border-border bg-card text-foreground hover:border-primary/35 hover:bg-primary/5"}`} onClick={onClick}>
-      {children}
-    </button>
-  )
-}
-
 function TimelineEventListItem({ compact, entities, event, expanded, isFocused, isInsertMode, isReordering, canMoveUp, canMoveDown, onDelete, onEdit, onInsertAfter, onMoveDown, onMoveUp, onToggleDetail, showInsertControl }: Readonly<TimelineEventListItemProps>) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: event.id,
@@ -900,9 +954,14 @@ function TimelineEventDragPreview({ event }: Readonly<{ event: TimelineEvent }>)
       aria-hidden="true"
       className={`pointer-events-none w-[min(72rem,calc(100vw-8rem))] rounded-2xl border-2 p-6 shadow-2xl ring-2 ring-primary/25 ${impactStyles[event.impact]}`}
     >
-      <p className="mb-2 text-sm font-medium text-primary/75">
-        {event.temporalLabel || event.date || "Sin fecha"}
-      </p>
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <p className="text-sm font-medium text-primary/75">
+          {event.temporalLabel || event.date || "Sin fecha"}
+        </p>
+        <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${impactIndicatorStyles[event.impact]}`}>
+          Impacto {impactLabels[event.impact].toLowerCase()}
+        </span>
+      </div>
       <h2 className="text-xl font-bold tracking-tight sm:text-2xl">
         {event.title}
       </h2>
@@ -921,7 +980,12 @@ function TimelineEventCard({ compact, expanded, entities, event, onToggleDetail,
         <div className="flex min-w-0 gap-2">
           {dragHandle}
           <div>
-            <p className="mb-2 text-sm font-medium text-primary/75">{event.temporalLabel || event.date || "Sin fecha"}</p>
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              <p className="text-sm font-medium text-primary/75">{event.temporalLabel || event.date || "Sin fecha"}</p>
+              <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${impactIndicatorStyles[event.impact]}`}>
+                Impacto {impactLabels[event.impact].toLowerCase()}
+              </span>
+            </div>
             {compact ? (
               <button type="button" className={`${showDetails ? "text-xl sm:text-2xl" : "text-lg"} block text-left font-bold tracking-tight`} onClick={onToggleDetail} aria-expanded={expanded}>{event.title}</button>
             ) : (
@@ -1053,21 +1117,44 @@ function TimelineEventDialog({ arcs, entities, createdEntity, event, open, onReq
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[88vh] gap-0 overflow-y-auto sm:max-w-4xl">
-        <DialogHeader className="border-b px-9 py-7"><DialogTitle className="text-2xl font-semibold">{isEditing ? "Editar Evento" : "Nuevo Evento"}</DialogTitle></DialogHeader>
-        <div className="space-y-6 px-9 py-9">
+      <DialogContent className="min-w-[600px] gap-0 overflow-hidden">
+        <DialogHeader className="border-b p-6 py-4">
+          <DialogTitle>{isEditing ? "Editar evento" : "Nuevo evento"}</DialogTitle>
+        </DialogHeader>
+        <div className="max-h-[65vh] space-y-5 overflow-y-auto px-6 py-6">
+          {error && (
+            <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
+              {error}
+            </div>
+          )}
           <FormField label="Nombre del evento *" htmlFor="timeline-title"><Input id="timeline-title" value={displayedDraft.title} onChange={(inputEvent) => updateDraft({ title: inputEvent.target.value })} placeholder="Ej: Desaparición de Tomás Reyes" /></FormField>
-          <div className="grid gap-6 sm:grid-cols-2">
+          <div className="grid grid-cols-2 gap-3">
             <FormField label="Fecha" htmlFor="timeline-date"><Input id="timeline-date" value={displayedDraft.date} onChange={(inputEvent) => updateDraft({ date: inputEvent.target.value })} placeholder="Ej: 1847-03-15" /></FormField>
             <FormField label="Período" htmlFor="timeline-period"><Input id="timeline-period" value={displayedDraft.temporalLabel} onChange={(inputEvent) => updateDraft({ temporalLabel: inputEvent.target.value })} placeholder="Ej: Unos días después" /></FormField>
           </div>
-          <FormField label="Descripción" htmlFor="timeline-description"><Textarea id="timeline-description" value={displayedDraft.description} onChange={(inputEvent) => updateDraft({ description: inputEvent.target.value })} placeholder="Describe qué ocurre en este evento..." rows={5} /></FormField>
+          <FormField label="Descripción" htmlFor="timeline-description"><Textarea id="timeline-description" value={displayedDraft.description} onChange={(inputEvent) => updateDraft({ description: inputEvent.target.value })} placeholder="Describe qué ocurre en este evento..." rows={4} /></FormField>
           <div className="space-y-2">
             <Label htmlFor="timeline-arc">Arco narrativo</Label>
-            <select id="timeline-arc" className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50" value={displayedDraft.storyboardArcId ?? ""} onChange={(inputEvent) => updateDraft({ storyboardArcId: inputEvent.target.value || null })}>
-              <option value="">Sin arco — hecho general de la obra</option>
-              {arcs.map((arc) => <option key={arc.id} value={arc.id}>{arc.title}</option>)}
-            </select>
+            <Select
+              value={displayedDraft.storyboardArcId ?? noArcValue}
+              onValueChange={(value) =>
+                updateDraft({ storyboardArcId: value === noArcValue ? null : value })
+              }
+            >
+              <SelectTrigger id="timeline-arc" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent align="start">
+                <SelectItem value={noArcValue}>
+                  Sin arco — hecho general de la obra
+                </SelectItem>
+                {arcs.map((arc) => (
+                  <SelectItem key={arc.id} value={arc.id}>
+                    {arc.title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <p className="text-xs text-muted-foreground">Usá esta opción para hechos históricos o eventos que atraviesan toda la obra.</p>
           </div>
           <div className="space-y-3">
@@ -1080,9 +1167,8 @@ function TimelineEventDialog({ arcs, entities, createdEntity, event, open, onReq
             <Label>Entidades involucradas</Label>
             <EntitySelector entities={entities} label="" selectedEntityIds={displayedDraft.entityIds} onChange={(entityIds) => updateDraft({ entityIds })} onCreateEntity={onRequestCreateEntity} />
           </div>
-          {error && <p className="text-sm text-destructive">{error}</p>}
         </div>
-        <DialogFooter className="px-9 py-5"><Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>Cancelar</Button><Button disabled={!displayedDraft.title.trim() || submitting} onClick={() => void handleSave()}>{submitting && <Loader2 className="animate-spin" />}{isEditing ? "Guardar cambios" : "Crear evento"}</Button></DialogFooter>
+        <DialogFooter className="border-t px-6 py-4"><Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>Cancelar</Button><Button disabled={!displayedDraft.title.trim() || submitting} onClick={() => void handleSave()}>{submitting && <Loader2 className="animate-spin" />}{isEditing ? "Guardar cambios" : "Crear evento"}</Button></DialogFooter>
       </DialogContent>
     </Dialog>
   )

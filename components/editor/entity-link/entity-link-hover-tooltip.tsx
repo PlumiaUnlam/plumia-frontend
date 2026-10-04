@@ -28,7 +28,7 @@ const HIDE_DELAY_MS = 150
 export function EntityLinkHoverTooltip({
   editor,
   onGoToEntity,
-}: EntityLinkHoverTooltipProps) {
+}: Readonly<EntityLinkHoverTooltipProps>) {
   const [hovered, setHovered] = useState<HoveredLink | null>(null)
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -59,7 +59,7 @@ export function EntityLinkHoverTooltip({
       clearHideTimer()
       setHovered({
         element: link,
-        entityId: link.getAttribute("data-entity-id"),
+        entityId: link.dataset.entityId ?? null,
         rect: link.getBoundingClientRect(),
       })
     }

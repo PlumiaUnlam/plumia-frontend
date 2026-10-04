@@ -9,11 +9,10 @@ import {
   type Dispatch,
   type SetStateAction,
 } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import {
   Loader2,
-  Plus,
   Star,
   Calendar,
   FileText,
@@ -823,7 +822,7 @@ function WorldbuildingHeader({
       </div>
       {activeTab === "wiki" && (
         <Button onClick={onCreateEntity}>
-          <Plus size={16} />
+          <Star size={16} />
           Nueva Entidad
         </Button>
       )}
@@ -838,7 +837,7 @@ function WorldbuildingHeader({
       )}
       {activeTab === "timeline" && (
         <Button onClick={onCreateTimelineEvent}>
-          <Plus size={16} />
+          <Calendar size={16} />
           Nuevo Evento
         </Button>
       )}
@@ -855,6 +854,7 @@ type WorldbuildingTabsProps = {
   timelineEventId: string | null;
   timelineCreatedEntity: { id: string; revision: number } | null;
   timelineNewEventRequest: number;
+  onTimelineNewEventRequestHandled: () => void;
   entities: Entity[];
   isLoadingEntities: boolean;
   entityError: Error | undefined;
@@ -892,6 +892,7 @@ function WorldbuildingTabs({
   timelineEventId,
   timelineCreatedEntity,
   timelineNewEventRequest,
+  onTimelineNewEventRequestHandled,
   entities,
   isLoadingEntities,
   entityError,
@@ -995,6 +996,7 @@ function WorldbuildingTabs({
           focusEventId={timelineEventId}
           createdEntity={timelineCreatedEntity}
           newEventRequest={timelineNewEventRequest}
+          onNewEventRequestHandled={onTimelineNewEventRequestHandled}
           onRequestCreateEntity={onRequestCreateEntity}
         />
       </TabsContent>
@@ -1413,7 +1415,7 @@ function useWorldbuildingData({
   };
 }
 
-export function Worldbuilding({ projectId }: WorldbuildingProps) {
+export function Worldbuilding({ projectId }: Readonly<WorldbuildingProps>) {
   const { loading, firebaseUser } = useAuth();
   const shouldFetch = canFetchWorldbuildingData(
     projectId,
@@ -1421,6 +1423,7 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
     firebaseUser,
   );
   const searchParams = useSearchParams();
+  const router = useRouter();
   const entityIdParam = searchParams.get("entityId");
   const tabParam = searchParams.get("tab");
   const timelineEventIdParam = searchParams.get("eventId");
@@ -1442,6 +1445,18 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
     null,
   );
   const [timelineNewEventRequest, setTimelineNewEventRequest] = useState(0);
+  const handleTabChange = useCallback(
+    (value: WorldbuildingTab) => {
+      setActiveTab(value);
+      router.replace(
+        `/projects/${encodeURIComponent(projectId)}/worldbuilding?tab=${value}`,
+      );
+    },
+    [projectId, router, setActiveTab],
+  );
+  const handleTimelineNewEventRequestHandled = useCallback(() => {
+    setTimelineNewEventRequest(0);
+  }, []);
   const [timelineEntityInitialName, setTimelineEntityInitialName] = useState<
     string | null
   >(null);
@@ -1612,12 +1627,13 @@ export function Worldbuilding({ projectId }: WorldbuildingProps) {
         <WorldbuildingTabs
           tabs={WORLD_BUILDING_TABS}
           activeTab={activeTab}
-          onTabChange={(value) => setActiveTab(value as WorldbuildingTab)}
+          onTabChange={(value) => handleTabChange(value as WorldbuildingTab)}
           projectId={projectId}
           enabled={shouldFetch}
           timelineEventId={timelineEventIdParam}
           timelineCreatedEntity={timelineCreatedEntity}
           timelineNewEventRequest={timelineNewEventRequest}
+          onTimelineNewEventRequestHandled={handleTimelineNewEventRequestHandled}
           entities={worldbuildingEntities}
           isLoadingEntities={isLoading}
           entityError={error}

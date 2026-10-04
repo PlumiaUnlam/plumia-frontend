@@ -11,7 +11,7 @@ type PresignedDownloadByKeyResponse = {
   url: string
 }
 
-type StorageFolder = "entities" | "scenes" | "storyboard-audio"
+type StorageFolder = "entities" | "scenes" | "storyboard-audio" | "profiles"
 
 const MAX_AUDIO_UPLOAD_BYTES = 10 * 1024 * 1024
 
@@ -92,6 +92,14 @@ export async function uploadEntityImage(
   )
 
   return { publicUrl, storageKey }
+}
+
+export async function uploadProfileImage(
+  userId: string,
+  file: File,
+): Promise<{ publicUrl: string }> {
+  const { publicUrl } = await requestPresignedUpload(userId, file, "profiles")
+  return { publicUrl }
 }
 
 export async function uploadSceneImage(

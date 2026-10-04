@@ -132,7 +132,7 @@ function CompactImageGallery({
   uploadError,
   actionError,
   isBusy,
-}: GalleryViewProps) {
+}: Readonly<Omit<GalleryViewProps, "uploading" | "isGenerating">>) {
   return (
     <div className="mt-3 space-y-3">
       <input

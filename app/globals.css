@@ -51,6 +51,75 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+.shared-reader-prose {
+  color: color-mix(in oklch, var(--foreground) 92%, transparent);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.08rem;
+  line-height: 1.9;
+}
+
+.shared-reader-prose p {
+  margin-block: 0.75em;
+}
+
+.shared-reader-prose h1,
+.shared-reader-prose h2,
+.shared-reader-prose h3 {
+  margin-block: 1.4em 0.6em;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.shared-reader-prose blockquote {
+  margin-block: 1.2em;
+  border-left: 3px solid color-mix(in oklch, var(--primary) 30%, transparent);
+  padding-left: 1rem;
+  color: var(--muted-foreground);
+  font-style: italic;
+}
+
+.shared-comment-highlight {
+  cursor: pointer;
+  border-bottom: 2px solid #d29b16;
+  background: color-mix(in srgb, #facc15 23%, transparent);
+  transition: background-color 120ms ease;
+}
+
+.shared-comment-highlight:hover {
+  background: color-mix(in srgb, #facc15 42%, transparent);
+}
+
+.shared-comment-highlight--resolved {
+  border-bottom-color: #94a3b8;
+  background: color-mix(in srgb, #cbd5e1 25%, transparent);
+}
+
+.shared-comment-highlight--active {
+  border-bottom-color: #a16207;
+  background: color-mix(in srgb, #facc15 52%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, #facc15 18%, transparent);
+}
+
+.dark .shared-comment-highlight {
+  border-bottom-color: #d8b4fe;
+  background: color-mix(in srgb, #7e22ce 38%, transparent);
+}
+
+.dark .shared-comment-highlight:hover {
+  background: color-mix(in srgb, #9333ea 52%, transparent);
+}
+
+.dark .shared-comment-highlight--resolved {
+  border-bottom-color: #64748b;
+  background: color-mix(in srgb, #475569 32%, transparent);
+}
+
+.dark .shared-comment-highlight--active {
+  border-bottom-color: #e9d5ff;
+  background: color-mix(in srgb, #9333ea 62%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, #c084fc 22%, transparent);
+}
+
 :root {
   --background: #f5f1fb;
   --foreground: #1c0f33;
@@ -126,6 +195,14 @@
   * {
     @apply border-border outline-ring/50;
   }
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]) {
+    cursor: pointer;
+  }
+  button:disabled,
+  [role="button"][aria-disabled="true"] {
+    cursor: not-allowed;
+  }
   body {
     @apply bg-background text-foreground;
   }
@@ -145,31 +222,276 @@
 }
 
 .entity-link--character {
-  color: #2563eb;
+  color: #1d4ed8;
   background-color: #2563eb1a;
 }
 
 .entity-link--location {
-  color: #059669;
+  color: #047857;
   background-color: #0596691a;
 }
 
 .entity-link--object {
-  color: #d97706;
+  color: #b45309;
   background-color: #d977061a;
 }
 
 .entity-link--organization {
-  color: #7c3aed;
+  color: #6d28d9;
   background-color: #7c3aed1a;
 }
 
 .entity-link--event {
-  color: #dc2626;
+  color: #b91c1c;
   background-color: #dc26261a;
 }
 
 .entity-link--concept {
-  color: #0891b2;
+  color: #0e7490;
   background-color: #0891b21a;
+}
+
+/* TipTap conserva los saltos de tabulación dentro del párrafo. */
+.ProseMirror p {
+  white-space: pre-wrap;
+}
+
+.ProseMirror .editor-tab-stop {
+  display: inline-block;
+  white-space: pre;
+  vertical-align: baseline;
+}
+
+/* Listas del editor: marcadores visibles y alineación cómoda, como en un procesador de texto. */
+.ProseMirror ul,
+.ProseMirror ol {
+  margin: 0;
+  padding-left: 1.75rem;
+}
+
+.ProseMirror ul {
+  list-style-type: disc;
+}
+
+.ProseMirror ol {
+  list-style-type: decimal;
+}
+
+.ProseMirror li::marker {
+  color: currentColor;
+}
+
+.ProseMirror ul[data-bullet-color] > li::marker {
+  color: var(--bullet-color, currentColor);
+}
+
+.ProseMirror ol[data-list-color] li::marker {
+  color: var(--list-color, currentColor);
+}
+
+.ProseMirror ul[data-bullet-style="disc"] {
+  list-style-type: disc;
+}
+
+.ProseMirror ul[data-bullet-style="circle"] {
+  list-style-type: circle;
+}
+
+.ProseMirror ul[data-bullet-style="square"] {
+  list-style-type: square;
+}
+
+/* Presets de listas multinivel. El preset vive en la lista raíz y sus contadores
+   se mantienen aunque cada nivel sea un nodo orderedList distinto. */
+.ProseMirror ol[data-list-style="numeric-alpha-roman"],
+.ProseMirror ol[data-list-style="numeric-decimal"],
+.ProseMirror ol[data-list-style="alpha-roman"] {
+  list-style-type: none;
+  counter-reset: list-level-1 calc(var(--list-start, 1) - 1);
+}
+
+.ProseMirror ol[data-list-style="numeric-alpha-roman"] > li,
+.ProseMirror ol[data-list-style="numeric-decimal"] > li,
+.ProseMirror ol[data-list-style="alpha-roman"] > li {
+  counter-increment: list-level-1;
+}
+
+.ProseMirror ol[data-list-style="numeric-alpha-roman"] > li::marker,
+.ProseMirror ol[data-list-style="numeric-decimal"] > li::marker,
+.ProseMirror ol[data-list-style="alpha-roman"] > li::marker {
+  content: counter(list-level-1) ". ";
+}
+
+.ProseMirror ol[data-list-style="numeric-alpha-roman"] > li > ol,
+.ProseMirror ol[data-list-style="numeric-decimal"] > li > ol,
+.ProseMirror ol[data-list-style="alpha-roman"] > li > ol {
+  list-style-type: none;
+  counter-reset: list-level-2;
+}
+
+.ProseMirror ol[data-list-style="numeric-alpha-roman"] > li > ol > li,
+.ProseMirror ol[data-list-style="numeric-decimal"] > li > ol > li,
+.ProseMirror ol[data-list-style="alpha-roman"] > li > ol > li {
+  counter-increment: list-level-2;
+}
+
+.ProseMirror ol[data-list-style="numeric-alpha-roman"] > li > ol > li::marker {
+  content: counter(list-level-1) "." counter(list-level-2, lower-alpha) ". ";
+}
+
+.ProseMirror ol[data-list-style="numeric-decimal"] > li > ol > li::marker {
+  content: counter(list-level-1) "." counter(list-level-2) ". ";
+}
+
+.ProseMirror ol[data-list-style="alpha-roman"] > li > ol > li::marker {
+  content: counter(list-level-1, upper-alpha) "." counter(list-level-2, lower-alpha) ". ";
+}
+
+.ProseMirror ol[data-list-style="numeric-alpha-roman"] > li > ol > li > ol,
+.ProseMirror ol[data-list-style="numeric-decimal"] > li > ol > li > ol,
+.ProseMirror ol[data-list-style="alpha-roman"] > li > ol > li > ol {
+  list-style-type: none;
+  counter-reset: list-level-3;
+}
+
+.ProseMirror ol[data-list-style="numeric-alpha-roman"] > li > ol > li > ol > li,
+.ProseMirror ol[data-list-style="numeric-decimal"] > li > ol > li > ol > li,
+.ProseMirror ol[data-list-style="alpha-roman"] > li > ol > li > ol > li {
+  counter-increment: list-level-3;
+}
+
+.ProseMirror ol[data-list-style="numeric-alpha-roman"] > li > ol > li > ol > li::marker {
+  content: counter(list-level-1) "." counter(list-level-2, lower-alpha) "." counter(list-level-3, lower-roman) ". ";
+}
+
+.ProseMirror ol[data-list-style="numeric-decimal"] > li > ol > li > ol > li::marker {
+  content: counter(list-level-1) "." counter(list-level-2) "." counter(list-level-3) ". ";
+}
+
+.ProseMirror ol[data-list-style="alpha-roman"] > li > ol > li > ol > li::marker {
+  content: counter(list-level-1, upper-alpha) "." counter(list-level-2, lower-alpha) "." counter(list-level-3, lower-roman) ". ";
+}
+
+.ProseMirror ul[data-bullet-style="diamond"],
+.ProseMirror ul[data-bullet-style="dash"],
+.ProseMirror ul[data-bullet-style="check"] {
+  list-style-type: none;
+}
+
+.ProseMirror ul[data-bullet-style="diamond"] > li::marker,
+.ProseMirror ul[data-bullet-style="dash"] > li::marker,
+.ProseMirror ul[data-bullet-style="check"] > li::marker {
+  content: "";
+}
+
+.ProseMirror ul[data-bullet-style="diamond"] > li::before,
+.ProseMirror ul[data-bullet-style="dash"] > li::before,
+.ProseMirror ul[data-bullet-style="check"] > li::before {
+  display: inline-block;
+  width: 1.25rem;
+  margin-left: -1.25rem;
+  color: var(--bullet-color, currentColor);
+}
+
+.ProseMirror ul[data-bullet-style="diamond"] > li::before {
+  content: "◆";
+}
+
+.ProseMirror ul[data-bullet-style="dash"] > li::before {
+  content: "–";
+}
+
+.ProseMirror ul[data-bullet-style="check"] > li::before {
+  content: "✓";
+}
+
+/* Al pulsar el marcador se selecciona visualmente el ítem y se abre su menú contextual. */
+.ProseMirror li.list-marker-selected {
+  border-radius: 0.25rem;
+  background: color-mix(in srgb, var(--primary) 8%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 24%, transparent);
+}
+
+.ProseMirror li {
+  margin: 0;
+}
+
+.ProseMirror li > p {
+  margin: 0;
+}
+
+/* Separadores ornamentales insertados como nodos propios del editor. */
+.scene-divider,
+.scene-divider-preview {
+  --scene-divider-color: color-mix(
+    in oklch,
+    var(--primary) 72%,
+    var(--muted-foreground)
+  );
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  color: var(--scene-divider-color);
+}
+
+.scene-divider {
+  width: min(100%, 30rem);
+  min-height: 3.25rem;
+  margin: 1.5rem auto;
+  align-self: center;
+  cursor: default;
+  user-select: none;
+}
+
+.scene-divider-preview {
+  width: 100%;
+  min-height: 1.75rem;
+  pointer-events: none;
+}
+
+.scene-divider__line {
+  display: block;
+  flex: 1 1 0%;
+  width: 100%;
+  min-width: 2.75rem;
+  height: 1px;
+  background: currentColor;
+  opacity: 0.48;
+}
+
+.scene-divider__artwork {
+  display: inline-flex;
+  flex: 0 0 auto;
+  width: 8rem;
+  height: 2rem;
+  align-items: center;
+  justify-content: center;
+  color: var(--scene-divider-color);
+}
+
+.scene-divider__svg {
+  display: block;
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  color: var(--scene-divider-color);
+}
+
+.scene-divider-preview .scene-divider__line {
+  min-width: 0.4rem;
+  height: 1px;
+}
+
+.scene-divider-preview .scene-divider__artwork {
+  width: 5rem;
+  height: 1.3rem;
+}
+
+.scene-divider--selected {
+  border-radius: 0.5rem;
+  outline: 2px solid color-mix(in oklch, var(--primary) 40%, transparent);
+  outline-offset: 0.15rem;
 }

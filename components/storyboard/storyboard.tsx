@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import {
   DndContext,
   DragOverlay,
@@ -144,9 +145,36 @@ function getChangedCards(
   })
 }
 
-export function Storyboard({ projectId }: StoryboardProps) {
+function getStoryboardCountLabel(count: number) {
+  if (count === 1) return "1 tarjeta"
+  return `${count} tarjetas`
+}
+
+function getViewModeVariant(
+  currentMode: StoryboardViewMode,
+  buttonMode: StoryboardViewMode,
+) {
+  return currentMode === buttonMode ? "default" : "ghost"
+}
+
+function canFetchStoryboardData(
+  projectId: string,
+  authLoading: boolean,
+  hasUser: boolean,
+) {
+  return Boolean(projectId && !authLoading && hasUser)
+}
+
+export function Storyboard({ projectId }: Readonly<StoryboardProps>) {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const requestedView = searchParams.get("view")
   const { loading, firebaseUser } = useAuth()
-  const shouldFetch = !!projectId && !loading && !!firebaseUser
+  const shouldFetch = canFetchStoryboardData(
+    projectId,
+    loading,
+    Boolean(firebaseUser),
+  )
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
   )
@@ -154,7 +182,14 @@ export function Storyboard({ projectId }: StoryboardProps) {
   const [dialogState, setDialogState] = useState<CardDialogState>(null)
   const [cardToDelete, setCardToDelete] = useState<StoryboardCard | null>(null)
   const [activeCardId, setActiveCardId] = useState<string | null>(null)
-  const [viewMode, setViewMode] = useState<StoryboardViewMode>("kanban")
+  const viewMode: StoryboardViewMode =
+    requestedView === "matrix" ? "matrix" : "kanban"
+
+  const handleViewModeChange = (nextView: StoryboardViewMode) => {
+    router.replace(
+      `/projects/${encodeURIComponent(projectId)}/storyboard?view=${nextView}`,
+    )
+  }
   const [submitting, setSubmitting] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
 
@@ -217,6 +252,39 @@ export function Storyboard({ projectId }: StoryboardProps) {
       ) ?? []
     )
   }, [project])
+  const cardCount = cards?.length ?? 0
+
+  let kanbanContent
+  if (isLoading) {
+    kanbanContent = (
+      <div className="flex h-full items-center justify-center text-muted-foreground">
+        <Loader2 className="mr-2 size-4 animate-spin" />
+        Cargando tablero
+      </div>
+    )
+  } else if (error) {
+    kanbanContent = (
+      <div className="flex h-full items-center justify-center text-sm text-destructive">
+        No se pudo cargar el storyboard.
+      </div>
+    )
+  } else {
+    kanbanContent = (
+      <div className="flex h-full min-w-[1040px] gap-4">
+        {STORYBOARD_COLUMNS.map((column) => (
+          <StoryboardColumn
+            key={column.id}
+            column={column}
+            cards={cardsByStatus[column.id]}
+            entitiesById={entitiesById}
+            onAddCard={(status) => setDialogState({ card: null, status })}
+            onEditCard={(card) => setDialogState({ card, status: card.status })}
+            onDeleteCard={setCardToDelete}
+          />
+        ))}
+      </div>
+    )
+  }
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveCardId(String(event.active.id))
@@ -321,23 +389,22 @@ export function Storyboard({ projectId }: StoryboardProps) {
           <div className="flex items-center gap-3 text-sm text-muted-foreground">
             {viewMode === "kanban" ? (
               <span>
-                {(cards ?? []).length} tarjeta
-                {(cards ?? []).length === 1 ? "" : "s"}
+                {getStoryboardCountLabel(cardCount)}
               </span>
             ) : null}
             <div className="flex items-center gap-1 rounded-lg bg-muted p-1">
               <Button
                 size="xs"
-                variant={viewMode === "kanban" ? "default" : "ghost"}
-                onClick={() => setViewMode("kanban")}
+                variant={getViewModeVariant(viewMode, "kanban")}
+                onClick={() => handleViewModeChange("kanban")}
               >
                 <Columns3 className="size-3.5" />
                 Kanban
               </Button>
               <Button
                 size="xs"
-                variant={viewMode === "matrix" ? "default" : "ghost"}
-                onClick={() => setViewMode("matrix")}
+                variant={getViewModeVariant(viewMode, "matrix")}
+                onClick={() => handleViewModeChange("matrix")}
               >
                 <Grid3x3 className="size-3.5" />
                 Matriz
@@ -363,34 +430,7 @@ export function Storyboard({ projectId }: StoryboardProps) {
             onDragEnd={handleDragEnd}
           >
             <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden p-4">
-              {isLoading ? (
-                <div className="flex h-full items-center justify-center text-muted-foreground">
-                  <Loader2 className="mr-2 size-4 animate-spin" />
-                  Cargando tablero
-                </div>
-              ) : error ? (
-                <div className="flex h-full items-center justify-center text-sm text-destructive">
-                  No se pudo cargar el storyboard.
-                </div>
-              ) : (
-                <div className="flex h-full min-w-[1040px] gap-4">
-                  {STORYBOARD_COLUMNS.map((column) => (
-                    <StoryboardColumn
-                      key={column.id}
-                      column={column}
-                      cards={cardsByStatus[column.id]}
-                      entitiesById={entitiesById}
-                      onAddCard={(status) =>
-                        setDialogState({ card: null, status })
-                      }
-                      onEditCard={(card) =>
-                        setDialogState({ card, status: card.status })
-                      }
-                      onDeleteCard={setCardToDelete}
-                    />
-                  ))}
-                </div>
-              )}
+              {kanbanContent}
             </div>
             <DragOverlay>
               {activeCard ? (

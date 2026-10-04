@@ -1,13 +1,11 @@
-import { signInWithEmailAndPassword } from "firebase/auth"
 import { auth } from "@/lib/firebase"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000"
-const DEV_USER_EMAIL = "user@example.com"
-const DEV_USER_PASSWORD = "user1234"
 
 async function getToken(): Promise<string> {
+  await auth.authStateReady()
   if (!auth.currentUser) {
-    await signInWithEmailAndPassword(auth, DEV_USER_EMAIL, DEV_USER_PASSWORD)
+    throw new Error("Necesitás iniciar sesión para continuar")
   }
 
   const token = await auth.currentUser?.getIdToken()
@@ -77,6 +75,16 @@ export const api = {
     body: FormData,
     options: Pick<RequestInit, "signal"> = {},
   ) => request<T>(path, { method: "POST", body, ...options }),
+  put: <T>(
+    path: string,
+    body: unknown,
+    options: Pick<RequestInit, "signal"> = {},
+  ) =>
+    request<T>(path, {
+      method: "PUT",
+      body: JSON.stringify(body),
+      ...options,
+    }),
   patch: <T>(
     path: string,
     body: unknown,
