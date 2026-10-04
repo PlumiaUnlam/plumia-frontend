@@ -3,6 +3,24 @@ import type { ProseMirrorJSON } from "@/types/scene"
 import type { SpellcheckLanguage } from "@/types/editor-search"
 import type { EditorPaneId } from "@/components/editor/editor-types"
 
+let livePrimaryContent: ProseMirrorJSON | null = null
+let livePrimaryContentReader: (() => ProseMirrorJSON) | null = null
+
+export function getLivePrimaryContent(): ProseMirrorJSON | null {
+  return livePrimaryContentReader?.() ?? livePrimaryContent
+}
+
+export function setLivePrimaryContent(content: ProseMirrorJSON | null): void {
+  livePrimaryContent = content
+  livePrimaryContentReader = null
+}
+
+export function setLivePrimaryContentReader(
+  reader: (() => ProseMirrorJSON) | null,
+): void {
+  livePrimaryContentReader = reader
+}
+
 export type SaveStatus = "idle" | "dirty" | "saving" | "saved" | "error"
 
 export type EditorCitationFocus = {
@@ -74,35 +92,47 @@ export const useEditorStore = create<EditorState>((set) => ({
   spellcheckLanguage: "es-AR",
 
   setActiveScene: (id) =>
-    set((state) => ({
-      activeSceneId: id,
-      selectedSceneVersionId: null,
-      editorVersionLabel: "Borrador principal",
-      currentContent: null,
-      saveStatus: "idle",
-      error: null,
-      saveStatusByPane: { ...state.saveStatusByPane, primary: "idle" },
-      errorByPane: { ...state.errorByPane, primary: null },
-      citationFocus:
-        state.citationFocus?.sceneId === id ? state.citationFocus : null,
-    })),
+    set((state) => {
+      livePrimaryContent = null
+      livePrimaryContentReader = null
+      return {
+        activeSceneId: id,
+        selectedSceneVersionId: null,
+        editorVersionLabel: "Borrador principal",
+        currentContent: null,
+        saveStatus: "idle",
+        error: null,
+        saveStatusByPane: { ...state.saveStatusByPane, primary: "idle" },
+        errorByPane: { ...state.errorByPane, primary: null },
+        citationFocus:
+          state.citationFocus?.sceneId === id ? state.citationFocus : null,
+      }
+    }),
   setSelectedSceneVersion: (id) =>
-    set((state) => ({
-      selectedSceneVersionId: id,
-      editorVersionLabel: id ? "Cargando versión…" : "Borrador principal",
-      currentContent: null,
-      saveStatus: "idle",
-      error: null,
-      saveStatusByPane: { ...state.saveStatusByPane, primary: "idle" },
-      errorByPane: { ...state.errorByPane, primary: null },
-    })),
+    set((state) => {
+      livePrimaryContent = null
+      livePrimaryContentReader = null
+      return {
+        selectedSceneVersionId: id,
+        editorVersionLabel: id ? "Cargando versión…" : "Borrador principal",
+        currentContent: null,
+        saveStatus: "idle",
+        error: null,
+        saveStatusByPane: { ...state.saveStatusByPane, primary: "idle" },
+        errorByPane: { ...state.errorByPane, primary: null },
+      }
+    }),
   setEditorVersionLabel: (editorVersionLabel) => set({ editorVersionLabel }),
   setCurrentContent: (content) => set({ currentContent: content }),
   refreshEditorDocument: () =>
-    set((state) => ({
-      documentReloadToken: state.documentReloadToken + 1,
-      currentContent: null,
-    })),
+    set((state) => {
+      livePrimaryContent = null
+      livePrimaryContentReader = null
+      return {
+        documentReloadToken: state.documentReloadToken + 1,
+        currentContent: null,
+      }
+    }),
   setSaveStatus: (status) =>
     set((state) => ({
       saveStatus: status,

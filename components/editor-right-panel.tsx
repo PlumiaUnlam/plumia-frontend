@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import {
   BarChart2,
   GitBranch,
@@ -10,9 +11,6 @@ import {
 } from "lucide-react";
 import useSWR from "swr";
 
-import { ChatPanel } from "@/components/chat-panel";
-import { StatsSidebarPanel } from "@/components/statistics/stats-sidebar-panel";
-import { WikiPanel } from "@/components/wiki-panel";
 import { getEntities } from "@/services/entities.service";
 import {
   acceptEntityProposal,
@@ -34,6 +32,18 @@ import type { EntityProposal } from "@/types/entity-proposal";
 import type { UpdateRelationshipInput } from "@/types/relationship";
 import type { AuditAlertResolution } from "@/types/audit-alert";
 import type { WritingMode } from "@/types/writing-mode";
+
+const ChatPanel = dynamic(() =>
+  import("@/components/chat-panel").then((module) => module.ChatPanel),
+);
+const WikiPanel = dynamic(() =>
+  import("@/components/wiki-panel").then((module) => module.WikiPanel),
+);
+const StatsSidebarPanel = dynamic(() =>
+  import("@/components/statistics/stats-sidebar-panel").then(
+    (module) => module.StatsSidebarPanel,
+  ),
+);
 
 type RightTab = "wiki" | "chat" | "stats";
 
@@ -153,6 +163,7 @@ export function EditorRightPanel({
 
     let remainingRefreshes = 12;
     refreshTimerRef.current = setInterval(() => {
+      if (document.visibilityState !== "visible") return;
       refreshKnowledge();
       remainingRefreshes -= 1;
 

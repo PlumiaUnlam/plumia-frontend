@@ -1,18 +1,22 @@
 
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import type { Editor } from "@tiptap/react"
 
 import {
   getScene,
   resolveSceneContentImages,
   getSceneVersion,
 } from "@/services/scene.service"
-import { useEditorStore } from "@/stores/editor.store"
+import {
+  setLivePrimaryContent,
+  setLivePrimaryContentReader,
+  useEditorStore,
+} from "@/stores/editor.store"
 import type {
   SceneDocument,
   SceneVersionDocument,
-  ProseMirrorJSON,
 } from "@/types/scene"
 import {
   useAutosave,
@@ -98,9 +102,10 @@ function SceneEditor({
     (s) => s.saveStatusByPane[paneId],
   )
   const versionLabel = getEditorVersionLabel(document, selectedVersionId)
-  const [content, setContent] = useState<ProseMirrorJSON | null>(
-    document.content,
+  const contentPublishTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
   )
+  const latestEditorRef = useRef<Editor | null>(null)
   const [analysisFeedback, setAnalysisFeedback] = useState<{
     message: string
     tone: "default" | "success"
@@ -115,11 +120,11 @@ function SceneEditor({
     [projectId, selectedVersionId],
   )
 
-  const { saveNow } = useAutosave({
+  const { queueSave, saveNow } = useAutosave({
     sceneId,
     versionId: selectedVersionId,
     paneId,
-    content,
+    initialContent: document.content,
     onSaveComplete: handleSaveComplete,
   })
 
@@ -143,9 +148,22 @@ function SceneEditor({
     })
   }, [saveNow])
 
-  const handleContentChange = useCallback((nextContent: ProseMirrorJSON) => {
-    setContent(nextContent)
-  }, [])
+  const handleContentChange = useCallback((nextEditor: Editor) => {
+    latestEditorRef.current = nextEditor
+    queueSave(() => nextEditor.getJSON())
+
+    if (paneId !== "primary") return
+
+    setLivePrimaryContentReader(() => nextEditor.getJSON())
+    if (contentPublishTimerRef.current) return
+    contentPublishTimerRef.current = setTimeout(() => {
+      contentPublishTimerRef.current = null
+      const nextContent = latestEditorRef.current?.getJSON()
+      if (!nextContent) return
+      setLivePrimaryContent(nextContent)
+      setCurrentContent(nextContent)
+    }, 250)
+  }, [paneId, queueSave, setCurrentContent])
 
   const dismissAnalysisFeedback = useCallback(() => {
     setAnalysisFeedback(null)
@@ -153,9 +171,16 @@ function SceneEditor({
 
   useEffect(() => {
     if (paneId === "primary") {
-      setCurrentContent(content)
+      latestEditorRef.current = null
+      setLivePrimaryContent(document.content)
+      setCurrentContent(document.content)
     }
-  }, [content, paneId, setCurrentContent])
+    return () => {
+      if (contentPublishTimerRef.current) {
+        clearTimeout(contentPublishTimerRef.current)
+      }
+    }
+  }, [document.content, paneId, setCurrentContent])
 
   useEffect(() => {
     if (paneId === "primary") {
@@ -174,7 +199,7 @@ function SceneEditor({
         subtitle={sceneTitle}
         sceneId={sceneId}
         projectId={projectId}
-        content={content}
+        content={document.content}
         onChange={handleContentChange}
         onSave={() => void saveNow()}
         onAnalyzeChanges={

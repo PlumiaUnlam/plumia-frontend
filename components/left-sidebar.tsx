@@ -40,7 +40,10 @@ import {
   renameSceneVersion,
   restoreSceneVersion,
 } from "@/services/scene.service";
-import { useEditorStore } from "@/stores/editor.store";
+import {
+  getLivePrimaryContent,
+  useEditorStore,
+} from "@/stores/editor.store";
 import { LeftSidebarHistory } from "@/components/left-sidebar-history";
 import { LeftSidebarItemModals } from "@/components/left-sidebar-item-modals";
 import { LeftSidebarTree } from "@/components/left-sidebar-tree";
@@ -193,7 +196,7 @@ export function LeftSidebar({
       const version = await createSceneVersion(
         activeSceneId,
         newVersionName.trim() || undefined,
-        currentContent,
+        getLivePrimaryContent() ?? currentContent,
       );
       setVersions((current) => [version, ...current]);
       setSelectedSceneVersion(version.id);

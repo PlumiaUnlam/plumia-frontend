@@ -1,6 +1,6 @@
 
 import { useEffect, useMemo, useState } from "react"
-import { EditorContent, useEditor } from "@tiptap/react"
+import { EditorContent, useEditor, type Editor } from "@tiptap/react"
 import StarterKit from "@tiptap/starter-kit"
 
 import type { ProseMirrorJSON } from "@/types/scene"
@@ -71,7 +71,7 @@ type RichTextEditorProps = {
   sceneId: string
   projectId: string
   content?: ProseMirrorJSON | null
-  onChange?: (json: ProseMirrorJSON) => void
+  onChange?: (editor: Editor) => void
   onSave?: () => void
   onAnalyzeChanges?: () => void
   isAnalysisSaving?: boolean
@@ -195,7 +195,7 @@ export function RichTextEditor({
     },
     onFocus: () => onEditorFocus?.(),
     onUpdate: ({ editor: nextEditor }) => {
-      onChange?.(nextEditor.getJSON())
+      onChange?.(nextEditor)
     },
   })
 
