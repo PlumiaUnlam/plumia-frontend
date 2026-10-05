@@ -256,6 +256,14 @@
   white-space: pre-wrap;
 }
 
+.ProseMirror .spellcheck-misspelled {
+  text-decoration-line: underline;
+  text-decoration-style: wavy;
+  text-decoration-color: #ea4335;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
 .ProseMirror .editor-tab-stop {
   display: inline-block;
   white-space: pre;
