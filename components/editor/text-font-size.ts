@@ -1,5 +1,6 @@
 import { Mark } from "@tiptap/core"
 import type { Editor } from "@tiptap/react"
+import { applySelectedDropCapFontSize, getSelectedDropCapFontSize } from "./drop-cap"
 
 export const TEXT_FONT_SIZES = [
   { value: "8pt", label: "8 pt" },
@@ -25,7 +26,7 @@ function isTextFontSize(value: string): value is TextFontSize {
   return TEXT_FONT_SIZES.some((option) => option.value === value)
 }
 
-function parseFontSize(value: string | null | undefined): TextFontSize | null {
+export function parseTextFontSize(value: string | null | undefined): TextFontSize | null {
   return value && isTextFontSize(value) ? value : null
 }
 
@@ -38,11 +39,11 @@ export const TextFontSizeFormatting = Mark.create({
       fontSize: {
         default: null,
         parseHTML: (element: HTMLElement) =>
-          parseFontSize(
+          parseTextFontSize(
             element.dataset.fontSize || element.style.fontSize,
           ),
         renderHTML: (attributes: { fontSize?: TextFontSize | null }) => {
-          const fontSize = parseFontSize(attributes.fontSize)
+          const fontSize = parseTextFontSize(attributes.fontSize)
           if (!fontSize) return {}
 
           return {
@@ -67,14 +68,19 @@ export const TextFontSizeFormatting = Mark.create({
 })
 
 export function getActiveTextFontSize(editor: Editor): TextFontSize | null {
+  const dropCapFontSize = getSelectedDropCapFontSize(editor)
+  if (dropCapFontSize) return dropCapFontSize.fontSize
+
   const value = editor.getAttributes("textFontSize").fontSize
-  return typeof value === "string" ? parseFontSize(value) : null
+  return typeof value === "string" ? parseTextFontSize(value) : null
 }
 
 export function applyTextFontSize(
   editor: Editor,
   fontSize: TextFontSize | null,
 ) {
+  if (applySelectedDropCapFontSize(editor, fontSize)) return true
+
   const chain = editor.chain().focus()
 
   if (!fontSize) {

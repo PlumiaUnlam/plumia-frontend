@@ -78,6 +78,9 @@ function captureFormat(editor: Editor): FormatSnapshot {
     spacingAfter: sourceBlock.attrs.spacingAfter ?? DEFAULT_PARAGRAPH_ATTRIBUTES.spacingAfter,
     tabStops: [...(sourceBlock.attrs.tabStops ?? DEFAULT_PARAGRAPH_ATTRIBUTES.tabStops)],
     dropCap: sourceBlock.attrs.dropCap ?? DEFAULT_PARAGRAPH_ATTRIBUTES.dropCap,
+    dropCapFontSize: sourceBlock.attrs.dropCapFontSize === undefined
+      ? DEFAULT_PARAGRAPH_ATTRIBUTES.dropCapFontSize
+      : sourceBlock.attrs.dropCapFontSize,
   }
 
   const blockType: PainterBlockType | null =

@@ -1,5 +1,7 @@
 import { Extension } from "@tiptap/core"
 import { normalizeTabStops, paragraphTabStopsPlugin } from "./paragraph-tab-stops"
+import { parseTextFontSize, type TextFontSize } from "./text-font-size"
+import { dropCapClickSelectionPlugin } from "./drop-cap"
 
 export const PARAGRAPH_ALIGNMENTS = [
   "left",
@@ -29,6 +31,7 @@ export type ParagraphAttributes = {
   spacingAfter: number | null
   tabStops: number[]
   dropCap: boolean
+  dropCapFontSize: TextFontSize | null
 }
 
 export const DEFAULT_PARAGRAPH_ATTRIBUTES: ParagraphAttributes = {
@@ -42,6 +45,7 @@ export const DEFAULT_PARAGRAPH_ATTRIBUTES: ParagraphAttributes = {
   spacingAfter: null,
   tabStops: [],
   dropCap: false,
+  dropCapFontSize: "48pt",
 }
 
 function parseAlignment(element: HTMLElement): ParagraphAlignment {
@@ -174,13 +178,29 @@ export const ParagraphFormatting = Extension.create({
             parseHTML: (element: HTMLElement) => element.dataset.dropCap === "true",
             renderHTML: (attributes: Partial<ParagraphAttributes>) => attributes.dropCap ? { "data-drop-cap": "true" } : {},
           },
+          dropCapFontSize: {
+            default: DEFAULT_PARAGRAPH_ATTRIBUTES.dropCapFontSize,
+            parseHTML: (element: HTMLElement) => {
+              if (element.dataset.dropCapFontSize === "normal") return null
+              return parseTextFontSize(element.dataset.dropCapFontSize) ?? "48pt"
+            },
+            renderHTML: (attributes: Partial<ParagraphAttributes>) => {
+              if (!attributes.dropCap) return {}
+
+              const fontSize = attributes.dropCapFontSize ?? null
+              return {
+                "data-drop-cap-font-size": fontSize ?? "normal",
+                style: `--drop-cap-font-size: ${fontSize ?? "11pt"}`,
+              }
+            },
+          },
         },
       },
     ]
   },
 
   addProseMirrorPlugins() {
-    return [paragraphTabStopsPlugin()]
+    return [paragraphTabStopsPlugin(), dropCapClickSelectionPlugin()]
   },
 
   addKeyboardShortcuts() {

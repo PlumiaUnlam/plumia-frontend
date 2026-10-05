@@ -258,7 +258,7 @@
 
 p[data-drop-cap="true"]::first-letter {
   float: left;
-  font-size: 4em;
+  font-size: var(--drop-cap-font-size, 48pt);
   line-height: 1;
   margin-right: 0.08em;
   padding-top: 0.04em;
