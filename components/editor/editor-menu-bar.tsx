@@ -63,6 +63,7 @@ const menuButtonClass =
   "h-8 shrink-0 rounded-md px-2.5 text-sm font-medium text-[#3c4043] hover:bg-[#eee3f5] hover:text-[#70348c] data-[state=open]:bg-[#eee3f5] data-[state=open]:text-[#70348c] focus-visible:ring-2 focus-visible:ring-[#b98ad2] dark:text-foreground dark:hover:bg-muted dark:hover:text-foreground dark:data-[state=open]:bg-muted dark:data-[state=open]:text-foreground dark:focus-visible:ring-ring max-[640px]:px-2"
 const menuContentClass =
   "max-h-[min(80vh,42rem)] w-64 max-w-[calc(100vw-1rem)] overflow-y-auto border-[#dadce0] bg-white text-[#3c4043] shadow-[0_3px_8px_rgba(60,64,67,0.24)] dark:border-border dark:bg-popover dark:text-popover-foreground"
+const editMenuContentClass = menuContentClass.replace("w-64", "w-[17rem]")
 const menuItemClass = "min-h-9 gap-3 text-[#3c4043] focus:bg-[#f1f3f4] focus:text-[#202124] dark:text-foreground dark:focus:bg-accent dark:focus:text-accent-foreground"
 
 type EditorMenuBarProps = {
@@ -177,7 +178,7 @@ export function EditorMenuBar({
     </MenubarItem>
   )
 
-  const menu = (label: string, content: ReactNode) => (
+  const menu = (label: string, content: ReactNode, wider = false) => (
     <MenubarMenu>
       <MenubarTrigger asChild>
         <Button
@@ -192,7 +193,7 @@ export function EditorMenuBar({
       </MenubarTrigger>
       <MenubarContent
         align="start"
-        className={menuContentClass}
+        className={wider ? editMenuContentClass : menuContentClass}
         onCloseAutoFocus={(event) => {
           if (editor?.isFocused) event.preventDefault()
         }}
@@ -261,6 +262,7 @@ export function EditorMenuBar({
             !onOpenSearch,
           )}
         </>,
+        true,
       )}
 
       {menu(
