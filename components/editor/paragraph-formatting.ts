@@ -28,6 +28,7 @@ export type ParagraphAttributes = {
   spacingBefore: number | null
   spacingAfter: number | null
   tabStops: number[]
+  dropCap: boolean
 }
 
 export const DEFAULT_PARAGRAPH_ATTRIBUTES: ParagraphAttributes = {
@@ -40,6 +41,7 @@ export const DEFAULT_PARAGRAPH_ATTRIBUTES: ParagraphAttributes = {
   spacingBefore: null,
   spacingAfter: null,
   tabStops: [],
+  dropCap: false,
 }
 
 function parseAlignment(element: HTMLElement): ParagraphAlignment {
@@ -166,6 +168,11 @@ export const ParagraphFormatting = Extension.create({
             default: [],
             parseHTML: (element: HTMLElement) => normalizeTabStops((element.dataset.tabStops ?? "").split(",").map(Number)),
             renderHTML: (attributes: Partial<ParagraphAttributes>) => ({ "data-tab-stops": normalizeTabStops(attributes.tabStops).join(",") }),
+          },
+          dropCap: {
+            default: DEFAULT_PARAGRAPH_ATTRIBUTES.dropCap,
+            parseHTML: (element: HTMLElement) => element.dataset.dropCap === "true",
+            renderHTML: (attributes: Partial<ParagraphAttributes>) => attributes.dropCap ? { "data-drop-cap": "true" } : {},
           },
         },
       },

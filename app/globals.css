@@ -256,6 +256,14 @@
   white-space: pre-wrap;
 }
 
+p[data-drop-cap="true"]::first-letter {
+  float: left;
+  font-size: 4em;
+  line-height: 1;
+  margin-right: 0.08em;
+  padding-top: 0.04em;
+}
+
 .ProseMirror .spellcheck-misspelled {
   text-decoration-line: underline;
   text-decoration-style: wavy;
