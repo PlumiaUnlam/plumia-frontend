@@ -156,6 +156,29 @@ function getParagraphsAtY(view: EditorView, clientY: number) {
   return paragraphsAtY
 }
 
+function getParagraphAtCoords(
+  view: EditorView,
+  clientX: number,
+  clientY: number,
+): Array<SelectedParagraph & { dom: HTMLElement }> {
+  const position = view.posAtCoords({ left: clientX, top: clientY })?.pos
+  if (position === undefined) return []
+
+  const $position = view.state.doc.resolve(position)
+  for (let depth = $position.depth; depth > 0; depth -= 1) {
+    const node = $position.node(depth)
+    if (node.type.name !== "paragraph") continue
+
+    const paragraphPosition = $position.before(depth)
+    const dom = view.nodeDOM(paragraphPosition)
+    if (dom instanceof HTMLElement && dom.tagName === "P") {
+      return [{ position: paragraphPosition, node, dom }]
+    }
+  }
+
+  return []
+}
+
 function getDropCapAtPoint(
   view: EditorView,
   paragraphs: Array<SelectedParagraph & { dom: HTMLElement }>,
@@ -211,7 +234,14 @@ function selectDropCapOrGutterLine(view: EditorView, event: Event) {
   if (!(event instanceof PointerEvent) || event.button !== 0) return false
 
   const pointer = event
-  const paragraphs = getParagraphsAtY(view, pointer.clientY)
+  const paragraphAtPointer = getParagraphAtCoords(
+    view,
+    pointer.clientX,
+    pointer.clientY,
+  )
+  const paragraphs = paragraphAtPointer.length
+    ? paragraphAtPointer
+    : getParagraphsAtY(view, pointer.clientY)
   const dropCapRange = getDropCapAtPoint(
     view,
     paragraphs,

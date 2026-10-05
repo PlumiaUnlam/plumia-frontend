@@ -193,32 +193,41 @@ export function extractCharacterVisualDescription(
 ): string {
   if (!description?.trim()) return "";
 
+  // Mask conjunctions and clause starters so the bounded word patterns stop
+  // at the same points without repeating a complex lookahead for each token.
+  const visualMatchText = description.replace(
+    /\b(?:y|pero|aunque|es|tiene|conoce)\b/giu,
+    (word) => `!${word.slice(1)}`,
+  );
   const featurePatterns = [
-    /\b(?:ojos?|mirada|cabello|pelo|piel|tono de piel)\b(?:\s+(?:de|color|muy))?(?:\s+(?!y\b|pero\b|aunque\b|es\b|tiene\b|conoce\b)[\p{L}\p{M}\d-]+){1,3}/giu,
-    /\b(?:complexión|estatura|altura|rostro|cara|barba|bigote|pecas)\b(?:\s+(?:de|color|muy))?(?:\s+(?!y\b|pero\b|aunque\b|es\b|tiene\b|conoce\b)[\p{L}\p{M}\d-]+){1,3}/giu,
-    /\b(?:canas|cicatrices?|vestimenta|ropa)\b(?:\s+(?:de|color|muy))?(?:\s+(?!y\b|pero\b|aunque\b|es\b|tiene\b|conoce\b)[\p{L}\p{M}\d-]+){1,3}/giu,
+    /\b(?:ojos?|mirada|cabello|pelo|piel|tono de piel)\b(?:\s+(?:de|color|muy))?(?:\s+[\p{L}\p{M}\d-]+){1,3}/giu,
+    /\b(?:complexión|estatura|altura|rostro|cara|barba|bigote|pecas)\b(?:\s+(?:de|color|muy))?(?:\s+[\p{L}\p{M}\d-]+){1,3}/giu,
+    /\b(?:canas|cicatrices?|vestimenta|ropa)\b(?:\s+(?:de|color|muy))?(?:\s+[\p{L}\p{M}\d-]+){1,3}/giu,
   ];
   const clothingPatterns = [
-    /\bviste\s+(?:un[oa]s?\s+)?[\p{L}\p{M}\d-]+(?:\s+(?!y\b|pero\b|aunque\b|es\b|tiene\b|conoce\b)[\p{L}\p{M}\d-]+){0,3}/giu,
-    /\blleva\s+(?:un[oa]s?\s+)?[\p{L}\p{M}\d-]+(?:\s+(?!y\b|pero\b|aunque\b|es\b|tiene\b|conoce\b)[\p{L}\p{M}\d-]+){0,3}/giu,
+    /\bviste\s+(?:un[oa]s?\s+)?[\p{L}\p{M}\d-]+(?:\s+[\p{L}\p{M}\d-]+){0,3}/giu,
+    /\blleva\s+(?:un[oa]s?\s+)?[\p{L}\p{M}\d-]+(?:\s+[\p{L}\p{M}\d-]+){0,3}/giu,
   ];
   const physicalPatterns = [
     /\b(?:es|mide)\s+(?:alto|alta|bajo|baja|delgado|delgada|robusto|robusta|musculoso|musculosa)\b/giu,
     /\b(?:es|mide)\s+\d+(?:[,.]\d+)?\s*(?:cm|m)\b/giu,
   ];
-  const collectInTextOrder = (patterns: readonly RegExp[]) =>
+  const collectInTextOrder = (
+    patterns: readonly RegExp[],
+    source = description,
+  ) =>
     patterns
       .flatMap((pattern) =>
-        [...description.matchAll(pattern)].map((match) => ({
-          value: match[0].trim(),
+        [...source.matchAll(pattern)].map((match) => ({
+          value: description.slice(match.index, match.index + match[0].length).trim(),
           index: match.index ?? 0,
         })),
       )
       .sort((left, right) => left.index - right.index)
       .map(({ value }) => value);
   const matches = [
-    ...collectInTextOrder(featurePatterns),
-    ...collectInTextOrder(clothingPatterns),
+    ...collectInTextOrder(featurePatterns, visualMatchText),
+    ...collectInTextOrder(clothingPatterns, visualMatchText),
     ...collectInTextOrder(physicalPatterns),
   ];
   return [...new Set(matches)].join(", ");

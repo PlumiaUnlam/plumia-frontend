@@ -188,6 +188,32 @@ export function SpellcheckSuggestions({ editor, language }: Readonly<{ editor: E
       )
       pendingBlockPositions.clear()
       mappedBlockPositions.forEach((position) => pendingBlockPositions.add(position))
+
+      const document = transaction.doc
+      const enqueueChangedRange = (from: number, to: number) => {
+        // Include one position on either side so textblocks touching either edge
+        // are revisited, including when a step maps a replaced range to a point.
+        const start = Math.max(0, Math.min(from, to) - 1)
+        const end = Math.min(document.content.size, Math.max(from, to) + 1)
+        document.nodesBetween(start, end, (node, position) => {
+          if (!node.isTextblock) return true
+          pendingBlockPositions.add(position)
+          return false
+        })
+      }
+
+      const mapping = transaction.mapping
+      for (let mapIndex = mapping.from; mapIndex < mapping.to; mapIndex += 1) {
+        const stepMap = mapping.maps[mapIndex]
+        const remainingMapping = mapping.slice(mapIndex + 1, mapping.to)
+        stepMap.forEach((_oldStart, _oldEnd, newStart, newEnd) => {
+          enqueueChangedRange(
+            remainingMapping.map(newStart, -1),
+            remainingMapping.map(newEnd, 1),
+          )
+        })
+      }
+
       const selection = editor.state.selection.$from
       if (selection.parent.isTextblock) {
         pendingBlockPositions.add(selection.before(selection.depth))
