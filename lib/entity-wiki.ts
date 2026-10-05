@@ -193,14 +193,34 @@ export function extractCharacterVisualDescription(
 ): string {
   if (!description?.trim()) return "";
 
-  const patterns = [
-    /\b(?:ojos?|mirada|cabello|pelo|piel|tono de piel|complexión|estatura|altura|rostro|cara|barba|bigote|pecas|canas|cicatrices?|vestimenta|ropa)\b(?:\s+(?:de|color|muy))?(?:\s+(?!y\b|pero\b|aunque\b|es\b|tiene\b|conoce\b)[\p{L}\p{M}\d-]+){1,3}/giu,
-    /\b(?:viste|lleva)\s+(?:un[oa]s?\s+)?[\p{L}\p{M}\d-]+(?:\s+(?!y\b|pero\b|aunque\b|es\b|tiene\b|conoce\b)[\p{L}\p{M}\d-]+){0,3}/giu,
-    /\b(?:es|mide)\s+(?:alto|alta|bajo|baja|delgado|delgada|robusto|robusta|musculoso|musculosa|\d+(?:[,.]\d+)?\s*(?:cm|m))\b/giu,
+  const featurePatterns = [
+    /\b(?:ojos?|mirada|cabello|pelo|piel|tono de piel)\b(?:\s+(?:de|color|muy))?(?:\s+(?!y\b|pero\b|aunque\b|es\b|tiene\b|conoce\b)[\p{L}\p{M}\d-]+){1,3}/giu,
+    /\b(?:complexión|estatura|altura|rostro|cara|barba|bigote|pecas)\b(?:\s+(?:de|color|muy))?(?:\s+(?!y\b|pero\b|aunque\b|es\b|tiene\b|conoce\b)[\p{L}\p{M}\d-]+){1,3}/giu,
+    /\b(?:canas|cicatrices?|vestimenta|ropa)\b(?:\s+(?:de|color|muy))?(?:\s+(?!y\b|pero\b|aunque\b|es\b|tiene\b|conoce\b)[\p{L}\p{M}\d-]+){1,3}/giu,
   ];
-  const matches = patterns.flatMap((pattern) =>
-    [...description.matchAll(pattern)].map((match) => match[0].trim()),
-  );
+  const clothingPatterns = [
+    /\bviste\s+(?:un[oa]s?\s+)?[\p{L}\p{M}\d-]+(?:\s+(?!y\b|pero\b|aunque\b|es\b|tiene\b|conoce\b)[\p{L}\p{M}\d-]+){0,3}/giu,
+    /\blleva\s+(?:un[oa]s?\s+)?[\p{L}\p{M}\d-]+(?:\s+(?!y\b|pero\b|aunque\b|es\b|tiene\b|conoce\b)[\p{L}\p{M}\d-]+){0,3}/giu,
+  ];
+  const physicalPatterns = [
+    /\b(?:es|mide)\s+(?:alto|alta|bajo|baja|delgado|delgada|robusto|robusta|musculoso|musculosa)\b/giu,
+    /\b(?:es|mide)\s+\d+(?:[,.]\d+)?\s*(?:cm|m)\b/giu,
+  ];
+  const collectInTextOrder = (patterns: readonly RegExp[]) =>
+    patterns
+      .flatMap((pattern) =>
+        [...description.matchAll(pattern)].map((match) => ({
+          value: match[0].trim(),
+          index: match.index ?? 0,
+        })),
+      )
+      .sort((left, right) => left.index - right.index)
+      .map(({ value }) => value);
+  const matches = [
+    ...collectInTextOrder(featurePatterns),
+    ...collectInTextOrder(clothingPatterns),
+    ...collectInTextOrder(physicalPatterns),
+  ];
   return [...new Set(matches)].join(", ");
 }
 

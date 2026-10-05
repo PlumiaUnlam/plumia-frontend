@@ -102,6 +102,239 @@ interface WikiTabProps {
   readonly onOpenTimelineEvent: (eventId: string) => void;
 }
 
+interface EntityListContentProps {
+  readonly loading: boolean;
+  readonly entities: readonly Entity[];
+  readonly selectedEntity: Entity | null;
+  readonly selectedEntityPrimaryImage: ImageResponse | undefined;
+  readonly primaryImageUrls: Readonly<Record<string, string>>;
+  readonly onSelectEntity: (entity: Entity | null) => void;
+}
+
+function EntityListContent({
+  loading,
+  entities,
+  selectedEntity,
+  selectedEntityPrimaryImage,
+  primaryImageUrls,
+  onSelectEntity,
+}: EntityListContentProps) {
+  if (loading) {
+    return Array.from({ length: 4 }).map((_, index) => (
+      <Item
+        key={index}
+        variant="outline"
+        size="sm"
+        className="cursor-default"
+      >
+        <ItemMedia variant="icon">
+          <Search className="h-4 w-4 text-muted-foreground" />
+        </ItemMedia>
+        <ItemContent>
+          <Skeleton className="h-4 w-28" />
+          <Skeleton className="h-3 w-20" />
+        </ItemContent>
+      </Item>
+    ));
+  }
+
+  return entities.map((entity) => {
+    const entityCategory = TYPE_TO_CATEGORY[entity.type];
+    const isSelected = selectedEntity?.id === entity.id;
+    const selectedImage = isSelected ? selectedEntityPrimaryImage : undefined;
+    const primaryImageUrl = primaryImageUrls[entity.id];
+    const fallbackImageUrl = `/api/storage/image/${entity.id}?v=${Date.parse(entity.updatedAt)}`;
+    const hasImage = Boolean(primaryImageUrl || entity.imageUrl || selectedImage);
+    const imageSrc =
+      selectedImage?.imageUrl ?? primaryImageUrl ?? entity.imageUrl ?? fallbackImageUrl;
+
+    return (
+      <Item
+        key={entity.id}
+        variant="outline"
+        size="sm"
+        onClick={() => onSelectEntity(entity)}
+        onKeyDown={(event) => {
+          if (event.key !== "Enter" && event.key !== " ") return;
+          event.preventDefault();
+          onSelectEntity(entity);
+        }}
+        tabIndex={0}
+        role="button"
+        className={`cursor-pointer focus-visible:ring-2 focus-visible:ring-primary transition-colors ${
+          isSelected
+            ? "bg-primary/10 border-primary"
+            : "bg-white hover:bg-muted/50 dark:bg-card"
+        }`}
+      >
+        {hasImage ? (
+          <ItemMedia variant="image">
+            <EntityImage
+              src={imageSrc}
+              alt={entity.canonicalName}
+              width={128}
+              height={128}
+              className="aspect-square w-full rounded-sm object-cover"
+              category={entityCategory}
+              iconClassName="h-4 w-4"
+            />
+          </ItemMedia>
+        ) : (
+          <ItemMedia variant="image">
+            <EntityIconTile
+              category={entityCategory}
+              className="size-full rounded-sm"
+              iconClassName="h-4 w-4"
+            />
+          </ItemMedia>
+        )}
+        <ItemContent className="min-w-0">
+          <ItemTitle className="max-w-full">{entity.canonicalName}</ItemTitle>
+          {entity.aliases.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {entity.aliases.map((tag) => (
+                <Badge key={tag} variant="secondary">
+                  {tag}
+                </Badge>
+              ))}
+            </div>
+          )}
+          <ItemDescription className="break-words">
+            {entity.description ?? "Sin descripción"}
+          </ItemDescription>
+        </ItemContent>
+      </Item>
+    );
+  });
+}
+
+function EntityHistoryContent({
+  error,
+  loading,
+  events,
+  onOpenTimelineEvent,
+}: Readonly<{
+  error: Error | undefined;
+  loading: boolean;
+  events: readonly TimelineEvent[];
+  onOpenTimelineEvent: (eventId: string) => void;
+}>) {
+  if (error) {
+    return (
+      <p role="alert" className="text-sm text-destructive">
+        No se pudieron cargar los eventos: {error.message}
+      </p>
+    );
+  }
+  if (loading) {
+    return <p className="text-sm text-muted-foreground">Cargando eventos…</p>;
+  }
+  if (events.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        No hay eventos históricos vinculados a esta ficha.
+      </p>
+    );
+  }
+
+  return (
+    <ul className="space-y-4">
+      {events.map((event) => (
+        <li key={event.id}>
+          <button
+            type="button"
+            onClick={() => onOpenTimelineEvent(event.id)}
+            className="flex max-w-full items-start gap-2 text-left text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          >
+            <CalendarDays className="mt-0.5 size-4 shrink-0" />
+            <span>
+              <span className="font-medium">{event.title}</span>
+              {(event.temporalLabel || event.date) && (
+                <span className="ml-2 text-sm text-muted-foreground">
+                  {event.temporalLabel || event.date}
+                </span>
+              )}
+              {event.description && (
+                <span className="mt-1 block whitespace-pre-wrap text-sm text-muted-foreground">
+                  {event.description}
+                </span>
+              )}
+            </span>
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function EntityRelationshipsContent({
+  error,
+  loading,
+  relationships,
+  entities,
+  selectedEntity,
+  onOpenEntity,
+}: Readonly<{
+  error: Error | undefined;
+  loading: boolean;
+  relationships: readonly Relationship[];
+  entities: readonly Entity[];
+  selectedEntity: Entity;
+  onOpenEntity: (entityId: string) => void;
+}>) {
+  if (error) {
+    return (
+      <p role="alert" className="text-sm text-destructive">
+        No se pudieron cargar los vínculos: {error.message}
+      </p>
+    );
+  }
+  if (loading) {
+    return <p className="text-sm text-muted-foreground">Cargando vínculos…</p>;
+  }
+  if (relationships.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        No hay vínculos registrados para esta ficha.
+      </p>
+    );
+  }
+
+  return (
+    <ul className="space-y-3">
+      {relationships.map((relationship) => {
+        const isSource = relationship.sourceEntityId === selectedEntity.id;
+        const otherEntityId = isSource
+          ? relationship.targetEntityId
+          : relationship.sourceEntityId;
+        const otherEntity = entities.find((item) => item.id === otherEntityId);
+        if (!otherEntity) return null;
+
+        const label = getRelationshipLabel(relationship.relationType, isSource);
+        const description = relationship.description
+          ? ` · ${relationship.description}`
+          : "";
+
+        return (
+          <li key={relationship.id}>
+            <button
+              type="button"
+              onClick={() => onOpenEntity(otherEntity.id)}
+              className="flex max-w-full flex-wrap items-center gap-x-2 gap-y-1 text-left text-sm text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >
+              <span className="font-medium">{otherEntity.canonicalName}</span>
+              <span className="text-muted-foreground">
+                {label}{description}
+              </span>
+              <ArrowUpRight className="size-3.5 shrink-0" />
+            </button>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 export function WikiTab({
   entities,
   loading,
@@ -251,96 +484,14 @@ export function WikiTab({
 
         <ScrollArea className="w-full min-h-0 flex-1 p-3">
           <ItemGroup className="min-w-0">
-            {loading
-              ? Array.from({ length: 4 }).map((_, i) => (
-                  <Item
-                    key={i}
-                    variant="outline"
-                    size="sm"
-                    className="cursor-default"
-                  >
-                    <ItemMedia variant="icon">
-                      <Search className="h-4 w-4 text-muted-foreground" />
-                    </ItemMedia>
-                    <ItemContent>
-                      <Skeleton className="h-4 w-28" />
-                      <Skeleton className="h-3 w-20" />
-                    </ItemContent>
-                  </Item>
-                ))
-              : filteredEntities.map((entity) => {
-                  const src = `/api/storage/image/${entity.id}?v=${Date.parse(entity.updatedAt)}`;
-                  const primaryImageUrl = primaryImageUrls[entity.id];
-                  const isSelected = selectedEntity?.id === entity.id;
-                  const entityCategory = TYPE_TO_CATEGORY[entity.type];
-
-                  return (
-                    <Item
-                      key={entity.id}
-                      variant="outline"
-                      size="sm"
-                      onClick={() => onSelectEntity(entity)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
-                          onSelectEntity(entity);
-                        }
-                      }}
-                      tabIndex={0}
-                      role="button"
-                      className={`cursor-pointer focus-visible:ring-2 focus-visible:ring-primary transition-colors ${
-                        isSelected
-                          ? "bg-primary/10 border-primary"
-                          : "bg-white hover:bg-muted/50 dark:bg-card"
-                      }`}
-                    >
-                      {primaryImageUrl ||
-                      entity.imageUrl ||
-                      (isSelected && selectedEntityPrimaryImage) ? (
-                        <ItemMedia variant="image">
-                          <EntityImage
-                            src={
-                              isSelected && selectedEntityPrimaryImage
-                                ? selectedEntityPrimaryImage.imageUrl
-                                : (primaryImageUrl ?? entity.imageUrl ?? src)
-                            }
-                            alt={entity.canonicalName}
-                            width={128}
-                            height={128}
-                            className="aspect-square w-full rounded-sm object-cover"
-                            category={entityCategory}
-                            iconClassName="h-4 w-4"
-                          />
-                        </ItemMedia>
-                      ) : (
-                        <ItemMedia variant="image">
-                          <EntityIconTile
-                            category={entityCategory}
-                            className="size-full rounded-sm"
-                            iconClassName="h-4 w-4"
-                          />
-                        </ItemMedia>
-                      )}
-                      <ItemContent className="min-w-0">
-                        <ItemTitle className="max-w-full">
-                          {entity.canonicalName}
-                        </ItemTitle>
-                        {entity.aliases.length > 0 && (
-                          <div className="flex flex-wrap gap-1">
-                            {entity.aliases.map((tag) => (
-                              <Badge key={tag} variant="secondary">
-                                {tag}
-                              </Badge>
-                            ))}
-                          </div>
-                        )}
-                        <ItemDescription className="break-words">
-                          {entity.description ?? "Sin descripción"}
-                        </ItemDescription>
-                      </ItemContent>
-                    </Item>
-                  );
-                })}
+            <EntityListContent
+              loading={loading}
+              entities={filteredEntities}
+              selectedEntity={selectedEntity}
+              selectedEntityPrimaryImage={selectedEntityPrimaryImage}
+              primaryImageUrls={primaryImageUrls}
+              onSelectEntity={onSelectEntity}
+            />
           </ItemGroup>
         </ScrollArea>
       </aside>

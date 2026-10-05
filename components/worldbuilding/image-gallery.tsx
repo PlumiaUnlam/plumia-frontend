@@ -53,6 +53,15 @@ type GalleryViewProps = Omit<ImageGalleryProps, "compact"> & {
   readonly hasPrimaryImage: boolean;
 };
 
+function getActiveJobMessage(
+  status: ImageGenerationJob["status"],
+  hasPrimaryImage: boolean,
+): string {
+  if (status === "QUEUED") return "En cola...";
+  const imageType = hasPrimaryImage ? "secundaria" : "principal";
+  return `Generando imagen ${imageType}...`;
+}
+
 export function ImageGallery({
   images,
   loading,
@@ -160,9 +169,7 @@ function CompactImageGallery({
         <div className="rounded-md border border-primary/30 bg-primary/5 p-2 text-xs">
           <div className="flex items-center justify-between gap-2">
             <span>
-              {activeJob.status === "QUEUED"
-                ? "En cola..."
-                : `Generando imagen ${hasPrimaryImage ? "secundaria" : "principal"}...`}
+              {getActiveJobMessage(activeJob.status, hasPrimaryImage)}
             </span>
             <span>{activeJob.progress}%</span>
           </div>
@@ -358,9 +365,7 @@ function FullImageGallery({
         <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm">
           <div className="flex items-center justify-between gap-3">
             <span>
-              {activeJob.status === "QUEUED"
-                ? "En cola..."
-                : `Generando imagen ${hasPrimaryImage ? "secundaria" : "principal"}...`}
+              {getActiveJobMessage(activeJob.status, hasPrimaryImage)}
             </span>
             <span>{activeJob.progress}%</span>
           </div>

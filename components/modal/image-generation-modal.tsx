@@ -20,10 +20,12 @@ import {
   getEntityAttributes,
   getEntityVisualBase,
 } from "@/lib/entity-wiki";
-import type { GenerateImageInput } from "@/services/image-generation.service";
+import type {
+  GenerateImageInput,
+  ImageResponse,
+} from "@/services/image-generation.service";
 import type { EntityCategory, EntityType } from "@/types/entity";
 import { TYPE_TO_CATEGORY } from "@/types/entity";
-import type { ImageResponse } from "@/services/image-generation.service";
 
 type ImageGenerationModalProps = {
   readonly show: boolean;
@@ -231,6 +233,63 @@ const GENERATION_FORM_CONFIGS: Record<EntityType, GenerationFormConfig> = {
 
 const EMPTY_FORM: GenerationForm = {};
 
+function getGenerationTitle(
+  entityName: string,
+  imagesLoading: boolean,
+  isVariant: boolean,
+  hasImages: boolean,
+): string {
+  if (imagesLoading) return `Preparar generación de ${entityName}`;
+  if (isVariant) return `Generar imagen secundaria de ${entityName}`;
+  if (hasImages) {
+    return `Generar imagen secundaria sin referencia de ${entityName}`;
+  }
+  return `Generar primera imagen de ${entityName}`;
+}
+
+function getReferenceDescription(
+  imagesLoading: boolean,
+  selectedReference: ImageResponse | undefined,
+  hasImages: boolean,
+): string {
+  if (imagesLoading) return "Cargando imágenes…";
+  if (selectedReference?.isPrimary) return "Se usará la imagen principal.";
+  if (selectedReference) return "Se usará la imagen seleccionada.";
+  if (hasImages) return "Sin referencia; se usará la ficha como base.";
+  return "Sin referencia; la ficha será la base visual.";
+}
+
+function getSubmitErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  return "No se pudo solicitar la generación";
+}
+
+function createGenerationInput(
+  entityId: string,
+  resolvedReferenceImageId: string,
+  form: GenerationForm,
+): GenerateImageInput {
+  const { visualIdentity, ...otherInstructions } = form;
+  const reference = resolvedReferenceImageId
+    ? { referenceImageId: resolvedReferenceImageId }
+    : { skipReferenceImage: true };
+  const visualInstructions = visualIdentity?.trim()
+    ? { visualIdentity: visualIdentity.trim() }
+    : {};
+
+  return {
+    entityId,
+    ...reference,
+    ...visualInstructions,
+    ...otherInstructions,
+  };
+}
+
+function getSubmitButtonLabel(isVariant: boolean, hasImages: boolean): string {
+  if (isVariant || hasImages) return "Generar imagen secundaria";
+  return "Generar primera imagen";
+}
+
 export function ImageGenerationModal({
   show,
   entityName,
@@ -285,13 +344,12 @@ export function ImageGenerationModal({
   const resolvedReferenceImageId = selectedReference?.id ?? "";
   const category: EntityCategory = TYPE_TO_CATEGORY[entityType];
   const isVariant = Boolean(selectedReference);
-  const generationTitle = imagesLoading
-    ? `Preparar generación de ${entityName}`
-    : isVariant
-    ? `Generar imagen secundaria de ${entityName}`
-    : images.length > 0
-      ? `Generar imagen secundaria sin referencia de ${entityName}`
-      : `Generar primera imagen de ${entityName}`;
+  const generationTitle = getGenerationTitle(
+    entityName,
+    imagesLoading,
+    isVariant,
+    images.length > 0,
+  );
   const characterNeedsAppearanceWarning =
     entityType === "CHARACTER" &&
     !selectedReference &&
@@ -302,25 +360,13 @@ export function ImageGenerationModal({
     event.preventDefault();
     setSubmitting(true);
     setError(null);
-    const { visualIdentity, ...otherInstructions } = form;
     try {
-      await onSubmit({
-        entityId,
-        ...(resolvedReferenceImageId
-          ? { referenceImageId: resolvedReferenceImageId }
-          : { skipReferenceImage: true }),
-        ...(visualIdentity?.trim()
-          ? { visualIdentity: visualIdentity.trim() }
-          : {}),
-        ...otherInstructions,
-      });
+      await onSubmit(
+        createGenerationInput(entityId, resolvedReferenceImageId, form),
+      );
       onClose();
     } catch (submitError) {
-      setError(
-        submitError instanceof Error
-          ? submitError.message
-          : "No se pudo solicitar la generación",
-      );
+      setError(getSubmitErrorMessage(submitError));
     } finally {
       setSubmitting(false);
     }
@@ -358,91 +404,17 @@ export function ImageGenerationModal({
               </p>
             )}
 
-            <section className="rounded-lg border border-border bg-muted/30 p-3">
-              <div>
-                <h3 className="text-sm font-semibold">Base visual de la ficha</h3>
-                {visualBase ? (
-                  <p className="mt-1 whitespace-pre-wrap text-sm text-muted-foreground">
-                    {visualBase}
-                  </p>
-                ) : (
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Sin rasgos visuales cargados.
-                  </p>
-                )}
-              </div>
-            </section>
+            <VisualBaseSection visualBase={visualBase} />
 
-            <section className="space-y-3 rounded-lg border border-border p-3">
-              <div>
-                <h3 className="text-sm font-semibold">Imagen de referencia</h3>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {imagesLoading
-                    ? "Cargando imágenes…"
-                    : selectedReference
-                    ? selectedReference.isPrimary
-                      ? "Se usará la imagen principal."
-                      : "Se usará la imagen seleccionada."
-                    : images.length > 0
-                      ? "Sin referencia; se usará la ficha como base."
-                      : "Sin referencia; la ficha será la base visual."}
-                </p>
-              </div>
-              {selectedReference && (
-                <EntityImage
-                  src={selectedReference.imageUrl}
-                  alt={`Referencia de ${entityName}`}
-                  width={128}
-                  height={128}
-                  className="size-24 rounded-md border border-border object-cover"
-                  category={category}
-                  iconClassName="h-5 w-5"
-                />
-              )}
-              {!imagesLoading && images.length > 0 && (
-                <div
-                  className="flex flex-wrap items-start gap-2"
-                  role="group"
-                  aria-label="Elegir imagen de referencia"
-                >
-                  {images.map((image) => (
-                    <button
-                      key={image.id}
-                      type="button"
-                      aria-pressed={resolvedReferenceImageId === image.id}
-                      aria-label={`${image.isPrimary ? "Imagen principal" : "Imagen secundaria"}. Usar esta imagen como referencia`}
-                      onClick={() => setSelectedReferenceImageId(image.id)}
-                      className={`rounded-md border p-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
-                        resolvedReferenceImageId === image.id
-                          ? "border-primary ring-2 ring-primary/30"
-                          : "border-border"
-                      }`}
-                    >
-                      <EntityImage
-                        src={image.imageUrl}
-                        alt={image.prompt}
-                        width={64}
-                        height={64}
-                        className="size-16 rounded object-cover"
-                        category={category}
-                        iconClassName="h-4 w-4"
-                      />
-                      <span className="mt-1 block text-[10px] text-primary">
-                        {image.isPrimary ? "Imagen principal" : "Imagen secundaria"}
-                      </span>
-                    </button>
-                  ))}
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant={!resolvedReferenceImageId ? "secondary" : "outline"}
-                    onClick={() => setSelectedReferenceImageId("")}
-                  >
-                    Sin referencia
-                  </Button>
-                </div>
-              )}
-            </section>
+            <ReferenceImagePicker
+              images={images}
+              imagesLoading={imagesLoading}
+              selectedReference={selectedReference}
+              entityName={entityName}
+              category={category}
+              resolvedReferenceImageId={resolvedReferenceImageId}
+              onSelect={setSelectedReferenceImageId}
+            />
 
             <Field>
               <FieldLabel htmlFor="image-visual-instructions">
@@ -483,25 +455,11 @@ export function ImageGenerationModal({
               </div>
             </details>
 
-            {characterNeedsAppearanceWarning && (
-              <div className="space-y-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
-                <p className="flex items-start gap-2 font-medium">
-                  <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600" />
-                  La ficha no incluye rasgos físicos suficientes. El proveedor no puede conservar detalles que no están descritos.
-                </p>
-                <label className="flex items-start gap-2 text-muted-foreground">
-                  <input
-                    type="checkbox"
-                    checked={acknowledgedMissingAppearance}
-                    onChange={(event) =>
-                      setAcknowledgedMissingAppearance(event.target.checked)
-                    }
-                    className="mt-1 accent-primary"
-                  />
-                  Entiendo y quiero generar con la información disponible.
-                </label>
-              </div>
-            )}
+            <CharacterAppearanceWarning
+              show={characterNeedsAppearanceWarning}
+              checked={acknowledgedMissingAppearance}
+              onChange={setAcknowledgedMissingAppearance}
+            />
 
           </form>
         </div>
@@ -529,11 +487,7 @@ export function ImageGenerationModal({
             ) : (
               <Sparkles className="mr-2 h-4 w-4" />
             )}
-            {isVariant
-              ? "Generar imagen secundaria"
-              : images.length > 0
-                ? "Generar imagen secundaria"
-                : "Generar primera imagen"}
+            {getSubmitButtonLabel(isVariant, images.length > 0)}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -567,5 +521,139 @@ function GenerationField({
         />
       </FieldContent>
     </Field>
+  );
+}
+
+function VisualBaseSection({ visualBase }: { readonly visualBase: string }) {
+  return (
+    <section className="rounded-lg border border-border bg-muted/30 p-3">
+      <div>
+        <h3 className="text-sm font-semibold">Base visual de la ficha</h3>
+        {visualBase ? (
+          <p className="mt-1 whitespace-pre-wrap text-sm text-muted-foreground">
+            {visualBase}
+          </p>
+        ) : (
+          <p className="mt-1 text-sm text-muted-foreground">
+            Sin rasgos visuales cargados.
+          </p>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function ReferenceImagePicker({
+  images,
+  imagesLoading,
+  selectedReference,
+  entityName,
+  category,
+  resolvedReferenceImageId,
+  onSelect,
+}: {
+  readonly images: readonly ImageResponse[];
+  readonly imagesLoading: boolean;
+  readonly selectedReference: ImageResponse | undefined;
+  readonly entityName: string;
+  readonly category: EntityCategory;
+  readonly resolvedReferenceImageId: string;
+  readonly onSelect: (imageId: string) => void;
+}) {
+  return (
+    <section className="space-y-3 rounded-lg border border-border p-3">
+      <div>
+        <h3 className="text-sm font-semibold">Imagen de referencia</h3>
+        <p className="mt-1 text-xs text-muted-foreground">
+          {getReferenceDescription(
+            imagesLoading,
+            selectedReference,
+            images.length > 0,
+          )}
+        </p>
+      </div>
+      {selectedReference && (
+        <EntityImage
+          src={selectedReference.imageUrl}
+          alt={`Referencia de ${entityName}`}
+          width={128}
+          height={128}
+          className="size-24 rounded-md border border-border object-cover"
+          category={category}
+          iconClassName="h-5 w-5"
+        />
+      )}
+      {!imagesLoading && images.length > 0 && (
+        <fieldset className="flex min-w-0 flex-wrap items-start gap-2">
+          <legend className="sr-only">Elegir imagen de referencia</legend>
+          {images.map((image) => (
+            <button
+              key={image.id}
+              type="button"
+              aria-pressed={resolvedReferenceImageId === image.id}
+              aria-label={`${image.isPrimary ? "Imagen principal" : "Imagen secundaria"}. Usar esta imagen como referencia`}
+              onClick={() => onSelect(image.id)}
+              className={`rounded-md border p-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+                resolvedReferenceImageId === image.id
+                  ? "border-primary ring-2 ring-primary/30"
+                  : "border-border"
+              }`}
+            >
+              <EntityImage
+                src={image.imageUrl}
+                alt={image.prompt}
+                width={64}
+                height={64}
+                className="size-16 rounded object-cover"
+                category={category}
+                iconClassName="h-4 w-4"
+              />
+              <span className="mt-1 block text-[10px] text-primary">
+                {image.isPrimary ? "Imagen principal" : "Imagen secundaria"}
+              </span>
+            </button>
+          ))}
+          <Button
+            type="button"
+            size="sm"
+            variant={!resolvedReferenceImageId ? "secondary" : "outline"}
+            onClick={() => onSelect("")}
+          >
+            Sin referencia
+          </Button>
+        </fieldset>
+      )}
+    </section>
+  );
+}
+
+function CharacterAppearanceWarning({
+  show,
+  checked,
+  onChange,
+}: {
+  readonly show: boolean;
+  readonly checked: boolean;
+  readonly onChange: (checked: boolean) => void;
+}) {
+  if (!show) return null;
+
+  return (
+    <div className="space-y-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+      <p className="flex items-start gap-2 font-medium">
+        <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600" />
+        La ficha no incluye rasgos físicos suficientes. El proveedor no puede
+        conservar detalles que no están descritos.
+      </p>
+      <label className="flex items-start gap-2 text-muted-foreground">
+        <input
+          type="checkbox"
+          checked={checked}
+          onChange={(event) => onChange(event.target.checked)}
+          className="mt-1 accent-primary"
+        />
+        <span>Entiendo y quiero generar con la información disponible.</span>
+      </label>
+    </div>
   );
 }
