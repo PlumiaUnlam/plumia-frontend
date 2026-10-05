@@ -113,6 +113,20 @@ export function SpellcheckSuggestions({ editor, language }: Readonly<{ editor: E
   }, [editor])
 
   useEffect(() => {
+    const preload = () => {
+      void loadSpellchecker(language).catch(() => undefined)
+    }
+
+    if (typeof window.requestIdleCallback === "function") {
+      const idleId = window.requestIdleCallback(preload, { timeout: 5000 })
+      return () => window.cancelIdleCallback(idleId)
+    }
+
+    const timeoutId = window.setTimeout(preload, 1500)
+    return () => window.clearTimeout(timeoutId)
+  }, [language])
+
+  useEffect(() => {
     if (!target) return
     let cancelled = false
     loadSpellchecker(language).then((spell) => {
