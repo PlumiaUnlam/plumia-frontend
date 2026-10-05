@@ -71,7 +71,7 @@ export function SpellcheckSettingsDialog({
           </EditorSelect>
         </div>
 
-        <DialogFooter className="mx-0 mt-0 border-t border-[#dadce0] bg-[#f8fafd] px-6 py-4 dark:border-border dark:bg-muted/50 sm:flex-row sm:justify-end">
+        <DialogFooter className="mx-0 mt-0 mb-0 border-t border-[#dadce0] bg-[#f8fafd] px-6 pt-4 pb-5 dark:border-border dark:bg-muted/50 sm:flex-row sm:justify-end">
           <Button
             type="button"
             variant="outline"
