@@ -90,6 +90,41 @@ type EditorMenuBarProps = {
   onToggleToolbar: () => void
 }
 
+type MenuItemFactory = (
+  icon: ReactNode,
+  label: string,
+  action: () => void,
+  shortcut?: string,
+  disabled?: boolean,
+) => ReactNode
+
+function createAnnotationMenuItem(
+  menuItem: MenuItemFactory,
+  onToggleAnnotations: (() => void) | undefined,
+  hasEditor: boolean,
+  label: string,
+): ReactNode {
+  if (onToggleAnnotations) {
+    return menuItem(
+      <MessageSquare className="size-4" />,
+      label,
+      onToggleAnnotations,
+    )
+  }
+
+  if (!hasEditor) {
+    return menuItem(
+      <MessageSquare className="size-4" />,
+      label,
+      () => {},
+      undefined,
+      true,
+    )
+  }
+
+  return null
+}
+
 export function EditorMenuBar({
   editor,
   projectId,
@@ -201,6 +236,12 @@ export function EditorMenuBar({
         {content}
       </MenubarContent>
     </MenubarMenu>
+  )
+  const annotationMenuItem = createAnnotationMenuItem(
+    menuItem,
+    onToggleAnnotations,
+    Boolean(editor),
+    annotationMenuLabel,
   )
 
   return (
@@ -410,21 +451,7 @@ export function EditorMenuBar({
       {menu(
         "Revisar",
         <>
-          {onToggleAnnotations
-            ? menuItem(
-                <MessageSquare className="size-4" />,
-                annotationMenuLabel,
-                onToggleAnnotations,
-              )
-            : !editor
-              ? menuItem(
-                  <MessageSquare className="size-4" />,
-                  annotationMenuLabel,
-                  () => {},
-                  undefined,
-                  true,
-                )
-              : null}
+          {annotationMenuItem}
           {(onToggleAnnotations || !editor) && <MenubarSeparator />}
           {menuItem(
             <Sparkles className="size-4" />,

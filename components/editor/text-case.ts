@@ -44,7 +44,8 @@ export function transformSelectedTextCase(editor: Editor, textCase: TextCase) {
   if (!replacements.length) return false
 
   const transaction = state.tr
-  for (const replacement of replacements.reverse()) {
+  const reverseReplacements = [...replacements].reverse()
+  for (const replacement of reverseReplacements) {
     transaction.replaceWith(
       replacement.from,
       replacement.to,
