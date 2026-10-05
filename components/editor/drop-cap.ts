@@ -17,8 +17,8 @@ function getFirstLetterRange(paragraph: SelectedParagraph): TextRange | null {
   paragraph.node.descendants((node, offset) => {
     if (!node.isText || !node.text || ranges.length) return ranges.length === 0
 
-    const match = /\p{L}[\p{M}]*/u.exec(node.text)
-    if (!match || match.index === undefined) return true
+    const match = /\p{L}\p{M}*/u.exec(node.text)
+    if (match?.index === undefined) return true
 
     const from = paragraph.position + 1 + offset + match.index
     ranges.push({ from, to: from + match[0].length })
@@ -133,9 +133,7 @@ function getParagraphVisualLine(
   return { from, to, left: view.coordsAtPos(from).left }
 }
 
-function selectDropCapOrGutterLine(view: EditorView, event: Event) {
-  if (!(event instanceof PointerEvent) || event.button !== 0) return false
-
+function getParagraphsAtY(view: EditorView, clientY: number) {
   const paragraphs: SelectedParagraph[] = []
   view.state.doc.descendants((node, position) => {
     if (node.type.name === "paragraph") {
@@ -145,19 +143,26 @@ function selectDropCapOrGutterLine(view: EditorView, event: Event) {
     return true
   })
 
-  const pointer = event
   const paragraphsAtY: Array<SelectedParagraph & { dom: HTMLElement }> = []
   for (const paragraph of paragraphs) {
     const dom = view.nodeDOM(paragraph.position)
     if (!(dom instanceof HTMLElement) || dom.tagName !== "P") continue
 
     const bounds = dom.getBoundingClientRect()
-    if (pointer.clientY >= bounds.top && pointer.clientY <= bounds.bottom) {
+    if (clientY >= bounds.top && clientY <= bounds.bottom) {
       paragraphsAtY.push({ ...paragraph, dom })
     }
   }
+  return paragraphsAtY
+}
 
-  for (const paragraph of paragraphsAtY) {
+function getDropCapAtPoint(
+  view: EditorView,
+  paragraphs: Array<SelectedParagraph & { dom: HTMLElement }>,
+  clientX: number,
+  clientY: number,
+): TextRange | null {
+  for (const paragraph of paragraphs) {
     if (paragraph.node.attrs.dropCap !== true) continue
     const range = getFirstLetterRange(paragraph)
     if (!range) continue
@@ -165,39 +170,59 @@ function selectDropCapOrGutterLine(view: EditorView, event: Event) {
     const rect = getDomRange(view, range.from, range.to)?.getBoundingClientRect()
     if (
       rect &&
-      pointer.clientX >= rect.left &&
-      pointer.clientX <= rect.right &&
-      pointer.clientY >= rect.top &&
-      pointer.clientY <= rect.bottom
+      clientX >= rect.left &&
+      clientX <= rect.right &&
+      clientY >= rect.top &&
+      clientY <= rect.bottom
     ) {
-      return selectTextRange(view, event, range)
+      return range
     }
   }
+  return null
+}
 
+function getClosestVisualLine(
+  view: EditorView,
+  paragraphs: Array<SelectedParagraph & { dom: HTMLElement }>,
+  clientY: number,
+): (TextRange & { left: number }) | null {
   let closestLine: (TextRange & { left: number }) | null = null
   let closestDistance = Number.POSITIVE_INFINITY
-  for (const paragraph of paragraphsAtY) {
+  for (const paragraph of paragraphs) {
     const line = getParagraphVisualLine(
       view,
       paragraph.position,
       paragraph.node,
       paragraph.dom,
-      pointer.clientY,
+      clientY,
     )
     if (!line) continue
 
-    const distance = Math.abs(view.coordsAtPos(line.from).top - pointer.clientY)
+    const distance = Math.abs(view.coordsAtPos(line.from).top - clientY)
     if (distance < closestDistance) {
       closestDistance = distance
       closestLine = line
     }
   }
+  return closestLine
+}
 
-  if (closestLine && pointer.clientX < closestLine.left - 3) {
-    return selectTextRange(view, event, closestLine)
-  }
+function selectDropCapOrGutterLine(view: EditorView, event: Event) {
+  if (!(event instanceof PointerEvent) || event.button !== 0) return false
 
-  return false
+  const pointer = event
+  const paragraphs = getParagraphsAtY(view, pointer.clientY)
+  const dropCapRange = getDropCapAtPoint(
+    view,
+    paragraphs,
+    pointer.clientX,
+    pointer.clientY,
+  )
+  if (dropCapRange) return selectTextRange(view, event, dropCapRange)
+
+  const line = getClosestVisualLine(view, paragraphs, pointer.clientY)
+  if (!line || pointer.clientX >= line.left - 3) return false
+  return selectTextRange(view, event, line)
 }
 
 /** Clicking the decorative initial selects it; clicking in the line gutter selects that visual line. */
@@ -255,7 +280,8 @@ export function toggleDropCap(editor: Editor) {
   const enable = !paragraphs.every(({ node }) => node.attrs.dropCap === true)
   const { selection } = editor.state
   const transaction = editor.state.tr
-  for (const { position, node } of paragraphs.reverse()) {
+  const reverseOrder = [...paragraphs].reverse()
+  for (const { position, node } of reverseOrder) {
     transaction.setNodeMarkup(position, node.type, { ...node.attrs, dropCap: enable })
   }
   transaction.setSelection(selection.map(transaction.doc, transaction.mapping))

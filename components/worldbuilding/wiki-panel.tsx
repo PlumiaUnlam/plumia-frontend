@@ -568,44 +568,12 @@ export function WikiTab({
                 <h3 className="text-lg font-semibold">Historia</h3>
                 <Card className="min-w-0 w-full bg-muted/30">
                   <CardContent>
-                    {timelineEventsError ? (
-                      <p role="alert" className="text-sm text-destructive">
-                        No se pudieron cargar los eventos: {timelineEventsError.message}
-                      </p>
-                    ) : linksLoading ? (
-                      <p className="text-sm text-muted-foreground">Cargando eventos…</p>
-                    ) : linkedTimelineEvents.length > 0 ? (
-                      <ul className="space-y-4">
-                        {linkedTimelineEvents.map((event) => (
-                          <li key={event.id}>
-                            <button
-                              type="button"
-                              onClick={() => onOpenTimelineEvent(event.id)}
-                              className="flex max-w-full items-start gap-2 text-left text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                            >
-                              <CalendarDays className="mt-0.5 size-4 shrink-0" />
-                              <span>
-                                <span className="font-medium">{event.title}</span>
-                                {(event.temporalLabel || event.date) && (
-                                  <span className="ml-2 text-sm text-muted-foreground">
-                                    {event.temporalLabel || event.date}
-                                  </span>
-                                )}
-                                {event.description && (
-                                  <span className="mt-1 block whitespace-pre-wrap text-sm text-muted-foreground">
-                                    {event.description}
-                                  </span>
-                                )}
-                              </span>
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">
-                        No hay eventos históricos vinculados a esta ficha.
-                      </p>
-                    )}
+                    <EntityHistoryContent
+                      error={timelineEventsError}
+                      loading={linksLoading}
+                      events={linkedTimelineEvents}
+                      onOpenTimelineEvent={onOpenTimelineEvent}
+                    />
                   </CardContent>
                 </Card>
               </section>
@@ -614,44 +582,14 @@ export function WikiTab({
                 <h3 className="text-lg font-semibold">Vínculos</h3>
                 <Card className="min-w-0 w-full bg-muted/30">
                   <CardContent>
-                    {relationshipError ? (
-                      <p role="alert" className="text-sm text-destructive">
-                        No se pudieron cargar los vínculos: {relationshipError.message}
-                      </p>
-                    ) : linksLoading ? (
-                      <p className="text-sm text-muted-foreground">Cargando vínculos…</p>
-                    ) : selectedEntityRelationships.length > 0 ? (
-                      <ul className="space-y-3">
-                        {selectedEntityRelationships.map((relationship) => {
-                          const isSource = relationship.sourceEntityId === selectedEntity.id;
-                          const otherEntityId = isSource
-                            ? relationship.targetEntityId
-                            : relationship.sourceEntityId;
-                          const otherEntity = entities.find((item) => item.id === otherEntityId);
-                          if (!otherEntity) return null;
-                          return (
-                            <li key={relationship.id}>
-                              <button
-                                type="button"
-                                onClick={() => onOpenEntity(otherEntity.id)}
-                                className="flex max-w-full flex-wrap items-center gap-x-2 gap-y-1 text-left text-sm text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                              >
-                                <span className="font-medium">{otherEntity.canonicalName}</span>
-                                <span className="text-muted-foreground">
-                                  {getRelationshipLabel(relationship.relationType, isSource)}
-                                  {relationship.description ? ` · ${relationship.description}` : ""}
-                                </span>
-                                <ArrowUpRight className="size-3.5 shrink-0" />
-                              </button>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">
-                        No hay vínculos registrados para esta ficha.
-                      </p>
-                    )}
+                    <EntityRelationshipsContent
+                      error={relationshipError}
+                      loading={linksLoading}
+                      relationships={selectedEntityRelationships}
+                      entities={entities}
+                      selectedEntity={selectedEntity}
+                      onOpenEntity={onOpenEntity}
+                    />
                   </CardContent>
                 </Card>
               </section>
