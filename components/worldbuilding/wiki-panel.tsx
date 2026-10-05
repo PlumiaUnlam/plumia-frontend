@@ -183,7 +183,7 @@ export function WikiTab({
   }
 
   return (
-    <div className="flex w-full h-full min-h-0 min-w-0 overflow-hidden">
+    <div className="flex h-full min-h-0 min-w-0 w-full flex-1 overflow-hidden">
       <aside className="w-48 shrink-0 border-r border-border flex flex-col min-h-0 h-full bg-muted/30 overflow-hidden sm:w-60 lg:w-80">
         <div className="p-4 border-b border-border bg-card/50">
           <div className="relative">
@@ -249,7 +249,7 @@ export function WikiTab({
           </div>
         </div>
 
-        <ScrollArea className="w-full flex-1 min-h-0 h-full p-3">
+        <ScrollArea className="w-full min-h-0 flex-1 p-3">
           <ItemGroup className="min-w-0">
             {loading
               ? Array.from({ length: 4 }).map((_, i) => (
@@ -345,7 +345,7 @@ export function WikiTab({
         </ScrollArea>
       </aside>
 
-      <main className="flex-grow flex flex-col min-h-0 min-w-0 overflow-y-auto overscroll-contain p-4 bg-muted/30 sm:p-6 lg:p-10">
+      <main className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain p-4 bg-muted/30 sm:p-6 lg:p-10">
         {selectedEntity ? (
           <>
             <header className="mb-8 flex-shrink-0 flex flex-wrap items-start gap-4 justify-between">

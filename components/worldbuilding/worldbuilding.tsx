@@ -969,7 +969,7 @@ function WorldbuildingTabs({
 
       <TabsContent
         value="wiki"
-        className="mt-4 min-h-0 flex-1 overflow-hidden border-t bg-card"
+        className="mt-4 flex min-h-0 flex-1 flex-col overflow-hidden border-t bg-card"
       >
         <WikiTab
           entities={entities}
@@ -1633,7 +1633,7 @@ export function Worldbuilding({ projectId }: Readonly<WorldbuildingProps>) {
   } = actions;
 
   return (
-    <div className="flex h-screen max-h-screen flex-col overflow-hidden bg-background text-foreground">
+    <div className="fixed inset-0 flex flex-col overflow-hidden bg-background text-foreground">
       <Header />
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden border-b border-border bg-card">

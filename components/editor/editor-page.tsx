@@ -12,6 +12,8 @@ import {
   useEditorStore,
 } from "@/stores/editor.store"
 import { EditorContainer } from "./editor-container"
+import { EditorMenuBar } from "./editor-menu-bar"
+import { EditorZoomProvider } from "./editor-zoom"
 import { SaveStatusIndicator } from "./save-status-indicator"
 import type { WritingMode } from "@/types/writing-mode"
 import type { EditorSectionOption } from "./editor-types"
@@ -309,7 +311,7 @@ export function EditorLayout({ projectId }: Readonly<EditorLayoutProps>) {
             {projectsError && (
               <p className="mb-4 text-sm text-destructive">{projectsError}</p>
             )}
-            {activeSceneId && (
+            {activeSceneId ? (
               <EditorContainer
                 sceneId={activeSceneId}
                 projectId={projectId}
@@ -325,6 +327,24 @@ export function EditorLayout({ projectId }: Readonly<EditorLayoutProps>) {
                 onExportClick={() => setIsExportDialogOpen(true)}
                 onBeforeExportChange={registerBeforeExport}
               />
+            ) : (
+              <EditorZoomProvider>
+                <EditorMenuBar
+                  editor={null}
+                  projectId={projectId}
+                  onExportClick={() => setIsExportDialogOpen(true)}
+                  onOpenSearch={() => setIsSearchPanelOpen(true)}
+                  onOpenSpellcheckSettings={handleOpenSpellcheckSettings}
+                  isZenMode={writingMode === "zen"}
+                  onToggleZenMode={() =>
+                    setWritingMode((currentMode) =>
+                      currentMode === "zen" ? "creation" : "zen",
+                    )
+                  }
+                  toolbarExpanded={false}
+                  onToggleToolbar={() => undefined}
+                />
+              </EditorZoomProvider>
             )}
           </main>
 

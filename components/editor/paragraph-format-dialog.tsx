@@ -3,7 +3,7 @@
 import { EditorSelect, EditorSelectOption } from "./editor-select"
 
 import { useState } from "react"
-import type { Editor } from "@tiptap/react"
+import { useEditorState, type Editor } from "@tiptap/react"
 import {
   AlignCenter,
   AlignJustify,
@@ -353,5 +353,31 @@ export function ParagraphFormatDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  )
+}
+
+export function EditorParagraphFormatDialog({
+  editor,
+  open,
+  onOpenChange,
+}: Readonly<{
+  editor: Editor
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}>) {
+  const attributes = useEditorState({
+    editor,
+    selector: ({ editor: currentEditor }) =>
+      currentEditor.getAttributes("paragraph") as Partial<ParagraphAttributes>,
+  })
+
+  return (
+    <ParagraphFormatDialog
+      key={open ? "open" : "closed"}
+      editor={editor}
+      attributes={{ ...DEFAULT_PARAGRAPH_ATTRIBUTES, ...attributes }}
+      open={open}
+      onOpenChange={onOpenChange}
+    />
   )
 }

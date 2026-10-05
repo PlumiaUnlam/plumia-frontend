@@ -59,7 +59,6 @@ import {
   type ParagraphAlignment,
   type ParagraphAttributes,
 } from "./paragraph-formatting"
-import { ParagraphFormatDialog } from "./paragraph-format-dialog"
 import { ListStyleGrid } from "./list-style-grid"
 import { removeCurrentList } from "./list-formatting"
 import { ListNumberingActionsButton } from "./list-numbering-menu"
@@ -204,7 +203,6 @@ interface EditorToolbarProps {
   onToggleSplit?: () => void
   isSplit?: boolean
   canSplit?: boolean
-  paragraphDialogOpen: boolean
   onParagraphDialogOpenChange: (open: boolean) => void
 }
 
@@ -219,7 +217,6 @@ export function EditorToolbar({
   onToggleSplit,
   isSplit = false,
   canSplit = true,
-  paragraphDialogOpen,
   onParagraphDialogOpenChange,
 }: Readonly<EditorToolbarProps>) {
   const paragraphState = useEditorState({
@@ -874,13 +871,6 @@ export function EditorToolbar({
             {renderWhen(onAnalyzeChanges, <AnalysisButton isSaving={isAnalysisSaving} onClick={onAnalyzeChanges!} />)}
           </fieldset>
         </div>
-        <ParagraphFormatDialog
-          key={paragraphDialogOpen ? "open" : "closed"}
-          editor={editor}
-          attributes={paragraphAttributes}
-          open={paragraphDialogOpen}
-          onOpenChange={onParagraphDialogOpenChange}
-        />
       </div>
     </TooltipProvider>
   )

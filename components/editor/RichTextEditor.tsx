@@ -65,6 +65,7 @@ import type {
 } from "./editor-types"
 import type { SceneDividerVariant } from "./scene-divider"
 import { useEditorZoom } from "./editor-zoom"
+import { EditorParagraphFormatDialog } from "./paragraph-format-dialog"
 
 type RichTextEditorProps = {
   title: string
@@ -556,11 +557,18 @@ export function RichTextEditor({
           onToggleSplit={onToggleSplit}
           isSplit={isSplit}
           canSplit={canSplit}
-          paragraphDialogOpen={paragraphDialogOpen}
           onParagraphDialogOpenChange={setParagraphDialogOpen}
           onInsertDivider={(variant: SceneDividerVariant) =>
             editor.chain().focus().setSceneDivider(variant).run()
           }
+        />
+      )}
+
+      {showToolbar && (
+        <EditorParagraphFormatDialog
+          editor={editor}
+          open={paragraphDialogOpen}
+          onOpenChange={setParagraphDialogOpen}
         />
       )}
 

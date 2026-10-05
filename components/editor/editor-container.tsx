@@ -38,6 +38,7 @@ import {
 } from "@/components/ui/select"
 import { EditorMenuBar } from "./editor-menu-bar"
 import { EditorToolbar } from "./toolbar"
+import { EditorParagraphFormatDialog } from "./paragraph-format-dialog"
 import { RichTextEditor } from "./RichTextEditor"
 import { AnalysisToast } from "./analysis/analysis-toast"
 import { EditorZoomProvider } from "./editor-zoom"
@@ -975,7 +976,6 @@ function EditorWorkspace({
           onToggleSplit={() => void handleToggleSplit()}
           isSplit={effectiveIsSplit}
           canSplit={canSplit}
-          paragraphDialogOpen={paragraphDialogOpen}
           onParagraphDialogOpenChange={setParagraphDialogOpen}
           onInsertDivider={
             focusedActions
@@ -989,6 +989,14 @@ function EditorWorkspace({
           }
         />
         )}
+
+      {effectiveIsSplit && focusedActions && (
+        <EditorParagraphFormatDialog
+          editor={focusedActions.editor}
+          open={paragraphDialogOpen}
+          onOpenChange={setParagraphDialogOpen}
+        />
+      )}
 
       <div
         className={
