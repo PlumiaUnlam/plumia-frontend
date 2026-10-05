@@ -60,11 +60,13 @@ import {
 import { useEditorTextStyles } from "@/hooks/use-editor-text-styles"
 import { ListNumberingMenu } from "./list-numbering-menu"
 import { SpellcheckSuggestions } from "./spellcheck-suggestions"
+import { SpellcheckDecorations } from "./spellcheck-decorations"
 import type {
   EditorToolbarActions,
 } from "./editor-types"
 import type { SceneDividerVariant } from "./scene-divider"
 import { useEditorZoom } from "./editor-zoom"
+import { EditorParagraphFormatDialog } from "./paragraph-format-dialog"
 
 type RichTextEditorProps = {
   title: string
@@ -186,11 +188,12 @@ export function RichTextEditor({
       EditorSearchFocus,
       CitationFocus,
       AuthorAnnotationDecorations,
+      SpellcheckDecorations,
     ],
     content: content ?? "",
     editorProps: {
       attributes: {
-        spellcheck: "true",
+        spellcheck: "false",
         lang: spellcheckLanguage,
       },
       handlePaste,
@@ -410,7 +413,7 @@ export function RichTextEditor({
   useEffect(() => {
     if (!editor) return
 
-    editor.view.dom.setAttribute("spellcheck", "true")
+    editor.view.dom.setAttribute("spellcheck", "false")
     editor.view.dom.setAttribute("lang", spellcheckLanguage)
   }, [editor, spellcheckLanguage])
 
@@ -556,11 +559,18 @@ export function RichTextEditor({
           onToggleSplit={onToggleSplit}
           isSplit={isSplit}
           canSplit={canSplit}
-          paragraphDialogOpen={paragraphDialogOpen}
           onParagraphDialogOpenChange={setParagraphDialogOpen}
           onInsertDivider={(variant: SceneDividerVariant) =>
             editor.chain().focus().setSceneDivider(variant).run()
           }
+        />
+      )}
+
+      {showToolbar && (
+        <EditorParagraphFormatDialog
+          editor={editor}
+          open={paragraphDialogOpen}
+          onOpenChange={setParagraphDialogOpen}
         />
       )}
 

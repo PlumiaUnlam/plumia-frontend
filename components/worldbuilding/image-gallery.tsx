@@ -50,7 +50,17 @@ type GalleryViewProps = Omit<ImageGalleryProps, "compact"> & {
   readonly actionError: string | null;
   readonly isGenerating: boolean;
   readonly isBusy: boolean;
+  readonly hasPrimaryImage: boolean;
 };
+
+function getActiveJobMessage(
+  status: ImageGenerationJob["status"],
+  hasPrimaryImage: boolean,
+): string {
+  if (status === "QUEUED") return "En cola...";
+  const imageType = hasPrimaryImage ? "secundaria" : "principal";
+  return `Generando imagen ${imageType}...`;
+}
 
 export function ImageGallery({
   images,
@@ -71,6 +81,7 @@ export function ImageGallery({
   const isGenerating =
     activeJob?.status === "QUEUED" || activeJob?.status === "PROCESSING";
   const isBusy = actionsDisabled || isGenerating || uploading;
+  const hasPrimaryImage = images.some((image) => image.isPrimary);
 
   const handleFileChange = async (
     event: React.ChangeEvent<HTMLInputElement>,
@@ -110,6 +121,7 @@ export function ImageGallery({
     actionError,
     isGenerating,
     isBusy,
+    hasPrimaryImage,
   };
 
   if (compact) {
@@ -132,6 +144,7 @@ function CompactImageGallery({
   uploadError,
   actionError,
   isBusy,
+  hasPrimaryImage,
 }: Readonly<Omit<GalleryViewProps, "uploading" | "isGenerating">>) {
   return (
     <div className="mt-3 space-y-3">
@@ -156,9 +169,7 @@ function CompactImageGallery({
         <div className="rounded-md border border-primary/30 bg-primary/5 p-2 text-xs">
           <div className="flex items-center justify-between gap-2">
             <span>
-              {activeJob.status === "QUEUED"
-                ? "En cola..."
-                : "Generando una variante..."}
+              {getActiveJobMessage(activeJob.status, hasPrimaryImage)}
             </span>
             <span>{activeJob.progress}%</span>
           </div>
@@ -222,7 +233,7 @@ function CompactSavedImages({
     return (
       <div className="flex items-center text-sm text-muted-foreground">
         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-        Cargando variantes guardadas...
+        Cargando imágenes guardadas...
       </div>
     );
   }
@@ -235,6 +246,7 @@ function CompactSavedImages({
         <div
           key={image.id}
           className="relative overflow-hidden rounded-md border border-border bg-muted p-0.5"
+          title={image.isPrimary ? "Imagen principal" : "Imagen secundaria"}
         >
           <EntityImage
             src={image.imageUrl}
@@ -245,11 +257,15 @@ function CompactSavedImages({
             category={category}
             iconClassName="h-5 w-5"
           />
-          {image.isPrimary && (
-            <span className="absolute bottom-1 left-1 rounded bg-primary px-1.5 py-0.5 text-[10px] font-medium text-primary-foreground">
-              Principal
-            </span>
-          )}
+          <span
+            className={`absolute bottom-1 left-1 right-1 rounded px-1 py-0.5 text-center text-[8px] font-medium leading-tight ${
+              image.isPrimary
+                ? "bg-primary text-primary-foreground"
+                : "bg-background/90 text-foreground"
+            }`}
+          >
+            {image.isPrimary ? "Imagen principal" : "Imagen secundaria"}
+          </span>
           <div className="absolute right-1 top-1 flex gap-1">
             <button
               type="button"
@@ -297,20 +313,16 @@ function FullImageGallery({
   actionError,
   isGenerating,
   isBusy,
+  hasPrimaryImage,
 }: GalleryViewProps) {
   const newImageLabel = getNewImageLabel(uploading, isGenerating);
 
   return (
     <section className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h3 className="text-sm font-semibold uppercase text-muted-foreground">
-            BAÚL DE IMÁGENES
-          </h3>
-          <p className="text-xs text-muted-foreground">
-            Todas las variantes quedan asociadas a esta ficha.
-          </p>
-        </div>
+        <h4 className="text-sm font-semibold text-muted-foreground">
+          Imágenes guardadas
+        </h4>
         <input
           ref={fileInputRef}
           type="file"
@@ -321,7 +333,7 @@ function FullImageGallery({
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button disabled={isBusy}>
-              {isBusy ? (
+            {isBusy ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
                 <ImageIcon className="mr-2 h-4 w-4" />
@@ -333,7 +345,9 @@ function FullImageGallery({
           <DropdownMenuContent align="end">
             <DropdownMenuItem onSelect={onGenerate}>
               <Sparkles className="mr-2 h-4 w-4" />
-              Generar variante
+              {hasPrimaryImage
+                ? "Generar imagen secundaria"
+                : "Generar imagen principal"}
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => fileInputRef.current?.click()}>
               <Upload className="mr-2 h-4 w-4" />
@@ -351,9 +365,7 @@ function FullImageGallery({
         <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm">
           <div className="flex items-center justify-between gap-3">
             <span>
-              {activeJob.status === "QUEUED"
-                ? "En cola..."
-                : "Generando una variante..."}
+              {getActiveJobMessage(activeJob.status, hasPrimaryImage)}
             </span>
             <span>{activeJob.progress}%</span>
           </div>
@@ -413,7 +425,7 @@ function FullSavedImages({
       <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center text-muted-foreground">
         <ImageIcon className="mb-2 h-8 w-8" />
         <p className="text-sm">Todavía no hay imágenes guardadas.</p>
-        <p className="text-xs">Generá la primera variante para esta ficha.</p>
+        <p className="text-xs">Generá la imagen principal de esta ficha.</p>
       </div>
     );
   }
@@ -435,11 +447,9 @@ function FullSavedImages({
               category={category}
               iconClassName="h-10 w-10"
             />
-            {image.isPrimary && (
-              <span className="absolute left-2 top-2 rounded-full bg-primary px-2 py-1 text-xs font-medium text-primary-foreground">
-                Principal
-              </span>
-            )}
+            <span className={`absolute left-2 top-2 rounded-full px-2 py-1 text-xs font-medium ${image.isPrimary ? "bg-primary text-primary-foreground" : "bg-background/90 text-foreground"}`}>
+              {image.isPrimary ? "Imagen principal" : "Imagen secundaria"}
+            </span>
           </div>
           <div className="flex items-center justify-between gap-2 p-2">
             <Button
@@ -454,7 +464,7 @@ function FullSavedImages({
               ) : (
                 <StarOff className="mr-1 h-4 w-4" />
               )}
-              Principal
+              {image.isPrimary ? "Imagen principal" : "Usar como principal"}
             </Button>
             <Button
               variant="ghost"

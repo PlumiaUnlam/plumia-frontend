@@ -9,11 +9,38 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { loadSpellchecker } from "@/lib/spellcheck"
+import { addWordToSpellcheckDictionary, loadSpellchecker } from "@/lib/spellcheck"
 import type { SpellcheckLanguage } from "@/types/editor-search"
+import {
+  findMisspelledRanges,
+  findMisspelledRangesInBlock,
+  type MisspelledRange,
+  replaceAllSpellcheckDecorations,
+  replaceSpellcheckDecorationsInRange,
+} from "./spellcheck-decorations"
 import { findSpellingWord, replaceSpellingWord, type SpellingWord } from "./spelling-word"
 
 type SpellingResult = { key: string; correct?: boolean; suggestions?: string[]; error?: string }
+type IgnoredOccurrence = SpellingWord & { language: SpellcheckLanguage }
+
+function spellcheckWordKey(language: SpellcheckLanguage, word: string) {
+  return `${language}:${word.toLocaleLowerCase(language)}`
+}
+
+function filterIgnoredRanges(
+  ranges: MisspelledRange[],
+  language: SpellcheckLanguage,
+  ignoredWords: ReadonlySet<string>,
+  ignoredOccurrences: readonly IgnoredOccurrence[],
+) {
+  return ranges.filter(({ from, to, word }) =>
+    !ignoredWords.has(spellcheckWordKey(language, word)) &&
+    !ignoredOccurrences.some((ignored) =>
+      ignored.language === language && ignored.from === from && ignored.to === to &&
+      ignored.word.toLocaleLowerCase(language) === word.toLocaleLowerCase(language),
+    ),
+  )
+}
 
 function SpellcheckStatus({
   result,
@@ -61,6 +88,9 @@ export function SpellcheckSuggestions({ editor, language }: Readonly<{ editor: E
   const [result, setResult] = useState<SpellingResult | null>(null)
   const [editError, setEditError] = useState<string | null>(null)
   const [attempt, setAttempt] = useState(0)
+  const ignoredWordsRef = useRef(new Set<string>())
+  const ignoredOccurrencesRef = useRef<IgnoredOccurrence[]>([])
+  const spellcheckerRef = useRef<Awaited<ReturnType<typeof loadSpellchecker>> | null>(null)
   const requestKey = `${language}:${target?.word ?? ""}:${attempt}`
   const currentResult = result?.key === requestKey ? result : null
 
@@ -93,13 +123,23 @@ export function SpellcheckSuggestions({ editor, language }: Readonly<{ editor: E
       }
     }
     const mapTarget = ({ transaction }: { transaction: Transaction }) => {
+      if (!transaction.docChanged) return
       const current = targetRef.current
-      if (!current || !transaction.docChanged) return
-      const from = transaction.mapping.mapResult(current.from, 1)
-      const to = transaction.mapping.mapResult(current.to, -1)
-      targetRef.current = !from.deleted && !to.deleted && from.pos < to.pos && transaction.doc.textBetween(from.pos, to.pos, "", " ") === current.word
-        ? { ...current, from: from.pos, to: to.pos }
-        : null
+      if (current) {
+        const from = transaction.mapping.mapResult(current.from, 1)
+        const to = transaction.mapping.mapResult(current.to, -1)
+        targetRef.current = !from.deleted && !to.deleted && from.pos < to.pos && transaction.doc.textBetween(from.pos, to.pos, "", " ") === current.word
+          ? { ...current, from: from.pos, to: to.pos }
+          : null
+      }
+      ignoredOccurrencesRef.current = ignoredOccurrencesRef.current.flatMap((ignored) => {
+        const from = transaction.mapping.mapResult(ignored.from, 1)
+        const to = transaction.mapping.mapResult(ignored.to, -1)
+        if (from.deleted || to.deleted || from.pos >= to.pos) return []
+        return transaction.doc.textBetween(from.pos, to.pos, "", " ") === ignored.word
+          ? [{ ...ignored, from: from.pos, to: to.pos }]
+          : []
+      })
     }
     const dom = editor.view.dom
     dom.addEventListener("contextmenu", openSuggestions)
@@ -111,6 +151,101 @@ export function SpellcheckSuggestions({ editor, language }: Readonly<{ editor: E
       editor.off("transaction", mapTarget)
     }
   }, [editor])
+
+  useEffect(() => {
+    let cancelled = false
+    let spellchecker: Awaited<ReturnType<typeof loadSpellchecker>> | null = null
+    let timeoutId: number | null = null
+    const pendingBlockPositions = new Set<number>()
+    replaceAllSpellcheckDecorations(editor, [])
+
+    const updateChangedBlocks = () => {
+      timeoutId = null
+      if (cancelled || editor.isDestroyed || !spellchecker) return
+      const document = editor.state.doc
+      for (const blockPosition of pendingBlockPositions) {
+        const probe = Math.min(blockPosition + 1, document.content.size)
+        const position = document.resolve(probe)
+        if (!position.parent.isTextblock) continue
+        const currentBlockPosition = position.before(position.depth)
+        const from = position.start()
+        const to = position.end()
+        const ranges = filterIgnoredRanges(
+          findMisspelledRangesInBlock(position.parent, currentBlockPosition, spellchecker),
+          language,
+          ignoredWordsRef.current,
+          ignoredOccurrencesRef.current,
+        )
+        replaceSpellcheckDecorationsInRange(editor, from, to, ranges)
+      }
+      pendingBlockPositions.clear()
+    }
+
+    const onTransaction = ({ transaction }: { transaction: Transaction }) => {
+      if (!transaction.docChanged) return
+      const mappedBlockPositions = [...pendingBlockPositions].map((position) =>
+        transaction.mapping.map(position, -1),
+      )
+      pendingBlockPositions.clear()
+      mappedBlockPositions.forEach((position) => pendingBlockPositions.add(position))
+
+      const document = transaction.doc
+      const enqueueChangedRange = (from: number, to: number) => {
+        // Include one position on either side so textblocks touching either edge
+        // are revisited, including when a step maps a replaced range to a point.
+        const start = Math.max(0, Math.min(from, to) - 1)
+        const end = Math.min(document.content.size, Math.max(from, to) + 1)
+        document.nodesBetween(start, end, (node, position) => {
+          if (!node.isTextblock) return true
+          pendingBlockPositions.add(position)
+          return false
+        })
+      }
+
+      const mapping = transaction.mapping
+      for (let mapIndex = mapping.from; mapIndex < mapping.to; mapIndex += 1) {
+        const stepMap = mapping.maps[mapIndex]
+        const remainingMapping = mapping.slice(mapIndex + 1, mapping.to)
+        stepMap.forEach((_oldStart, _oldEnd, newStart, newEnd) => {
+          enqueueChangedRange(
+            remainingMapping.map(newStart, -1),
+            remainingMapping.map(newEnd, 1),
+          )
+        })
+      }
+
+      const selection = editor.state.selection.$from
+      if (selection.parent.isTextblock) {
+        pendingBlockPositions.add(selection.before(selection.depth))
+      }
+      if (timeoutId !== null) window.clearTimeout(timeoutId)
+      // Revisamos el párrafo activo cuando termina la escritura para no recalcularlo por cada tecla.
+      timeoutId = window.setTimeout(updateChangedBlocks, 180)
+    }
+
+    editor.on("transaction", onTransaction)
+    void loadSpellchecker(language).then((spell) => {
+      if (cancelled || editor.isDestroyed) return
+      spellchecker = spell
+      spellcheckerRef.current = spell
+      replaceAllSpellcheckDecorations(
+        editor,
+        filterIgnoredRanges(
+          findMisspelledRanges(editor.state.doc, spell),
+          language,
+          ignoredWordsRef.current,
+          ignoredOccurrencesRef.current,
+        ),
+      )
+    }).catch(() => undefined)
+
+    return () => {
+      cancelled = true
+      if (spellcheckerRef.current === spellchecker) spellcheckerRef.current = null
+      editor.off("transaction", onTransaction)
+      if (timeoutId !== null) window.clearTimeout(timeoutId)
+    }
+  }, [editor, language])
 
   useEffect(() => {
     if (!target) return
@@ -136,6 +271,43 @@ export function SpellcheckSuggestions({ editor, language }: Readonly<{ editor: E
       return
     }
     close()
+  }
+  const refreshDocumentSpellcheck = (spell = spellcheckerRef.current) => {
+    if (!spell || editor.isDestroyed) return
+    replaceAllSpellcheckDecorations(
+      editor,
+      filterIgnoredRanges(
+        findMisspelledRanges(editor.state.doc, spell),
+        language,
+        ignoredWordsRef.current,
+        ignoredOccurrencesRef.current,
+      ),
+    )
+  }
+  const ignoreOccurrence = () => {
+    const current = targetRef.current
+    if (!current) return
+    ignoredOccurrencesRef.current.push({ ...current, language })
+    refreshDocumentSpellcheck()
+    close()
+  }
+  const ignoreAllOccurrences = () => {
+    const current = targetRef.current
+    if (!current) return
+    ignoredWordsRef.current.add(spellcheckWordKey(language, current.word))
+    refreshDocumentSpellcheck()
+    close()
+  }
+  const addToDictionary = () => {
+    const current = targetRef.current
+    if (!current) return
+    void addWordToSpellcheckDictionary(language, current.word).then((spell) => {
+      spellcheckerRef.current = spell
+      refreshDocumentSpellcheck(spell)
+      close()
+    }).catch(() => {
+      setEditError("No se pudo agregar la palabra al diccionario.")
+    })
   }
 
   return (
@@ -167,6 +339,20 @@ export function SpellcheckSuggestions({ editor, language }: Readonly<{ editor: E
               onChange={(event) => setReplacement(event.target.value)}
               onKeyDown={(event) => { if (event.key === "Enter" && replacement.trim()) { event.preventDefault(); apply(replacement) } }} />
           </div>
+          <div className="grid grid-cols-1 gap-2 border-t border-[#dadce0] pt-3 dark:border-border sm:grid-cols-3">
+            <Button type="button" variant="outline" className="h-auto min-h-9 whitespace-normal px-2 py-2 text-xs" onClick={ignoreOccurrence}>
+              Ignorar esta vez
+            </Button>
+            <Button type="button" variant="outline" className="h-auto min-h-9 whitespace-normal px-2 py-2 text-xs" onClick={ignoreAllOccurrences}>
+              Ignorar todas en esta escena
+            </Button>
+            <Button type="button" variant="outline" className="h-auto min-h-9 whitespace-normal px-2 py-2 text-xs" onClick={addToDictionary}>
+              Agregar al diccionario
+            </Button>
+          </div>
+          <p className="text-xs text-[#5f6368] dark:text-muted-foreground">
+            El diccionario personal se guarda en este navegador. Ignorar todas solo afecta esta escena abierta.
+          </p>
           {editError && <p role="alert" className="text-sm text-destructive">{editError}</p>}
         </div>
         <DialogFooter className="mx-0 mb-0 border-t border-[#dadce0] bg-[#f8fafd] px-6 py-4 dark:border-border dark:bg-muted/50 sm:flex-row sm:justify-end">

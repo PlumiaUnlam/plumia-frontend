@@ -6,6 +6,7 @@ import {
   AlignRight,
   Baseline,
   Bold,
+  CaseSensitive,
   ChevronDown,
   Highlighter,
   IndentDecrease,
@@ -28,6 +29,7 @@ import {
   Strikethrough,
   Subscript,
   Superscript,
+  TextInitial,
   Underline,
   Undo2,
 } from "lucide-react"
@@ -59,10 +61,11 @@ import {
   type ParagraphAlignment,
   type ParagraphAttributes,
 } from "./paragraph-formatting"
-import { ParagraphFormatDialog } from "./paragraph-format-dialog"
 import { ListStyleGrid } from "./list-style-grid"
 import { removeCurrentList } from "./list-formatting"
 import { ListNumberingActionsButton } from "./list-numbering-menu"
+import { canApplyDropCap, isDropCapActive, toggleDropCap } from "./drop-cap"
+import { canTransformSelectedText, transformSelectedTextCase } from "./text-case"
 import { ColorPalette } from "./color-palette"
 import {
   applyTextFontSize,
@@ -204,7 +207,6 @@ interface EditorToolbarProps {
   onToggleSplit?: () => void
   isSplit?: boolean
   canSplit?: boolean
-  paragraphDialogOpen: boolean
   onParagraphDialogOpenChange: (open: boolean) => void
 }
 
@@ -219,7 +221,6 @@ export function EditorToolbar({
   onToggleSplit,
   isSplit = false,
   canSplit = true,
-  paragraphDialogOpen,
   onParagraphDialogOpenChange,
 }: Readonly<EditorToolbarProps>) {
   const paragraphState = useEditorState({
@@ -244,6 +245,9 @@ export function EditorToolbar({
       textFontFamily: getActiveTextFontFamily(currentEditor),
       canLiftListItem: currentEditor.can().liftListItem("listItem"),
       canSinkListItem: currentEditor.can().sinkListItem("listItem"),
+      canApplyDropCap: canApplyDropCap(currentEditor),
+      isDropCapActive: isDropCapActive(currentEditor),
+      canTransformSelectedText: canTransformSelectedText(currentEditor),
       attributes: currentEditor.getAttributes(
         "paragraph",
       ) as Partial<ParagraphAttributes>,
@@ -552,6 +556,42 @@ export function EditorToolbar({
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className={toolbarLabelButtonClass}
+                  disabled={!paragraphState.canTransformSelectedText}
+                  title="Cambiar mayúsculas y minúsculas del texto seleccionado"
+                  aria-label="Cambiar mayúsculas y minúsculas"
+                  onMouseDown={(event) => event.preventDefault()}
+                >
+                  <CaseSensitive className="size-4" />
+                  <ChevronDown className="size-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className={`w-64 ${toolbarMenuClass}`}>
+                <DropdownMenuLabel>Mayúsculas y minúsculas</DropdownMenuLabel>
+                <DropdownMenuItem className={toolbarMenuItemClass} onSelect={() => transformSelectedTextCase(editor, "sentence")}>
+                  Tipo oración
+                </DropdownMenuItem>
+                <DropdownMenuItem className={toolbarMenuItemClass} onSelect={() => transformSelectedTextCase(editor, "lowercase")}>
+                  minúscula
+                </DropdownMenuItem>
+                <DropdownMenuItem className={toolbarMenuItemClass} onSelect={() => transformSelectedTextCase(editor, "uppercase")}>
+                  MAYÚSCULAS
+                </DropdownMenuItem>
+                <DropdownMenuItem className={toolbarMenuItemClass} onSelect={() => transformSelectedTextCase(editor, "title")}>
+                  Poner En Mayúsculas Cada Palabra
+                </DropdownMenuItem>
+                <DropdownMenuItem className={toolbarMenuItemClass} onSelect={() => transformSelectedTextCase(editor, "toggle")}>
+                  Alternar MAY/min
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
                 <Button type="button" size="sm" variant="ghost"
                   className={`${toolbarLabelButtonClass} relative ${getHighlightButtonClass(paragraphState.isTextHighlight)}`}
                   title="Resaltado y color" aria-label="Resaltado y color"
@@ -618,6 +658,15 @@ export function EditorToolbar({
                 <DropdownMenuCheckboxItem checked={paragraphState.isSuperscript} className={toolbarMenuItemClass}
                   onCheckedChange={() => toggleSuperscript(editor)}>
                   <Superscript className="mr-2 size-4" /> Superíndice
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuCheckboxItem
+                  checked={paragraphState.isDropCapActive}
+                  disabled={!paragraphState.canApplyDropCap}
+                  className={toolbarMenuItemClass}
+                  onCheckedChange={() => toggleDropCap(editor)}
+                >
+                  <TextInitial className="mr-2 size-4" /> Letra capital
                 </DropdownMenuCheckboxItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className={toolbarMenuItemClass} onSelect={() => clearTextFormatting(editor)}>
@@ -874,13 +923,6 @@ export function EditorToolbar({
             {renderWhen(onAnalyzeChanges, <AnalysisButton isSaving={isAnalysisSaving} onClick={onAnalyzeChanges!} />)}
           </fieldset>
         </div>
-        <ParagraphFormatDialog
-          key={paragraphDialogOpen ? "open" : "closed"}
-          editor={editor}
-          attributes={paragraphAttributes}
-          open={paragraphDialogOpen}
-          onOpenChange={onParagraphDialogOpenChange}
-        />
       </div>
     </TooltipProvider>
   )

@@ -15,7 +15,15 @@ import {
   ItemTitle,
 } from "@/components/ui/item";
 
-import { Search, PenLine, Trash2, Funnel, StarIcon } from "lucide-react";
+import {
+  Search,
+  PenLine,
+  Trash2,
+  Funnel,
+  StarIcon,
+  ArrowUpRight,
+  CalendarDays,
+} from "lucide-react";
 
 import type { Entity, EntityCategory } from "@/types/entity";
 import { TYPE_TO_CATEGORY } from "@/types/entity";
@@ -23,6 +31,12 @@ import { ENTITY_CATEGORY_STYLES } from "@/lib/entity-category-style";
 import { EntityIconTile } from "@/components/worldbuilding/entity-icon-tile";
 import { EntityImage } from "@/components/worldbuilding/entity-image";
 import { ImageGallery } from "@/components/worldbuilding/image-gallery";
+import {
+  getEntityAttributes,
+  VISUAL_IDENTITY_COPY,
+} from "@/lib/entity-wiki";
+import type { Relationship } from "@/types/relationship";
+import type { TimelineEvent } from "@/types/timeline";
 import type {
   ImageGenerationJob,
   ImageResponse,
@@ -79,6 +93,246 @@ interface WikiTabProps {
   readonly onSetPrimaryImage: (imageId: string) => void;
   readonly onDeleteImage: (image: ImageResponse) => void;
   readonly imageActionError?: string | null;
+  readonly relationships: readonly Relationship[];
+  readonly relationshipError: Error | undefined;
+  readonly timelineEvents: readonly TimelineEvent[];
+  readonly timelineEventsError: Error | undefined;
+  readonly linksLoading: boolean;
+  readonly onOpenEntity: (entityId: string) => void;
+  readonly onOpenTimelineEvent: (eventId: string) => void;
+}
+
+interface EntityListContentProps {
+  readonly loading: boolean;
+  readonly entities: readonly Entity[];
+  readonly selectedEntity: Entity | null;
+  readonly selectedEntityPrimaryImage: ImageResponse | undefined;
+  readonly primaryImageUrls: Readonly<Record<string, string>>;
+  readonly onSelectEntity: (entity: Entity | null) => void;
+}
+
+function EntityListContent({
+  loading,
+  entities,
+  selectedEntity,
+  selectedEntityPrimaryImage,
+  primaryImageUrls,
+  onSelectEntity,
+}: EntityListContentProps) {
+  if (loading) {
+    return Array.from({ length: 4 }).map((_, index) => (
+      <Item
+        key={index}
+        variant="outline"
+        size="sm"
+        className="cursor-default"
+      >
+        <ItemMedia variant="icon">
+          <Search className="h-4 w-4 text-muted-foreground" />
+        </ItemMedia>
+        <ItemContent>
+          <Skeleton className="h-4 w-28" />
+          <Skeleton className="h-3 w-20" />
+        </ItemContent>
+      </Item>
+    ));
+  }
+
+  return entities.map((entity) => {
+    const entityCategory = TYPE_TO_CATEGORY[entity.type];
+    const isSelected = selectedEntity?.id === entity.id;
+    const selectedImage = isSelected ? selectedEntityPrimaryImage : undefined;
+    const primaryImageUrl = primaryImageUrls[entity.id];
+    const fallbackImageUrl = `/api/storage/image/${entity.id}?v=${Date.parse(entity.updatedAt)}`;
+    const hasImage = Boolean(primaryImageUrl || entity.imageUrl || selectedImage);
+    const imageSrc =
+      selectedImage?.imageUrl ?? primaryImageUrl ?? entity.imageUrl ?? fallbackImageUrl;
+
+    return (
+      <Item
+        key={entity.id}
+        variant="outline"
+        size="sm"
+        onClick={() => onSelectEntity(entity)}
+        onKeyDown={(event) => {
+          if (event.key !== "Enter" && event.key !== " ") return;
+          event.preventDefault();
+          onSelectEntity(entity);
+        }}
+        tabIndex={0}
+        role="button"
+        className={`cursor-pointer focus-visible:ring-2 focus-visible:ring-primary transition-colors ${
+          isSelected
+            ? "bg-primary/10 border-primary"
+            : "bg-white hover:bg-muted/50 dark:bg-card"
+        }`}
+      >
+        {hasImage ? (
+          <ItemMedia variant="image">
+            <EntityImage
+              src={imageSrc}
+              alt={entity.canonicalName}
+              width={128}
+              height={128}
+              className="aspect-square w-full rounded-sm object-cover"
+              category={entityCategory}
+              iconClassName="h-4 w-4"
+            />
+          </ItemMedia>
+        ) : (
+          <ItemMedia variant="image">
+            <EntityIconTile
+              category={entityCategory}
+              className="size-full rounded-sm"
+              iconClassName="h-4 w-4"
+            />
+          </ItemMedia>
+        )}
+        <ItemContent className="min-w-0">
+          <ItemTitle className="max-w-full">{entity.canonicalName}</ItemTitle>
+          {entity.aliases.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {entity.aliases.map((tag) => (
+                <Badge key={tag} variant="secondary">
+                  {tag}
+                </Badge>
+              ))}
+            </div>
+          )}
+          <ItemDescription className="break-words">
+            {entity.description ?? "Sin descripción"}
+          </ItemDescription>
+        </ItemContent>
+      </Item>
+    );
+  });
+}
+
+function EntityHistoryContent({
+  error,
+  loading,
+  events,
+  onOpenTimelineEvent,
+}: Readonly<{
+  error: Error | undefined;
+  loading: boolean;
+  events: readonly TimelineEvent[];
+  onOpenTimelineEvent: (eventId: string) => void;
+}>) {
+  if (error) {
+    return (
+      <p role="alert" className="text-sm text-destructive">
+        No se pudieron cargar los eventos: {error.message}
+      </p>
+    );
+  }
+  if (loading) {
+    return <p className="text-sm text-muted-foreground">Cargando eventos…</p>;
+  }
+  if (events.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        No hay eventos históricos vinculados a esta ficha.
+      </p>
+    );
+  }
+
+  return (
+    <ul className="space-y-4">
+      {events.map((event) => (
+        <li key={event.id}>
+          <button
+            type="button"
+            onClick={() => onOpenTimelineEvent(event.id)}
+            className="flex max-w-full items-start gap-2 text-left text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          >
+            <CalendarDays className="mt-0.5 size-4 shrink-0" />
+            <span>
+              <span className="font-medium">{event.title}</span>
+              {(event.temporalLabel || event.date) && (
+                <span className="ml-2 text-sm text-muted-foreground">
+                  {event.temporalLabel || event.date}
+                </span>
+              )}
+              {event.description && (
+                <span className="mt-1 block whitespace-pre-wrap text-sm text-muted-foreground">
+                  {event.description}
+                </span>
+              )}
+            </span>
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function EntityRelationshipsContent({
+  error,
+  loading,
+  relationships,
+  entities,
+  selectedEntity,
+  onOpenEntity,
+}: Readonly<{
+  error: Error | undefined;
+  loading: boolean;
+  relationships: readonly Relationship[];
+  entities: readonly Entity[];
+  selectedEntity: Entity;
+  onOpenEntity: (entityId: string) => void;
+}>) {
+  if (error) {
+    return (
+      <p role="alert" className="text-sm text-destructive">
+        No se pudieron cargar los vínculos: {error.message}
+      </p>
+    );
+  }
+  if (loading) {
+    return <p className="text-sm text-muted-foreground">Cargando vínculos…</p>;
+  }
+  if (relationships.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        No hay vínculos registrados para esta ficha.
+      </p>
+    );
+  }
+
+  return (
+    <ul className="space-y-3">
+      {relationships.map((relationship) => {
+        const isSource = relationship.sourceEntityId === selectedEntity.id;
+        const otherEntityId = isSource
+          ? relationship.targetEntityId
+          : relationship.sourceEntityId;
+        const otherEntity = entities.find((item) => item.id === otherEntityId);
+        if (!otherEntity) return null;
+
+        const label = getRelationshipLabel(relationship.relationType, isSource);
+        const description = relationship.description
+          ? ` · ${relationship.description}`
+          : "";
+
+        return (
+          <li key={relationship.id}>
+            <button
+              type="button"
+              onClick={() => onOpenEntity(otherEntity.id)}
+              className="flex max-w-full flex-wrap items-center gap-x-2 gap-y-1 text-left text-sm text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >
+              <span className="font-medium">{otherEntity.canonicalName}</span>
+              <span className="text-muted-foreground">
+                {label}{description}
+              </span>
+              <ArrowUpRight className="size-3.5 shrink-0" />
+            </button>
+          </li>
+        );
+      })}
+    </ul>
+  );
 }
 
 export function WikiTab({
@@ -98,6 +352,13 @@ export function WikiTab({
   onSetPrimaryImage,
   onDeleteImage,
   imageActionError,
+  relationships,
+  relationshipError,
+  timelineEvents,
+  timelineEventsError,
+  linksLoading,
+  onOpenEntity,
+  onOpenTimelineEvent,
 }: WikiTabProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<EntityCategory[]>(
@@ -130,6 +391,18 @@ export function WikiTab({
       selectedEntity.imageUrl ??
       `/api/storage/image/${selectedEntity.id}?v=${Date.parse(selectedEntity.updatedAt)}`)
     : "";
+  const selectedEntityRelationships = selectedEntity
+    ? relationships.filter(
+        (relationship) =>
+          relationship.sourceEntityId === selectedEntity.id ||
+          relationship.targetEntityId === selectedEntity.id,
+      )
+    : [];
+  const linkedTimelineEvents = selectedEntity
+    ? timelineEvents.filter((event) =>
+        event.entityIds.includes(selectedEntity.id),
+      )
+    : [];
 
   if (error) {
     return (
@@ -143,8 +416,8 @@ export function WikiTab({
   }
 
   return (
-    <div className="flex w-full h-full min-h-0 min-w-0 overflow-hidden">
-      <aside className="w-80 shrink-0 border-r border-border flex flex-col min-h-0 h-full bg-muted/30 overflow-hidden">
+    <div className="flex h-full min-h-0 min-w-0 w-full flex-1 overflow-hidden">
+      <aside className="w-48 shrink-0 border-r border-border flex flex-col min-h-0 h-full bg-muted/30 overflow-hidden sm:w-60 lg:w-80">
         <div className="p-4 border-b border-border bg-card/50">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -209,103 +482,21 @@ export function WikiTab({
           </div>
         </div>
 
-        <ScrollArea className="w-full flex-1 min-h-0 h-full p-3">
+        <ScrollArea className="w-full min-h-0 flex-1 p-3">
           <ItemGroup className="min-w-0">
-            {loading
-              ? Array.from({ length: 4 }).map((_, i) => (
-                  <Item
-                    key={i}
-                    variant="outline"
-                    size="sm"
-                    className="cursor-default"
-                  >
-                    <ItemMedia variant="icon">
-                      <Search className="h-4 w-4 text-muted-foreground" />
-                    </ItemMedia>
-                    <ItemContent>
-                      <Skeleton className="h-4 w-28" />
-                      <Skeleton className="h-3 w-20" />
-                    </ItemContent>
-                  </Item>
-                ))
-              : filteredEntities.map((entity) => {
-                  const src = `/api/storage/image/${entity.id}?v=${Date.parse(entity.updatedAt)}`;
-                  const primaryImageUrl = primaryImageUrls[entity.id];
-                  const isSelected = selectedEntity?.id === entity.id;
-                  const entityCategory = TYPE_TO_CATEGORY[entity.type];
-
-                  return (
-                    <Item
-                      key={entity.id}
-                      variant="outline"
-                      size="sm"
-                      onClick={() => onSelectEntity(entity)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
-                          onSelectEntity(entity);
-                        }
-                      }}
-                      tabIndex={0}
-                      role="button"
-                      className={`cursor-pointer focus-visible:ring-2 focus-visible:ring-primary transition-colors ${
-                        isSelected
-                          ? "bg-primary/10 border-primary"
-                          : "bg-white hover:bg-muted/50 dark:bg-card"
-                      }`}
-                    >
-                      {primaryImageUrl ||
-                      entity.imageUrl ||
-                      (isSelected && selectedEntityPrimaryImage) ? (
-                        <ItemMedia variant="image">
-                          <EntityImage
-                            src={
-                              isSelected && selectedEntityPrimaryImage
-                                ? selectedEntityPrimaryImage.imageUrl
-                                : (primaryImageUrl ?? entity.imageUrl ?? src)
-                            }
-                            alt={entity.canonicalName}
-                            width={128}
-                            height={128}
-                            className="aspect-square w-full rounded-sm object-cover"
-                            category={entityCategory}
-                            iconClassName="h-4 w-4"
-                          />
-                        </ItemMedia>
-                      ) : (
-                        <ItemMedia variant="image">
-                          <EntityIconTile
-                            category={entityCategory}
-                            className="size-full rounded-sm"
-                            iconClassName="h-4 w-4"
-                          />
-                        </ItemMedia>
-                      )}
-                      <ItemContent className="min-w-0">
-                        <ItemTitle className="max-w-full">
-                          {entity.canonicalName}
-                        </ItemTitle>
-                        {entity.aliases.length > 0 && (
-                          <div className="flex flex-wrap gap-1">
-                            {entity.aliases.map((tag) => (
-                              <Badge key={tag} variant="secondary">
-                                {tag}
-                              </Badge>
-                            ))}
-                          </div>
-                        )}
-                        <ItemDescription className="break-words">
-                          {entity.description ?? "Sin descripción"}
-                        </ItemDescription>
-                      </ItemContent>
-                    </Item>
-                  );
-                })}
+            <EntityListContent
+              loading={loading}
+              entities={filteredEntities}
+              selectedEntity={selectedEntity}
+              selectedEntityPrimaryImage={selectedEntityPrimaryImage}
+              primaryImageUrls={primaryImageUrls}
+              onSelectEntity={onSelectEntity}
+            />
           </ItemGroup>
         </ScrollArea>
       </aside>
 
-      <main className="flex-grow flex flex-col min-h-0 min-w-0 overflow-y-auto overscroll-contain p-12 bg-muted/30">
+      <main className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain p-4 bg-muted/30 sm:p-6 lg:p-10">
         {selectedEntity ? (
           <>
             <header className="mb-8 flex-shrink-0 flex flex-wrap items-start gap-4 justify-between">
@@ -359,11 +550,9 @@ export function WikiTab({
               </div>
             </header>
 
-            <div className="min-w-0 flex-1 space-y-6">
+            <div className="min-w-0 flex-1 space-y-5">
               <section className="space-y-3">
-                <h3 className="text-sm font-semibold uppercase text-muted-foreground">
-                  DESCRIPCION
-                </h3>
+                <h3 className="text-lg font-semibold">Descripción</h3>
                 <Card className="min-w-0 w-full bg-muted/30">
                   <CardContent className="whitespace-pre-wrap break-words text-sm leading-relaxed">
                     {selectedEntity.description || (
@@ -375,17 +564,54 @@ export function WikiTab({
                 </Card>
               </section>
 
-              <ImageGallery
-                images={images}
-                loading={imagesLoading}
-                activeJob={activeImageJob}
-                category={selectedEntityCategory ?? "Personaje"}
-                onGenerate={onGenerateImage}
-                onUpload={onUploadImage}
-                onSetPrimary={onSetPrimaryImage}
-                onDelete={onDeleteImage}
-                actionError={imageActionError}
-              />
+              <section className="space-y-3">
+                <h3 className="text-lg font-semibold">Historia</h3>
+                <Card className="min-w-0 w-full bg-muted/30">
+                  <CardContent>
+                    <EntityHistoryContent
+                      error={timelineEventsError}
+                      loading={linksLoading}
+                      events={linkedTimelineEvents}
+                      onOpenTimelineEvent={onOpenTimelineEvent}
+                    />
+                  </CardContent>
+                </Card>
+              </section>
+
+              <section className="space-y-3">
+                <h3 className="text-lg font-semibold">Vínculos</h3>
+                <Card className="min-w-0 w-full bg-muted/30">
+                  <CardContent>
+                    <EntityRelationshipsContent
+                      error={relationshipError}
+                      loading={linksLoading}
+                      relationships={selectedEntityRelationships}
+                      entities={entities}
+                      selectedEntity={selectedEntity}
+                      onOpenEntity={onOpenEntity}
+                    />
+                  </CardContent>
+                </Card>
+              </section>
+
+              <section className="space-y-3">
+                <h3 className="text-lg font-semibold">Baúl de imágenes</h3>
+                <EntityVisualIdentitySection
+                  entity={selectedEntity}
+                  onEdit={() => onEdit(selectedEntity)}
+                />
+                <ImageGallery
+                  images={images}
+                  loading={imagesLoading}
+                  activeJob={activeImageJob}
+                  category={selectedEntityCategory ?? "Personaje"}
+                  onGenerate={onGenerateImage}
+                  onUpload={onUploadImage}
+                  onSetPrimary={onSetPrimaryImage}
+                  onDelete={onDeleteImage}
+                  actionError={imageActionError}
+                />
+              </section>
 
               {/* {selectedEntity.imageUrl && (
                 <div className="rounded-lg overflow-hidden border border-border">
@@ -411,4 +637,63 @@ export function WikiTab({
       </main>
     </div>
   );
+}
+
+function EntityVisualIdentitySection({
+  entity,
+  onEdit,
+}: Readonly<{ entity: Entity; onEdit: () => void }>) {
+  const attributes = getEntityAttributes(entity.attributes);
+  const identity =
+    typeof attributes.visualIdentity === "string"
+      ? attributes.visualIdentity.trim()
+      : "";
+  const copy = VISUAL_IDENTITY_COPY[entity.type];
+
+  return (
+    <div className="rounded-lg border border-border bg-muted/30 p-4">
+      <div className="space-y-3">
+        <div>
+          <h4 className="text-sm font-semibold">Identidad visual</h4>
+          <p className="mt-1 text-xs font-medium text-muted-foreground">
+            {copy.label}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">{copy.help}</p>
+        </div>
+        {identity ? (
+          <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">
+            {identity}
+          </p>
+        ) : (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-muted-foreground">
+              Todavía no hay una identidad visual guardada.
+            </p>
+            <Button variant="outline" size="sm" onClick={onEdit}>
+              Completar identidad visual
+            </Button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function getRelationshipLabel(
+  relationType: Relationship["relationType"],
+  isSource: boolean,
+): string {
+  const labels: Record<Relationship["relationType"], [string, string]> = {
+    ALLY: ["Aliado/a de", "Aliado/a de"],
+    ENEMY: ["Enemigo/a de", "Enemigo/a de"],
+    FAMILY: ["Familia de", "Familia de"],
+    ROMANTIC: ["Vínculo romántico con", "Vínculo romántico con"],
+    MENTOR: ["Mentor/a de", "Recibe mentoría de"],
+    RIVAL: ["Rival de", "Rival de"],
+    MEMBER_OF: ["Integrante de", "Incluye a"],
+    LOCATED_IN: ["Ubicado/a en", "Contiene a"],
+    OWNS: ["Posee", "Pertenece a"],
+    KNOWS: ["Conoce a", "Conoce a"],
+  };
+  return labels[relationType][isSource ? 0 : 1];
 }

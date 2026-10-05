@@ -256,6 +256,22 @@
   white-space: pre-wrap;
 }
 
+p[data-drop-cap="true"]::first-letter {
+  float: left;
+  font-size: var(--drop-cap-font-size, 48pt);
+  line-height: 1;
+  margin-right: 0.08em;
+  padding-top: 0.04em;
+}
+
+.ProseMirror .spellcheck-misspelled {
+  text-decoration-line: underline;
+  text-decoration-style: wavy;
+  text-decoration-color: #ea4335;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
 .ProseMirror .editor-tab-stop {
   display: inline-block;
   white-space: pre;

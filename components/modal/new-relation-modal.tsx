@@ -172,7 +172,7 @@ export function NewRelationModal({
 
   return (
     <Dialog open={show} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="min-w-[600px] gap-0 overflow-hidden">
+      <DialogContent size="wide" className="w-[calc(100vw-2rem)] min-w-0 gap-0 overflow-hidden">
         <DialogHeader className="border-b p-6 py-4">
           <DialogTitle>
             {getRelationModalTitle(isProposal, isEditing)}

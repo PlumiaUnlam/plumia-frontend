@@ -14,6 +14,7 @@ type EntityImageProps = {
   readonly iconClassName: string;
   readonly width: number;
   readonly height: number;
+  readonly fill?: boolean;
 };
 
 export function EntityImage({
@@ -24,6 +25,7 @@ export function EntityImage({
   iconClassName,
   width,
   height,
+  fill = false,
 }: EntityImageProps) {
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
   const hasError = failedSrc === src;
@@ -42,8 +44,9 @@ export function EntityImage({
     <Image
       src={src}
       alt={alt}
-      width={width}
-      height={height}
+      fill={fill}
+      width={fill ? undefined : width}
+      height={fill ? undefined : height}
       className={className}
       unoptimized
       onError={() => setFailedSrc(src)}

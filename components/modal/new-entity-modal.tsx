@@ -43,6 +43,11 @@ import { ENTITY_CATEGORY_STYLES } from "@/lib/entity-category-style";
 import { EntityIconTile } from "@/components/worldbuilding/entity-icon-tile";
 import { EntityImage } from "@/components/worldbuilding/entity-image";
 import { ImageGallery } from "@/components/worldbuilding/image-gallery";
+import {
+  getEntityVisualSuggestion,
+  VISUAL_IDENTITY_COPY,
+  withVisualIdentity,
+} from "@/lib/entity-wiki";
 import type {
   ImageGenerationJob,
   ImageResponse,
@@ -132,6 +137,12 @@ export function NewEntityModal({
     typeof attributes.visualIdentity === "string"
       ? attributes.visualIdentity
       : "";
+  const visualIdentityCopy = VISUAL_IDENTITY_COPY[CATEGORY_TO_TYPE[category]];
+  const visualSuggestion = getEntityVisualSuggestion(
+    CATEGORY_TO_TYPE[category],
+    description,
+    attributes,
+  );
   const imageSelectionLabel = getImageSelectionLabel(
     Boolean(selectedFile || aiGeneratedUrl),
     Boolean(primaryImage),
@@ -139,15 +150,7 @@ export function NewEntityModal({
   const submitLabel = getSubmitLabel(isProposal, isEditing);
 
   const updateVisualIdentity = (value: string) => {
-    setAttributes((current) => {
-      const next = { ...current };
-      if (value.trim()) {
-        next.visualIdentity = value;
-      } else {
-        delete next.visualIdentity;
-      }
-      return next;
-    });
+    setAttributes((current) => withVisualIdentity(current, value));
   };
 
   useEffect(() => {
@@ -327,14 +330,13 @@ export function NewEntityModal({
   const renderImagePreview = () => {
     if (previewUrl) {
       return (
-        <div className="relative rounded-lg overflow-hidden border border-border">
+        <div className="relative h-48 rounded-lg overflow-hidden border border-border">
           <Image
             src={previewUrl}
             alt="Preview"
-            width={384}
-            height={192}
+            fill
             unoptimized
-            className="w-full h-48 object-contain bg-muted"
+            className="object-contain bg-muted"
           />
           <button
             type="button"
@@ -349,14 +351,13 @@ export function NewEntityModal({
 
     if (aiGeneratedUrl) {
       return (
-        <div className="relative rounded-lg overflow-hidden border border-border">
+        <div className="relative h-48 rounded-lg overflow-hidden border border-border">
           <Image
             src={aiGeneratedUrl}
             alt="AI Generated"
-            width={384}
-            height={192}
+            fill
             unoptimized
-            className="w-full h-48 object-contain bg-muted"
+            className="object-contain bg-muted"
           />
           <button
             type="button"
@@ -393,15 +394,16 @@ export function NewEntityModal({
       }
 
       return (
-        <div className="relative overflow-hidden rounded-lg border border-border">
+        <div className="relative h-48 overflow-hidden rounded-lg border border-border">
           <EntityImage
             src={savedImageUrl}
             alt={entity.canonicalName}
-            className="h-48 w-full bg-muted object-contain"
+            className="h-full w-full bg-muted object-contain"
             category={TYPE_TO_CATEGORY[entity.type]}
             iconClassName="h-12 w-12"
             width={384}
             height={192}
+            fill
           />
           {primaryImage ? (
             <p className="absolute bottom-2 left-2 rounded-md bg-background/85 px-2 py-1 text-xs text-muted-foreground">
@@ -439,7 +441,7 @@ export function NewEntityModal({
 
   return (
     <Dialog open={show} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="z-[60] min-w-[600px] gap-0 overflow-hidden">
+      <DialogContent size="large" className="z-[60] w-[calc(100vw-2rem)] min-w-0 gap-0 overflow-hidden">
         <DialogHeader className="p-6 py-4 border-b">
           <div className="flex items-center justify-between">
             <DialogTitle>
@@ -480,7 +482,9 @@ export function NewEntityModal({
                   <button
                     key={id}
                     type="button"
-                    onClick={() => setCategory(id)}
+                    onClick={() => {
+                      setCategory(id);
+                    }}
                     className={`
                         flex items-center gap-2
                         rounded-lg border px-3 py-2
@@ -519,33 +523,49 @@ export function NewEntityModal({
             </FieldContent>
           </Field>
 
-          {category === "Personaje" && (
-            <FieldSet className="space-y-2">
-              <FieldLegend>Perfil visual</FieldLegend>
-              <p className="text-xs text-muted-foreground">
-                Estos rasgos se conservan entre variantes. Describí la
-                apariencia física estable del personaje; la pose, expresión y
-                fondo se pueden cambiar al generar cada imagen.
-              </p>
-              <Field>
-                <FieldLabel htmlFor="entity-visual-identity">
-                  Rasgos de identidad visual
-                </FieldLabel>
-                <FieldContent>
-                  <Textarea
-                    id="entity-visual-identity"
-                    value={visualIdentity}
-                    onChange={(event) =>
-                      updateVisualIdentity(event.target.value)
-                    }
-                    placeholder="Ej.: rostro alargado, ojos verdes, cabello negro ondulado hasta los hombros, piel clara, cicatriz fina sobre la ceja izquierda, complexión delgada."
-                    rows={4}
-                    maxLength={2000}
-                  />
-                </FieldContent>
-              </Field>
-            </FieldSet>
-          )}
+          <FieldSet className="space-y-2">
+            <FieldLegend>Identidad visual (opcional)</FieldLegend>
+            <p className="text-xs text-muted-foreground">
+              {visualIdentityCopy.help}
+            </p>
+            <Field>
+              <FieldLabel htmlFor="entity-visual-identity">
+                {visualIdentityCopy.label}
+              </FieldLabel>
+              <FieldContent>
+                <Textarea
+                  id="entity-visual-identity"
+                  value={visualIdentity}
+                  onChange={(event) => updateVisualIdentity(event.target.value)}
+                  placeholder={visualIdentityCopy.placeholder}
+                  rows={3}
+                  maxLength={2000}
+                />
+              </FieldContent>
+            </Field>
+            {!visualIdentity.trim() && (
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 p-3">
+                <p className="text-xs text-muted-foreground">
+                  {visualSuggestion
+                    ? "Sugerencia basada en los datos visuales de la ficha."
+                    : "Agregá los rasgos visuales que deban mantenerse."}
+                </p>
+                {visualSuggestion && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => updateVisualIdentity(visualSuggestion)}
+                  >
+                    Usar sugerencia
+                  </Button>
+                )}
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground">
+              Se guarda en la ficha y no reemplaza la descripción.
+            </p>
+          </FieldSet>
 
           <Field>
             <FieldLabel htmlFor="entity-image">
@@ -553,16 +573,6 @@ export function NewEntityModal({
             </FieldLabel>
 
             <FieldContent>
-              {isEditing && (
-                <div className="mb-3">
-                  <p className="text-sm font-semibold">Baúl de imágenes</p>
-                  <p className="text-xs text-muted-foreground">
-                    Estas variantes pertenecen a esta entidad y se guardan en
-                    su ficha.
-                  </p>
-                </div>
-              )}
-
               <input
                 id="entity-image"
                 ref={fileInputRef}

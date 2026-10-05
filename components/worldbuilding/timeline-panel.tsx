@@ -1117,7 +1117,7 @@ function TimelineEventDialog({ arcs, entities, createdEntity, event, open, onReq
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="min-w-[600px] gap-0 overflow-hidden">
+      <DialogContent size="wide" className="w-[calc(100vw-2rem)] min-w-0 gap-0 overflow-hidden">
         <DialogHeader className="border-b p-6 py-4">
           <DialogTitle>{isEditing ? "Editar evento" : "Nuevo evento"}</DialogTitle>
         </DialogHeader>

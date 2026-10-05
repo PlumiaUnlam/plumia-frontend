@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useSyncExternalStore } from "react"
 import type { Editor } from "@tiptap/react"
 import type { Mark } from "@tiptap/pm/model"
 import type { Transaction } from "@tiptap/pm/state"
@@ -77,6 +77,10 @@ function captureFormat(editor: Editor): FormatSnapshot {
     spacingBefore: sourceBlock.attrs.spacingBefore ?? DEFAULT_PARAGRAPH_ATTRIBUTES.spacingBefore,
     spacingAfter: sourceBlock.attrs.spacingAfter ?? DEFAULT_PARAGRAPH_ATTRIBUTES.spacingAfter,
     tabStops: [...(sourceBlock.attrs.tabStops ?? DEFAULT_PARAGRAPH_ATTRIBUTES.tabStops)],
+    dropCap: sourceBlock.attrs.dropCap ?? DEFAULT_PARAGRAPH_ATTRIBUTES.dropCap,
+    dropCapFontSize: sourceBlock.attrs.dropCapFontSize === undefined
+      ? DEFAULT_PARAGRAPH_ATTRIBUTES.dropCapFontSize
+      : sourceBlock.attrs.dropCapFontSize,
   }
 
   const blockType: PainterBlockType | null =
@@ -328,16 +332,16 @@ export function toggleFormatPainter(editor: Editor) {
   startSession(editor)
 }
 
-export function useFormatPainterState(editor: Editor) {
-  const [active, setActive] = useState(() => isFormatPainterActive(editor))
+export function useFormatPainterState(editor: Editor | null) {
+  const subscribeToEditor = useCallback(
+    (listener: () => void) =>
+      editor ? subscribe(editor, listener) : () => undefined,
+    [editor],
+  )
+  const getSnapshot = useCallback(
+    () => (editor ? isFormatPainterActive(editor) : false),
+    [editor],
+  )
 
-  useEffect(() => {
-    const update = () => setActive(isFormatPainterActive(editor))
-    const unsubscribe = subscribe(editor, update)
-    update()
-
-    return unsubscribe
-  }, [editor])
-
-  return active
+  return useSyncExternalStore(subscribeToEditor, getSnapshot, () => false)
 }

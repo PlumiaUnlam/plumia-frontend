@@ -59,7 +59,7 @@ export function NewItemModal({
 
   return (
     <Dialog open={show} onOpenChange={(open) => !open && handleClose()}>
-      <DialogContent className="min-w-[600px] gap-0 overflow-hidden">
+      <DialogContent size="medium" className="w-[calc(100vw-2rem)] min-w-0 gap-0 overflow-hidden">
         <DialogHeader className="border-b p-6 py-4">
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>

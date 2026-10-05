@@ -63,10 +63,11 @@ const menuButtonClass =
   "h-8 shrink-0 rounded-md px-2.5 text-sm font-medium text-[#3c4043] hover:bg-[#eee3f5] hover:text-[#70348c] data-[state=open]:bg-[#eee3f5] data-[state=open]:text-[#70348c] focus-visible:ring-2 focus-visible:ring-[#b98ad2] dark:text-foreground dark:hover:bg-muted dark:hover:text-foreground dark:data-[state=open]:bg-muted dark:data-[state=open]:text-foreground dark:focus-visible:ring-ring max-[640px]:px-2"
 const menuContentClass =
   "max-h-[min(80vh,42rem)] w-64 max-w-[calc(100vw-1rem)] overflow-y-auto border-[#dadce0] bg-white text-[#3c4043] shadow-[0_3px_8px_rgba(60,64,67,0.24)] dark:border-border dark:bg-popover dark:text-popover-foreground"
+const editMenuContentClass = menuContentClass.replace("w-64", "w-[17rem]")
 const menuItemClass = "min-h-9 gap-3 text-[#3c4043] focus:bg-[#f1f3f4] focus:text-[#202124] dark:text-foreground dark:focus:bg-accent dark:focus:text-accent-foreground"
 
 type EditorMenuBarProps = {
-  editor: Editor
+  editor: Editor | null
   projectId: string
   onSave?: () => void
   onExportClick?: () => void
@@ -87,6 +88,41 @@ type EditorMenuBarProps = {
   canSplit?: boolean
   toolbarExpanded: boolean
   onToggleToolbar: () => void
+}
+
+type MenuItemFactory = (
+  icon: ReactNode,
+  label: string,
+  action: () => void,
+  shortcut?: string,
+  disabled?: boolean,
+) => ReactNode
+
+function createAnnotationMenuItem(
+  menuItem: MenuItemFactory,
+  onToggleAnnotations: (() => void) | undefined,
+  hasEditor: boolean,
+  label: string,
+): ReactNode {
+  if (onToggleAnnotations) {
+    return menuItem(
+      <MessageSquare className="size-4" />,
+      label,
+      onToggleAnnotations,
+    )
+  }
+
+  if (!hasEditor) {
+    return menuItem(
+      <MessageSquare className="size-4" />,
+      label,
+      () => {},
+      undefined,
+      true,
+    )
+  }
+
+  return null
 }
 
 export function EditorMenuBar({
@@ -123,19 +159,34 @@ export function EditorMenuBar({
   const formatPainterActive = useFormatPainterState(editor)
   const editorState = useEditorState({
     editor,
-    selector: ({ editor: currentEditor }) => ({
-      canUndo: currentEditor.can().undo(),
-      canRedo: currentEditor.can().redo(),
-      isBold: currentEditor.isActive("bold"),
-      isItalic: currentEditor.isActive("italic"),
-      isUnderline: currentEditor.isActive("underline"),
-      isStrike: currentEditor.isActive("strike"),
-      isSubscript: currentEditor.isActive("subscript"),
-      isSuperscript: currentEditor.isActive("superscript"),
-      isTextHighlight: currentEditor.isActive("textHighlight"),
-      isParagraph: currentEditor.isActive("paragraph"),
-    }),
-  })
+    selector: ({ editor: currentEditor }) => {
+      if (!currentEditor) return null
+
+      return {
+        canUndo: currentEditor.can().undo(),
+        canRedo: currentEditor.can().redo(),
+        isBold: currentEditor.isActive("bold"),
+        isItalic: currentEditor.isActive("italic"),
+        isUnderline: currentEditor.isActive("underline"),
+        isStrike: currentEditor.isActive("strike"),
+        isSubscript: currentEditor.isActive("subscript"),
+        isSuperscript: currentEditor.isActive("superscript"),
+        isTextHighlight: currentEditor.isActive("textHighlight"),
+        isParagraph: currentEditor.isActive("paragraph"),
+      }
+    },
+  }) ?? {
+    canUndo: false,
+    canRedo: false,
+    isBold: false,
+    isItalic: false,
+    isUnderline: false,
+    isStrike: false,
+    isSubscript: false,
+    isSuperscript: false,
+    isTextHighlight: false,
+    isParagraph: false,
+  }
 
   let annotationMenuLabel = "Mostrar comentarios"
   if (areAnnotationsOpen) {
@@ -162,7 +213,7 @@ export function EditorMenuBar({
     </MenubarItem>
   )
 
-  const menu = (label: string, content: ReactNode) => (
+  const menu = (label: string, content: ReactNode, wider = false) => (
     <MenubarMenu>
       <MenubarTrigger asChild>
         <Button
@@ -177,14 +228,20 @@ export function EditorMenuBar({
       </MenubarTrigger>
       <MenubarContent
         align="start"
-        className={menuContentClass}
+        className={wider ? editMenuContentClass : menuContentClass}
         onCloseAutoFocus={(event) => {
-          if (editor.isFocused) event.preventDefault()
+          if (editor?.isFocused) event.preventDefault()
         }}
       >
         {content}
       </MenubarContent>
     </MenubarMenu>
+  )
+  const annotationMenuItem = createAnnotationMenuItem(
+    menuItem,
+    onToggleAnnotations,
+    Boolean(editor),
+    annotationMenuLabel,
   )
 
   return (
@@ -219,23 +276,24 @@ export function EditorMenuBar({
           {menuItem(
             <Undo2 className="size-4" />,
             "Deshacer",
-            () => editor.chain().focus().undo().run(),
+            () => editor?.chain().focus().undo().run(),
             "Ctrl/Cmd+Z",
-            !editorState.canUndo,
+            !editor || !editorState.canUndo,
           )}
           {menuItem(
             <Redo2 className="size-4" />,
             "Rehacer",
-            () => editor.chain().focus().redo().run(),
+            () => editor?.chain().focus().redo().run(),
             "Ctrl/Cmd+Y",
-            !editorState.canRedo,
+            !editor || !editorState.canRedo,
           )}
           <MenubarSeparator />
           {menuItem(
             <TextSelect className="size-4" />,
             "Seleccionar todo",
-            () => editor.chain().focus().selectAll().run(),
+            () => editor?.chain().focus().selectAll().run(),
             "Ctrl/Cmd+A",
+            !editor,
           )}
           {menuItem(
             <Search className="size-4" />,
@@ -245,6 +303,7 @@ export function EditorMenuBar({
             !onOpenSearch,
           )}
         </>,
+        true,
       )}
 
       {menu(
@@ -257,20 +316,26 @@ export function EditorMenuBar({
             undefined,
             !onInsertImage,
           )}
-          {onInsertDivider && (
+          {editor && onInsertDivider && (
             <MenubarSub>
               <MenubarSubTrigger className={menuItemClass}>Separador de escena</MenubarSubTrigger>
               <MenubarPortal>
                 <MenubarSubContent className={menuContentClass}>
-                  <SceneDividerMenuOptions editor={editor} onInsert={onInsertDivider} menuType="menubar" />
+          <SceneDividerMenuOptions editor={editor} onInsert={onInsertDivider} menuType="menubar" />
                 </MenubarSubContent>
               </MenubarPortal>
             </MenubarSub>
           )}
+          {!editor && (
+            <MenubarItem className={menuItemClass} disabled>
+              Separador de escena
+            </MenubarItem>
+          )}
         </>,
       )}
 
-      <EditorTextStylesMenu
+      {editor ? (
+        <EditorTextStylesMenu
         editor={editor}
         projectId={projectId}
         onSave={onSave}
@@ -357,18 +422,37 @@ export function EditorMenuBar({
           </>,
         )}
       />
+      ) : (
+        menu(
+          "Formato",
+          <>
+            <MenubarSub>
+              <MenubarSubTrigger disabled className={menuItemClass}>
+                Texto
+              </MenubarSubTrigger>
+            </MenubarSub>
+            <MenubarSub>
+              <MenubarSubTrigger disabled className={menuItemClass}>
+                Estilos de texto
+              </MenubarSubTrigger>
+            </MenubarSub>
+            <MenubarSeparator />
+            {menuItem(
+              <Pilcrow className="size-4" />,
+              "Opciones de párrafo…",
+              () => {},
+              undefined,
+              true,
+            )}
+          </>,
+        )
+      )}
 
       {menu(
         "Revisar",
         <>
-          {onToggleAnnotations
-            ? menuItem(
-                <MessageSquare className="size-4" />,
-                annotationMenuLabel,
-                onToggleAnnotations,
-              )
-            : null}
-          {onToggleAnnotations && <MenubarSeparator />}
+          {annotationMenuItem}
+          {(onToggleAnnotations || !editor) && <MenubarSeparator />}
           {menuItem(
             <Sparkles className="size-4" />,
             isAnalysisSaving ? "Programando análisis…" : "Analizar cambios",
@@ -396,11 +480,11 @@ export function EditorMenuBar({
             undefined,
             !onToggleZenMode,
           )}
-          {onToggleSplit && (
+          {(onToggleSplit || !editor) && (
             <MenubarItem
               className={menuItemClass}
-              disabled={!canSplit && !isSplit}
-              onSelect={onToggleSplit}
+              disabled={!editor || !onToggleSplit || (!canSplit && !isSplit)}
+              onSelect={() => onToggleSplit?.()}
             >
               <Columns2 className="size-4" />
               <span>{isSplit ? "Cerrar pantalla dividida" : "Pantalla dividida"}</span>
@@ -419,7 +503,7 @@ export function EditorMenuBar({
           size="icon-sm"
           variant="ghost"
           className="size-8 rounded-r-none text-[#3c4043] hover:bg-[#eee3f5] hover:text-[#70348c] dark:text-foreground dark:hover:bg-muted dark:hover:text-foreground"
-          disabled={!canZoomOut}
+          disabled={!editor || !canZoomOut}
           aria-label="Alejar editor"
           title="Alejar (Ctrl/Cmd+-)"
           onMouseDown={(event) => event.preventDefault()}
@@ -432,6 +516,7 @@ export function EditorMenuBar({
           size="sm"
           variant="ghost"
           className="h-8 min-w-14 rounded-none border-x border-[#dadce0] px-2 text-xs tabular-nums text-[#3c4043] hover:bg-[#eee3f5] hover:text-[#70348c] dark:border-border dark:text-foreground dark:hover:bg-muted dark:hover:text-foreground"
+          disabled={!editor}
           aria-label={`Restablecer zoom del editor, actual ${zoom}%`}
           title="Restablecer zoom (Ctrl/Cmd+0)"
           onMouseDown={(event) => event.preventDefault()}
@@ -444,7 +529,7 @@ export function EditorMenuBar({
           size="icon-sm"
           variant="ghost"
           className="size-8 rounded-l-none text-[#3c4043] hover:bg-[#eee3f5] hover:text-[#70348c] dark:text-foreground dark:hover:bg-muted dark:hover:text-foreground"
-          disabled={!canZoomIn}
+          disabled={!editor || !canZoomIn}
           aria-label="Acercar editor"
           title="Acercar (Ctrl/Cmd++)"
           onMouseDown={(event) => event.preventDefault()}
@@ -459,6 +544,7 @@ export function EditorMenuBar({
         size="icon-sm"
         variant="ghost"
         className="size-8 shrink-0 rounded-md text-[#3c4043] hover:bg-[#eee3f5] hover:text-[#70348c] focus-visible:ring-2 focus-visible:ring-[#b98ad2] dark:text-foreground dark:hover:bg-muted dark:hover:text-foreground dark:focus-visible:ring-ring"
+        disabled={!editor}
         aria-expanded={toolbarExpanded}
         aria-controls="editor-formatting-toolbar"
         aria-label={
