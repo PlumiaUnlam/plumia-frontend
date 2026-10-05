@@ -51,17 +51,21 @@ function SpellcheckStatus({
 }>) {
   if (!result) {
     return (
-      <span className="flex items-center gap-2">
-        <Loader2 className="size-4 animate-spin" />
-        Buscando sugerencias…
-      </span>
+      <output className="block" aria-live="polite">
+        <span className="flex items-center gap-2">
+          <Loader2 className="size-4 animate-spin" />
+          Buscando sugerencias…
+        </span>
+      </output>
     )
   }
 
   if (result.error) {
     return (
       <div className="space-y-2">
-        <p>{result.error}</p>
+        <output className="block" aria-live="polite">
+          {result.error}
+        </output>
         <Button type="button" variant="outline" size="sm" onClick={onRetry}>
           Reintentar
         </Button>
@@ -70,14 +74,26 @@ function SpellcheckStatus({
   }
 
   if (result.correct) {
-    return "El diccionario no detecta una falta en esta palabra."
+    return (
+      <output className="block" aria-live="polite">
+        El diccionario no detecta una falta en esta palabra.
+      </output>
+    )
   }
 
   if (!result.suggestions?.length) {
-    return "No encontramos sugerencias. Podés escribir la corrección."
+    return (
+      <output className="block" aria-live="polite">
+        No encontramos sugerencias. Podés escribir la corrección.
+      </output>
+    )
   }
 
-  return "Elegí una sugerencia para reemplazar la palabra:"
+  return (
+    <output className="block" aria-live="polite">
+      Elegí una sugerencia para reemplazar la palabra:
+    </output>
+  )
 }
 
 export function SpellcheckSuggestions({ editor, language }: Readonly<{ editor: Editor; language: SpellcheckLanguage }>) {
@@ -322,16 +338,19 @@ export function SpellcheckSuggestions({ editor, language }: Readonly<{ editor: E
           <DialogDescription className="text-[#5f6368] dark:text-muted-foreground">Revisá «{target?.word}» y elegí una corrección.</DialogDescription>
         </DialogHeader>
         <div className="space-y-4 px-6 py-5">
-          <div role="status" aria-live="polite" className="text-sm text-[#5f6368] dark:text-muted-foreground">
+          <div className="text-sm text-[#5f6368] dark:text-muted-foreground">
             <SpellcheckStatus
               result={currentResult}
               onRetry={() => setAttempt((value) => value + 1)}
             />
           </div>
           {!!currentResult?.suggestions?.length && (
-            <div className="grid grid-cols-2 gap-2" role="group" aria-label="Correcciones sugeridas">
+            <fieldset
+              className="m-0 grid min-w-0 grid-cols-2 gap-2 border-0 p-0"
+              aria-label="Correcciones sugeridas"
+            >
               {currentResult.suggestions.map((word) => <Button key={word} type="button" variant="outline" className="h-auto min-h-9 justify-start whitespace-normal break-all border-[#dadce0] bg-white text-[#3c4043] dark:border-border dark:bg-input/30 dark:text-foreground" onClick={() => apply(word)}>{word}</Button>)}
-            </div>
+            </fieldset>
           )}
           <div className="space-y-1.5">
             <Label htmlFor={replacementId}>Corrección manual</Label>

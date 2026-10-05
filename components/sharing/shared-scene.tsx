@@ -17,7 +17,7 @@ import type {
 } from "@/types/sharing"
 import type { ProseMirrorJSON } from "@/types/scene"
 
-export type SharedSceneProps = {
+export type SharedSceneProps = Readonly<{
   sceneId: string
   title: string | null
   content: ProseMirrorJSON | null
@@ -26,7 +26,7 @@ export type SharedSceneProps = {
   canComment: boolean
   onSelection: (selection: TextSelectionAnchor) => void
   onCommentClick: (commentId: string) => void
-}
+}>
 
 const commentPluginKey = new PluginKey("sharedReaderComments")
 
@@ -41,7 +41,7 @@ const SharedImage = Image.extend({
       ...this.parent?.(),
       storageKey: {
         default: null,
-        parseHTML: (element) => element.getAttribute("data-storage-key"),
+        parseHTML: (element) => element.dataset.storageKey ?? null,
         renderHTML: (attributes) =>
           typeof attributes.storageKey === "string"
             ? { "data-storage-key": attributes.storageKey }
@@ -211,7 +211,13 @@ export function SharedScene({
           {title}
         </h3>
       )}
-      <div onMouseUp={captureSelection}>
+      <div
+        role="region"
+        aria-label={title ? `Texto de ${title}` : "Texto de la escena"}
+        tabIndex={0}
+        onPointerUp={captureSelection}
+        onKeyUp={captureSelection}
+      >
         <EditorContent editor={editor} />
       </div>
     </article>

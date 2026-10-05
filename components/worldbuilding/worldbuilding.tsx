@@ -223,7 +223,7 @@ function useImageGenerationPolling({
       imagePollAttemptsRef.current += 1;
       imagePollInFlightRef.current = true;
 
-      void getImageGenerationJob(activeImageJobId, {
+      getImageGenerationJob(activeImageJobId, {
         signal: controller.signal,
       })
         .then((job) => {

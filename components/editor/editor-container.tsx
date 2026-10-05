@@ -617,6 +617,57 @@ function getAlternativeVersionId(
   return selectedVersionId === null ? (versions[0]?.id ?? null) : null
 }
 
+function getFallbackSecondarySceneId(
+  sceneId: string,
+  sections: EditorSectionOption[],
+  versions: SceneVersionSummary[],
+) {
+  const otherScene = sections.find((section) => section.id !== sceneId)
+  if (otherScene) return otherScene.id
+  return versions.length > 0 ? sceneId : null
+}
+
+function getActiveSecondarySceneId(
+  isSplit: boolean,
+  canSplit: boolean,
+  secondarySceneId: string | null,
+  fallbackSceneId: string | null,
+  sections: EditorSectionOption[],
+) {
+  if (!isSplit || !canSplit) return null
+
+  const selectedSceneIsAvailable =
+    secondarySceneId !== null &&
+    sections.some((section) => section.id === secondarySceneId)
+  return selectedSceneIsAvailable ? secondarySceneId : fallbackSceneId
+}
+
+function getActiveSecondaryVersionId(
+  secondaryVersionId: string | null,
+  versionList: SceneVersionList,
+) {
+  if (secondaryVersionId === null || versionList.loading) {
+    return secondaryVersionId
+  }
+  return versionList.versions.some(
+    (version) => version.id === secondaryVersionId,
+  )
+    ? secondaryVersionId
+    : null
+}
+
+function getNextSplitSection(
+  sections: EditorSectionOption[],
+  sceneId: string,
+  hasAlternativeVersions: boolean,
+) {
+  const currentIndex = sections.findIndex((section) => section.id === sceneId)
+  if (hasAlternativeVersions) return sections[currentIndex]
+
+  const nextIndex = currentIndex < 0 ? 0 : (currentIndex + 1) % sections.length
+  return sections[nextIndex]
+}
+
 function EditorWorkspace({
   sceneId,
   selectedVersionId,
@@ -667,18 +718,18 @@ function EditorWorkspace({
     `${documentReloadToken}:${selectedVersionId ?? DRAFT_VERSION_VALUE}:${isSplit}`,
   )
   const canSplit = sections.length > 1 || primaryVersionList.versions.length > 0
-  const fallbackSecondarySceneId =
-    sections.find((section) => section.id !== sceneId)?.id ??
-    (primaryVersionList.versions.length > 0 ? sceneId : null)
-  let activeSecondarySceneId: string | null = null
-  if (isSplit && canSplit) {
-    const secondarySceneIsAvailable =
-      secondarySceneId !== null &&
-      sections.some((section) => section.id === secondarySceneId)
-    activeSecondarySceneId = secondarySceneIsAvailable
-      ? secondarySceneId
-      : fallbackSecondarySceneId
-  }
+  const fallbackSecondarySceneId = getFallbackSecondarySceneId(
+    sceneId,
+    sections,
+    primaryVersionList.versions,
+  )
+  const activeSecondarySceneId = getActiveSecondarySceneId(
+    isSplit,
+    canSplit,
+    secondarySceneId,
+    fallbackSecondarySceneId,
+    sections,
+  )
   const effectiveIsSplit = Boolean(activeSecondarySceneId)
   const primarySection = sections.find((section) => section.id === sceneId)
   const secondarySection = sections.find(
@@ -692,14 +743,10 @@ function EditorWorkspace({
     activeSecondarySceneId === sceneId
       ? primaryVersionList
       : loadedSecondaryVersionList
-  const activeSecondaryVersionId =
-    secondaryVersionId === null ||
-    secondaryVersionList.loading ||
-    secondaryVersionList.versions.some(
-      (version) => version.id === secondaryVersionId,
-    )
-      ? secondaryVersionId
-      : null
+  const activeSecondaryVersionId = getActiveSecondaryVersionId(
+    secondaryVersionId,
+    secondaryVersionList,
+  )
 
   const registerPrimaryActions = useCallback(
     (actions: EditorToolbarActions | null) => {
@@ -854,36 +901,36 @@ function EditorWorkspace({
     ],
   )
 
-  const handleToggleSplit = useCallback(async () => {
-    if (isSavingBeforeChange) return
+  const openSplit = useCallback(() => {
+    if (!canSplit) return
 
-    if (!effectiveIsSplit) {
-      if (!canSplit) return
+    const nextSection = getNextSplitSection(
+      sections,
+      sceneId,
+      primaryVersionList.versions.length > 0,
+    )
+    if (!nextSection) return
 
-      const currentIndex = sections.findIndex((section) => section.id === sceneId)
-      const currentSection = sections[currentIndex]
-      const nextSection =
-        primaryVersionList.versions.length > 0
-          ? currentSection
-          : sections[
-              currentIndex < 0 ? 0 : (currentIndex + 1) % sections.length
-            ]
-      if (!nextSection) return
+    setSecondarySceneId(nextSection.id)
+    setSecondaryVersionId(
+      nextSection.id === sceneId
+        ? getAlternativeVersionId(
+            selectedVersionId,
+            primaryVersionList.versions,
+          )
+        : null,
+    )
+    setFocusedPane("primary")
+    setIsSplit(true)
+  }, [
+    canSplit,
+    primaryVersionList.versions,
+    sceneId,
+    sections,
+    selectedVersionId,
+  ])
 
-      setSecondarySceneId(nextSection.id)
-      setSecondaryVersionId(
-        nextSection.id === sceneId
-          ? getAlternativeVersionId(
-              selectedVersionId,
-              primaryVersionList.versions,
-            )
-          : null,
-      )
-      setFocusedPane("primary")
-      setIsSplit(true)
-      return
-    }
-
+  const closeSplit = useCallback(async () => {
     setIsSavingBeforeChange(true)
     setSaveChangeError(null)
     try {
@@ -898,17 +945,16 @@ function EditorWorkspace({
     } finally {
       setIsSavingBeforeChange(false)
     }
-  }, [
-    canSplit,
-    isSavingBeforeChange,
-    effectiveIsSplit,
-    saveBeforeChange,
-    sceneId,
-    secondaryActions,
-    sections,
-    selectedVersionId,
-    primaryVersionList.versions,
-  ])
+  }, [saveBeforeChange, secondaryActions])
+
+  const handleToggleSplit = useCallback(async () => {
+    if (isSavingBeforeChange) return
+    if (effectiveIsSplit) {
+      await closeSplit()
+      return
+    }
+    openSplit()
+  }, [closeSplit, effectiveIsSplit, isSavingBeforeChange, openSplit])
 
   const focusedActions =
     focusedPane === "secondary" && secondaryActions

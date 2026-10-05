@@ -319,7 +319,10 @@ export function ParagraphFormatDialog({
               </div>
               {tabStopError && <p id="paragraph-tab-stop-error" role="alert" className="text-xs text-destructive">{tabStopError}</p>}
               {draft.tabStops.length ? (
-                <div className="flex flex-wrap gap-2" role="group" aria-label="Posiciones configuradas">
+                <fieldset
+                  className="m-0 flex min-w-0 flex-wrap gap-2 border-0 p-0"
+                  aria-label="Posiciones configuradas"
+                >
                   {draft.tabStops.map((stop) => (
                     <Button key={stop} type="button" variant="outline" size="sm" aria-label={`Eliminar tabulación en ${stop} cm`}
                       onClick={() => setDraft((current) => ({ ...current, tabStops: current.tabStops.filter((position) => position !== stop) }))}>
@@ -327,7 +330,7 @@ export function ParagraphFormatDialog({
                     </Button>
                   ))}
                   <Button type="button" variant="ghost" size="sm" onClick={() => setDraft((current) => ({ ...current, tabStops: [] }))}>Quitar todas</Button>
-                </div>
+                </fieldset>
               ) : <p className="text-xs text-[#5f6368]">Sin posiciones personalizadas; se usa la tabulación predeterminada.</p>}
             </section>
           </TabsContent>

@@ -318,11 +318,66 @@ export function WikiPanel({
         </div>
       </ScrollArea>
 
+      <WikiPanelDialogs
+        reviewingProposal={reviewingProposal}
+        editingEntityProposal={editingEntityProposal}
+        editingRelationshipProposal={editingRelationshipProposal}
+        acceptingProposalId={acceptingProposalId}
+        rejectingProposalId={rejectingProposalId}
+        entities={entities}
+        onCloseReview={handleCloseReview}
+        onAcceptProposal={onAcceptProposal}
+        onRejectProposal={onRejectProposal}
+        onSetEditingEntityProposalId={setEditingEntityProposalId}
+        onSetEditingRelationshipProposalId={setEditingRelationshipProposalId}
+        onEditEntitySubmit={handleEditEntitySubmit}
+        onEditRelationshipSubmit={handleEditRelationshipSubmit}
+      />
+    </div>
+  );
+}
+
+function WikiPanelDialogs({
+  reviewingProposal,
+  editingEntityProposal,
+  editingRelationshipProposal,
+  acceptingProposalId,
+  rejectingProposalId,
+  entities,
+  onCloseReview,
+  onAcceptProposal,
+  onRejectProposal,
+  onSetEditingEntityProposalId,
+  onSetEditingRelationshipProposalId,
+  onEditEntitySubmit,
+  onEditRelationshipSubmit,
+}: Readonly<{
+  reviewingProposal: EntityProposal | null;
+  editingEntityProposal: EntityProposal | null;
+  editingRelationshipProposal: RelationshipProposal | null;
+  acceptingProposalId: string | null;
+  rejectingProposalId: string | null;
+  entities: readonly Entity[];
+  onCloseReview: () => void;
+  onAcceptProposal: (
+    proposal: EntityProposal,
+    data?: CreateEntityInput | UpdateEntityInput,
+  ) => Promise<void>;
+  onRejectProposal: (proposalId: string) => Promise<void>;
+  onSetEditingEntityProposalId: (proposalId: string | null) => void;
+  onSetEditingRelationshipProposalId: (proposalId: string | null) => void;
+  onEditEntitySubmit: (
+    data: CreateEntityInput | UpdateEntityInput,
+  ) => Promise<void>;
+  onEditRelationshipSubmit: (data: UpdateRelationshipInput) => Promise<void>;
+}>) {
+  return (
+    <>
       <EntityUpdateReviewDialog
         proposal={reviewingProposal}
         accepting={acceptingProposalId === reviewingProposal?.id}
         rejecting={rejectingProposalId === reviewingProposal?.id}
-        onClose={handleCloseReview}
+        onClose={onCloseReview}
         onAccept={
           reviewingProposal
             ? () => {
@@ -337,7 +392,7 @@ export function WikiPanel({
         }
         onEdit={
           reviewingProposal
-            ? () => setEditingEntityProposalId(reviewingProposal.id)
+            ? () => onSetEditingEntityProposalId(reviewingProposal.id)
             : undefined
         }
       />
@@ -374,8 +429,8 @@ export function WikiPanel({
               }
             : undefined
         }
-        onClose={() => setEditingEntityProposalId(null)}
-        onSubmit={handleEditEntitySubmit}
+        onClose={() => onSetEditingEntityProposalId(null)}
+        onSubmit={onEditEntitySubmit}
       />
 
       <NewRelationModal
@@ -400,11 +455,11 @@ export function WikiPanel({
               }
             : undefined
         }
-        onClose={() => setEditingRelationshipProposalId(null)}
-        onSubmit={handleEditRelationshipSubmit}
+        onClose={() => onSetEditingRelationshipProposalId(null)}
+        onSubmit={onEditRelationshipSubmit}
       />
-    </div>
-  );
+    </>
+  )
 }
 
 function AuditAlertList({
@@ -752,17 +807,17 @@ function EntityProposalsSection({
         onToggle={onToggle}
       />
       {expanded && feedback && (
-        <div
-          role={feedback.kind === "error" ? "alert" : "status"}
+        <output
+          role={feedback.kind === "error" ? "alert" : undefined}
           aria-live="polite"
-          className={`rounded-lg border px-3 py-2 text-xs ${
+          className={`block rounded-lg border px-3 py-2 text-xs ${
             feedback.kind === "error"
               ? "border-destructive/20 bg-destructive/5 text-destructive"
               : "border-emerald-500/20 bg-emerald-500/5 text-emerald-700 dark:text-emerald-300"
           }`}
         >
           {feedback.message}
-        </div>
+        </output>
       )}
       {expanded && (
         <EntityProposalList

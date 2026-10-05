@@ -6,11 +6,63 @@ import {
   DayPicker,
   getDefaultClassNames,
   type DayButton,
+  type CustomComponents,
   type Locale,
 } from "react-day-picker"
 
 import { Button, buttonVariants } from "@/components/ui/button"
 import { ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon } from "lucide-react"
+
+const CalendarLocaleContext = React.createContext<
+  Partial<Locale> | undefined
+>(undefined)
+
+const CalendarRoot: CustomComponents["Root"] = ({
+  className,
+  rootRef,
+  ...props
+}) => (
+  <div
+    data-slot="calendar"
+    ref={rootRef}
+    className={cn(className)}
+    {...props}
+  />
+)
+
+const CalendarChevron: CustomComponents["Chevron"] = ({
+  className,
+  orientation,
+  ...props
+}) => {
+  if (orientation === "left") {
+    return <ChevronLeftIcon className={cn("size-4", className)} {...props} />
+  }
+
+  if (orientation === "right") {
+    return <ChevronRightIcon className={cn("size-4", className)} {...props} />
+  }
+
+  return <ChevronDownIcon className={cn("size-4", className)} {...props} />
+}
+
+const CalendarWeekNumber: CustomComponents["WeekNumber"] = ({
+  children,
+  ...props
+}) => (
+  <td {...props}>
+    <div className="flex size-(--cell-size) items-center justify-center text-center">
+      {children}
+    </div>
+  </td>
+)
+
+function CalendarDayButtonFromContext(
+  props: React.ComponentProps<typeof DayButton>,
+) {
+  const locale = React.useContext(CalendarLocaleContext)
+  return <CalendarDayButton locale={locale} {...props} />
+}
 
 function Calendar({
   className,
@@ -28,7 +80,8 @@ function Calendar({
   const defaultClassNames = getDefaultClassNames()
 
   return (
-    <DayPicker
+    <CalendarLocaleContext.Provider value={locale}>
+      <DayPicker
       showOutsideDays={showOutsideDays}
       className={cn(
         "group/calendar bg-background p-2 [--cell-radius:var(--radius-md)] [--cell-size:--spacing(7)] in-data-[slot=card-content]:bg-transparent in-data-[slot=popover-content]:bg-transparent",
@@ -134,49 +187,15 @@ function Calendar({
         ...classNames,
       }}
       components={{
-        Root: ({ className, rootRef, ...props }) => {
-          return (
-            <div
-              data-slot="calendar"
-              ref={rootRef}
-              className={cn(className)}
-              {...props}
-            />
-          )
-        },
-        Chevron: ({ className, orientation, ...props }) => {
-          if (orientation === "left") {
-            return (
-              <ChevronLeftIcon className={cn("size-4", className)} {...props} />
-            )
-          }
-
-          if (orientation === "right") {
-            return (
-              <ChevronRightIcon className={cn("size-4", className)} {...props} />
-            )
-          }
-
-          return (
-            <ChevronDownIcon className={cn("size-4", className)} {...props} />
-          )
-        },
-        DayButton: ({ ...props }) => (
-          <CalendarDayButton locale={locale} {...props} />
-        ),
-        WeekNumber: ({ children, ...props }) => {
-          return (
-            <td {...props}>
-              <div className="flex size-(--cell-size) items-center justify-center text-center">
-                {children}
-              </div>
-            </td>
-          )
-        },
+        Root: CalendarRoot,
+        Chevron: CalendarChevron,
+        DayButton: CalendarDayButtonFromContext,
+        WeekNumber: CalendarWeekNumber,
         ...components,
       }}
       {...props}
-    />
+      />
+    </CalendarLocaleContext.Provider>
   )
 }
 
