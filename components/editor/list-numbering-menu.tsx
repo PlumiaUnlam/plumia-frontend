@@ -69,6 +69,55 @@ type StartNumberDialogProps = {
   onApply: () => void
 }
 
+type OrderedListActionsProps = {
+  editor: Editor
+  itemClassName: string
+  onOpenStartDialog: () => void
+  includeColorPalette?: boolean
+}
+
+function OrderedListActions({
+  editor,
+  itemClassName,
+  onOpenStartDialog,
+  includeColorPalette = false,
+}: Readonly<OrderedListActionsProps>) {
+  return (
+    <>
+      <DropdownMenuLabel>Opciones de numeración</DropdownMenuLabel>
+      <DropdownMenuItem
+        className={itemClassName}
+        onSelect={() => continueOrderedList(editor)}
+      >
+        <ListRestart className="h-4 w-4" />
+        <span>Continuar numeración</span>
+      </DropdownMenuItem>
+      <DropdownMenuItem className={itemClassName} onSelect={onOpenStartDialog}>
+        <ListStart className="h-4 w-4" />
+        <span>Comenzar desde…</span>
+      </DropdownMenuItem>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem
+        className={itemClassName}
+        onSelect={() => setOrderedListStart(editor, 1)}
+      >
+        <span className="ml-7">Reiniciar en 1</span>
+      </DropdownMenuItem>
+      {includeColorPalette && (
+        <>
+          <DropdownMenuSeparator />
+          <DropdownMenuLabel>Color de numeración</DropdownMenuLabel>
+          <ColorPalette
+            editor={editor}
+            kind="ordered"
+            menuItemClass={itemClassName}
+          />
+        </>
+      )}
+    </>
+  )
+}
+
 function StartNumberDialog({
   open,
   inputId,
@@ -154,25 +203,11 @@ export function ListNumberingActionsButton({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className={`w-64 ${menuClass}`}>
-          <DropdownMenuLabel>Opciones de numeración</DropdownMenuLabel>
-          <DropdownMenuItem
-            className={itemClass}
-            onSelect={() => continueOrderedList(editor)}
-          >
-            <ListRestart className="h-4 w-4" />
-            <span>Continuar numeración</span>
-          </DropdownMenuItem>
-          <DropdownMenuItem className={itemClass} onSelect={openStartDialog}>
-            <ListStart className="h-4 w-4" />
-            <span>Comenzar desde…</span>
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            className={itemClass}
-            onSelect={() => setOrderedListStart(editor, 1)}
-          >
-            <span className="ml-7">Reiniciar en 1</span>
-          </DropdownMenuItem>
+          <OrderedListActions
+            editor={editor}
+            itemClassName={itemClass}
+            onOpenStartDialog={openStartDialog}
+          />
         </DropdownMenuContent>
       </DropdownMenu>
 
@@ -359,31 +394,11 @@ export function ListNumberingMenu({ editor }: Readonly<ListNumberingMenuProps>) 
             </>
           ) : (
             <>
-              <DropdownMenuLabel>Opciones de numeración</DropdownMenuLabel>
-              <DropdownMenuItem
-                className={itemClass}
-                onSelect={() => continueOrderedList(editor)}
-              >
-                <ListRestart className="h-4 w-4" />
-                <span>Continuar numeración</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem className={itemClass} onSelect={openStartDialog}>
-                <ListStart className="h-4 w-4" />
-                <span>Comenzar desde…</span>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className={itemClass}
-                onSelect={() => setOrderedListStart(editor, 1)}
-              >
-                <span className="ml-7">Reiniciar en 1</span>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuLabel>Color de numeración</DropdownMenuLabel>
-              <ColorPalette
+              <OrderedListActions
                 editor={editor}
-                kind="ordered"
-                menuItemClass={itemClass}
+                itemClassName={itemClass}
+                onOpenStartDialog={openStartDialog}
+                includeColorPalette
               />
             </>
           )}
