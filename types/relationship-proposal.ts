@@ -14,12 +14,15 @@ export interface RelationshipProposal {
   projectId: string
   sceneId: string
   relationshipId: string | null
+  kind: "CREATE" | "UPDATE" | "END"
   source: RelationshipProposalEndpoint
   target: RelationshipProposalEndpoint
   current?: {
     relationType: RelationType
     description: string | null
     intensity: number
+    validFromSceneId: string | null
+    validToSceneId: string | null
   } | null
   relationType: RelationType
   description: string | null

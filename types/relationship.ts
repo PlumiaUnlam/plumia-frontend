@@ -18,6 +18,8 @@ export interface Relationship {
   relationType: RelationType
   intensity: number
   description: string | null
+  validFromSceneId: string | null
+  validToSceneId: string | null
   createdAt: string
   updatedAt: string
 }
@@ -28,6 +30,8 @@ export interface CreateRelationshipInput {
   relationType: RelationType
   intensity: number
   description?: string
+  validFromSceneId?: string | null
+  validToSceneId?: string | null
 }
 
 export interface UpdateRelationshipInput {
@@ -36,4 +40,6 @@ export interface UpdateRelationshipInput {
   relationType?: RelationType
   intensity?: number
   description?: string | null
+  validFromSceneId?: string | null
+  validToSceneId?: string | null
 }

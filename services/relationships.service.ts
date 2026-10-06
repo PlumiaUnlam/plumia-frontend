@@ -7,9 +7,13 @@ import type {
 
 export async function getRelationships(
   projectId: string,
+  asOfSceneId?: string,
 ): Promise<Relationship[]> {
+  const temporalQuery = asOfSceneId
+    ? `&asOfSceneId=${encodeURIComponent(asOfSceneId)}`
+    : ""
   return api.get<Relationship[]>(
-    `/knowledge/relationships?projectId=${encodeURIComponent(projectId)}`,
+    `/knowledge/relationships?projectId=${encodeURIComponent(projectId)}${temporalQuery}`,
   )
 }
 

@@ -691,6 +691,7 @@ type WorldbuildingModalsProps = {
     input: CreateRelationshipInput | UpdateRelationshipInput,
   ) => Promise<void>;
   editingRelationship: Relationship | null;
+  scenes: { id: string; title: string }[];
   selectedEntity: Entity | null;
   imageReview: ImageReviewState | null;
   onCloseImageReview: () => void;
@@ -726,6 +727,7 @@ function WorldbuildingModals({
   onCloseRelation,
   onSubmitRelation,
   editingRelationship,
+  scenes,
   selectedEntity,
   imageReview,
   onCloseImageReview,
@@ -776,6 +778,7 @@ function WorldbuildingModals({
         <NewRelationModal
           show
           entities={entities}
+          scenes={scenes}
           onClose={onCloseRelation}
           onSubmit={onSubmitRelation}
           relationship={editingRelationship}
@@ -886,6 +889,7 @@ type WorldbuildingTabsProps = {
   onSetPrimaryImage: (imageId: string) => void;
   onDeleteImage: (image: ImageResponse) => void;
   relationships: Relationship[];
+  scenes: { id: string; title: string }[];
   isLoadingRelationships: boolean;
   relationshipError: Error | undefined;
   timelineEventsError: Error | undefined;
@@ -928,6 +932,7 @@ function WorldbuildingTabs({
   onSetPrimaryImage,
   onDeleteImage,
   relationships,
+  scenes,
   isLoadingRelationships,
   relationshipError,
   timelineEventsError,
@@ -1003,8 +1008,10 @@ function WorldbuildingTabs({
         className="mt-4 min-h-0 flex-1 overflow-hidden border-t bg-card"
       >
         <RelationshipsPanel
+          projectId={projectId}
           entities={entities}
           relationships={relationships}
+          scenes={scenes}
           loading={isLoadingEntities || isLoadingRelationships}
           error={entityError ?? relationshipError}
           onEditRelationship={onEditRelationship}
@@ -1198,7 +1205,7 @@ function getProjectKey(
   shouldFetch: boolean,
   activeTab: WorldbuildingTab,
 ) {
-  return shouldFetch && activeTab === "summaries"
+  return shouldFetch && (activeTab === "summaries" || activeTab === "relationships")
     ? `/projects/${projectId}`
     : null;
 }
@@ -1429,6 +1436,18 @@ function useWorldbuildingData({
       ) ?? [],
     [project],
   );
+  const scenes = useMemo(
+    () =>
+      project?.books.flatMap((book) =>
+        book.chapters.flatMap((chapter) =>
+          chapter.scenes.map((scene) => ({
+            id: scene.id,
+            title: `${chapter.title}: ${scene.title}`,
+          })),
+        ),
+      ) ?? [],
+    [project],
+  );
 
   return {
     error,
@@ -1454,6 +1473,7 @@ function useWorldbuildingData({
     startImageGeneration,
     selectedEntityImageJob,
     chapters,
+    scenes,
   };
 }
 
@@ -1560,6 +1580,7 @@ export function Worldbuilding({ projectId }: Readonly<WorldbuildingProps>) {
     startImageGeneration,
     selectedEntityImageJob,
     chapters,
+    scenes,
   } = useWorldbuildingData({
     projectId,
     shouldFetch,
@@ -1675,6 +1696,7 @@ export function Worldbuilding({ projectId }: Readonly<WorldbuildingProps>) {
           onCloseRelation={handleRelationModalClose}
           onSubmitRelation={handleSubmitRelation}
           editingRelationship={editingRelationship}
+          scenes={scenes}
           selectedEntity={selectedEntity}
           imageReview={imageReview}
           onCloseImageReview={() => setImageReview(null)}
@@ -1711,6 +1733,7 @@ export function Worldbuilding({ projectId }: Readonly<WorldbuildingProps>) {
           }}
           onDeleteImage={requestImageDelete}
           relationships={relationships ?? []}
+          scenes={scenes}
           isLoadingRelationships={isLoadingRelationships}
           relationshipError={relationshipsError}
           timelineEventsError={timelineEventsError}

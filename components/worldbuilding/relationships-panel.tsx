@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import useSWR from "swr";
 import {
   Background,
   Controls,
@@ -38,10 +39,13 @@ import { relationStyleOptions, relationStyles } from "@/lib/relation-style";
 import type { Entity } from "@/types/entity";
 import { TYPE_TO_CATEGORY } from "@/types/entity";
 import type { Relationship, RelationType } from "@/types/relationship";
+import { getRelationships } from "@/services/relationships.service";
 
 type RelationshipsPanelProps = {
+  readonly projectId: string;
   readonly entities: readonly Entity[];
   readonly relationships: readonly Relationship[];
+  readonly scenes: readonly { id: string; title: string }[];
   readonly loading: boolean;
   readonly error?: Error;
   readonly onEditRelationship: (relationship: Relationship) => void;
@@ -66,19 +70,33 @@ function preserveNodePositions(nodes: Node[], currentNodes: Node[]) {
 }
 
 export function RelationshipsPanel({
+  projectId,
   entities,
   relationships,
+  scenes,
   loading,
   error,
   onEditRelationship,
   onDeleteRelationship,
 }: RelationshipsPanelProps) {
   const [selectedTypes, setSelectedTypes] = useState<RelationType[]>([]);
+  const [asOfSceneId, setAsOfSceneId] = useState("");
   const [selectedRelationshipId, setSelectedRelationshipId] = useState<
     string | null
   >(null);
   const [flowNodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [flowEdges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
+  const {
+    data: temporalRelationships,
+    error: temporalRelationshipsError,
+    isLoading: temporalRelationshipsLoading,
+  } = useSWR(
+    asOfSceneId
+      ? `/knowledge/relationships?projectId=${projectId}&asOfSceneId=${asOfSceneId}`
+      : null,
+    () => getRelationships(projectId, asOfSceneId),
+  );
+  const displayedRelationships = temporalRelationships ?? relationships;
 
   const entityById = useMemo(
     () => new Map(entities.map((entity) => [entity.id, entity])),
@@ -90,12 +108,12 @@ export function RelationshipsPanel({
   );
   const visibleRelationships = useMemo(
     () =>
-      relationships.filter(
+      displayedRelationships.filter(
         (relationship) =>
           entityIds.has(relationship.sourceEntityId) &&
           entityIds.has(relationship.targetEntityId),
       ),
-    [entityIds, relationships],
+    [displayedRelationships, entityIds],
   );
   const filteredRelationships = useMemo(
     () =>
@@ -256,7 +274,7 @@ export function RelationshipsPanel({
     );
   };
 
-  if (loading) {
+  if (loading || temporalRelationshipsLoading) {
     return (
       <div className="flex h-full items-center justify-center gap-2 text-primary">
         <Loader2 className="size-5 animate-spin" />
@@ -265,7 +283,7 @@ export function RelationshipsPanel({
     );
   }
 
-  if (error) {
+  if (error || temporalRelationshipsError) {
     return (
       <div className="flex h-full items-center justify-center p-12">
         <Card className="max-w-md text-center">
@@ -273,7 +291,7 @@ export function RelationshipsPanel({
             <CardTitle>No se pudieron cargar las relaciones</CardTitle>
           </CardHeader>
           <CardContent className="text-sm text-muted-foreground">
-            {error.message}
+            {(error ?? temporalRelationshipsError)?.message}
           </CardContent>
         </Card>
       </div>
@@ -296,6 +314,23 @@ export function RelationshipsPanel({
     <div className="flex h-full min-h-0 w-full overflow-hidden">
       <aside className="flex h-full w-80 shrink-0 flex-col overflow-hidden border-r border-border bg-muted/30">
         <div className="space-y-3 border-b border-border bg-card/50 p-3">
+          {scenes.length > 0 && (
+            <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+              Punto narrativo
+              <select
+                value={asOfSceneId}
+                onChange={(event) => setAsOfSceneId(event.target.value)}
+                className="h-9 rounded-lg border border-border bg-background px-2 text-xs text-foreground"
+              >
+                <option value="">Toda la obra (sin filtro temporal)</option>
+                {scenes.map((scene) => (
+                  <option key={scene.id} value={scene.id}>
+                    {scene.title}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <div className="flex items-center gap-1">
             <Funnel size={15} className="text-muted-foreground" />
             <p className="text-sm font-semibold text-muted-foreground">
