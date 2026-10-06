@@ -340,8 +340,8 @@ export function WikiPanel({
 
   return (
     <div className="flex h-full min-h-0 min-w-0 max-w-full flex-1 flex-col overflow-hidden bg-card">
-      <div className="flex h-16 shrink-0 items-center border-b border-border px-3 py-2">
-        <div className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-lg border border-border bg-background px-3">
+      <div className="flex shrink-0 flex-col gap-2 border-b border-border px-3 py-3">
+        <div className="flex h-9 w-full min-w-0 items-center gap-2 rounded-lg border border-border bg-background px-3">
           <Search size={13} className="shrink-0 text-muted-foreground" />
           <input
             value={searchQuery}
@@ -354,7 +354,7 @@ export function WikiPanel({
             className="min-w-0 flex-1 bg-transparent text-xs text-foreground outline-none placeholder:text-muted-foreground"
           />
         </div>
-        <label className="mt-2 flex min-w-0 items-center gap-2 text-[10px] text-muted-foreground">
+        <label className="flex w-full min-w-0 flex-col items-stretch gap-1 text-[10px] text-muted-foreground">
           <span className="shrink-0">Vista temporal</span>
           <select
             value={selectedTemporalSceneId ?? ""}
@@ -363,7 +363,7 @@ export function WikiPanel({
               temporalKnowledgeViewLoading ||
               (temporalKnowledgeView?.scenes.length ?? 0) === 0
             }
-            className="min-w-0 flex-1 rounded border border-border bg-background px-1.5 py-1 text-[10px] text-foreground disabled:cursor-not-allowed disabled:opacity-60"
+            className="h-9 w-full min-w-0 rounded-lg border border-border bg-background px-2 text-[10px] text-foreground disabled:cursor-not-allowed disabled:opacity-60"
           >
             {(temporalKnowledgeView?.scenes ?? []).map((scene) => (
               <option key={scene.id} value={scene.id}>
@@ -373,7 +373,7 @@ export function WikiPanel({
           </select>
         </label>
         {temporalKnowledgeViewError && (
-          <p className="mt-1.5 text-[10px] text-destructive">
+          <p className="text-[10px] text-destructive">
             No se pudo cargar la vista temporal.
           </p>
         )}

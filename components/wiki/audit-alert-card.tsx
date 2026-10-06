@@ -90,19 +90,6 @@ export function AuditAlertCard({
               <FileText className="size-3.5" />
               {conflict?.evidence[0] ? "Ver evidencia" : "Abrir escena"}
             </Button>
-            {canApplyKnowledgeUpdate && onApplyKnowledgeUpdate && (
-              <Button
-                type="button"
-                size="xs"
-                variant="outline"
-                className="h-auto min-h-7 min-w-0 w-full whitespace-normal px-1 py-1 text-[10px] leading-tight"
-                disabled={updating}
-                onClick={onApplyKnowledgeUpdate}
-              >
-                <RefreshCw className="size-3.5" />
-                Actualizar KB
-              </Button>
-            )}
             <Button
               type="button"
               size="xs"
@@ -126,6 +113,21 @@ export function AuditAlertCard({
               {updating ? "Actualizando..." : "Marcar resuelta"}
             </Button>
           </div>
+          {canApplyKnowledgeUpdate && onApplyKnowledgeUpdate && (
+            <div className="mt-1.5 w-full min-w-0">
+              <Button
+                type="button"
+                size="xs"
+                variant="outline"
+                className="h-auto min-h-7 min-w-0 w-full whitespace-normal px-1 py-1 text-[10px] leading-tight"
+                disabled={updating}
+                onClick={onApplyKnowledgeUpdate}
+              >
+                <RefreshCw className="size-3.5" />
+                {updating ? "Actualizando..." : "Actualizar línea temporal"}
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     </article>
