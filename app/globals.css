@@ -223,56 +223,62 @@
 
 .entity-link--character {
   color: #1d4ed8;
-  background-color: #2563eb1a;
+  background-color: #e0e3f9;
 }
 
 .entity-link--location {
   color: #047253;
-  background-color: #0596691a;
+  background-color: #dde8ec;
 }
 
 .entity-link--object {
   color: #a44c08;
-  background-color: #d977061a;
+  background-color: #f2e5e2;
 }
 
 .entity-link--organization {
   color: #6d28d9;
-  background-color: #7c3aed1a;
+  background-color: #e9defa;
 }
 
 .entity-link--event {
   color: #b91c1c;
-  background-color: #dc26261a;
+  background-color: #f2dce5;
 }
 
 .entity-link--concept {
   color: #0d6d87;
-  background-color: #0891b21a;
+  background-color: #dde7f4;
 }
 
 .dark .entity-link--character {
   color: #6888e5;
+  background-color: #211c41;
 }
 
 .dark .entity-link--location {
   color: #459b83;
+  background-color: #1d2134;
 }
 
 .dark .entity-link--object {
   color: #c77e47;
+  background-color: #331e2a;
 }
 
 .dark .entity-link--organization {
   color: #a275e7;
+  background-color: #291841;
 }
 
 .dark .entity-link--event {
   color: #d26e6e;
+  background-color: #33162d;
 }
 
 .dark .entity-link--concept {
   color: #4a97ac;
+  background-color: #1e213b;
 }
 
 /* TipTap conserva los saltos de tabulación dentro del párrafo. */
