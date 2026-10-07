@@ -109,6 +109,13 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
   const [error, setError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  let ThemeIcon = Monitor
+  if (theme === "dark") {
+    ThemeIcon = Moon
+  } else if (theme === "light") {
+    ThemeIcon = Sun
+  }
+
   const currentDisplayName =
     firebaseUser?.displayName || user?.displayName || user?.name || "Usuario"
   const currentPhotoURL = firebaseUser?.photoURL || user?.avatarUrl || null
@@ -245,7 +252,7 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
           </DropdownMenuItem>
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>
-              {theme === "dark" ? <Moon /> : theme === "light" ? <Sun /> : <Monitor />}
+              <ThemeIcon />
               Tema
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent className="w-40">

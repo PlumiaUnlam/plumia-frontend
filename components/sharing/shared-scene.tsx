@@ -17,7 +17,7 @@ import type {
 } from "@/types/sharing"
 import type { ProseMirrorJSON } from "@/types/scene"
 
-export type SharedSceneProps = {
+export type SharedSceneProps = Readonly<{
   sceneId: string
   title: string | null
   content: ProseMirrorJSON | null
@@ -26,9 +26,20 @@ export type SharedSceneProps = {
   canComment: boolean
   onSelection: (selection: TextSelectionAnchor) => void
   onCommentClick: (commentId: string) => void
-}
+}>
 
 const commentPluginKey = new PluginKey("sharedReaderComments")
+const selectionExtensionKeys = new Set([
+  "Shift",
+  "ArrowDown",
+  "ArrowLeft",
+  "ArrowRight",
+  "ArrowUp",
+  "End",
+  "Home",
+  "PageDown",
+  "PageUp",
+])
 
 type CommentDecorationState = {
   comments: ReaderComment[]
@@ -41,7 +52,7 @@ const SharedImage = Image.extend({
       ...this.parent?.(),
       storageKey: {
         default: null,
-        parseHTML: (element) => element.getAttribute("data-storage-key"),
+        parseHTML: (element) => element.dataset.storageKey ?? null,
         renderHTML: (attributes) =>
           typeof attributes.storageKey === "string"
             ? { "data-storage-key": attributes.storageKey }
@@ -176,11 +187,15 @@ export function SharedScene({
     )
   }, [activeCommentId, comments, editor])
 
-  const captureSelection = () => {
+  useEffect(() => {
     if (!canComment || !editor) return
-    window.setTimeout(() => {
+
+    const captureSelection = () => {
+      if (editor.isDestroyed) return
       const selection = window.getSelection()
-      if (!selection || selection.isCollapsed || selection.rangeCount === 0) return
+      if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
+        return
+      }
       const range = selection.getRangeAt(0)
       if (!editor.view.dom.contains(range.commonAncestorContainer)) return
 
@@ -201,8 +216,41 @@ export function SharedScene({
       } catch {
         // Ignore selections that fall outside the ProseMirror document.
       }
-    }, 0)
-  }
+    }
+
+    let pointerStartedInEditor = false
+    const handlePointerDown = (event: PointerEvent) => {
+      pointerStartedInEditor =
+        event.target instanceof globalThis.Node &&
+        editor.view.dom.contains(event.target)
+    }
+    const handlePointerUp = (event: PointerEvent) => {
+      const releasedInEditor =
+        event.target instanceof globalThis.Node &&
+        editor.view.dom.contains(event.target)
+      if (!pointerStartedInEditor && !releasedInEditor) return
+      pointerStartedInEditor = false
+      captureSelection()
+    }
+    const handlePointerCancel = () => {
+      pointerStartedInEditor = false
+    }
+    const handleKeyUp = (event: KeyboardEvent) => {
+      if (event.shiftKey || !selectionExtensionKeys.has(event.key)) return
+      captureSelection()
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown)
+    document.addEventListener("pointerup", handlePointerUp)
+    document.addEventListener("pointercancel", handlePointerCancel)
+    document.addEventListener("keyup", handleKeyUp)
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown)
+      document.removeEventListener("pointerup", handlePointerUp)
+      document.removeEventListener("pointercancel", handlePointerCancel)
+      document.removeEventListener("keyup", handleKeyUp)
+    }
+  }, [canComment, editor, onSelection, sceneId])
 
   return (
     <article className="border-b border-border/60 py-8 last:border-b-0">
@@ -211,9 +259,11 @@ export function SharedScene({
           {title}
         </h3>
       )}
-      <div onMouseUp={captureSelection}>
+      <section
+        aria-label={title ? `Texto de ${title}` : "Texto de la escena"}
+      >
         <EditorContent editor={editor} />
-      </div>
+      </section>
     </article>
   )
 }

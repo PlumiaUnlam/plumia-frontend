@@ -223,7 +223,7 @@ function useImageGenerationPolling({
       imagePollAttemptsRef.current += 1;
       imagePollInFlightRef.current = true;
 
-      void getImageGenerationJob(activeImageJobId, {
+      getImageGenerationJob(activeImageJobId, {
         signal: controller.signal,
       })
         .then((job) => {
@@ -265,7 +265,7 @@ function useImageGenerationPolling({
 
     poll();
     const pollWhenVisible = () => {
-      if (document.visibilityState === "visible") void poll();
+      if (document.visibilityState === "visible") poll();
     };
     const interval = setInterval(pollWhenVisible, IMAGE_POLL_INTERVAL_MS);
 

@@ -135,9 +135,8 @@ export function ColorPalette({ editor, kind, menuItemClass, menuType = "dropdown
         </Item>
       )}
 
-      <div
-        className="grid grid-cols-10 gap-1 max-[360px]:grid-cols-8"
-        role="group"
+      <fieldset
+        className="m-0 grid min-w-0 grid-cols-10 gap-1 border-0 p-0 max-[360px]:grid-cols-8"
         aria-label={title}
       >
         {COLOR_GRID.flat().map((color) => (
@@ -151,7 +150,7 @@ export function ColorPalette({ editor, kind, menuItemClass, menuType = "dropdown
             onSelect={() => applyColor(color)}
           />
         ))}
-      </div>
+      </fieldset>
 
       <div className="mt-3 border-t border-[#dadce0] pt-2">
         <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-[#5f6368]">

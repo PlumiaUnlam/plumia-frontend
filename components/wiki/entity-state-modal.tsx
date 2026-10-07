@@ -92,7 +92,7 @@ export function EntityStateModal({
         <div className="space-y-4">
           {error && <p className="rounded-md bg-destructive/10 p-2 text-sm text-destructive">{error}</p>}
           <label className="grid gap-1.5 text-sm font-medium">
-            Atributo dinámico
+            <span>Atributo dinámico</span>
             <select
               value={selectedKey}
               onChange={(event) => setSelectedKey(event.target.value)}
@@ -113,14 +113,14 @@ export function EntityStateModal({
           </label>
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="grid gap-1.5 text-sm font-medium">
-              Válido desde
+              <span>Válido desde</span>
               <select value={validFromSceneId} onChange={(event) => setValidFromSceneId(event.target.value)} className="h-10 rounded-lg border border-border bg-background px-3 text-sm">
                 <option value="">Seleccionar escena</option>
                 {scenes.map((scene) => <option key={scene.id} value={scene.id}>{scene.title ?? "Escena sin título"}</option>)}
               </select>
             </label>
             <label className="grid gap-1.5 text-sm font-medium">
-              Válido hasta
+              <span>Válido hasta</span>
               <select value={validToSceneId} onChange={(event) => setValidToSceneId(event.target.value)} className="h-10 rounded-lg border border-border bg-background px-3 text-sm">
                 <option value="">Sigue vigente</option>
                 {scenes.map((scene) => <option key={scene.id} value={scene.id}>{scene.title ?? "Escena sin título"}</option>)}

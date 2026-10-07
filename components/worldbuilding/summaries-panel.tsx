@@ -68,6 +68,18 @@ function isAbortError(error: unknown) {
   return error instanceof Error && error.name === "AbortError";
 }
 
+function getSummaryStatusIcon(isGenerating: boolean, hasSummary: boolean) {
+  if (isGenerating) {
+    return <Loader2 className="size-4 animate-spin text-primary" />;
+  }
+
+  if (hasSummary) {
+    return <CheckCircle2 className="size-4 text-emerald-500" />;
+  }
+
+  return <div className="size-4 rounded-full border-2 border-muted-foreground/30" />;
+}
+
 function wait(ms: number, signal: AbortSignal) {
   if (signal.aborted) return Promise.reject(createAbortError());
 
@@ -353,13 +365,7 @@ export function SummariesPanel({
                   >
                     <div className="flex items-start gap-2.5">
                       <div className="mt-0.5 shrink-0">
-                        {isGenerating ? (
-                          <Loader2 className="size-4 animate-spin text-primary" />
-                        ) : hasSummary ? (
-                          <CheckCircle2 className="size-4 text-emerald-500" />
-                        ) : (
-                          <div className="size-4 rounded-full border-2 border-muted-foreground/30" />
-                        )}
+                        {getSummaryStatusIcon(isGenerating, hasSummary)}
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="mb-0.5 flex items-center gap-1.5">
@@ -490,7 +496,7 @@ export function SummariesPanel({
             </div>
 
             <div className="flex min-h-0 flex-1 px-8 py-8">
-              {generatingIds.has(activeChapter.id) ? (
+              {generatingIds.has(activeChapter.id) && (
                 <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 text-muted-foreground">
                   <div className="relative">
                     <div className="size-16 animate-spin rounded-full border-4 border-primary/20 border-t-primary" />
@@ -505,7 +511,8 @@ export function SummariesPanel({
                     </p>
                   </div>
                 </div>
-              ) : activeSummary ? (
+              )}
+              {!generatingIds.has(activeChapter.id) && activeSummary && (
                 <div className="w-full space-y-6">
                   {summaryError && (
                     <Alert className="border-destructive/20 bg-destructive/5 text-muted-foreground">
@@ -543,7 +550,8 @@ export function SummariesPanel({
                     </Alert>
                   )}
                 </div>
-              ) : (
+              )}
+              {!generatingIds.has(activeChapter.id) && !activeSummary && (
                 <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 text-primary opacity-70">
                   {summaryError && (
                     <Alert className="mb-4 max-w-md border-destructive/20 bg-destructive/5 text-muted-foreground opacity-100">

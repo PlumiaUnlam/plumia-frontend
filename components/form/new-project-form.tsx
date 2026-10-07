@@ -52,6 +52,7 @@ export function NewProjectForm({
     status: project?.status ?? "draft",
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const submitButtonLabel = isEditing ? "Guardar cambios" : "Crear proyecto"
 
   const setField = (field: keyof typeof values, value: string) => {
     setValues((prev) => ({ ...prev, [field]: value }))
@@ -231,13 +232,7 @@ export function NewProjectForm({
               disabled={isSubmitting}
               className="rounded-xl shadow-sm text-base"
             >
-              {isSubmitting ? (
-                <Spinner className="size-4" />
-              ) : isEditing ? (
-                "Guardar cambios"
-              ) : (
-                "Crear proyecto"
-              )}
+              {isSubmitting ? <Spinner className="size-4" /> : submitButtonLabel}
             </Button>
           </div>
         </form>

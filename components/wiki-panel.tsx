@@ -387,93 +387,32 @@ export function WikiPanel({
             </div>
           )}
 
-          {showReviewSections && (
-            <>
-              <WikiSectionTitle
-                icon={AlertTriangle}
-                label="Inconsistencias detectadas"
-                count={filteredAuditAlerts.length}
-                expanded={expandedSections.inconsistencies}
-                onToggle={() => toggleSection("inconsistencies")}
-              />
-              {expandedSections.inconsistencies &&
-            (auditAlertsLoading ? (
-              <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 text-xs text-muted-foreground">
-                Revisando inconsistencias...
-              </div>
-            ) : auditAlertsError ? (
-              <div className="rounded-lg border border-dashed border-border bg-background p-3 text-xs text-muted-foreground">
-                No se pudieron cargar las inconsistencias.
-              </div>
-            ) : filteredAuditAlerts.length === 0 ? (
-              <EmptyWikiState
-                title="Sin inconsistencias pendientes"
-                description="Las posibles contradicciones de entidades apareceran aqui para tu revision."
-              />
-            ) : (
-              filteredAuditAlerts.map((alert) => (
-                <AuditAlertCard
-                  key={alert.id}
-                  alert={alert}
-                  updating={updatingAuditAlertId === alert.id}
-                  onFocusEvidence={() => onFocusAuditAlert(alert)}
-                  onResolve={() =>
-                    void onUpdateAuditAlert(alert.id, "RESOLVED")
-                  }
-                  onDismiss={() =>
-                    void onUpdateAuditAlert(alert.id, "DISMISSED")
-                  }
-                  onApplyKnowledgeUpdate={() =>
-                    void onApplyAuditKnowledgeUpdate(alert.id)
-                  }
-                />
-              ))
-              ))}
-            </>
-          )}
+          <AuditAlertsSection
+            visible={showReviewSections}
+            expanded={expandedSections.inconsistencies}
+            alerts={filteredAuditAlerts}
+            loading={auditAlertsLoading}
+            error={auditAlertsError}
+            updatingAlertId={updatingAuditAlertId}
+            onToggle={() => toggleSection("inconsistencies")}
+            onUpdate={onUpdateAuditAlert}
+            onFocus={onFocusAuditAlert}
+            onApplyKnowledgeUpdate={onApplyAuditKnowledgeUpdate}
+          />
 
-          {showReviewSections && (
-            <>
-              <WikiSectionTitle
-                icon={RefreshCw}
-                label="Relaciones detectadas"
-                count={relationshipProposals.length}
-                expanded={expandedSections.relationships}
-                onToggle={() => toggleSection("relationships")}
-              />
-              {expandedSections.relationships &&
-            (relationshipProposalsLoading ? (
-              <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-3 text-xs text-muted-foreground">
-                Revisando relaciones...
-              </div>
-            ) : relationshipProposalsError ? (
-              <div className="rounded-lg border border-dashed border-border bg-background p-3 text-xs text-muted-foreground">
-                No se pudieron cargar las propuestas de relaciones.
-              </div>
-            ) : relationshipProposals.length === 0 ? (
-              <EmptyWikiState
-                title="Sin relaciones pendientes"
-                description="Las relaciones detectadas aparecerán aquí para revisión."
-              />
-            ) : (
-              relationshipProposals.map((proposal) => (
-                <RelationshipProposalCard
-                  key={proposal.id}
-                  proposal={proposal}
-                  accepting={acceptingRelationshipProposalId === proposal.id}
-                  rejecting={rejectingRelationshipProposalId === proposal.id}
-                  onAccept={() =>
-                    void onAcceptRelationshipProposal(proposal.id)
-                  }
-                  onReject={() =>
-                    void onRejectRelationshipProposal(proposal.id)
-                  }
-                  onEdit={() => setEditingRelationshipProposalId(proposal.id)}
-                />
-              ))
-              ))}
-            </>
-          )}
+          <RelationshipProposalsSection
+            visible={showReviewSections}
+            expanded={expandedSections.relationships}
+            proposals={relationshipProposals}
+            loading={relationshipProposalsLoading}
+            error={relationshipProposalsError}
+            acceptingId={acceptingRelationshipProposalId}
+            rejectingId={rejectingRelationshipProposalId}
+            onToggle={() => toggleSection("relationships")}
+            onAccept={onAcceptRelationshipProposal}
+            onReject={onRejectRelationshipProposal}
+            onEdit={setEditingRelationshipProposalId}
+          />
 
           <WikiSectionTitle
             icon={FileText}
@@ -482,58 +421,22 @@ export function WikiPanel({
             expanded={expandedSections.entities}
             onToggle={() => toggleSection("entities")}
           />
-          {expandedSections.entities &&
-            (loading ? (
-              Array.from({ length: 3 }).map((_, index) => (
-                <div
-                  key={index}
-                  className="rounded-xl border border-border bg-card p-3"
-                >
-                  <div className="mb-2 flex items-center gap-2">
-                    <div className="size-7 animate-pulse rounded-lg bg-muted" />
-                    <div className="h-3 flex-1 animate-pulse rounded bg-muted" />
-                  </div>
-                  <div className="h-3 animate-pulse rounded bg-muted" />
-                </div>
-              ))
-            ) : entitiesError ? (
-              <div className="rounded-lg border border-dashed border-border bg-background p-4 text-sm text-muted-foreground">
-                No se pudieron cargar las entidades.
-              </div>
-            ) : filteredEntities.length === 0 ? (
-              <EmptyWikiState
-                title="Sin entidades"
-                description="Crea entidades en la wiki para consultarlas desde el editor."
-              />
-            ) : (
-              filteredEntities.map((entity) => (
-                <EditorWikiEntityCard
-                  key={entity.id}
-                  entity={entity}
-                  primaryImageUrl={primaryImageUrls[entity.id]}
-                  updateProposal={
-                    showReviewSections
-                      ? updateProposalsByEntityId.get(entity.id) ?? null
-                      : null
-                  }
-                  dynamicStates={
-                    dynamicStatesByEntityId.get(entity.id) ?? []
-                  }
-                  onCreateState={
-                    temporalKnowledgeView?.scenes.length
-                      ? () => setCreatingStateEntityId(entity.id)
-                      : undefined
-                  }
-                  isCreatingState={creatingStateForEntityId === entity.id}
-                  onReviewProposal={(proposalId) => {
-                    const proposal = proposals.find(
-                      (candidate) => candidate.id === proposalId,
-                    );
-                    if (proposal) handleEntityProposalEdit(proposal);
-                  }}
-                />
-              ))
-            ))}
+          {expandedSections.entities && (
+            <EntityDirectoryContent
+              loading={loading}
+              error={entitiesError}
+              entities={filteredEntities}
+              proposals={proposals}
+              showReviewSections={showReviewSections}
+              updateProposalsByEntityId={updateProposalsByEntityId}
+              dynamicStatesByEntityId={dynamicStatesByEntityId}
+              hasTemporalScenes={Boolean(temporalKnowledgeView?.scenes.length)}
+              creatingStateForEntityId={creatingStateForEntityId}
+              primaryImageUrls={primaryImageUrls}
+              onCreateState={setCreatingStateEntityId}
+              onReviewProposal={handleEntityProposalEdit}
+            />
+          )}
           {showReviewSections && (
             <>
               <WikiSectionTitle
@@ -543,37 +446,20 @@ export function WikiPanel({
                 expanded={expandedSections.states}
                 onToggle={() => toggleSection("states")}
               />
-              {expandedSections.states &&
-                (stateProposalsLoading ? (
-                  <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-3 text-xs text-muted-foreground">
-                    Revisando cambios de estado...
-                  </div>
-                ) : stateProposalsError ? (
-                  <div className="rounded-lg border border-dashed border-border bg-background p-3 text-xs text-muted-foreground">
-                    No se pudieron cargar los cambios de estado.
-                  </div>
-                ) : stateProposals.length === 0 ? (
-                  <EmptyWikiState
-                    title="Sin cambios de estado pendientes"
-                    description="Los cambios de ubicacion, estado vital y condicion apareceran aqui para revision."
-                  />
-                ) : (
-                  stateProposals.map((proposal) => (
-                    <EntityStateProposalCard
-                      key={proposal.id}
-                      proposal={proposal}
-                      accepting={acceptingStateProposalId === proposal.id}
-                      rejecting={rejectingStateProposalId === proposal.id}
-                      onAccept={() => {
-                        void onAcceptStateProposal(proposal).catch(
-                          () => undefined,
-                        );
-                      }}
-                      onReject={() => void onRejectStateProposal(proposal.id)}
-                      onEdit={() => setEditingStateProposalId(proposal.id)}
-                    />
-                  ))
-                ))}
+              {expandedSections.states && (
+                <StateProposalsContent
+                  loading={stateProposalsLoading}
+                  error={stateProposalsError}
+                  proposals={stateProposals}
+                  acceptingId={acceptingStateProposalId}
+                  rejectingId={rejectingStateProposalId}
+                  onAccept={onAcceptStateProposal}
+                  onReject={onRejectStateProposal}
+                  onEdit={(proposalId) =>
+                    setEditingStateProposalId(proposalId)
+                  }
+                />
+              )}
             </>
           )}
           <EntityProposalsSection
@@ -593,11 +479,90 @@ export function WikiPanel({
         </div>
       </ScrollArea>
 
+      <WikiPanelDialogs
+        reviewingProposal={reviewingProposal}
+        editingEntityProposal={editingEntityProposal}
+        editingRelationshipProposal={editingRelationshipProposal}
+        editingStateProposal={editingStateProposal}
+        creatingStateEntity={creatingStateEntity}
+        acceptingProposalId={acceptingProposalId}
+        rejectingProposalId={rejectingProposalId}
+        entities={entities}
+        temporalKnowledgeView={temporalKnowledgeView}
+        selectedTemporalSceneId={selectedTemporalSceneId}
+        onCloseReview={handleCloseReview}
+        onAcceptProposal={onAcceptProposal}
+        onRejectProposal={onRejectProposal}
+        onSetEditingEntityProposalId={setEditingEntityProposalId}
+        onSetEditingRelationshipProposalId={setEditingRelationshipProposalId}
+        onSetEditingStateProposalId={setEditingStateProposalId}
+        onSetCreatingStateEntityId={setCreatingStateEntityId}
+        onEditEntitySubmit={handleEditEntitySubmit}
+        onEditRelationshipSubmit={handleEditRelationshipSubmit}
+        onEditStateSubmit={handleEditStateSubmit}
+        onCreateStateSubmit={handleCreateStateSubmit}
+      />
+    </div>
+  );
+}
+
+function WikiPanelDialogs({
+  reviewingProposal,
+  editingEntityProposal,
+  editingRelationshipProposal,
+  editingStateProposal,
+  creatingStateEntity,
+  acceptingProposalId,
+  rejectingProposalId,
+  entities,
+  temporalKnowledgeView,
+  selectedTemporalSceneId,
+  onCloseReview,
+  onAcceptProposal,
+  onRejectProposal,
+  onSetEditingEntityProposalId,
+  onSetEditingRelationshipProposalId,
+  onSetEditingStateProposalId,
+  onSetCreatingStateEntityId,
+  onEditEntitySubmit,
+  onEditRelationshipSubmit,
+  onEditStateSubmit,
+  onCreateStateSubmit,
+}: Readonly<{
+  reviewingProposal: EntityProposal | null;
+  editingEntityProposal: EntityProposal | null;
+  editingRelationshipProposal: RelationshipProposal | null;
+  editingStateProposal: EntityStateProposal | null;
+  creatingStateEntity: Entity | null;
+  acceptingProposalId: string | null;
+  rejectingProposalId: string | null;
+  entities: readonly Entity[];
+  temporalKnowledgeView: TemporalKnowledgeView | null;
+  selectedTemporalSceneId: string | null;
+  onCloseReview: () => void;
+  onAcceptProposal: (
+    proposal: EntityProposal,
+    data?: CreateEntityInput | UpdateEntityInput,
+  ) => Promise<void>;
+  onRejectProposal: (proposalId: string) => Promise<void>;
+  onSetEditingEntityProposalId: (proposalId: string | null) => void;
+  onSetEditingRelationshipProposalId: (proposalId: string | null) => void;
+  onSetEditingStateProposalId: (proposalId: string | null) => void;
+  onSetCreatingStateEntityId: (entityId: string | null) => void;
+  onEditEntitySubmit: (
+    data: CreateEntityInput | UpdateEntityInput,
+  ) => Promise<void>;
+  onEditRelationshipSubmit: (data: UpdateRelationshipInput) => Promise<void>;
+  onEditStateSubmit: (data: CreateEntityStateInput) => Promise<void>;
+  onCreateStateSubmit: (data: CreateEntityStateInput) => Promise<void>;
+}>) {
+  return (
+    <>
       <EntityUpdateReviewDialog
         proposal={reviewingProposal}
         accepting={acceptingProposalId === reviewingProposal?.id}
         rejecting={rejectingProposalId === reviewingProposal?.id}
-        onClose={handleCloseReview}
+        onClose={onCloseReview}
         onAccept={
           reviewingProposal
             ? () => {
@@ -612,7 +577,7 @@ export function WikiPanel({
         }
         onEdit={
           reviewingProposal
-            ? () => setEditingEntityProposalId(reviewingProposal.id)
+            ? () => onSetEditingEntityProposalId(reviewingProposal.id)
             : undefined
         }
       />
@@ -620,63 +585,20 @@ export function WikiPanel({
       <NewEntityModal
         show={!!editingEntityProposal}
         mode="proposal"
-        initialValues={
-          editingEntityProposal
-            ? {
-                canonicalName:
-                  editingEntityProposal.targetEntity?.canonicalName ??
-                  editingEntityProposal.proposedData.canonicalName,
-                type:
-                  editingEntityProposal.targetEntity?.type ??
-                  editingEntityProposal.proposedData.type,
-                description: combineEntityDescriptions(
-                  editingEntityProposal.targetEntity?.description ?? null,
-                  editingEntityProposal.proposedData.description,
-                ),
-                aliases: [
-                  ...new Set([
-                    ...(editingEntityProposal.targetEntity?.aliases ?? []),
-                    ...editingEntityProposal.proposedData.aliases,
-                  ]),
-                ],
-                attributes: {
-                  ...editingEntityProposal.targetEntity?.attributes,
-                  ...editingEntityProposal.proposedData.attributes,
-                },
-                imageUrl: editingEntityProposal.targetEntity?.id
-                  ? null
-                  : editingEntityProposal.proposedData.imageUrl,
-              }
-            : undefined
-        }
-        onClose={() => setEditingEntityProposalId(null)}
-        onSubmit={handleEditEntitySubmit}
+        initialValues={getEntityProposalInitialValues(editingEntityProposal)}
+        onClose={() => onSetEditingEntityProposalId(null)}
+        onSubmit={onEditEntitySubmit}
       />
 
       <NewRelationModal
         show={!!editingRelationshipProposal}
         mode="proposal"
         entities={entities}
-        initialValues={
-          editingRelationshipProposal
-            ? {
-                sourceEntityId: editingRelationshipProposal.source.id,
-                targetEntityId: editingRelationshipProposal.target.id,
-                sourceEntityName:
-                  editingRelationshipProposal.source.canonicalName,
-                targetEntityName:
-                  editingRelationshipProposal.target.canonicalName,
-                relationType: editingRelationshipProposal.relationType,
-                intensity: Math.max(
-                  1,
-                  Math.round(editingRelationshipProposal.intensity * 5),
-                ),
-                description: editingRelationshipProposal.description,
-              }
-            : undefined
-        }
-        onClose={() => setEditingRelationshipProposalId(null)}
-        onSubmit={handleEditRelationshipSubmit}
+        initialValues={getRelationshipProposalInitialValues(
+          editingRelationshipProposal,
+        )}
+        onClose={() => onSetEditingRelationshipProposalId(null)}
+        onSubmit={onEditRelationshipSubmit}
       />
 
       {editingStateProposal && (
@@ -691,8 +613,8 @@ export function WikiPanel({
             toValue: editingStateProposal.toValue ?? "",
             validFromSceneId: editingStateProposal.sceneId,
           }}
-          onClose={() => setEditingStateProposalId(null)}
-          onSubmit={handleEditStateSubmit}
+          onClose={() => onSetEditingStateProposalId(null)}
+          onSubmit={onEditStateSubmit}
         />
       )}
 
@@ -703,13 +625,202 @@ export function WikiPanel({
           title="Agregar estado temporal"
           entityName={creatingStateEntity.canonicalName}
           scenes={temporalKnowledgeView?.scenes ?? []}
-          initialValue={{ validFromSceneId: selectedTemporalSceneId ?? undefined }}
-          onClose={() => setCreatingStateEntityId(null)}
-          onSubmit={handleCreateStateSubmit}
+          initialValue={{
+            validFromSceneId: selectedTemporalSceneId ?? undefined,
+          }}
+          onClose={() => onSetCreatingStateEntityId(null)}
+          onSubmit={onCreateStateSubmit}
         />
       )}
-    </div>
+    </>
   );
+}
+
+function getEntityProposalInitialValues(proposal: EntityProposal | null) {
+  if (!proposal) return undefined;
+  const targetEntity = proposal.targetEntity;
+
+  return {
+    canonicalName:
+      targetEntity?.canonicalName ?? proposal.proposedData.canonicalName,
+    type: targetEntity?.type ?? proposal.proposedData.type,
+    description: combineEntityDescriptions(
+      targetEntity?.description ?? null,
+      proposal.proposedData.description,
+    ),
+    aliases: [
+      ...new Set([
+        ...(targetEntity?.aliases ?? []),
+        ...proposal.proposedData.aliases,
+      ]),
+    ],
+    attributes: {
+      ...targetEntity?.attributes,
+      ...proposal.proposedData.attributes,
+    },
+    imageUrl: targetEntity?.id ? null : proposal.proposedData.imageUrl,
+  };
+}
+
+function getRelationshipProposalInitialValues(
+  proposal: RelationshipProposal | null,
+) {
+  if (!proposal) return undefined;
+
+  return {
+    sourceEntityId: proposal.source.id,
+    targetEntityId: proposal.target.id,
+    sourceEntityName: proposal.source.canonicalName,
+    targetEntityName: proposal.target.canonicalName,
+    relationType: proposal.relationType,
+    intensity: Math.max(1, Math.round(proposal.intensity * 5)),
+    description: proposal.description,
+  };
+}
+
+function EntityDirectoryContent({
+  loading,
+  error,
+  entities,
+  proposals,
+  showReviewSections,
+  updateProposalsByEntityId,
+  dynamicStatesByEntityId,
+  hasTemporalScenes,
+  creatingStateForEntityId,
+  primaryImageUrls,
+  onCreateState,
+  onReviewProposal,
+}: Readonly<{
+  loading: boolean;
+  error: Error | undefined;
+  entities: readonly Entity[];
+  proposals: readonly EntityProposal[];
+  showReviewSections: boolean;
+  updateProposalsByEntityId: ReadonlyMap<string, EntityProposal>;
+  dynamicStatesByEntityId: ReadonlyMap<
+    string,
+    readonly { key: string; value: string | null }[]
+  >;
+  hasTemporalScenes: boolean;
+  creatingStateForEntityId: string | null;
+  primaryImageUrls: Readonly<Record<string, string>>;
+  onCreateState: (entityId: string) => void;
+  onReviewProposal: (proposal: EntityProposal) => void;
+}>) {
+  if (loading) {
+    return Array.from({ length: 3 }).map((_, index) => (
+      <div
+        key={index}
+        className="rounded-xl border border-border bg-card p-3"
+      >
+        <div className="mb-2 flex items-center gap-2">
+          <div className="size-7 animate-pulse rounded-lg bg-muted" />
+          <div className="h-3 flex-1 animate-pulse rounded bg-muted" />
+        </div>
+        <div className="h-3 animate-pulse rounded bg-muted" />
+      </div>
+    ));
+  }
+  if (error) {
+    return (
+      <div className="rounded-lg border border-dashed border-border bg-background p-4 text-sm text-muted-foreground">
+        No se pudieron cargar las entidades.
+      </div>
+    );
+  }
+  if (entities.length === 0) {
+    return (
+      <EmptyWikiState
+        title="Sin entidades"
+        description="Crea entidades en la wiki para consultarlas desde el editor."
+      />
+    );
+  }
+
+  return entities.map((entity) => (
+    <EditorWikiEntityCard
+      key={entity.id}
+      entity={entity}
+      primaryImageUrl={primaryImageUrls[entity.id]}
+      updateProposal={
+        showReviewSections
+          ? updateProposalsByEntityId.get(entity.id) ?? null
+          : null
+      }
+      dynamicStates={dynamicStatesByEntityId.get(entity.id) ?? []}
+      onCreateState={
+        hasTemporalScenes ? () => onCreateState(entity.id) : undefined
+      }
+      isCreatingState={creatingStateForEntityId === entity.id}
+      onReviewProposal={(proposalId) => {
+        const proposal = proposals.find(
+          (candidate) => candidate.id === proposalId,
+        );
+        if (proposal) onReviewProposal(proposal);
+      }}
+    />
+  ));
+}
+
+function StateProposalsContent({
+  loading,
+  error,
+  proposals,
+  acceptingId,
+  rejectingId,
+  onAccept,
+  onReject,
+  onEdit,
+}: Readonly<{
+  loading: boolean;
+  error: Error | undefined;
+  proposals: readonly EntityStateProposal[];
+  acceptingId: string | null;
+  rejectingId: string | null;
+  onAccept: (
+    proposal: EntityStateProposal,
+    override?: EntityStateProposalOverride,
+  ) => Promise<void>;
+  onReject: (proposalId: string) => Promise<void>;
+  onEdit: (proposalId: string) => void;
+}>) {
+  if (loading) {
+    return (
+      <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-3 text-xs text-muted-foreground">
+        Revisando cambios de estado...
+      </div>
+    );
+  }
+  if (error) {
+    return (
+      <div className="rounded-lg border border-dashed border-border bg-background p-3 text-xs text-muted-foreground">
+        No se pudieron cargar los cambios de estado.
+      </div>
+    );
+  }
+  if (proposals.length === 0) {
+    return (
+      <EmptyWikiState
+        title="Sin cambios de estado pendientes"
+        description="Los cambios de ubicacion, estado vital y condicion apareceran aqui para revision."
+      />
+    );
+  }
+
+  return proposals.map((proposal) => (
+    <EntityStateProposalCard
+      key={proposal.id}
+      proposal={proposal}
+      accepting={acceptingId === proposal.id}
+      rejecting={rejectingId === proposal.id}
+      onAccept={() => {
+        void onAccept(proposal).catch(() => undefined);
+      }}
+      onReject={() => void onReject(proposal.id)}
+      onEdit={() => onEdit(proposal.id)}
+    />
+  ));
 }
 
 function AuditAlertList({
@@ -718,12 +829,16 @@ function AuditAlertList({
   alerts,
   updatingAlertId,
   onUpdate,
+  onFocus,
+  onApplyKnowledgeUpdate,
 }: Readonly<{
   loading: boolean;
   error: Error | undefined;
   alerts: readonly AuditAlert[];
   updatingAlertId: string | null;
   onUpdate: (alertId: string, status: AuditAlertResolution) => Promise<void>;
+  onFocus: (alert: AuditAlert) => void;
+  onApplyKnowledgeUpdate: (alertId: string) => Promise<void>;
 }>) {
   if (loading) {
     return (
@@ -753,9 +868,10 @@ function AuditAlertList({
       key={alert.id}
       alert={alert}
       updating={updatingAlertId === alert.id}
-      onFocusEvidence={() => undefined}
+      onFocusEvidence={() => onFocus(alert)}
       onResolve={() => void onUpdate(alert.id, "RESOLVED")}
       onDismiss={() => void onUpdate(alert.id, "DISMISSED")}
+      onApplyKnowledgeUpdate={() => void onApplyKnowledgeUpdate(alert.id)}
     />
   ))
 }
@@ -769,6 +885,8 @@ function AuditAlertsSection({
   updatingAlertId,
   onToggle,
   onUpdate,
+  onFocus,
+  onApplyKnowledgeUpdate,
 }: Readonly<{
   visible: boolean;
   expanded: boolean;
@@ -778,6 +896,8 @@ function AuditAlertsSection({
   updatingAlertId: string | null;
   onToggle: () => void;
   onUpdate: (alertId: string, status: AuditAlertResolution) => Promise<void>;
+  onFocus: (alert: AuditAlert) => void;
+  onApplyKnowledgeUpdate: (alertId: string) => Promise<void>;
 }>) {
   if (!visible) return null
   return (
@@ -796,6 +916,8 @@ function AuditAlertsSection({
           alerts={alerts}
           updatingAlertId={updatingAlertId}
           onUpdate={onUpdate}
+          onFocus={onFocus}
+          onApplyKnowledgeUpdate={onApplyKnowledgeUpdate}
         />
       )}
     </>
@@ -908,56 +1030,6 @@ function RelationshipProposalsSection({
   )
 }
 
-function ConfirmedEntityList({
-  loading,
-  error,
-  entities,
-  primaryImageUrls,
-}: Readonly<{
-  loading: boolean;
-  error: Error | undefined;
-  entities: readonly Entity[];
-  primaryImageUrls: Readonly<Record<string, string>>;
-}>) {
-  if (loading) {
-    return Array.from({ length: 3 }).map((_, index) => (
-      <div
-        key={index}
-        className="rounded-xl border border-border bg-card p-3"
-      >
-        <div className="mb-2 flex items-center gap-2">
-          <div className="size-7 animate-pulse rounded-lg bg-muted" />
-          <div className="h-3 flex-1 animate-pulse rounded bg-muted" />
-        </div>
-        <div className="h-3 animate-pulse rounded bg-muted" />
-      </div>
-    ))
-  }
-  if (error) {
-    return (
-      <div className="rounded-lg border border-dashed border-border bg-background p-4 text-sm text-muted-foreground">
-        No se pudieron cargar las entidades.
-      </div>
-    )
-  }
-  if (entities.length === 0) {
-    return (
-      <EmptyWikiState
-        title="Sin entidades"
-        description="Crea entidades en la wiki para consultarlas desde el editor."
-      />
-    )
-  }
-
-  return entities.map((entity) => (
-    <EditorWikiEntityCard
-      key={entity.id}
-      entity={entity}
-      primaryImageUrl={primaryImageUrls[entity.id]}
-    />
-  ))
-}
-
 function EntityProposalList({
   loading,
   error,
@@ -1058,17 +1130,17 @@ function EntityProposalsSection({
         onToggle={onToggle}
       />
       {expanded && feedback && (
-        <div
-          role={feedback.kind === "error" ? "alert" : "status"}
+        <output
+          role={feedback.kind === "error" ? "alert" : undefined}
           aria-live="polite"
-          className={`rounded-lg border px-3 py-2 text-xs ${
+          className={`block rounded-lg border px-3 py-2 text-xs ${
             feedback.kind === "error"
               ? "border-destructive/20 bg-destructive/5 text-destructive"
               : "border-emerald-500/20 bg-emerald-500/5 text-emerald-700 dark:text-emerald-300"
           }`}
         >
           {feedback.message}
-        </div>
+        </output>
       )}
       {expanded && (
         <EntityProposalList

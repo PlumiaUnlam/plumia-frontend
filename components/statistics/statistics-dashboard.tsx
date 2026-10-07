@@ -711,9 +711,8 @@ export function StatisticsDashboard({ projectId }: Readonly<{ projectId: string 
           </div>
         ) : null}
 
-        {loading ? (
-          <DashboardSkeleton />
-        ) : dashboard ? (
+        {loading && <DashboardSkeleton />}
+        {!loading && dashboard && (
           <div className="space-y-6">
             <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-[#32134a] via-[#5e2b7c] to-[#8146a3] p-6 text-white ring-0 sm:p-8">
               <Sparkles className="absolute -right-5 -top-6 size-32 text-white/5" />
@@ -886,7 +885,7 @@ export function StatisticsDashboard({ projectId }: Readonly<{ projectId: string 
               </Card>
             </div>
           </div>
-        ) : null}
+        )}
       </main>
     </div>
   );

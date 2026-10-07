@@ -225,13 +225,16 @@ export function EditorTextStylesMenu({
         applyEditorTextStyle(editor, result.style)
         saveAfterEditorUpdate()
       }
-      setStatusMessage(
-        result.pending
-          ? "Sin conexión: el estilo quedó guardado en este dispositivo y se sincronizará al reconectarte."
-          : editingStyle
-            ? `Se actualizó “${name}” en todos sus usos.`
-            : `Se guardó “${name}” y se aplicó a la selección.`,
-      )
+      let saveStatusMessage: string
+      if (result.pending) {
+        saveStatusMessage =
+          "Sin conexión: el estilo quedó guardado en este dispositivo y se sincronizará al reconectarte."
+      } else if (editingStyle) {
+        saveStatusMessage = `Se actualizó “${name}” en todos sus usos.`
+      } else {
+        saveStatusMessage = `Se guardó “${name}” y se aplicó a la selección.`
+      }
+      setStatusMessage(saveStatusMessage)
       setDialogOpen(false)
     } catch (error) {
       setErrorMessage(
@@ -391,12 +394,11 @@ export function EditorTextStylesMenu({
             Estilos reutilizables
           </MenubarLabel>
           {statusMessage && (
-            <div
-              role="status"
-              className="mx-2 mb-2 rounded-md bg-[#e8f0fe] px-2.5 py-2 text-xs leading-5 text-[#174ea6]"
+            <output
+              className="mx-2 mb-2 block rounded-md bg-[#e8f0fe] px-2.5 py-2 text-xs leading-5 text-[#174ea6]"
             >
               {statusMessage}
-            </div>
+            </output>
           )}
           <MenubarItem className={itemClass} onSelect={openCreateDialog}>
             <Plus className="mr-2 size-4" />
