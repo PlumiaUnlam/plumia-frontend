@@ -176,33 +176,47 @@ export function SharedScene({
     )
   }, [activeCommentId, comments, editor])
 
-  const captureSelection = () => {
+  useEffect(() => {
     if (!canComment || !editor) return
-    window.setTimeout(() => {
-      const selection = window.getSelection()
-      if (!selection || selection.isCollapsed || selection.rangeCount === 0) return
-      const range = selection.getRangeAt(0)
-      if (!editor.view.dom.contains(range.commonAncestorContainer)) return
 
-      try {
-        const start = editor.view.posAtDOM(
-          range.startContainer,
-          range.startOffset,
-        )
-        const end = editor.view.posAtDOM(range.endContainer, range.endOffset)
-        const selectedText = selection.toString().trim()
-        if (!selectedText || start === end) return
-        onSelection({
-          snapshotSceneId: sceneId,
-          anchorFrom: Math.min(start, end),
-          anchorTo: Math.max(start, end),
-          selectedText,
-        })
-      } catch {
-        // Ignore selections that fall outside the ProseMirror document.
-      }
-    }, 0)
-  }
+    let selectionTimer: number | null = null
+    const captureSelection = () => {
+      if (selectionTimer !== null) window.clearTimeout(selectionTimer)
+      selectionTimer = window.setTimeout(() => {
+        selectionTimer = null
+        const selection = window.getSelection()
+        if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
+          return
+        }
+        const range = selection.getRangeAt(0)
+        if (!editor.view.dom.contains(range.commonAncestorContainer)) return
+
+        try {
+          const start = editor.view.posAtDOM(
+            range.startContainer,
+            range.startOffset,
+          )
+          const end = editor.view.posAtDOM(range.endContainer, range.endOffset)
+          const selectedText = selection.toString().trim()
+          if (!selectedText || start === end) return
+          onSelection({
+            snapshotSceneId: sceneId,
+            anchorFrom: Math.min(start, end),
+            anchorTo: Math.max(start, end),
+            selectedText,
+          })
+        } catch {
+          // Ignore selections that fall outside the ProseMirror document.
+        }
+      }, 0)
+    }
+
+    document.addEventListener("selectionchange", captureSelection)
+    return () => {
+      document.removeEventListener("selectionchange", captureSelection)
+      if (selectionTimer !== null) window.clearTimeout(selectionTimer)
+    }
+  }, [canComment, editor, onSelection, sceneId])
 
   return (
     <article className="border-b border-border/60 py-8 last:border-b-0">
@@ -211,15 +225,12 @@ export function SharedScene({
           {title}
         </h3>
       )}
-      <div
-        role="region"
+      <section
         aria-label={title ? `Texto de ${title}` : "Texto de la escena"}
         tabIndex={0}
-        onPointerUp={captureSelection}
-        onKeyUp={captureSelection}
       >
         <EditorContent editor={editor} />
-      </div>
+      </section>
     </article>
   )
 }

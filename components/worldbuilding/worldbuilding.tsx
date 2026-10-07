@@ -265,7 +265,7 @@ function useImageGenerationPolling({
 
     poll();
     const pollWhenVisible = () => {
-      if (document.visibilityState === "visible") void poll();
+      if (document.visibilityState === "visible") poll();
     };
     const interval = setInterval(pollWhenVisible, IMAGE_POLL_INTERVAL_MS);
 

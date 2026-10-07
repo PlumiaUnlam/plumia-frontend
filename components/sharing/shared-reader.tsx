@@ -74,6 +74,81 @@ function getViewerDescription(viewer: SharedManuscriptView["viewer"]) {
   return viewer.canComment ? "Modo revisión" : "Modo lectura"
 }
 
+function SharedReaderHeader({
+  manuscriptTitle,
+  frozenAt,
+  chapters,
+  activeChapterId,
+  viewer,
+  resolvedTheme,
+  onSelectChapter,
+  onToggleTheme,
+}: Readonly<{
+  manuscriptTitle: string;
+  frozenAt: string;
+  chapters: readonly { id: string; title: string; bookTitle: string }[];
+  activeChapterId: string | null;
+  viewer: SharedManuscriptView["viewer"];
+  resolvedTheme: string | undefined;
+  onSelectChapter: (chapterId: string) => void;
+  onToggleTheme: () => void;
+}>) {
+  return (
+    <header className="sticky top-0 z-30 flex h-14 items-center border-b border-black/10 bg-[#fffdf8]/95 px-4 backdrop-blur dark:border-white/10 dark:bg-[#211827]/95">
+      <BookOpen className="mr-2 size-5 text-primary" />
+      <div className="min-w-0">
+        <h1 className="truncate text-sm font-semibold">{manuscriptTitle}</h1>
+        <p className="text-[11px] text-muted-foreground">
+          Versión congelada · {new Date(frozenAt).toLocaleString("es-UY")}
+        </p>
+      </div>
+      <Select value={activeChapterId ?? undefined} onValueChange={onSelectChapter}>
+        <SelectTrigger
+          aria-label="Ir a capítulo"
+          size="sm"
+          className="ml-auto max-w-40 text-xs lg:hidden"
+        >
+          <SelectValue placeholder="Ir a capítulo" />
+        </SelectTrigger>
+        <SelectContent align="end">
+          {chapters.map((chapter) => (
+            <SelectItem key={chapter.id} value={chapter.id}>
+              {chapter.title}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <div className="ml-2 hidden items-center gap-2 text-xs text-muted-foreground sm:flex lg:ml-auto">
+        {viewer.canComment ? (
+          <MessageSquare className="size-4" />
+        ) : (
+          <BookOpen className="size-4" />
+        )}
+        {getViewerDescription(viewer)}
+      </div>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-xs"
+        className="ml-1"
+        aria-label={
+          resolvedTheme === "dark"
+            ? "Cambiar a tema claro"
+            : "Cambiar a tema oscuro"
+        }
+        title={resolvedTheme === "dark" ? "Tema claro" : "Tema oscuro"}
+        onClick={onToggleTheme}
+      >
+        {resolvedTheme === "dark" ? (
+          <Sun className="size-3.5" />
+        ) : (
+          <Moon className="size-3.5" />
+        )}
+      </Button>
+    </header>
+  )
+}
+
 function getCommentCardClassName(isActive: boolean, status: ReaderComment["status"]) {
   if (isActive) return "border-primary bg-primary/5 ring-2 ring-primary/15"
   if (status === "RESOLVED") {
@@ -471,64 +546,18 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
 
   return (
     <div className="min-h-screen bg-[#f4f0e8] text-foreground dark:bg-[#18131d]">
-      <header className="sticky top-0 z-30 flex h-14 items-center border-b border-black/10 bg-[#fffdf8]/95 px-4 backdrop-blur dark:border-white/10 dark:bg-[#211827]/95">
-        <BookOpen className="mr-2 size-5 text-primary" />
-        <div className="min-w-0">
-          <h1 className="truncate text-sm font-semibold">
-            {view.manuscript.title}
-          </h1>
-          <p className="text-[11px] text-muted-foreground">
-            Versión congelada ·{" "}
-            {new Date(view.manuscript.frozenAt).toLocaleString("es-UY")}
-          </p>
-        </div>
-        <Select
-          value={activeChapterId ?? undefined}
-          onValueChange={scrollToChapter}
-        >
-          <SelectTrigger
-            aria-label="Ir a capítulo"
-            size="sm"
-            className="ml-auto max-w-40 text-xs lg:hidden"
-          >
-            <SelectValue placeholder="Ir a capítulo" />
-          </SelectTrigger>
-          <SelectContent align="end">
-            {chapters.map((chapter) => (
-              <SelectItem key={chapter.id} value={chapter.id}>
-                {chapter.title}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <div className="ml-2 hidden items-center gap-2 text-xs text-muted-foreground sm:flex lg:ml-auto">
-          {view.viewer.canComment ? (
-            <MessageSquare className="size-4" />
-          ) : (
-            <BookOpen className="size-4" />
-          )}
-          {getViewerDescription(view.viewer)}
-        </div>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-xs"
-          className="ml-1"
-          aria-label={
-            resolvedTheme === "dark"
-              ? "Cambiar a tema claro"
-              : "Cambiar a tema oscuro"
-          }
-          title={resolvedTheme === "dark" ? "Tema claro" : "Tema oscuro"}
-          onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-        >
-          {resolvedTheme === "dark" ? (
-            <Sun className="size-3.5" />
-          ) : (
-            <Moon className="size-3.5" />
-          )}
-        </Button>
-      </header>
+      <SharedReaderHeader
+        manuscriptTitle={view.manuscript.title}
+        frozenAt={view.manuscript.frozenAt}
+        chapters={chapters}
+        activeChapterId={activeChapterId}
+        viewer={view.viewer}
+        resolvedTheme={resolvedTheme}
+        onSelectChapter={scrollToChapter}
+        onToggleTheme={() =>
+          setTheme(resolvedTheme === "dark" ? "light" : "dark")
+        }
+      />
 
       <div
         className={`mx-auto grid grid-cols-1 gap-6 px-4 py-6 ${

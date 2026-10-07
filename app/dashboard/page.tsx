@@ -223,36 +223,77 @@ export default function DashboardPage() {
         />
       </main>
 
-      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+      <DashboardProjectDialogs
+        isCreateDialogOpen={isCreateDialogOpen}
+        onCreateDialogOpenChange={setIsCreateDialogOpen}
+        onCreateSuccess={handleCreateSuccess}
+        projectToEdit={projectToEdit}
+        onEditDialogOpenChange={(open) => {
+          if (!open) setProjectToEdit(null)
+        }}
+        onEditSuccess={handleEditSuccess}
+        projectToDelete={projectToDelete}
+        isDeleting={isDeleting}
+        onDeleteDialogOpenChange={(open) => {
+          if (!open && !isDeleting) setProjectToDelete(null)
+        }}
+        onDeleteProject={handleDeleteProject}
+      />
+    </div>
+  )
+}
+
+function DashboardProjectDialogs({
+  isCreateDialogOpen,
+  onCreateDialogOpenChange,
+  onCreateSuccess,
+  projectToEdit,
+  onEditDialogOpenChange,
+  onEditSuccess,
+  projectToDelete,
+  isDeleting,
+  onDeleteDialogOpenChange,
+  onDeleteProject,
+}: Readonly<{
+  isCreateDialogOpen: boolean
+  onCreateDialogOpenChange: (open: boolean) => void
+  onCreateSuccess: (project: ProjectResponse) => void
+  projectToEdit: ProjectResponse | null
+  onEditDialogOpenChange: (open: boolean) => void
+  onEditSuccess: (project: ProjectResponse) => void
+  projectToDelete: ProjectResponse | null
+  isDeleting: boolean
+  onDeleteDialogOpenChange: (open: boolean) => void
+  onDeleteProject: () => Promise<void>
+}>) {
+  return (
+    <>
+      <Dialog open={isCreateDialogOpen} onOpenChange={onCreateDialogOpenChange}>
         {isCreateDialogOpen ? (
           <NewProjectForm
-            onCancel={() => setIsCreateDialogOpen(false)}
-            onSuccess={handleCreateSuccess}
+            onCancel={() => onCreateDialogOpenChange(false)}
+            onSuccess={onCreateSuccess}
           />
         ) : null}
       </Dialog>
 
       <Dialog
         open={Boolean(projectToEdit)}
-        onOpenChange={(open) => {
-          if (!open) setProjectToEdit(null)
-        }}
+        onOpenChange={onEditDialogOpenChange}
       >
         {projectToEdit ? (
           <NewProjectForm
             key={projectToEdit.id}
             project={projectToEdit}
-            onCancel={() => setProjectToEdit(null)}
-            onSuccess={handleEditSuccess}
+            onCancel={() => onEditDialogOpenChange(false)}
+            onSuccess={onEditSuccess}
           />
         ) : null}
       </Dialog>
 
       <AlertDialog
         open={Boolean(projectToDelete)}
-        onOpenChange={(open) => {
-          if (!open && !isDeleting) setProjectToDelete(null)
-        }}
+        onOpenChange={onDeleteDialogOpenChange}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -270,7 +311,7 @@ export default function DashboardPage() {
               disabled={isDeleting}
               onClick={(event) => {
                 event.preventDefault()
-                void handleDeleteProject()
+                void onDeleteProject()
               }}
             >
               {isDeleting ? <Spinner className="size-4" /> : <Trash2 />}
@@ -279,7 +320,7 @@ export default function DashboardPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </>
   )
 }
 

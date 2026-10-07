@@ -387,93 +387,32 @@ export function WikiPanel({
             </div>
           )}
 
-          {showReviewSections && (
-            <>
-              <WikiSectionTitle
-                icon={AlertTriangle}
-                label="Inconsistencias detectadas"
-                count={filteredAuditAlerts.length}
-                expanded={expandedSections.inconsistencies}
-                onToggle={() => toggleSection("inconsistencies")}
-              />
-              {expandedSections.inconsistencies &&
-            (auditAlertsLoading ? (
-              <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 text-xs text-muted-foreground">
-                Revisando inconsistencias...
-              </div>
-            ) : auditAlertsError ? (
-              <div className="rounded-lg border border-dashed border-border bg-background p-3 text-xs text-muted-foreground">
-                No se pudieron cargar las inconsistencias.
-              </div>
-            ) : filteredAuditAlerts.length === 0 ? (
-              <EmptyWikiState
-                title="Sin inconsistencias pendientes"
-                description="Las posibles contradicciones de entidades apareceran aqui para tu revision."
-              />
-            ) : (
-              filteredAuditAlerts.map((alert) => (
-                <AuditAlertCard
-                  key={alert.id}
-                  alert={alert}
-                  updating={updatingAuditAlertId === alert.id}
-                  onFocusEvidence={() => onFocusAuditAlert(alert)}
-                  onResolve={() =>
-                    void onUpdateAuditAlert(alert.id, "RESOLVED")
-                  }
-                  onDismiss={() =>
-                    void onUpdateAuditAlert(alert.id, "DISMISSED")
-                  }
-                  onApplyKnowledgeUpdate={() =>
-                    void onApplyAuditKnowledgeUpdate(alert.id)
-                  }
-                />
-              ))
-              ))}
-            </>
-          )}
+          <AuditAlertsSection
+            visible={showReviewSections}
+            expanded={expandedSections.inconsistencies}
+            alerts={filteredAuditAlerts}
+            loading={auditAlertsLoading}
+            error={auditAlertsError}
+            updatingAlertId={updatingAuditAlertId}
+            onToggle={() => toggleSection("inconsistencies")}
+            onUpdate={onUpdateAuditAlert}
+            onFocus={onFocusAuditAlert}
+            onApplyKnowledgeUpdate={onApplyAuditKnowledgeUpdate}
+          />
 
-          {showReviewSections && (
-            <>
-              <WikiSectionTitle
-                icon={RefreshCw}
-                label="Relaciones detectadas"
-                count={relationshipProposals.length}
-                expanded={expandedSections.relationships}
-                onToggle={() => toggleSection("relationships")}
-              />
-              {expandedSections.relationships &&
-            (relationshipProposalsLoading ? (
-              <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-3 text-xs text-muted-foreground">
-                Revisando relaciones...
-              </div>
-            ) : relationshipProposalsError ? (
-              <div className="rounded-lg border border-dashed border-border bg-background p-3 text-xs text-muted-foreground">
-                No se pudieron cargar las propuestas de relaciones.
-              </div>
-            ) : relationshipProposals.length === 0 ? (
-              <EmptyWikiState
-                title="Sin relaciones pendientes"
-                description="Las relaciones detectadas aparecerán aquí para revisión."
-              />
-            ) : (
-              relationshipProposals.map((proposal) => (
-                <RelationshipProposalCard
-                  key={proposal.id}
-                  proposal={proposal}
-                  accepting={acceptingRelationshipProposalId === proposal.id}
-                  rejecting={rejectingRelationshipProposalId === proposal.id}
-                  onAccept={() =>
-                    void onAcceptRelationshipProposal(proposal.id)
-                  }
-                  onReject={() =>
-                    void onRejectRelationshipProposal(proposal.id)
-                  }
-                  onEdit={() => setEditingRelationshipProposalId(proposal.id)}
-                />
-              ))
-              ))}
-            </>
-          )}
+          <RelationshipProposalsSection
+            visible={showReviewSections}
+            expanded={expandedSections.relationships}
+            proposals={relationshipProposals}
+            loading={relationshipProposalsLoading}
+            error={relationshipProposalsError}
+            acceptingId={acceptingRelationshipProposalId}
+            rejectingId={rejectingRelationshipProposalId}
+            onToggle={() => toggleSection("relationships")}
+            onAccept={onAcceptRelationshipProposal}
+            onReject={onRejectRelationshipProposal}
+            onEdit={setEditingRelationshipProposalId}
+          />
 
           <WikiSectionTitle
             icon={FileText}
@@ -482,58 +421,22 @@ export function WikiPanel({
             expanded={expandedSections.entities}
             onToggle={() => toggleSection("entities")}
           />
-          {expandedSections.entities &&
-            (loading ? (
-              Array.from({ length: 3 }).map((_, index) => (
-                <div
-                  key={index}
-                  className="rounded-xl border border-border bg-card p-3"
-                >
-                  <div className="mb-2 flex items-center gap-2">
-                    <div className="size-7 animate-pulse rounded-lg bg-muted" />
-                    <div className="h-3 flex-1 animate-pulse rounded bg-muted" />
-                  </div>
-                  <div className="h-3 animate-pulse rounded bg-muted" />
-                </div>
-              ))
-            ) : entitiesError ? (
-              <div className="rounded-lg border border-dashed border-border bg-background p-4 text-sm text-muted-foreground">
-                No se pudieron cargar las entidades.
-              </div>
-            ) : filteredEntities.length === 0 ? (
-              <EmptyWikiState
-                title="Sin entidades"
-                description="Crea entidades en la wiki para consultarlas desde el editor."
-              />
-            ) : (
-              filteredEntities.map((entity) => (
-                <EditorWikiEntityCard
-                  key={entity.id}
-                  entity={entity}
-                  primaryImageUrl={primaryImageUrls[entity.id]}
-                  updateProposal={
-                    showReviewSections
-                      ? updateProposalsByEntityId.get(entity.id) ?? null
-                      : null
-                  }
-                  dynamicStates={
-                    dynamicStatesByEntityId.get(entity.id) ?? []
-                  }
-                  onCreateState={
-                    temporalKnowledgeView?.scenes.length
-                      ? () => setCreatingStateEntityId(entity.id)
-                      : undefined
-                  }
-                  isCreatingState={creatingStateForEntityId === entity.id}
-                  onReviewProposal={(proposalId) => {
-                    const proposal = proposals.find(
-                      (candidate) => candidate.id === proposalId,
-                    );
-                    if (proposal) handleEntityProposalEdit(proposal);
-                  }}
-                />
-              ))
-            ))}
+          {expandedSections.entities && (
+            <EntityDirectoryContent
+              loading={loading}
+              error={entitiesError}
+              entities={filteredEntities}
+              proposals={proposals}
+              showReviewSections={showReviewSections}
+              updateProposalsByEntityId={updateProposalsByEntityId}
+              dynamicStatesByEntityId={dynamicStatesByEntityId}
+              hasTemporalScenes={Boolean(temporalKnowledgeView?.scenes.length)}
+              creatingStateForEntityId={creatingStateForEntityId}
+              primaryImageUrls={primaryImageUrls}
+              onCreateState={setCreatingStateEntityId}
+              onReviewProposal={handleEntityProposalEdit}
+            />
+          )}
           {showReviewSections && (
             <>
               <WikiSectionTitle
@@ -543,37 +446,20 @@ export function WikiPanel({
                 expanded={expandedSections.states}
                 onToggle={() => toggleSection("states")}
               />
-              {expandedSections.states &&
-                (stateProposalsLoading ? (
-                  <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-3 text-xs text-muted-foreground">
-                    Revisando cambios de estado...
-                  </div>
-                ) : stateProposalsError ? (
-                  <div className="rounded-lg border border-dashed border-border bg-background p-3 text-xs text-muted-foreground">
-                    No se pudieron cargar los cambios de estado.
-                  </div>
-                ) : stateProposals.length === 0 ? (
-                  <EmptyWikiState
-                    title="Sin cambios de estado pendientes"
-                    description="Los cambios de ubicacion, estado vital y condicion apareceran aqui para revision."
-                  />
-                ) : (
-                  stateProposals.map((proposal) => (
-                    <EntityStateProposalCard
-                      key={proposal.id}
-                      proposal={proposal}
-                      accepting={acceptingStateProposalId === proposal.id}
-                      rejecting={rejectingStateProposalId === proposal.id}
-                      onAccept={() => {
-                        void onAcceptStateProposal(proposal).catch(
-                          () => undefined,
-                        );
-                      }}
-                      onReject={() => void onRejectStateProposal(proposal.id)}
-                      onEdit={() => setEditingStateProposalId(proposal.id)}
-                    />
-                  ))
-                ))}
+              {expandedSections.states && (
+                <StateProposalsContent
+                  loading={stateProposalsLoading}
+                  error={stateProposalsError}
+                  proposals={stateProposals}
+                  acceptingId={acceptingStateProposalId}
+                  rejectingId={rejectingStateProposalId}
+                  onAccept={onAcceptStateProposal}
+                  onReject={onRejectStateProposal}
+                  onEdit={(proposalId) =>
+                    setEditingStateProposalId(proposalId)
+                  }
+                />
+              )}
             </>
           )}
           <EntityProposalsSection
@@ -793,18 +679,167 @@ function WikiPanelDialogs({
   );
 }
 
+function EntityDirectoryContent({
+  loading,
+  error,
+  entities,
+  proposals,
+  showReviewSections,
+  updateProposalsByEntityId,
+  dynamicStatesByEntityId,
+  hasTemporalScenes,
+  creatingStateForEntityId,
+  primaryImageUrls,
+  onCreateState,
+  onReviewProposal,
+}: Readonly<{
+  loading: boolean;
+  error: Error | undefined;
+  entities: readonly Entity[];
+  proposals: readonly EntityProposal[];
+  showReviewSections: boolean;
+  updateProposalsByEntityId: ReadonlyMap<string, EntityProposal>;
+  dynamicStatesByEntityId: ReadonlyMap<
+    string,
+    readonly { key: string; value: string | null }[]
+  >;
+  hasTemporalScenes: boolean;
+  creatingStateForEntityId: string | null;
+  primaryImageUrls: Readonly<Record<string, string>>;
+  onCreateState: (entityId: string) => void;
+  onReviewProposal: (proposal: EntityProposal) => void;
+}>) {
+  if (loading) {
+    return Array.from({ length: 3 }).map((_, index) => (
+      <div
+        key={index}
+        className="rounded-xl border border-border bg-card p-3"
+      >
+        <div className="mb-2 flex items-center gap-2">
+          <div className="size-7 animate-pulse rounded-lg bg-muted" />
+          <div className="h-3 flex-1 animate-pulse rounded bg-muted" />
+        </div>
+        <div className="h-3 animate-pulse rounded bg-muted" />
+      </div>
+    ));
+  }
+  if (error) {
+    return (
+      <div className="rounded-lg border border-dashed border-border bg-background p-4 text-sm text-muted-foreground">
+        No se pudieron cargar las entidades.
+      </div>
+    );
+  }
+  if (entities.length === 0) {
+    return (
+      <EmptyWikiState
+        title="Sin entidades"
+        description="Crea entidades en la wiki para consultarlas desde el editor."
+      />
+    );
+  }
+
+  return entities.map((entity) => (
+    <EditorWikiEntityCard
+      key={entity.id}
+      entity={entity}
+      primaryImageUrl={primaryImageUrls[entity.id]}
+      updateProposal={
+        showReviewSections
+          ? updateProposalsByEntityId.get(entity.id) ?? null
+          : null
+      }
+      dynamicStates={dynamicStatesByEntityId.get(entity.id) ?? []}
+      onCreateState={
+        hasTemporalScenes ? () => onCreateState(entity.id) : undefined
+      }
+      isCreatingState={creatingStateForEntityId === entity.id}
+      onReviewProposal={(proposalId) => {
+        const proposal = proposals.find(
+          (candidate) => candidate.id === proposalId,
+        );
+        if (proposal) onReviewProposal(proposal);
+      }}
+    />
+  ));
+}
+
+function StateProposalsContent({
+  loading,
+  error,
+  proposals,
+  acceptingId,
+  rejectingId,
+  onAccept,
+  onReject,
+  onEdit,
+}: Readonly<{
+  loading: boolean;
+  error: Error | undefined;
+  proposals: readonly EntityStateProposal[];
+  acceptingId: string | null;
+  rejectingId: string | null;
+  onAccept: (
+    proposal: EntityStateProposal,
+    override?: EntityStateProposalOverride,
+  ) => Promise<void>;
+  onReject: (proposalId: string) => Promise<void>;
+  onEdit: (proposalId: string) => void;
+}>) {
+  if (loading) {
+    return (
+      <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-3 text-xs text-muted-foreground">
+        Revisando cambios de estado...
+      </div>
+    );
+  }
+  if (error) {
+    return (
+      <div className="rounded-lg border border-dashed border-border bg-background p-3 text-xs text-muted-foreground">
+        No se pudieron cargar los cambios de estado.
+      </div>
+    );
+  }
+  if (proposals.length === 0) {
+    return (
+      <EmptyWikiState
+        title="Sin cambios de estado pendientes"
+        description="Los cambios de ubicacion, estado vital y condicion apareceran aqui para revision."
+      />
+    );
+  }
+
+  return proposals.map((proposal) => (
+    <EntityStateProposalCard
+      key={proposal.id}
+      proposal={proposal}
+      accepting={acceptingId === proposal.id}
+      rejecting={rejectingId === proposal.id}
+      onAccept={() => {
+        void onAccept(proposal).catch(() => undefined);
+      }}
+      onReject={() => void onReject(proposal.id)}
+      onEdit={() => onEdit(proposal.id)}
+    />
+  ));
+}
+
 function AuditAlertList({
   loading,
   error,
   alerts,
   updatingAlertId,
   onUpdate,
+  onFocus,
+  onApplyKnowledgeUpdate,
 }: Readonly<{
   loading: boolean;
   error: Error | undefined;
   alerts: readonly AuditAlert[];
   updatingAlertId: string | null;
   onUpdate: (alertId: string, status: AuditAlertResolution) => Promise<void>;
+  onFocus: (alert: AuditAlert) => void;
+  onApplyKnowledgeUpdate: (alertId: string) => Promise<void>;
 }>) {
   if (loading) {
     return (
@@ -834,9 +869,10 @@ function AuditAlertList({
       key={alert.id}
       alert={alert}
       updating={updatingAlertId === alert.id}
-      onFocusEvidence={() => undefined}
+      onFocusEvidence={() => onFocus(alert)}
       onResolve={() => void onUpdate(alert.id, "RESOLVED")}
       onDismiss={() => void onUpdate(alert.id, "DISMISSED")}
+      onApplyKnowledgeUpdate={() => void onApplyKnowledgeUpdate(alert.id)}
     />
   ))
 }
@@ -850,6 +886,8 @@ function AuditAlertsSection({
   updatingAlertId,
   onToggle,
   onUpdate,
+  onFocus,
+  onApplyKnowledgeUpdate,
 }: Readonly<{
   visible: boolean;
   expanded: boolean;
@@ -859,6 +897,8 @@ function AuditAlertsSection({
   updatingAlertId: string | null;
   onToggle: () => void;
   onUpdate: (alertId: string, status: AuditAlertResolution) => Promise<void>;
+  onFocus: (alert: AuditAlert) => void;
+  onApplyKnowledgeUpdate: (alertId: string) => Promise<void>;
 }>) {
   if (!visible) return null
   return (
@@ -877,6 +917,8 @@ function AuditAlertsSection({
           alerts={alerts}
           updatingAlertId={updatingAlertId}
           onUpdate={onUpdate}
+          onFocus={onFocus}
+          onApplyKnowledgeUpdate={onApplyKnowledgeUpdate}
         />
       )}
     </>
@@ -987,56 +1029,6 @@ function RelationshipProposalsSection({
       )}
     </>
   )
-}
-
-function ConfirmedEntityList({
-  loading,
-  error,
-  entities,
-  primaryImageUrls,
-}: Readonly<{
-  loading: boolean;
-  error: Error | undefined;
-  entities: readonly Entity[];
-  primaryImageUrls: Readonly<Record<string, string>>;
-}>) {
-  if (loading) {
-    return Array.from({ length: 3 }).map((_, index) => (
-      <div
-        key={index}
-        className="rounded-xl border border-border bg-card p-3"
-      >
-        <div className="mb-2 flex items-center gap-2">
-          <div className="size-7 animate-pulse rounded-lg bg-muted" />
-          <div className="h-3 flex-1 animate-pulse rounded bg-muted" />
-        </div>
-        <div className="h-3 animate-pulse rounded bg-muted" />
-      </div>
-    ))
-  }
-  if (error) {
-    return (
-      <div className="rounded-lg border border-dashed border-border bg-background p-4 text-sm text-muted-foreground">
-        No se pudieron cargar las entidades.
-      </div>
-    )
-  }
-  if (entities.length === 0) {
-    return (
-      <EmptyWikiState
-        title="Sin entidades"
-        description="Crea entidades en la wiki para consultarlas desde el editor."
-      />
-    )
-  }
-
-  return entities.map((entity) => (
-    <EditorWikiEntityCard
-      key={entity.id}
-      entity={entity}
-      primaryImageUrl={primaryImageUrls[entity.id]}
-    />
-  ))
 }
 
 function EntityProposalList({

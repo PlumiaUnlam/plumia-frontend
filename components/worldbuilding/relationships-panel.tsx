@@ -316,7 +316,7 @@ export function RelationshipsPanel({
         <div className="space-y-3 border-b border-border bg-card/50 p-3">
           {scenes.length > 0 && (
             <label className="grid gap-1 text-xs font-medium text-muted-foreground">
-              Punto narrativo
+              <span>Punto narrativo</span>
               <select
                 value={asOfSceneId}
                 onChange={(event) => setAsOfSceneId(event.target.value)}

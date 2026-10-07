@@ -227,12 +227,12 @@
 }
 
 .entity-link--location {
-  color: #047857;
+  color: #047253;
   background-color: #0596691a;
 }
 
 .entity-link--object {
-  color: #b45309;
+  color: #a44c08;
   background-color: #d977061a;
 }
 
@@ -247,8 +247,32 @@
 }
 
 .entity-link--concept {
-  color: #0e7490;
+  color: #0d6d87;
   background-color: #0891b21a;
+}
+
+.dark .entity-link--character {
+  color: #6888e5;
+}
+
+.dark .entity-link--location {
+  color: #459b83;
+}
+
+.dark .entity-link--object {
+  color: #c77e47;
+}
+
+.dark .entity-link--organization {
+  color: #a275e7;
+}
+
+.dark .entity-link--event {
+  color: #d26e6e;
+}
+
+.dark .entity-link--concept {
+  color: #4a97ac;
 }
 
 /* TipTap conserva los saltos de tabulación dentro del párrafo. */
