@@ -343,7 +343,11 @@ function getLegendItemIdentity(item: RechartsPrimitive.LegendPayload) {
               value === null ||
               ["boolean", "number", "string"].includes(typeof value),
           )
-          .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
+          .sort(([left], [right]) => {
+            if (left < right) return -1
+            if (left > right) return 1
+            return 0
+          })
       : []
 
   return JSON.stringify([

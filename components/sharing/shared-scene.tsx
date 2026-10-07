@@ -29,6 +29,17 @@ export type SharedSceneProps = Readonly<{
 }>
 
 const commentPluginKey = new PluginKey("sharedReaderComments")
+const selectionExtensionKeys = new Set([
+  "Shift",
+  "ArrowDown",
+  "ArrowLeft",
+  "ArrowRight",
+  "ArrowUp",
+  "End",
+  "Home",
+  "PageDown",
+  "PageUp",
+])
 
 type CommentDecorationState = {
   comments: ReaderComment[]
@@ -179,42 +190,65 @@ export function SharedScene({
   useEffect(() => {
     if (!canComment || !editor) return
 
-    let selectionTimer: number | null = null
     const captureSelection = () => {
-      if (selectionTimer !== null) window.clearTimeout(selectionTimer)
-      selectionTimer = window.setTimeout(() => {
-        selectionTimer = null
-        const selection = window.getSelection()
-        if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
-          return
-        }
-        const range = selection.getRangeAt(0)
-        if (!editor.view.dom.contains(range.commonAncestorContainer)) return
+      if (editor.isDestroyed) return
+      const selection = window.getSelection()
+      if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
+        return
+      }
+      const range = selection.getRangeAt(0)
+      if (!editor.view.dom.contains(range.commonAncestorContainer)) return
 
-        try {
-          const start = editor.view.posAtDOM(
-            range.startContainer,
-            range.startOffset,
-          )
-          const end = editor.view.posAtDOM(range.endContainer, range.endOffset)
-          const selectedText = selection.toString().trim()
-          if (!selectedText || start === end) return
-          onSelection({
-            snapshotSceneId: sceneId,
-            anchorFrom: Math.min(start, end),
-            anchorTo: Math.max(start, end),
-            selectedText,
-          })
-        } catch {
-          // Ignore selections that fall outside the ProseMirror document.
-        }
-      }, 0)
+      try {
+        const start = editor.view.posAtDOM(
+          range.startContainer,
+          range.startOffset,
+        )
+        const end = editor.view.posAtDOM(range.endContainer, range.endOffset)
+        const selectedText = selection.toString().trim()
+        if (!selectedText || start === end) return
+        onSelection({
+          snapshotSceneId: sceneId,
+          anchorFrom: Math.min(start, end),
+          anchorTo: Math.max(start, end),
+          selectedText,
+        })
+      } catch {
+        // Ignore selections that fall outside the ProseMirror document.
+      }
     }
 
-    document.addEventListener("selectionchange", captureSelection)
+    let pointerStartedInEditor = false
+    const handlePointerDown = (event: PointerEvent) => {
+      pointerStartedInEditor =
+        event.target instanceof globalThis.Node &&
+        editor.view.dom.contains(event.target)
+    }
+    const handlePointerUp = (event: PointerEvent) => {
+      const releasedInEditor =
+        event.target instanceof globalThis.Node &&
+        editor.view.dom.contains(event.target)
+      if (!pointerStartedInEditor && !releasedInEditor) return
+      pointerStartedInEditor = false
+      captureSelection()
+    }
+    const handlePointerCancel = () => {
+      pointerStartedInEditor = false
+    }
+    const handleKeyUp = (event: KeyboardEvent) => {
+      if (event.shiftKey || !selectionExtensionKeys.has(event.key)) return
+      captureSelection()
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown)
+    document.addEventListener("pointerup", handlePointerUp)
+    document.addEventListener("pointercancel", handlePointerCancel)
+    document.addEventListener("keyup", handleKeyUp)
     return () => {
-      document.removeEventListener("selectionchange", captureSelection)
-      if (selectionTimer !== null) window.clearTimeout(selectionTimer)
+      document.removeEventListener("pointerdown", handlePointerDown)
+      document.removeEventListener("pointerup", handlePointerUp)
+      document.removeEventListener("pointercancel", handlePointerCancel)
+      document.removeEventListener("keyup", handleKeyUp)
     }
   }, [canComment, editor, onSelection, sceneId])
 
@@ -227,7 +261,6 @@ export function SharedScene({
       )}
       <section
         aria-label={title ? `Texto de ${title}` : "Texto de la escena"}
-        tabIndex={0}
       >
         <EditorContent editor={editor} />
       </section>

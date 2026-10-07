@@ -585,35 +585,7 @@ function WikiPanelDialogs({
       <NewEntityModal
         show={!!editingEntityProposal}
         mode="proposal"
-        initialValues={
-          editingEntityProposal
-            ? {
-                canonicalName:
-                  editingEntityProposal.targetEntity?.canonicalName ??
-                  editingEntityProposal.proposedData.canonicalName,
-                type:
-                  editingEntityProposal.targetEntity?.type ??
-                  editingEntityProposal.proposedData.type,
-                description: combineEntityDescriptions(
-                  editingEntityProposal.targetEntity?.description ?? null,
-                  editingEntityProposal.proposedData.description,
-                ),
-                aliases: [
-                  ...new Set([
-                    ...(editingEntityProposal.targetEntity?.aliases ?? []),
-                    ...editingEntityProposal.proposedData.aliases,
-                  ]),
-                ],
-                attributes: {
-                  ...editingEntityProposal.targetEntity?.attributes,
-                  ...editingEntityProposal.proposedData.attributes,
-                },
-                imageUrl: editingEntityProposal.targetEntity?.id
-                  ? null
-                  : editingEntityProposal.proposedData.imageUrl,
-              }
-            : undefined
-        }
+        initialValues={getEntityProposalInitialValues(editingEntityProposal)}
         onClose={() => onSetEditingEntityProposalId(null)}
         onSubmit={onEditEntitySubmit}
       />
@@ -622,24 +594,9 @@ function WikiPanelDialogs({
         show={!!editingRelationshipProposal}
         mode="proposal"
         entities={entities}
-        initialValues={
-          editingRelationshipProposal
-            ? {
-                sourceEntityId: editingRelationshipProposal.source.id,
-                targetEntityId: editingRelationshipProposal.target.id,
-                sourceEntityName:
-                  editingRelationshipProposal.source.canonicalName,
-                targetEntityName:
-                  editingRelationshipProposal.target.canonicalName,
-                relationType: editingRelationshipProposal.relationType,
-                intensity: Math.max(
-                  1,
-                  Math.round(editingRelationshipProposal.intensity * 5),
-                ),
-                description: editingRelationshipProposal.description,
-              }
-            : undefined
-        }
+        initialValues={getRelationshipProposalInitialValues(
+          editingRelationshipProposal,
+        )}
         onClose={() => onSetEditingRelationshipProposalId(null)}
         onSubmit={onEditRelationshipSubmit}
       />
@@ -677,6 +634,48 @@ function WikiPanelDialogs({
       )}
     </>
   );
+}
+
+function getEntityProposalInitialValues(proposal: EntityProposal | null) {
+  if (!proposal) return undefined;
+  const targetEntity = proposal.targetEntity;
+
+  return {
+    canonicalName:
+      targetEntity?.canonicalName ?? proposal.proposedData.canonicalName,
+    type: targetEntity?.type ?? proposal.proposedData.type,
+    description: combineEntityDescriptions(
+      targetEntity?.description ?? null,
+      proposal.proposedData.description,
+    ),
+    aliases: [
+      ...new Set([
+        ...(targetEntity?.aliases ?? []),
+        ...proposal.proposedData.aliases,
+      ]),
+    ],
+    attributes: {
+      ...targetEntity?.attributes,
+      ...proposal.proposedData.attributes,
+    },
+    imageUrl: targetEntity?.id ? null : proposal.proposedData.imageUrl,
+  };
+}
+
+function getRelationshipProposalInitialValues(
+  proposal: RelationshipProposal | null,
+) {
+  if (!proposal) return undefined;
+
+  return {
+    sourceEntityId: proposal.source.id,
+    targetEntityId: proposal.target.id,
+    sourceEntityName: proposal.source.canonicalName,
+    targetEntityName: proposal.target.canonicalName,
+    relationType: proposal.relationType,
+    intensity: Math.max(1, Math.round(proposal.intensity * 5)),
+    description: proposal.description,
+  };
 }
 
 function EntityDirectoryContent({

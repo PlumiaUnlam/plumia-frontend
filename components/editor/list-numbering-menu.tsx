@@ -393,14 +393,12 @@ export function ListNumberingMenu({ editor }: Readonly<ListNumberingMenuProps>) 
               />
             </>
           ) : (
-            <>
-              <OrderedListActions
-                editor={editor}
-                itemClassName={itemClass}
-                onOpenStartDialog={openStartDialog}
-                includeColorPalette
-              />
-            </>
+            <OrderedListActions
+              editor={editor}
+              itemClassName={itemClass}
+              onOpenStartDialog={openStartDialog}
+              includeColorPalette
+            />
           )}
         </DropdownMenuContent>
       </DropdownMenu>
