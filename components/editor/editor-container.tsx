@@ -662,7 +662,7 @@ function getNextSplitSection(
   hasAlternativeVersions: boolean,
 ) {
   const currentIndex = sections.findIndex((section) => section.id === sceneId)
-  if (hasAlternativeVersions) return sections[currentIndex]
+  if (hasAlternativeVersions && currentIndex >= 0) return sections[currentIndex]
 
   const nextIndex = currentIndex < 0 ? 0 : (currentIndex + 1) % sections.length
   return sections[nextIndex]

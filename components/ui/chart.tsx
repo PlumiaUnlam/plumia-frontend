@@ -201,9 +201,7 @@ function ChartTooltipContent({
           .filter((item) => item.type !== "none")
           .map((item, index) => {
             const key = `${nameKey ?? item.name ?? item.dataKey ?? "value"}`
-            const itemKey = String(
-              item.dataKey ?? item.name ?? item.value ?? item.color ?? key,
-            )
+            const itemKey = item.graphicalItemId
             const itemConfig = getPayloadConfigFromPayload(config, item, key)
             const indicatorColor = color ?? item.payload?.fill ?? item.color
 
@@ -291,6 +289,8 @@ function ChartLegendContent({
     return null
   }
 
+  const itemKeyOccurrences = new Map<string, number>()
+
   return (
     <div
       className={cn(
@@ -303,9 +303,10 @@ function ChartLegendContent({
         .filter((item) => item.type !== "none")
         .map((item) => {
           const key = `${nameKey ?? item.dataKey ?? "value"}`
-          const itemKey = String(
-            item.dataKey ?? item.value ?? item.color ?? key,
-          )
+          const baseItemKey = getLegendItemIdentity(item)
+          const duplicateIndex = itemKeyOccurrences.get(baseItemKey) ?? 0
+          itemKeyOccurrences.set(baseItemKey, duplicateIndex + 1)
+          const itemKey = `${baseItemKey}:${duplicateIndex}`
           const itemConfig = getPayloadConfigFromPayload(config, item, key)
 
           return (
@@ -331,6 +332,27 @@ function ChartLegendContent({
         })}
     </div>
   )
+}
+
+function getLegendItemIdentity(item: RechartsPrimitive.LegendPayload) {
+  const payloadIdentity =
+    item.payload && typeof item.payload === "object"
+      ? Object.entries(item.payload)
+          .filter(
+            ([, value]) =>
+              value === null ||
+              ["boolean", "number", "string"].includes(typeof value),
+          )
+          .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
+      : []
+
+  return JSON.stringify([
+    item.dataKey == null ? null : String(item.dataKey),
+    item.value ?? null,
+    item.color ?? null,
+    item.type ?? null,
+    payloadIdentity,
+  ])
 }
 
 function getPayloadConfigFromPayload(
