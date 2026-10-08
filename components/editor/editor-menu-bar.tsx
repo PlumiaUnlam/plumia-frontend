@@ -12,6 +12,8 @@ import {
   Italic,
   Languages,
   MessageSquare,
+  NotebookPen,
+  NotebookText,
   PaintRoller,
   Pilcrow,
   RemoveFormatting,
@@ -49,6 +51,7 @@ import { EditorTextStylesMenu } from "./editor-text-styles-menu"
 import {
   type SceneDividerVariant,
 } from "./scene-divider"
+import type { NoteKind } from "./note-reference"
 import {
   clearTextFormatting,
   toggleSubscript,
@@ -73,6 +76,7 @@ type EditorMenuBarProps = {
   onExportClick?: () => void
   onInsertImage?: () => void
   onInsertDivider?: (variant: SceneDividerVariant) => void
+  onInsertNote?: (kind: NoteKind) => void
   onAnalyzeChanges?: () => void
   isAnalysisSaving?: boolean
   onToggleAnnotations?: () => void
@@ -132,6 +136,7 @@ export function EditorMenuBar({
   onExportClick,
   onInsertImage,
   onInsertDivider,
+  onInsertNote,
   onAnalyzeChanges,
   isAnalysisSaving = false,
   onToggleAnnotations,
@@ -173,6 +178,8 @@ export function EditorMenuBar({
         isSuperscript: currentEditor.isActive("superscript"),
         isTextHighlight: currentEditor.isActive("textHighlight"),
         isParagraph: currentEditor.isActive("paragraph"),
+        canInsertNote:
+          currentEditor.isEditable && currentEditor.can().insertNote(),
       }
     },
   }) ?? {
@@ -186,6 +193,7 @@ export function EditorMenuBar({
     isSuperscript: false,
     isTextHighlight: false,
     isParagraph: false,
+    canInsertNote: false,
   }
 
   let annotationMenuLabel = "Mostrar comentarios"
@@ -330,6 +338,21 @@ export function EditorMenuBar({
             <MenubarItem className={menuItemClass} disabled>
               Separador de escena
             </MenubarItem>
+          )}
+          <MenubarSeparator />
+          {menuItem(
+            <NotebookPen className="size-4" />,
+            "Nota al pie",
+            () => onInsertNote?.("footnote"),
+            undefined,
+            !onInsertNote || !editorState.canInsertNote,
+          )}
+          {menuItem(
+            <NotebookText className="size-4" />,
+            "Nota al final",
+            () => onInsertNote?.("endnote"),
+            undefined,
+            !onInsertNote || !editorState.canInsertNote,
           )}
         </>,
       )}

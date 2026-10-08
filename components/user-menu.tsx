@@ -317,6 +317,9 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
                   maxLength={100}
                   disabled={saving}
                 />
+                <FieldDescription>
+                  Es el nombre que aparece como autor en tus libros exportados.
+                </FieldDescription>
               </Field>
               <Field>
                 <FieldLabel>Foto de perfil</FieldLabel>

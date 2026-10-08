@@ -1,7 +1,12 @@
 "use client"
 
-import { useEffect, useMemo } from "react"
-import { Extension, Node, mergeAttributes } from "@tiptap/core"
+import { Fragment, useEffect, useMemo, type ReactNode } from "react"
+import {
+  Extension,
+  Node,
+  mergeAttributes,
+  type JSONContent,
+} from "@tiptap/core"
 import Image from "@tiptap/extension-image"
 import { EditorContent, useEditor } from "@tiptap/react"
 import StarterKit from "@tiptap/starter-kit"
@@ -16,6 +21,15 @@ import type {
   TextSelectionAnchor,
 } from "@/types/sharing"
 import type { ProseMirrorJSON } from "@/types/scene"
+import {
+  NOTE_REFERENCE_NODE,
+  collectSceneNotes,
+  normalizeNoteContent,
+  normalizeNoteKind,
+  noteContentToPlainText,
+  parseNoteContent,
+  type NoteKind,
+} from "@/lib/scene-notes"
 
 export type SharedSceneProps = {
   sceneId: string
@@ -94,6 +108,132 @@ const SharedSceneDivider = Node.create({
   },
 })
 
+const SharedNoteReference = Node.create({
+  name: NOTE_REFERENCE_NODE,
+  group: "inline",
+  inline: true,
+  atom: true,
+  selectable: false,
+  addAttributes() {
+    return {
+      id: { default: null, rendered: false },
+      kind: {
+        default: "footnote",
+        parseHTML: (element: HTMLElement) =>
+          normalizeNoteKind(element.getAttribute("data-note-kind")),
+        rendered: false,
+      },
+      content: {
+        default: [],
+        parseHTML: (element: HTMLElement) =>
+          parseNoteContent(element.getAttribute("data-note-content")),
+        rendered: false,
+      },
+    }
+  },
+  parseHTML() {
+    return [{ tag: "sup[data-note-reference]" }]
+  },
+  renderHTML({ node }) {
+    const kind = normalizeNoteKind(node.attrs.kind)
+    return [
+      "sup",
+      {
+        "data-note-reference": "",
+        "data-note-kind": kind,
+        class: `note-ref note-ref--${kind}`,
+        title: noteContentToPlainText(normalizeNoteContent(node.attrs.content)),
+      },
+    ]
+  },
+})
+
+const NOTE_SECTIONS: Array<{ kind: NoteKind; title: string }> = [
+  { kind: "footnote", title: "Notas al pie" },
+  { kind: "endnote", title: "Notas al final" },
+]
+
+function hasMark(marks: JSONContent["marks"], ...types: string[]) {
+  return marks?.some((mark) => types.includes(mark.type))
+}
+
+function renderNoteNodes(nodes: JSONContent[], keyPrefix = ""): ReactNode[] {
+  return nodes.flatMap((node, index): ReactNode[] => {
+    const key = `${keyPrefix}${index}`
+    if (node.type === "hardBreak") return [<br key={key} />]
+    if (node.type === NOTE_REFERENCE_NODE || node.type === "image") return []
+    if (node.type !== "text") {
+      return Array.isArray(node.content)
+        ? renderNoteNodes(node.content, `${key}-`)
+        : []
+    }
+    if (!node.text) return []
+
+    let element: ReactNode = node.text
+    if (hasMark(node.marks, "bold", "strong")) element = <strong>{element}</strong>
+    if (hasMark(node.marks, "italic", "em")) element = <em>{element}</em>
+    const href = node.marks?.find((mark) => mark.type === "link")?.attrs?.href
+    if (typeof href === "string" && /^(https?:|mailto:)/i.test(href.trim())) {
+      element = (
+        <a
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-primary underline underline-offset-2"
+        >
+          {element}
+        </a>
+      )
+    }
+    return [<Fragment key={key}>{element}</Fragment>]
+  })
+}
+
+function SharedSceneNotes({ content }: Readonly<{ content: ProseMirrorJSON | null }>) {
+  const notes = useMemo(
+    () => collectSceneNotes(content as JSONContent | null),
+    [content],
+  )
+  if (notes.length === 0) return null
+
+  return (
+    <aside
+      aria-label="Notas de la escena"
+      className="mt-8 border-t border-border/60 pt-4 font-serif text-sm leading-7 text-foreground/85"
+    >
+      {NOTE_SECTIONS.map(({ kind, title }) => {
+        const items = notes.filter((note) => note.kind === kind)
+        if (items.length === 0) return null
+        return (
+          <section key={kind} className="mb-4 last:mb-0">
+            <h4 className="mb-1 font-sans text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              {title}
+            </h4>
+            <ol className="m-0 list-none space-y-1 p-0">
+              {items.map((note) => (
+                <li key={`${kind}-${note.number}`} className="flex gap-2">
+                  <span
+                    className={
+                      kind === "endnote"
+                        ? "shrink-0 font-semibold text-primary"
+                        : "shrink-0 font-semibold text-muted-foreground"
+                    }
+                  >
+                    {note.number}.
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    {renderNoteNodes(note.content)}
+                  </span>
+                </li>
+              ))}
+            </ol>
+          </section>
+        )
+      })}
+    </aside>
+  )
+}
+
 export function SharedScene({
   sceneId,
   title,
@@ -154,6 +294,7 @@ export function SharedScene({
       ParagraphFormatting,
       SharedImage,
       SharedSceneDivider,
+      SharedNoteReference,
       SharedEntityLink,
       commentHighlights,
     ],
@@ -214,6 +355,7 @@ export function SharedScene({
       <div onMouseUp={captureSelection}>
         <EditorContent editor={editor} />
       </div>
+      <SharedSceneNotes content={content} />
     </article>
   )
 }

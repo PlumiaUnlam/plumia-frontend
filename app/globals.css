@@ -511,3 +511,50 @@ p[data-drop-cap="true"]::first-letter {
   outline: 2px solid color-mix(in oklch, var(--primary) 40%, transparent);
   outline-offset: 0.15rem;
 }
+
+/* Notas al pie y al final: la numeración es por escena y sale de los CSS counters. */
+.ProseMirror,
+.shared-reader-prose {
+  counter-reset: footnote endnote;
+}
+
+.note-ref {
+  --note-ref-color: color-mix(in oklch, var(--foreground) 70%, var(--muted-foreground));
+  padding-inline: 0.1em;
+  border-radius: 0.2rem;
+  color: var(--note-ref-color);
+  font-weight: 600;
+  font-style: normal;
+  cursor: pointer;
+  user-select: none;
+}
+
+.note-ref--footnote {
+  counter-increment: footnote;
+}
+
+.note-ref--endnote {
+  --note-ref-color: var(--primary);
+  counter-increment: endnote;
+}
+
+.note-ref--footnote::after {
+  content: counter(footnote);
+}
+
+.note-ref--endnote::after {
+  content: counter(endnote);
+}
+
+.note-ref:hover {
+  background: color-mix(in oklch, var(--note-ref-color) 12%, transparent);
+}
+
+.note-ref--selected {
+  outline: 2px solid color-mix(in oklch, var(--primary) 40%, transparent);
+  outline-offset: 1px;
+}
+
+.note-editor-content p {
+  margin: 0;
+}

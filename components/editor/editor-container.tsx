@@ -961,6 +961,9 @@ function EditorWorkspace({
           onInsertDivider={(variant) =>
             focusedActions.editor.chain().focus().setSceneDivider(variant).run()
           }
+          onInsertNote={(kind) =>
+            focusedActions.editor.chain().focus().insertNote(kind).run()
+          }
         />
       )}
       {effectiveIsSplit &&
@@ -986,6 +989,9 @@ function EditorWorkspace({
                     .setSceneDivider(variant)
                     .run()
               : undefined
+          }
+          onInsertNote={(kind) =>
+            focusedActions.editor.chain().focus().insertNote(kind).run()
           }
         />
         )}

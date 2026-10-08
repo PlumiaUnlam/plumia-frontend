@@ -19,6 +19,8 @@ import {
   ListOrdered,
   ListX,
   Minus,
+  NotebookPen,
+  NotebookText,
   Plus,
   PaintRoller,
   RemoveFormatting,
@@ -56,6 +58,7 @@ import { AnalysisButton } from "./analysis/analysis-button"
 import {
   type SceneDividerVariant,
 } from "./scene-divider"
+import type { NoteKind } from "./note-reference"
 import {
   DEFAULT_PARAGRAPH_ATTRIBUTES,
   type ParagraphAlignment,
@@ -102,6 +105,7 @@ const toolbarMenuClass =
   "border-[#dadce0] bg-white text-[#3c4043] shadow-[0_3px_8px_rgba(60,64,67,0.24)] dark:border-border dark:bg-popover dark:text-popover-foreground"
 const toolbarMenuItemClass =
   "text-[#3c4043] focus:bg-[#f1f3f4] focus:text-[#202124] dark:text-foreground dark:focus:bg-accent dark:focus:text-accent-foreground"
+const noteMenuItemClass = `min-h-9 gap-2 ${toolbarMenuItemClass}`
 const activeToolbarClass =
   "bg-[#d3e3fd] text-[#174ea6] hover:bg-[#c2d7f8] dark:bg-primary/20 dark:text-primary dark:hover:bg-primary/30"
 
@@ -204,6 +208,7 @@ interface EditorToolbarProps {
   isAnalysisSaving?: boolean
   isZenMode?: boolean
   onInsertDivider?: (variant: SceneDividerVariant) => void
+  onInsertNote?: (kind: NoteKind) => void
   onToggleSplit?: () => void
   isSplit?: boolean
   canSplit?: boolean
@@ -218,6 +223,7 @@ export function EditorToolbar({
   isAnalysisSaving = false,
   isZenMode = false,
   onInsertDivider,
+  onInsertNote,
   onToggleSplit,
   isSplit = false,
   canSplit = true,
@@ -248,6 +254,7 @@ export function EditorToolbar({
       canApplyDropCap: canApplyDropCap(currentEditor),
       isDropCapActive: isDropCapActive(currentEditor),
       canTransformSelectedText: canTransformSelectedText(currentEditor),
+      canInsertNote: currentEditor.isEditable && currentEditor.can().insertNote(),
       attributes: currentEditor.getAttributes(
         "paragraph",
       ) as Partial<ParagraphAttributes>,
@@ -886,7 +893,7 @@ export function EditorToolbar({
                   Imagen
                 </Button>
               ))}
-            {renderWhen(onInsertDivider, (
+            {renderWhen(onInsertDivider || onInsertNote, (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
@@ -894,15 +901,39 @@ export function EditorToolbar({
                     size="sm"
                     variant="ghost"
                     className={toolbarLabelButtonClass}
-                    title="Insertar separador de escena"
-                    aria-label="Insertar separador de escena"
+                    title="Insertar separador de escena o nota"
+                    aria-label="Insertar separador de escena o nota"
                     onMouseDown={(event) => event.preventDefault()}
                   >
                     <SeparatorHorizontal className="size-4" /> Escena <ChevronDown className="size-3" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className={`w-64 ${toolbarMenuClass}`}>
-                    <SceneDividerMenuOptions editor={editor} onInsert={onInsertDivider!} />
+                    {onInsertDivider && (
+                      <SceneDividerMenuOptions editor={editor} onInsert={onInsertDivider} />
+                    )}
+                    {onInsertNote && (
+                      <>
+                        {onInsertDivider && <DropdownMenuSeparator />}
+                        <DropdownMenuLabel>Notas</DropdownMenuLabel>
+                        <DropdownMenuItem
+                          className={noteMenuItemClass}
+                          disabled={!paragraphState.canInsertNote}
+                          onMouseDown={(event) => event.preventDefault()}
+                          onSelect={() => onInsertNote("footnote")}
+                        >
+                          <NotebookPen className="size-4" /> Nota al pie
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className={noteMenuItemClass}
+                          disabled={!paragraphState.canInsertNote}
+                          onMouseDown={(event) => event.preventDefault()}
+                          onSelect={() => onInsertNote("endnote")}
+                        >
+                          <NotebookText className="size-4" /> Nota al final
+                        </DropdownMenuItem>
+                      </>
+                    )}
                 </DropdownMenuContent>
               </DropdownMenu>
             ))}
