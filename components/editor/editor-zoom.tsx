@@ -30,7 +30,9 @@ type EditorZoomContextValue = {
 const EditorZoomContext = createContext<EditorZoomContextValue | null>(null)
 
 function findZoomLevelIndex(zoom: number) {
-  const exactIndex = EDITOR_ZOOM_LEVELS.findIndex((level) => level === zoom)
+  const exactIndex = EDITOR_ZOOM_LEVELS.indexOf(
+    zoom as (typeof EDITOR_ZOOM_LEVELS)[number],
+  )
   if (exactIndex >= 0) return exactIndex
 
   return EDITOR_ZOOM_LEVELS.reduce((closestIndex, level, index) => {
@@ -40,16 +42,20 @@ function findZoomLevelIndex(zoom: number) {
 }
 
 export function EditorZoomProvider({ children }: Readonly<{ children: ReactNode }>) {
-  const [zoom, setZoomState] = useState(DEFAULT_EDITOR_ZOOM)
+  const [zoom, setZoom] = useState(DEFAULT_EDITOR_ZOOM)
   const zoomIndex = findZoomLevelIndex(zoom)
 
-  const setZoom = useCallback((nextZoom: number) => {
-    if (!EDITOR_ZOOM_LEVELS.some((level) => level === nextZoom)) return
-    setZoomState(nextZoom)
+  const setValidZoom = useCallback((nextZoom: number) => {
+    if (
+      !EDITOR_ZOOM_LEVELS.includes(
+        nextZoom as (typeof EDITOR_ZOOM_LEVELS)[number],
+      )
+    ) return
+    setZoom(nextZoom)
   }, [])
 
   const zoomIn = useCallback(() => {
-    setZoomState((currentZoom) => {
+    setZoom((currentZoom) => {
       const currentIndex = findZoomLevelIndex(currentZoom)
       return EDITOR_ZOOM_LEVELS[
         Math.min(currentIndex + 1, EDITOR_ZOOM_LEVELS.length - 1)
@@ -58,14 +64,14 @@ export function EditorZoomProvider({ children }: Readonly<{ children: ReactNode 
   }, [])
 
   const zoomOut = useCallback(() => {
-    setZoomState((currentZoom) => {
+    setZoom((currentZoom) => {
       const currentIndex = findZoomLevelIndex(currentZoom)
       return EDITOR_ZOOM_LEVELS[Math.max(currentIndex - 1, 0)]
     })
   }, [])
 
   const resetZoom = useCallback(() => {
-    setZoomState(DEFAULT_EDITOR_ZOOM)
+    setZoom(DEFAULT_EDITOR_ZOOM)
   }, [])
 
   useEffect(() => {
@@ -95,12 +101,12 @@ export function EditorZoomProvider({ children }: Readonly<{ children: ReactNode 
       zoomFactor: zoom / 100,
       canZoomIn: zoomIndex < EDITOR_ZOOM_LEVELS.length - 1,
       canZoomOut: zoomIndex > 0,
-      setZoom,
+      setZoom: setValidZoom,
       zoomIn,
       zoomOut,
       resetZoom,
     }),
-    [resetZoom, setZoom, zoom, zoomIn, zoomIndex, zoomOut],
+    [resetZoom, setValidZoom, zoom, zoomIn, zoomIndex, zoomOut],
   )
 
   return (

@@ -5,7 +5,10 @@ type SharedPageProps = {
   searchParams: Promise<{ token?: string | string[] }>
 }
 
-export default async function SharedPage({ params, searchParams }: SharedPageProps) {
+export default async function SharedPage({
+  params,
+  searchParams,
+}: Readonly<SharedPageProps>) {
   const { slug } = await params
   const tokenValue = (await searchParams).token
   const initialToken = Array.isArray(tokenValue) ? tokenValue[0] : tokenValue

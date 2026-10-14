@@ -142,137 +142,6 @@ export default function DashboardPage() {
     })
   }, [projects, searchQuery])
 
-  let projectContent
-  if (isLoading) {
-    projectContent = (
-      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-        {Array.from({ length: 3 }).map((_, index) => (
-          <Card key={index} className="h-full" aria-hidden="true">
-            <CardHeader className="gap-3">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1 space-y-2">
-                  <Skeleton className="h-5 w-2/3" />
-                  <Skeleton className="h-4 w-full" />
-                </div>
-                <Skeleton className="h-5 w-14 rounded-full" />
-              </div>
-              <Skeleton className="h-5 w-20 rounded-full" />
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Skeleton className="h-4 w-4/5" />
-              <Skeleton className="h-4 w-2/3" />
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    )
-  } else if (filteredProjects.length === 0) {
-    const isSearching = searchQuery.trim().length > 0
-    projectContent = (
-      <Empty className="min-h-64 border bg-card/50">
-        <EmptyHeader>
-          <EmptyMedia variant="icon">
-            {isSearching ? <SearchX /> : <FolderPlus />}
-          </EmptyMedia>
-          <EmptyTitle>
-            {isSearching ? "No encontramos coincidencias" : "Creá tu primer proyecto"}
-          </EmptyTitle>
-          <EmptyDescription>
-            {isSearching
-              ? "Probá con otro título, género o una búsqueda más corta."
-              : "Empezá una nueva historia y reuní en un solo lugar el manuscrito, las entidades y la planificación."}
-          </EmptyDescription>
-        </EmptyHeader>
-        {!isSearching ? (
-          <EmptyContent>
-            <Button onClick={() => setIsCreateDialogOpen(true)}>
-              <PlusIcon />
-              Crear proyecto
-            </Button>
-          </EmptyContent>
-        ) : null}
-      </Empty>
-    )
-  } else {
-    projectContent = (
-      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-        {filteredProjects.map((project) => (
-          <Card
-            key={project.id}
-            className="relative flex h-full flex-col transition-[transform,box-shadow] hover:-translate-y-0.5 hover:shadow-lg hover:shadow-primary/10"
-          >
-            <Link
-              href={`/projects/${encodeURIComponent(project.id)}/editor`}
-              aria-label={`Abrir ${project.title}`}
-              className="absolute inset-0 z-10 rounded-xl focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-            />
-            <CardHeader className="gap-3">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <CardTitle className="line-clamp-2">{project.title}</CardTitle>
-                  <CardDescription className="mt-1 line-clamp-2">
-                    {project.description}
-                  </CardDescription>
-                </div>
-                <div className="relative z-20 shrink-0">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label={`Acciones de ${project.title}`}
-                      >
-                        <MoreHorizontal />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-40">
-                      <DropdownMenuItem onSelect={() => setProjectToEdit(project)}>
-                        <Pencil />
-                        Editar
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        variant="destructive"
-                        onSelect={() => setProjectToDelete(project)}
-                      >
-                        <Trash2 />
-                        Eliminar
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="flex flex-1 flex-col gap-3 text-sm text-muted-foreground">
-              <div className="flex items-center gap-2">
-                <BookOpen className="size-4" />
-                <span>{formatWordCount(project.wordCountTarget)} palabras objetivo</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Clock3 className="size-4" />
-                <span>
-                  Actualizado{" "}
-                  {new Date(project.updatedAt).toLocaleDateString("es-ES", {
-                    day: "numeric",
-                    month: "short",
-                    year: "numeric",
-                  })}
-                </span>
-              </div>
-              <div className="mt-auto flex items-center justify-between gap-3 border-t pt-3">
-                <Badge variant="secondary">{project.genre}</Badge>
-                <span className="text-xs font-medium text-foreground/70">
-                  Estado: {formatProjectStatus(project.status)}
-                </span>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    )
-  }
-
   const handleCreateSuccess = (project: ProjectResponse) => {
     setProjects((currentProjects) => [project, ...currentProjects])
     setErrorMessage(null)
@@ -344,39 +213,87 @@ export default function DashboardPage() {
           </Alert>
         ) : null}
 
-        {projectContent}
+        <DashboardProjectContent
+          isLoading={isLoading}
+          projects={filteredProjects}
+          searchQuery={searchQuery}
+          onCreateProject={() => setIsCreateDialogOpen(true)}
+          onEditProject={setProjectToEdit}
+          onDeleteProject={setProjectToDelete}
+        />
       </main>
 
-      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+      <DashboardProjectDialogs
+        isCreateDialogOpen={isCreateDialogOpen}
+        onCreateDialogOpenChange={setIsCreateDialogOpen}
+        onCreateSuccess={handleCreateSuccess}
+        projectToEdit={projectToEdit}
+        onEditDialogOpenChange={(open) => {
+          if (!open) setProjectToEdit(null)
+        }}
+        onEditSuccess={handleEditSuccess}
+        projectToDelete={projectToDelete}
+        isDeleting={isDeleting}
+        onDeleteDialogOpenChange={(open) => {
+          if (!open && !isDeleting) setProjectToDelete(null)
+        }}
+        onDeleteProject={handleDeleteProject}
+      />
+    </div>
+  )
+}
+
+function DashboardProjectDialogs({
+  isCreateDialogOpen,
+  onCreateDialogOpenChange,
+  onCreateSuccess,
+  projectToEdit,
+  onEditDialogOpenChange,
+  onEditSuccess,
+  projectToDelete,
+  isDeleting,
+  onDeleteDialogOpenChange,
+  onDeleteProject,
+}: Readonly<{
+  isCreateDialogOpen: boolean
+  onCreateDialogOpenChange: (open: boolean) => void
+  onCreateSuccess: (project: ProjectResponse) => void
+  projectToEdit: ProjectResponse | null
+  onEditDialogOpenChange: (open: boolean) => void
+  onEditSuccess: (project: ProjectResponse) => void
+  projectToDelete: ProjectResponse | null
+  isDeleting: boolean
+  onDeleteDialogOpenChange: (open: boolean) => void
+  onDeleteProject: () => Promise<void>
+}>) {
+  return (
+    <>
+      <Dialog open={isCreateDialogOpen} onOpenChange={onCreateDialogOpenChange}>
         {isCreateDialogOpen ? (
           <NewProjectForm
-            onCancel={() => setIsCreateDialogOpen(false)}
-            onSuccess={handleCreateSuccess}
+            onCancel={() => onCreateDialogOpenChange(false)}
+            onSuccess={onCreateSuccess}
           />
         ) : null}
       </Dialog>
 
       <Dialog
         open={Boolean(projectToEdit)}
-        onOpenChange={(open) => {
-          if (!open) setProjectToEdit(null)
-        }}
+        onOpenChange={onEditDialogOpenChange}
       >
         {projectToEdit ? (
           <NewProjectForm
             key={projectToEdit.id}
             project={projectToEdit}
-            onCancel={() => setProjectToEdit(null)}
-            onSuccess={handleEditSuccess}
+            onCancel={() => onEditDialogOpenChange(false)}
+            onSuccess={onEditSuccess}
           />
         ) : null}
       </Dialog>
 
       <AlertDialog
         open={Boolean(projectToDelete)}
-        onOpenChange={(open) => {
-          if (!open && !isDeleting) setProjectToDelete(null)
-        }}
+        onOpenChange={onDeleteDialogOpenChange}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -394,7 +311,7 @@ export default function DashboardPage() {
               disabled={isDeleting}
               onClick={(event) => {
                 event.preventDefault()
-                void handleDeleteProject()
+                void onDeleteProject()
               }}
             >
               {isDeleting ? <Spinner className="size-4" /> : <Trash2 />}
@@ -403,10 +320,158 @@ export default function DashboardPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </>
   )
 }
 
 function PlusIcon() {
   return <FolderPlus />
+}
+
+function DashboardProjectContent({
+  isLoading,
+  projects,
+  searchQuery,
+  onCreateProject,
+  onEditProject,
+  onDeleteProject,
+}: Readonly<{
+  isLoading: boolean
+  projects: ProjectResponse[]
+  searchQuery: string
+  onCreateProject: () => void
+  onEditProject: (project: ProjectResponse) => void
+  onDeleteProject: (project: ProjectResponse) => void
+}>) {
+  if (isLoading) {
+    return (
+      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+        {Array.from({ length: 3 }).map((_, index) => (
+          <Card key={index} className="h-full" aria-hidden="true">
+            <CardHeader className="gap-3">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-5 w-2/3" />
+                  <Skeleton className="h-4 w-full" />
+                </div>
+                <Skeleton className="h-5 w-14 rounded-full" />
+              </div>
+              <Skeleton className="h-5 w-20 rounded-full" />
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Skeleton className="h-4 w-4/5" />
+              <Skeleton className="h-4 w-2/3" />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    )
+  }
+
+  if (projects.length === 0) {
+    const isSearching = searchQuery.trim().length > 0
+    return (
+      <Empty className="min-h-64 border bg-card/50">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            {isSearching ? <SearchX /> : <FolderPlus />}
+          </EmptyMedia>
+          <EmptyTitle>
+            {isSearching ? "No encontramos coincidencias" : "Creá tu primer proyecto"}
+          </EmptyTitle>
+          <EmptyDescription>
+            {isSearching
+              ? "Probá con otro título, género o una búsqueda más corta."
+              : "Empezá una nueva historia y reuní en un solo lugar el manuscrito, las entidades y la planificación."}
+          </EmptyDescription>
+        </EmptyHeader>
+        {!isSearching ? (
+          <EmptyContent>
+            <Button onClick={onCreateProject}>
+              <PlusIcon />
+              Crear proyecto
+            </Button>
+          </EmptyContent>
+        ) : null}
+      </Empty>
+    )
+  }
+
+  return (
+    <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+      {projects.map((project) => (
+        <Card
+          key={project.id}
+          className="relative flex h-full flex-col transition-[transform,box-shadow] hover:-translate-y-0.5 hover:shadow-lg hover:shadow-primary/10"
+        >
+          <Link
+            href={`/projects/${encodeURIComponent(project.id)}/editor`}
+            aria-label={`Abrir ${project.title}`}
+            className="absolute inset-0 z-10 rounded-xl focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+          />
+          <CardHeader className="gap-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <CardTitle className="line-clamp-2">{project.title}</CardTitle>
+                <CardDescription className="mt-1 line-clamp-2">
+                  {project.description}
+                </CardDescription>
+              </div>
+              <div className="relative z-20 shrink-0">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={`Acciones de ${project.title}`}
+                    >
+                      <MoreHorizontal />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-40">
+                    <DropdownMenuItem onSelect={() => onEditProject(project)}>
+                      <Pencil />
+                      Editar
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      variant="destructive"
+                      onSelect={() => onDeleteProject(project)}
+                    >
+                      <Trash2 />
+                      Eliminar
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="flex flex-1 flex-col gap-3 text-sm text-muted-foreground">
+            <div className="flex items-center gap-2">
+              <BookOpen className="size-4" />
+              <span>{formatWordCount(project.wordCountTarget)} palabras objetivo</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Clock3 className="size-4" />
+              <span>
+                Actualizado{" "}
+                {new Date(project.updatedAt).toLocaleDateString("es-ES", {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                })}
+              </span>
+            </div>
+            <div className="mt-auto flex items-center justify-between gap-3 border-t pt-3">
+              <Badge variant="secondary">{project.genre}</Badge>
+              <span className="text-xs font-medium text-foreground/70">
+                Estado: {formatProjectStatus(project.status)}
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  )
 }

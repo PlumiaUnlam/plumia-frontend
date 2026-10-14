@@ -57,9 +57,10 @@ function ChartContainer({
 }) {
   const uniqueId = React.useId()
   const chartId = `chart-${id ?? uniqueId.replace(/:/g, "")}`
+  const contextValue = React.useMemo(() => ({ config }), [config])
 
   return (
-    <ChartContext.Provider value={{ config }}>
+    <ChartContext.Provider value={contextValue}>
       <div
         data-slot="chart"
         data-chart={chartId}
@@ -200,12 +201,13 @@ function ChartTooltipContent({
           .filter((item) => item.type !== "none")
           .map((item, index) => {
             const key = `${nameKey ?? item.name ?? item.dataKey ?? "value"}`
+            const itemKey = item.graphicalItemId
             const itemConfig = getPayloadConfigFromPayload(config, item, key)
             const indicatorColor = color ?? item.payload?.fill ?? item.color
 
             return (
               <div
-                key={index}
+                key={itemKey}
                 className={cn(
                   "flex w-full flex-wrap items-stretch gap-2 [&>svg]:h-2.5 [&>svg]:w-2.5 [&>svg]:text-muted-foreground",
                   indicator === "dot" && "items-center"
@@ -287,6 +289,8 @@ function ChartLegendContent({
     return null
   }
 
+  const itemKeyOccurrences = new Map<string, number>()
+
   return (
     <div
       className={cn(
@@ -297,13 +301,17 @@ function ChartLegendContent({
     >
       {payload
         .filter((item) => item.type !== "none")
-        .map((item, index) => {
+        .map((item) => {
           const key = `${nameKey ?? item.dataKey ?? "value"}`
+          const baseItemKey = getLegendItemIdentity(item)
+          const duplicateIndex = itemKeyOccurrences.get(baseItemKey) ?? 0
+          itemKeyOccurrences.set(baseItemKey, duplicateIndex + 1)
+          const itemKey = `${baseItemKey}:${duplicateIndex}`
           const itemConfig = getPayloadConfigFromPayload(config, item, key)
 
           return (
             <div
-              key={index}
+              key={itemKey}
               className={cn(
                 "flex items-center gap-1.5 [&>svg]:h-3 [&>svg]:w-3 [&>svg]:text-muted-foreground"
               )}
@@ -324,6 +332,31 @@ function ChartLegendContent({
         })}
     </div>
   )
+}
+
+function getLegendItemIdentity(item: RechartsPrimitive.LegendPayload) {
+  const payloadIdentity =
+    item.payload && typeof item.payload === "object"
+      ? Object.entries(item.payload)
+          .filter(
+            ([, value]) =>
+              value === null ||
+              ["boolean", "number", "string"].includes(typeof value),
+          )
+          .sort(([left], [right]) => {
+            if (left < right) return -1
+            if (left > right) return 1
+            return 0
+          })
+      : []
+
+  return JSON.stringify([
+    item.dataKey == null ? null : String(item.dataKey),
+    item.value ?? null,
+    item.color ?? null,
+    item.type ?? null,
+    payloadIdentity,
+  ])
 }
 
 function getPayloadConfigFromPayload(

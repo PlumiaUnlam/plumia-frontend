@@ -699,11 +699,12 @@ export function StoryboardMatrix({
         </div>
       </div>
 
-      {sortedChapters.length === 0 ? (
+      {sortedChapters.length === 0 && (
         <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
           Agrega capítulos para construir la matriz.
         </div>
-      ) : sortedArcs.length === 0 ? (
+      )}
+      {sortedChapters.length > 0 && sortedArcs.length === 0 && (
         <div className="flex h-full items-center justify-center">
           <div className="grid justify-items-center gap-3 text-center">
             <p className="text-sm text-muted-foreground">
@@ -715,7 +716,8 @@ export function StoryboardMatrix({
             </Button>
           </div>
         </div>
-      ) : (
+      )}
+      {sortedChapters.length > 0 && sortedArcs.length > 0 && (
         <div className="min-h-0 flex-1 overflow-auto p-4">
           <Table className="min-w-max border-separate border-spacing-0">
             <TableHeader>

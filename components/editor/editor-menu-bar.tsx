@@ -516,9 +516,8 @@ export function EditorMenuBar({
         </>,
       )}
 
-      <div
-        className="ml-auto flex shrink-0 items-center rounded-md border border-[#dadce0] bg-white dark:border-border dark:bg-background"
-        role="group"
+      <fieldset
+        className="m-0 ml-auto flex min-w-0 shrink-0 items-center rounded-md border border-[#dadce0] bg-white p-0 dark:border-border dark:bg-background"
         aria-label="Zoom del editor"
       >
         <Button
@@ -560,7 +559,7 @@ export function EditorMenuBar({
         >
           <ZoomIn className="size-4" />
         </Button>
-      </div>
+      </fieldset>
 
       <Button
         type="button"

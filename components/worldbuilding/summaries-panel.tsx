@@ -68,6 +68,18 @@ function isAbortError(error: unknown) {
   return error instanceof Error && error.name === "AbortError";
 }
 
+function getSummaryStatusIcon(isGenerating: boolean, hasSummary: boolean) {
+  if (isGenerating) {
+    return <Loader2 className="size-4 animate-spin text-primary" />;
+  }
+
+  if (hasSummary) {
+    return <CheckCircle2 className="size-4 text-emerald-500" />;
+  }
+
+  return <div className="size-4 rounded-full border-2 border-muted-foreground/30" />;
+}
+
 function wait(ms: number, signal: AbortSignal) {
   if (signal.aborted) return Promise.reject(createAbortError());
 
@@ -117,6 +129,10 @@ export function SummariesPanel({
   const [generatingIds, setGeneratingIds] = useState<Set<string>>(new Set());
   const [summaries, setSummaries] = useState<Record<string, SummaryView>>({});
   const [summaryError, setSummaryError] = useState<string | null>(null);
+  const [copyError, setCopyError] = useState<{
+    chapterId: string;
+    message: string;
+  } | null>(null);
   const generationAbortRef = useRef<AbortController | null>(null);
   const generationTimersRef = useRef<Set<number>>(new Set());
 
@@ -268,20 +284,28 @@ export function SummariesPanel({
   };
 
   const handleCopySummary = async (summary: string) => {
-    if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(summary);
-      return;
-    }
+    const chapterId = activeChapter?.id;
+    if (!chapterId) return;
 
-    const textArea = document.createElement("textarea");
-    textArea.value = summary;
-    textArea.setAttribute("readonly", "");
-    textArea.style.position = "fixed";
-    textArea.style.left = "-9999px";
-    document.body.appendChild(textArea);
-    textArea.select();
-    document.execCommand("copy");
-    textArea.remove();
+    try {
+      if (!navigator.clipboard?.writeText) {
+        setCopyError({
+          chapterId,
+          message:
+            "No se pudo copiar automáticamente. Selecciona el resumen y cópialo manualmente.",
+        });
+        return;
+      }
+
+      await navigator.clipboard.writeText(summary);
+      setCopyError(null);
+    } catch {
+      setCopyError({
+        chapterId,
+        message:
+          "El navegador bloqueó el copiado automático. Selecciona el resumen y cópialo manualmente.",
+      });
+    }
   };
 
   return (
@@ -353,13 +377,7 @@ export function SummariesPanel({
                   >
                     <div className="flex items-start gap-2.5">
                       <div className="mt-0.5 shrink-0">
-                        {isGenerating ? (
-                          <Loader2 className="size-4 animate-spin text-primary" />
-                        ) : hasSummary ? (
-                          <CheckCircle2 className="size-4 text-emerald-500" />
-                        ) : (
-                          <div className="size-4 rounded-full border-2 border-muted-foreground/30" />
-                        )}
+                        {getSummaryStatusIcon(isGenerating, hasSummary)}
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="mb-0.5 flex items-center gap-1.5">
@@ -490,7 +508,7 @@ export function SummariesPanel({
             </div>
 
             <div className="flex min-h-0 flex-1 px-8 py-8">
-              {generatingIds.has(activeChapter.id) ? (
+              {generatingIds.has(activeChapter.id) && (
                 <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 text-muted-foreground">
                   <div className="relative">
                     <div className="size-16 animate-spin rounded-full border-4 border-primary/20 border-t-primary" />
@@ -505,8 +523,17 @@ export function SummariesPanel({
                     </p>
                   </div>
                 </div>
-              ) : activeSummary ? (
+              )}
+              {!generatingIds.has(activeChapter.id) && activeSummary && (
                 <div className="w-full space-y-6">
+                  {copyError?.chapterId === activeChapter.id && (
+                    <Alert className="border-amber-500/20 bg-amber-500/5 text-muted-foreground">
+                      <AlertCircle className="mt-0.5 size-4 shrink-0 text-amber-500" />
+                      <AlertDescription className="text-xs leading-relaxed">
+                        {copyError.message}
+                      </AlertDescription>
+                    </Alert>
+                  )}
                   {summaryError && (
                     <Alert className="border-destructive/20 bg-destructive/5 text-muted-foreground">
                       <AlertCircle className="mt-0.5 size-4 shrink-0 text-destructive" />
@@ -543,7 +570,8 @@ export function SummariesPanel({
                     </Alert>
                   )}
                 </div>
-              ) : (
+              )}
+              {!generatingIds.has(activeChapter.id) && !activeSummary && (
                 <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 text-primary opacity-70">
                   {summaryError && (
                     <Alert className="mb-4 max-w-md border-destructive/20 bg-destructive/5 text-muted-foreground opacity-100">

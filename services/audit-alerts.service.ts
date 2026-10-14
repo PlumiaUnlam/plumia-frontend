@@ -23,3 +23,12 @@ export function updateAuditAlert(
     { status },
   );
 }
+
+export function applyAuditAlertKnowledgeUpdate(
+  alertId: string,
+): Promise<AuditAlert> {
+  return api.post<AuditAlert>(
+    `/audit/alerts/${encodeURIComponent(alertId)}/apply-kb-update`,
+    {},
+  );
+}

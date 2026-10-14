@@ -31,6 +31,7 @@ export interface EntityProposal {
   sceneTitle: string | null
   chapterTitle: string | null
   entityId: string | null
+  conflictsWithLocked: boolean
   status: EntityProposalStatus
   confidenceScore: number
   resolutionReason: string | null

@@ -21,6 +21,9 @@ export type AuditAlert = {
   sceneId: string;
   severity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
   category: string;
+  ruleCode: string | null;
+  sourceChunkId: string | null;
+  sourceChunkHash: string | null;
   title: string;
   description: string | null;
   explanation: string | null;

@@ -83,7 +83,7 @@ export function ShareDialog({
   open,
   onOpenChange,
   onBeforeShare,
-}: ShareDialogProps) {
+}: Readonly<ShareDialogProps>) {
   const [email, setEmail] = useState("")
   const [permission, setPermission] =
     useState<SharePermission>("READ_ONLY")
@@ -94,11 +94,11 @@ export function ShareDialog({
   const [loading, setLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const bookId = books.some((book) => book.id === selectedBookId)
-    ? selectedBookId
-    : activeBookId && books.some((book) => book.id === activeBookId)
-      ? activeBookId
-      : books[0]?.id ?? ""
+  const selectedBook = books.find((book) => book.id === selectedBookId)
+  const activeBook = activeBookId
+    ? books.find((book) => book.id === activeBookId)
+    : undefined
+  const bookId = selectedBook?.id ?? activeBook?.id ?? books[0]?.id ?? ""
 
   const loadShares = useCallback(async () => {
     if (!bookId) {
@@ -323,11 +323,12 @@ export function ShareDialog({
         <section className="flex min-h-0 flex-1 flex-col gap-2 border-t pt-4">
           <h3 className="text-sm font-semibold">Invitaciones</h3>
           <div className="min-h-0 overflow-y-auto pr-1">
-            {loading ? (
+            {loading && (
               <div className="flex justify-center py-4">
                 <Spinner className="size-5" />
               </div>
-            ) : shares.length === 0 ? (
+            )}
+            {!loading && shares.length === 0 && (
               <Empty className="min-h-32 border bg-muted/30 p-4">
                 <EmptyHeader>
                   <EmptyMedia variant="icon">
@@ -339,7 +340,8 @@ export function ShareDialog({
                   </EmptyDescription>
                 </EmptyHeader>
               </Empty>
-            ) : (
+            )}
+            {!loading && shares.length > 0 && (
               <div className="space-y-2">
                 {shares.map((share) => (
                   <div

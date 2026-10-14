@@ -73,7 +73,7 @@ export function paragraphTabStopsPlugin() {
           tab.style.width = `${Math.max(1, width)}px`
         }
       }
-      const schedule = () => { if (frame === null) frame = requestAnimationFrame(layout) }
+      const schedule = () => { frame ??= requestAnimationFrame(layout) }
       const observer = new ResizeObserver(schedule)
       observer.observe(view.dom)
       window.addEventListener("resize", schedule)
