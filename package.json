@@ -15,6 +15,7 @@
     "test:entity-wiki": "node --import tsx scripts/entity-wiki.test.mts",
     "test:editor-save": "node --import tsx scripts/editor-save-protection.test.mts",
     "test:editor-paragraph": "node --import tsx scripts/editor-paragraph.test.mts",
+    "test:scene-notes": "node --import tsx scripts/scene-notes.test.mts",
     "pretest:e2e": "NEXT_PUBLIC_API_URL=http://127.0.0.1:3000 API_URL=http://127.0.0.1:3000 pnpm build",
     "test:e2e": "playwright test"
   },

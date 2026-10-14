@@ -10,6 +10,7 @@ import {
 import { Field, FieldContent, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { NewItemModal } from "@/components/modal/new-item-modal";
+import { BookCoverEditor } from "@/components/books/book-cover-editor";
 
 import type {
   EditableItem,
@@ -59,7 +60,9 @@ export function LeftSidebarItemModals({
       >
         <DialogContent className="min-w-[520px] gap-0 overflow-hidden">
           <DialogHeader className="border-b p-6 py-4">
-            <DialogTitle>Editar elemento</DialogTitle>
+            <DialogTitle>
+              {editingItem?.type === "book" ? "Editar libro" : "Editar elemento"}
+            </DialogTitle>
           </DialogHeader>
 
           <div className="space-y-5 px-6 py-6">
@@ -81,6 +84,17 @@ export function LeftSidebarItemModals({
                 />
               </FieldContent>
             </Field>
+            {editingItem?.type === "book" && (
+              <Field>
+                <FieldLabel>Portada</FieldLabel>
+                <FieldContent>
+                  <BookCoverEditor
+                    bookId={editingItem.id}
+                    bookTitle={editName.trim() || editingItem.title}
+                  />
+                </FieldContent>
+              </Field>
+            )}
           </div>
 
           <DialogFooter className="border-t px-6 py-4">

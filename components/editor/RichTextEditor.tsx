@@ -41,6 +41,8 @@ import {
   sortAuthorAnnotationsByTextPosition,
 } from "./author-annotation-decorations"
 import { SceneDivider } from "./scene-divider"
+import { NoteReference, type NoteKind } from "./note-reference"
+import { SceneNotesPanel } from "./scene-notes-panel"
 import { ParagraphFormatting } from "./paragraph-formatting"
 import { ListFormatting } from "./list-formatting"
 import { TextFormatting } from "./text-formatting"
@@ -184,6 +186,7 @@ export function RichTextEditor({
         },
       }),
       SceneDivider,
+      NoteReference,
       EntityLink,
       EditorSearchFocus,
       CitationFocus,
@@ -546,6 +549,9 @@ export function RichTextEditor({
           onInsertDivider={(variant) =>
             editor.chain().focus().setSceneDivider(variant).run()
           }
+          onInsertNote={(kind: NoteKind) =>
+            editor.chain().focus().insertNote(kind).run()
+          }
         />
       )}
       {showToolbar && (isZenMode || toolbarExpanded) && (
@@ -562,6 +568,9 @@ export function RichTextEditor({
           onParagraphDialogOpenChange={setParagraphDialogOpen}
           onInsertDivider={(variant: SceneDividerVariant) =>
             editor.chain().focus().setSceneDivider(variant).run()
+          }
+          onInsertNote={(kind: NoteKind) =>
+            editor.chain().focus().insertNote(kind).run()
           }
         />
       )}
@@ -664,6 +673,7 @@ export function RichTextEditor({
                 [&_.ProseMirror>*]:relative
               "
             />
+            <SceneNotesPanel editor={editor} />
           </div>
         </div>
         </div>
