@@ -1,13 +1,25 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react"
-import { Camera, LogOut, Monitor, Moon, Settings, Sun, Trash2, UserRound } from "lucide-react"
+import { Camera, CircleAlert, LogOut, Monitor, Moon, Settings, Sun, Trash2, UserRound } from "lucide-react"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { useTheme } from "next-themes"
 
 import { useAuth } from "@/contexts/AuthContext"
+import { deleteAccountErrorMessage } from "@/helpers/api-errors"
 import { cn } from "@/lib/utils"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import {
@@ -65,19 +77,28 @@ function ProfileAvatar({
 }: ProfileAvatarProps) {
   const [failedSrc, setFailedSrc] = useState<string | null>(null)
 
+  // Las iniciales solo van cuando NO hay imagen que mostrar. Dejar el
+  // AvatarFallback montado atrás del `Image` hace que se vean a través de un
+  // PNG con fondo transparente (un avatar recortado), que es justamente el
+  // caso donde más se nota. Y si la imagen falla, recién ahí vuelven.
+  const hayImagen = Boolean(src) && failedSrc !== src
+
   return (
     <Avatar className={large ? undefined : "size-9"} size={large ? "lg" : "default"}>
-      <AvatarFallback className={cn(inverted && "bg-white/15 text-white")}>
-        {initials}
-      </AvatarFallback>
-      {src && failedSrc !== src && (
+      {!hayImagen && (
+        <AvatarFallback className={cn(inverted && "bg-white/15 text-white")}>
+          {initials}
+        </AvatarFallback>
+      )}
+      {hayImagen && src && (
         <Image
+          key={src}
           src={src}
           alt={alt}
           fill
-          sizes={large ? "40px" : "36px"}
           unoptimized
-          className="z-10 rounded-full object-cover"
+          className="absolute inset-0 z-10 rounded-full object-cover"
+          sizes={large ? "2.5rem" : "2.25rem"}
           onError={() => setFailedSrc(src)}
         />
       )}
@@ -98,7 +119,7 @@ function getInitials(name: string | null | undefined, email: string | null | und
 export function UserMenu({ inverted = false }: UserMenuProps) {
   const router = useRouter()
   const { setTheme, theme } = useTheme()
-  const { firebaseUser, user, logout, updateUserProfile } = useAuth()
+  const { firebaseUser, user, logout, deleteAccount, updateUserProfile } = useAuth()
   const [profileOpen, setProfileOpen] = useState(false)
   const [displayName, setDisplayName] = useState("")
   const [avatarFile, setAvatarFile] = useState<File | null>(null)
@@ -107,6 +128,10 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
   const [saving, setSaving] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [confirmEmail, setConfirmEmail] = useState("")
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   let ThemeIcon = Monitor
@@ -117,14 +142,20 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
   }
 
   const currentDisplayName =
-    firebaseUser?.displayName || user?.displayName || user?.name || "Usuario"
-  const currentPhotoURL = firebaseUser?.photoURL || user?.avatarUrl || null
+    user?.displayName || firebaseUser?.displayName || user?.name || "Usuario"
+  const currentPhotoURL = user?.avatarUrl || firebaseUser?.photoURL || null
   const storedProfileUserId = currentPhotoURL?.match(/\/profiles\/([^/]+)\//)?.[1]
   const profileUserId = user?.id || storedProfileUserId || firebaseUser?.uid
-  const currentAvatarSrc = profileUserId
-    ? `/api/storage/profile-image/${profileUserId}`
-    : currentPhotoURL
-  const email = firebaseUser?.email || user?.email || ""
+  const currentAvatarSrc =
+    user && user.avatarUrl && profileUserId
+      ? `/api/storage/profile-image/${profileUserId}?v=${Date.parse(user.updatedAt)}`
+      : null
+  // Lo que se muestra en el diálogo, que no siempre coincide con lo guardado:
+  // "Quitar" pone la vista previa en null sin borrar todavía `currentPhotoURL`,
+  // y ahí el botón tiene que decir "Subir imagen" porque ya no hay imagen que
+  // cambiar.
+  const previewSrc = avatarPreview || (!removeAvatar ? currentAvatarSrc : null)
+  const email = user?.email || firebaseUser?.email || ""
   const initials = useMemo(
     () => getInitials(currentDisplayName, email),
     [currentDisplayName, email],
@@ -137,6 +168,18 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
     setRemoveAvatar(false)
     setError(null)
     setProfileOpen(true)
+  }
+
+  const openDeleteDialog = () => {
+    setConfirmEmail("")
+    setDeleteError(null)
+    setDeleteOpen(true)
+  }
+
+  const closeDeleteDialog = () => {
+    setDeleteOpen(false)
+    setConfirmEmail("")
+    setDeleteError(null)
   }
 
   useEffect(() => {
@@ -206,6 +249,25 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
       setLoggingOut(false)
     }
   }
+
+  const handleDeleteAccount = async () => {
+    setDeleting(true)
+    setDeleteError(null)
+
+    try {
+      await deleteAccount()
+      closeDeleteDialog()
+      // El diálogo de perfil queda abierto debajo de la confirmación: lo
+      // cerramos nosotros para que no se vea mientras se navega.
+      setProfileOpen(false)
+      router.replace("/login")
+    } catch (err) {
+      setDeleteError(deleteAccountErrorMessage(err))
+      setDeleting(false)
+    }
+  }
+
+  const emailMatchesConfirmation = confirmEmail.trim() === email
 
   return (
     <>
@@ -288,7 +350,19 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
       </DropdownMenu>
 
       <Dialog open={profileOpen} onOpenChange={setProfileOpen}>
-        <DialogContent>
+        <DialogContent
+          onInteractOutside={(event) => {
+            // La confirmación de eliminación vive en un portal propio, así que
+            // sus eventos se ven como "afuera" de este diálogo y Radix lo
+            // cerraría. Se decide por el DOM y no por el estado `deleteOpen`:
+            // Radix emite el evento más de una vez por click y la última
+            // llegada ocurre recién cuando `deleteOpen` ya volvió a false.
+            const confirmacionMontada = document.querySelector(
+              '[data-slot="alert-dialog-content"]',
+            )
+            if (confirmacionMontada) event.preventDefault()
+          }}
+        >
           <form onSubmit={handleProfileSubmit} className="contents">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
@@ -302,7 +376,7 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
 
             <div className="flex items-center gap-3 rounded-lg border bg-muted/30 p-3">
               <ProfileAvatar
-                src={avatarPreview || (!removeAvatar ? currentAvatarSrc : null)}
+                src={previewSrc}
                 alt="Vista previa"
                 initials={getInitials(displayName, email)}
                 large
@@ -347,7 +421,7 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
                     disabled={saving}
                   >
                     <Camera />
-                    {currentPhotoURL || avatarFile ? "Cambiar imagen" : "Subir imagen"}
+                    {previewSrc ? "Cambiar imagen" : "Subir imagen"}
                   </Button>
                   {(currentPhotoURL || avatarFile) && !removeAvatar && (
                     <Button
@@ -373,6 +447,32 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
               {error && <FieldError>{error}</FieldError>}
             </FieldGroup>
 
+            {/* Zona de peligro: deliberadamente separada de los campos
+                editables y fuera del FieldGroup, para que no se confunda con
+                el formulario de perfil. `type="button"` explícito: esto vive
+                dentro del form de "Guardar cambios" y no debe heredar submit,
+                o apretar Enter en un input borraría la cuenta. */}
+            <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3">
+              <p className="text-sm font-medium text-destructive">
+                Eliminar cuenta
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Se borran tus proyectos, capítulos, escenas e imágenes. Esta
+                acción no se puede deshacer.
+              </p>
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                className="mt-3"
+                onClick={openDeleteDialog}
+                disabled={saving}
+              >
+                <Trash2 />
+                Eliminar cuenta
+              </Button>
+            </div>
+
             <DialogFooter>
               <Button
                 type="button"
@@ -390,6 +490,65 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
           </form>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog
+        open={deleteOpen}
+        onOpenChange={(open) => {
+          if (open) {
+            setDeleteOpen(true)
+            return
+          }
+          // Mientras se está borrando no se cierra: el error tiene que verse.
+          if (!deleting) closeDeleteDialog()
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar tu cuenta?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se van a borrar tus proyectos, capítulos, escenas, imágenes y tu
+              acceso a PlumIA. Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          {deleteError && (
+            <Alert variant="destructive">
+              <CircleAlert />
+              <AlertDescription>{deleteError}</AlertDescription>
+            </Alert>
+          )}
+
+          <Field>
+            <FieldLabel htmlFor="confirm-delete-email">
+              Escribí tu email para confirmar
+            </FieldLabel>
+            <Input
+              id="confirm-delete-email"
+              type="email"
+              value={confirmEmail}
+              onChange={(event) => setConfirmEmail(event.target.value)}
+              placeholder={email}
+              autoComplete="off"
+              disabled={deleting}
+            />
+          </Field>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={deleting || !emailMatchesConfirmation}
+              onClick={(event) => {
+                event.preventDefault()
+                void handleDeleteAccount()
+              }}
+            >
+              {deleting ? <Spinner className="size-4" /> : <Trash2 />}
+              {deleting ? "Eliminando…" : "Eliminar mi cuenta"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   )
 }

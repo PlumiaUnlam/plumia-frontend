@@ -45,6 +45,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Spinner } from "@/components/ui/spinner"
+import { messageForApiError } from "@/helpers/api-errors"
 import { isEmail } from "@/helpers/validation"
 import {
   createFrozenShare,
@@ -112,9 +113,7 @@ export function ShareDialog({
       setError(null)
     } catch (loadError) {
       setError(
-        loadError instanceof Error
-          ? loadError.message
-          : "No se pudieron cargar las invitaciones.",
+        messageForApiError(loadError, "No se pudieron cargar las invitaciones."),
       )
     } finally {
       setLoading(false)
@@ -161,9 +160,7 @@ export function ShareDialog({
       setShares((current) => [share, ...current])
     } catch (submitError) {
       setError(
-        submitError instanceof Error
-          ? submitError.message
-          : "No se pudo crear la invitación.",
+        messageForApiError(submitError, "No se pudo crear la invitación."),
       )
     } finally {
       setSubmitting(false)
@@ -184,9 +181,7 @@ export function ShareDialog({
       setShares((current) => current.filter((share) => share.id !== shareId))
     } catch (revokeError) {
       setError(
-        revokeError instanceof Error
-          ? revokeError.message
-          : "No se pudo revocar la invitación.",
+        messageForApiError(revokeError, "No se pudo revocar la invitación."),
       )
     }
   }

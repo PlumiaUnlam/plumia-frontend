@@ -1,5 +1,5 @@
 import { auth } from "@/lib/firebase"
-import { api } from "@/services/api.service"
+import { api, ApiError, parseBackendMessage } from "@/services/api.service"
 import type {
   CreatedShare,
   ReaderComment,
@@ -31,12 +31,10 @@ async function sharedRequest<T>(
   })
 
   if (!response.ok) {
-    let errorText = await response.text()
-    try {
-      const parsed = JSON.parse(errorText) as { message?: string }
-      if (parsed.message) errorText = parsed.message
-    } catch {}
-    throw new Error(errorText)
+    // ApiError en vez de Error crudo: el status es lo único que separa un 410
+    // (invitación vencida) de un 403 (solo lectura) de un 404 (no existe), y
+    // los call sites necesitan esa diferencia para elegir el mensaje.
+    throw new ApiError(parseBackendMessage(await response.text()), response.status)
   }
 
   return (await response.json()) as T
