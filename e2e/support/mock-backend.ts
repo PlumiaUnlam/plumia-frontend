@@ -115,6 +115,7 @@ export type MockBackend = {
   storyboardCreates: Array<Record<string, unknown>>
   annotationUpdates: Array<{ id: string; payload: Record<string, unknown> }>
   annotationDeletes: string[]
+  accountDeletes: number
   getSceneContent: () => JsonDocument
   getAuthorAnnotations: () => AuthorAnnotation[]
 }
@@ -141,6 +142,7 @@ export async function installMockBackend(
     storyboardCreates: [],
     annotationUpdates: [],
     annotationDeletes: [],
+    accountDeletes: 0,
     getSceneContent: () => structuredClone(sceneContent),
     getAuthorAnnotations: () => structuredClone(authorAnnotations),
   }
@@ -208,6 +210,12 @@ export async function installMockBackend(
           updatedAt: timestamp,
         },
       })
+      return
+    }
+
+    if (url.pathname === "/users/me" && request.method() === "DELETE") {
+      mock.accountDeletes += 1
+      await route.fulfill({ status: 204 })
       return
     }
 

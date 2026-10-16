@@ -11,6 +11,7 @@ import {
   Trash2,
   TriangleAlert,
 } from "lucide-react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 
 import { NewProjectForm } from "@/components/form/new-project-form"
@@ -53,6 +54,7 @@ import {
 } from "@/components/ui/empty"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Spinner } from "@/components/ui/spinner"
+import { EmailNotVerifiedError } from "@/services/api.service"
 import {
   deleteProject,
   getDashboardProjects,
@@ -82,6 +84,7 @@ export default function DashboardPage() {
   const [projectToDelete, setProjectToDelete] = useState<ProjectResponse | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const router = useRouter()
 
   useEffect(() => {
     let isMounted = true
@@ -101,6 +104,14 @@ export default function DashboardPage() {
           return
         }
 
+        // Red de seguridad: si el correo quedó sin verificar, el backend
+        // responde 403 en cada ruta protegida. Mejor mandarlo a verificar que
+        // mostrarle una lista rota con datos de ejemplo.
+        if (error instanceof EmailNotVerifiedError) {
+          router.replace("/verify-email")
+          return
+        }
+
         setErrorMessage(
           "No se pudo cargar la lista desde la API; se muestran datos de ejemplo.",
         )
@@ -114,7 +125,7 @@ export default function DashboardPage() {
     return () => {
       isMounted = false
     }
-  }, [])
+  }, [router])
 
   const filteredProjects = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase()

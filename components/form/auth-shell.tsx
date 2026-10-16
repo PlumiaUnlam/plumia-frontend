@@ -35,7 +35,10 @@ export function AuthShell({
         className="pointer-events-none absolute -right-24 bottom-0 size-80 rounded-full bg-secondary blur-3xl"
       />
 
-      <div className="relative mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center gap-6 p-4 md:p-6">
+      {/* max-w-lg y no max-w-md: con 448px el contenido útil queda en 352px y
+          los títulos "Recuperá tu contraseña" (363px) y "Términos y
+          condiciones" (354px) saltan a dos líneas. Medido en el navegador. */}
+      <div className="relative mx-auto flex min-h-dvh w-full max-w-lg flex-col justify-center gap-6 p-4 md:p-6">
         <Link
           href="/"
           className="group mx-auto flex items-center gap-3 rounded-xl px-2 py-1.5 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"

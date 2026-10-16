@@ -36,6 +36,7 @@ import {
 import { Spinner } from "@/components/ui/spinner"
 import { Textarea } from "@/components/ui/textarea"
 import { useAuth } from "@/contexts/AuthContext"
+import { messageForApiError } from "@/helpers/api-errors"
 import {
   acceptShareInvitation,
   createReaderComment,
@@ -115,9 +116,10 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
       } catch (loadError) {
         if (!cancelled) {
           setError(
-            loadError instanceof Error
-              ? loadError.message
-              : "No se pudo abrir la versión compartida.",
+            messageForApiError(
+              loadError,
+              "No se pudo abrir la versión compartida.",
+            ),
           )
         }
       } finally {
@@ -233,9 +235,7 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
       setDiscussionError(null)
     } catch (submitError) {
       setDiscussionError(
-        submitError instanceof Error
-          ? submitError.message
-          : "No se pudo guardar el comentario.",
+        messageForApiError(submitError, "No se pudo guardar el comentario."),
       )
     } finally {
       setSubmittingComment(false)
@@ -263,9 +263,10 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
       setDiscussionError(null)
     } catch (updateError) {
       setDiscussionError(
-        updateError instanceof Error
-          ? updateError.message
-          : "No se pudo actualizar el estado del comentario.",
+        messageForApiError(
+          updateError,
+          "No se pudo actualizar el estado del comentario.",
+        ),
       )
     }
   }
@@ -289,9 +290,7 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
       setDiscussionError(null)
     } catch (replyError) {
       setDiscussionError(
-        replyError instanceof Error
-          ? replyError.message
-          : "No se pudo guardar la respuesta.",
+        messageForApiError(replyError, "No se pudo guardar la respuesta."),
       )
     } finally {
       setSubmittingReplyFor(null)

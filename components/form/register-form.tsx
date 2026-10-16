@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react"
 import { CircleAlert } from "lucide-react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 
 import { AuthShell } from "@/components/form/auth-shell"
@@ -18,6 +19,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
 import { useAuth } from "@/contexts/AuthContext"
+import { registerErrorMessage } from "@/helpers/api-errors"
 import { isEmail } from "@/helpers/validation"
 
 export function RegisterForm() {
@@ -26,7 +28,9 @@ export function RegisterForm() {
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [values, setValues] = useState({
-    fullName: "",
+    firstName: "",
+    lastName: "",
+    username: "",
     email: "",
     password: "",
     confirmPassword: "",
@@ -43,8 +47,16 @@ export function RegisterForm() {
   const validate = () => {
     const nextErrors: Record<string, string> = {}
 
-    if (!values.fullName.trim()) {
-      nextErrors.fullName = "El nombre es obligatorio."
+    if (!values.firstName.trim()) {
+      nextErrors.firstName = "El nombre es obligatorio."
+    }
+
+    if (!values.lastName.trim()) {
+      nextErrors.lastName = "El apellido es obligatorio."
+    }
+
+    if (!values.username.trim()) {
+      nextErrors.username = "El nombre de usuario es obligatorio."
     }
 
     if (!values.email.trim()) {
@@ -85,11 +97,16 @@ export function RegisterForm() {
     setIsSubmitting(true)
 
     try {
-      await register(values.email.trim(), values.password)
-      const params = new URLSearchParams(globalThis.location?.search ?? "")
-      router.push(params.get("redirect") || "/dashboard")
-    } catch {
-      setGeneralError("No se pudo crear la cuenta. El email podría estar en uso.")
+      await register({
+        firstName: values.firstName.trim(),
+        lastName: values.lastName.trim(),
+        username: values.username.trim(),
+        email: values.email.trim(),
+        password: values.password,
+      })
+      router.push("/verify-email")
+    } catch (error) {
+      setGeneralError(registerErrorMessage(error))
     } finally {
       setIsSubmitting(false)
     }
@@ -130,20 +147,58 @@ export function RegisterForm() {
             </Alert>
           ) : null}
 
-          <Field data-invalid={!!errors.fullName}>
-            <FieldLabel htmlFor="fullName">Nombre completo</FieldLabel>
+          {/* Nombre y Apellido en la misma fila, con el mismo patrón que usa
+              más abajo el par de contraseñas, para acortar el formulario en
+              desktop. `sm:` en vez de romper siempre: en pantallas chicas
+              "~137px" por columna queda apretado y se apila como antes. */}
+          <div className="grid gap-5 sm:grid-cols-2">
+            <Field data-invalid={!!errors.firstName}>
+              <FieldLabel htmlFor="firstName">Nombre</FieldLabel>
+              <FieldContent>
+                <Input
+                  id="firstName"
+                  value={values.firstName}
+                  onChange={(event) => setField("firstName", event.target.value)}
+                  type="text"
+                  placeholder="Nombre"
+                  autoComplete="given-name"
+                  aria-invalid={!!errors.firstName}
+                />
+              </FieldContent>
+              <FieldError>{errors.firstName}</FieldError>
+            </Field>
+
+            <Field data-invalid={!!errors.lastName}>
+              <FieldLabel htmlFor="lastName">Apellido</FieldLabel>
+              <FieldContent>
+                <Input
+                  id="lastName"
+                  value={values.lastName}
+                  onChange={(event) => setField("lastName", event.target.value)}
+                  type="text"
+                  placeholder="Apellido"
+                  autoComplete="family-name"
+                  aria-invalid={!!errors.lastName}
+                />
+              </FieldContent>
+              <FieldError>{errors.lastName}</FieldError>
+            </Field>
+          </div>
+
+          <Field data-invalid={!!errors.username}>
+            <FieldLabel htmlFor="username">Nombre de usuario</FieldLabel>
             <FieldContent>
               <Input
-                id="fullName"
-                value={values.fullName}
-                onChange={(event) => setField("fullName", event.target.value)}
+                id="username"
+                value={values.username}
+                onChange={(event) => setField("username", event.target.value)}
                 type="text"
-                placeholder="Nombre y apellido"
-                autoComplete="name"
-                aria-invalid={!!errors.fullName}
+                placeholder="Como te van a ver"
+                autoComplete="username"
+                aria-invalid={!!errors.username}
               />
             </FieldContent>
-            <FieldError>{errors.fullName}</FieldError>
+            <FieldError>{errors.username}</FieldError>
           </Field>
 
           <Field data-invalid={!!errors.email}>
@@ -218,14 +273,16 @@ export function RegisterForm() {
                 className="text-sm font-normal text-foreground"
               >
                 Acepto los{" "}
-                <Button
-                  variant="link"
-                  type="button"
-                  className="h-auto p-0 text-sm font-normal"
-                  onClick={(event) => event.preventDefault()}
+                {/* Pestaña nueva a propósito: si navegáramos en la misma,
+                    perderían lo ya cargado en el resto del formulario. */}
+                <Link
+                  href="/terminos-y-condiciones"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline underline-offset-4 text-primary hover:text-foreground"
                 >
                   términos y condiciones
-                </Button>
+                </Link>
               </FieldLabel>
               <FieldError>{errors.acceptedTerms}</FieldError>
             </div>
