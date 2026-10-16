@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { CircleAlert, MailCheck } from "lucide-react"
 import { useRouter } from "next/navigation"
 
@@ -157,6 +157,22 @@ export function VerifyEmailForm() {
     router.replace("/register")
   }
 
+  // Cada rama es un estado distinto del botón. Va afuera del JSX porque el
+  // ternario encadenado que había antes confundía a más de uno (S3358).
+  let resendLabel: ReactNode
+  if (isResending) {
+    resendLabel = (
+      <>
+        <Spinner className="size-4" />
+        Enviando
+      </>
+    )
+  } else if (cooldown > 0) {
+    resendLabel = `Reenviar en ${cooldown}s`
+  } else {
+    resendLabel = "Reenviar correo"
+  }
+
   return (
     <AuthShell
       title="Verificá tu correo"
@@ -197,16 +213,7 @@ export function VerifyEmailForm() {
           onClick={() => void handleResend()}
           disabled={isResending || cooldown > 0}
         >
-          {isResending ? (
-            <>
-              <Spinner className="size-4" />
-              Enviando
-            </>
-          ) : cooldown > 0 ? (
-            `Reenviar en ${cooldown}s`
-          ) : (
-            "Reenviar correo"
-          )}
+          {resendLabel}
         </Button>
 
         <Button

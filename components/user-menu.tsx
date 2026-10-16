@@ -147,7 +147,7 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
   const storedProfileUserId = currentPhotoURL?.match(/\/profiles\/([^/]+)\//)?.[1]
   const profileUserId = user?.id || storedProfileUserId || firebaseUser?.uid
   const currentAvatarSrc =
-    user && user.avatarUrl && profileUserId
+    user?.avatarUrl && profileUserId
       ? `/api/storage/profile-image/${profileUserId}?v=${Date.parse(user.updatedAt)}`
       : null
   // Lo que se muestra en el diálogo, que no siempre coincide con lo guardado:

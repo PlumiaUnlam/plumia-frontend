@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, type FormEvent } from "react"
+import { useEffect, useState, type FormEvent, type ReactNode } from "react"
 import { CircleAlert, MailCheck } from "lucide-react"
 import { useRouter } from "next/navigation"
 
@@ -78,6 +78,22 @@ export function ForgotPasswordForm() {
     }
   }
 
+  // Cada rama es un estado distinto del botón. Va afuera del JSX porque el
+  // ternario encadenado que había antes confundía a más de uno (S3358).
+  let resendLabel: ReactNode
+  if (isSubmitting) {
+    resendLabel = (
+      <>
+        <Spinner className="size-4" />
+        Enviando enlace
+      </>
+    )
+  } else if (cooldown > 0) {
+    resendLabel = `Reenviar en ${cooldown}s`
+  } else {
+    resendLabel = sentMessage ? "Reenviar enlace" : "Enviar enlace"
+  }
+
   return (
     <AuthShell
       title="Recuperá tu contraseña"
@@ -136,18 +152,7 @@ export function ForgotPasswordForm() {
             size="lg"
             disabled={isSubmitting || cooldown > 0}
           >
-            {isSubmitting ? (
-              <>
-                <Spinner className="size-4" />
-                Enviando enlace
-              </>
-            ) : cooldown > 0 ? (
-              `Reenviar en ${cooldown}s`
-            ) : sentMessage ? (
-              "Reenviar enlace"
-            ) : (
-              "Enviar enlace"
-            )}
+            {resendLabel}
           </Button>
         </FieldGroup>
       </form>
