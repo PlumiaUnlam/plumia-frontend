@@ -669,6 +669,7 @@ export function RichTextEditor({
                 flex-col
 
                 [&_.ProseMirror]:flex-1
+                [&_.ProseMirror]:flow-root
                 [&_.ProseMirror]:outline-none
                 [&_.ProseMirror>*]:relative
               "
