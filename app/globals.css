@@ -487,6 +487,11 @@ p[data-drop-cap="true"]::first-letter {
   color: var(--scene-divider-color);
 }
 
+.dark .scene-divider,
+.dark .scene-divider-preview {
+  --scene-divider-color: var(--foreground);
+}
+
 .scene-divider {
   width: min(100%, 30rem);
   min-height: 3.25rem;

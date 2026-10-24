@@ -23,18 +23,24 @@ export function getImageTextFlowHTMLAttributes(
   const wrapsText = textFlow !== "break"
   const imageOnLeft = textFlow === "text-right"
   const wrappedWidth = `${WRAPPED_IMAGE_WIDTH_PERCENT}%`
-  const widthStyle = parsedWidth
-    ? wrapsText
+  let widthStyle = "width: auto;"
+  if (parsedWidth !== null) {
+    widthStyle = wrapsText
       ? `width: min(${parsedWidth}px, ${wrappedWidth}, ${MAX_WRAPPED_IMAGE_WIDTH}px);`
       : `width: ${parsedWidth}px;`
-    : "width: auto;"
+  }
+
+  let imageStyle: string
+  if (!wrapsText) {
+    imageStyle = `display: block; float: none; clear: both; ${widthStyle} max-width: 100%; height: auto; margin: 1.5rem auto;`
+  } else if (imageOnLeft) {
+    imageStyle = `display: block; float: left; clear: left; ${widthStyle} max-width: min(${wrappedWidth}, ${MAX_WRAPPED_IMAGE_WIDTH}px); height: auto; margin: 0.25rem 1rem 0.75rem 0;`
+  } else {
+    imageStyle = `display: block; float: right; clear: right; ${widthStyle} max-width: min(${wrappedWidth}, ${MAX_WRAPPED_IMAGE_WIDTH}px); height: auto; margin: 0.25rem 0 0.75rem 1rem;`
+  }
 
   return {
     "data-text-flow": textFlow,
-    style: !wrapsText
-      ? `display: block; float: none; clear: both; ${widthStyle} max-width: 100%; height: auto; margin: 1.5rem auto;`
-      : imageOnLeft
-        ? `display: block; float: left; clear: left; ${widthStyle} max-width: min(${wrappedWidth}, ${MAX_WRAPPED_IMAGE_WIDTH}px); height: auto; margin: 0.25rem 1rem 0.75rem 0;`
-        : `display: block; float: right; clear: right; ${widthStyle} max-width: min(${wrappedWidth}, ${MAX_WRAPPED_IMAGE_WIDTH}px); height: auto; margin: 0.25rem 0 0.75rem 1rem;`,
+    style: imageStyle,
   }
 }

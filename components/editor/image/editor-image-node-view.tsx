@@ -37,7 +37,26 @@ import {
   MAX_WRAPPED_IMAGE_WIDTH,
   WRAPPED_IMAGE_WIDTH_PERCENT,
   normalizeImageTextFlow,
+  type ImageTextFlow,
 } from "./image-text-flow"
+
+const TEXT_FLOW_LABELS: Record<ImageTextFlow, string> = {
+  break: "Renglón completo",
+  "text-right": "Texto a la derecha",
+  "text-left": "Texto a la izquierda",
+}
+
+const TEXT_FLOW_ICONS: Record<ImageTextFlow, typeof AlignCenter> = {
+  break: AlignCenter,
+  "text-right": AlignLeft,
+  "text-left": AlignRight,
+}
+
+const TEXT_FLOW_CLASS_NAMES: Record<ImageTextFlow, string> = {
+  break: "mx-auto my-6 max-w-full",
+  "text-right": "float-left mt-1 mr-4 mb-3 ml-0 w-fit",
+  "text-left": "float-right mt-1 mr-0 mb-3 ml-4 w-fit",
+}
 
 function clampWidth(width: number, maxWidth = Number.POSITIVE_INFINITY) {
   const upperBound = Math.max(1, maxWidth)
@@ -130,7 +149,7 @@ export function EditorImageNodeView({
       resizeListenersRef.current = null
       window.removeEventListener("pointermove", onPointerMove)
       window.removeEventListener("pointerup", stopResize)
-      window.removeEventListener("pointercancel", stopResize)
+      window.removeEventListener("pointercancel", cancelResize)
       setIsResizing(false)
 
       const nextWidth = clampWidth(
@@ -143,14 +162,24 @@ export function EditorImageNodeView({
       currentWidthRef.current = nextWidth
     }
 
+    const cancelResize = () => {
+      resizeListenersRef.current = null
+      window.removeEventListener("pointermove", onPointerMove)
+      window.removeEventListener("pointerup", stopResize)
+      window.removeEventListener("pointercancel", cancelResize)
+      setIsResizing(false)
+      setDraftWidth(null)
+      currentWidthRef.current = startWidth
+    }
+
     resizeListenersRef.current = {
       onPointerMove,
       onPointerUp: stopResize,
-      onPointerCancel: stopResize,
+      onPointerCancel: cancelResize,
     }
     window.addEventListener("pointermove", onPointerMove)
     window.addEventListener("pointerup", stopResize, { once: true })
-    window.addEventListener("pointercancel", stopResize, { once: true })
+    window.addEventListener("pointercancel", cancelResize, { once: true })
   }
 
   const resizeWithKeyboard = (event: ReactKeyboardEvent<HTMLButtonElement>) => {
@@ -162,7 +191,6 @@ export function EditorImageNodeView({
     event.preventDefault()
     const maxWidth = getImageMaxWidth(image, wrapsText)
     const currentWidth =
-      currentWidthRef.current ??
       width ??
       (image.getBoundingClientRect().width || DEFAULT_EDITOR_IMAGE_WIDTH)
     const step = event.shiftKey ? 50 : 10
@@ -198,28 +226,16 @@ export function EditorImageNodeView({
     updateAttributes({ textFlow: normalizeImageTextFlow(value) })
   }
 
-  const textFlowLabel =
-    textFlow === "break"
-      ? "Renglón completo"
-      : textFlow === "text-right"
-        ? "Texto a la derecha"
-        : "Texto a la izquierda"
-  const TextFlowIcon =
-    textFlow === "break"
-      ? AlignCenter
-      : textFlow === "text-right"
-        ? AlignLeft
-        : AlignRight
+  const textFlowLabel = TEXT_FLOW_LABELS[textFlow]
+  const TextFlowIcon = TEXT_FLOW_ICONS[textFlow]
+  const imageLayoutClassName = TEXT_FLOW_CLASS_NAMES[textFlow]
+  const widthDescription = width ? `, ancho ${width} píxeles` : ""
   return (
     <NodeViewWrapper
       as="figure"
       className={[
         "group relative flex justify-center",
-        wrapsText
-          ? imageOnLeft
-            ? "float-left mt-1 mr-4 mb-3 ml-0 w-fit"
-            : "float-right mt-1 mr-0 mb-3 ml-4 w-fit"
-          : "mx-auto my-6 max-w-full",
+        imageLayoutClassName,
         selected ? "ring-2 ring-primary ring-offset-2" : "",
         isResizing ? "select-none" : "",
       ]
@@ -306,7 +322,7 @@ export function EditorImageNodeView({
               onKeyDown={resizeWithKeyboard}
               className="absolute -right-2 -bottom-2 inline-flex h-8 w-8 items-center justify-center rounded-full border border-border bg-background text-foreground shadow-md transition-colors hover:bg-muted"
               title="Redimensionar imagen"
-              aria-label={`Redimensionar imagen${width ? `, ancho ${width} píxeles` : ""}. Usa las flechas izquierda y derecha.`}
+              aria-label={`Redimensionar imagen${widthDescription}. Usa las flechas izquierda y derecha.`}
             >
               <MoveDiagonal2 className="h-4 w-4" />
             </button>
