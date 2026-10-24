@@ -1,6 +1,13 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react"
 import dynamic from "next/dynamic"
 import { Header } from "../header"
 import { LeftSidebar, type SidebarBook } from "../left-sidebar"
@@ -15,6 +22,7 @@ import { EditorContainer } from "./editor-container"
 import { EditorMenuBar } from "./editor-menu-bar"
 import { EditorZoomProvider } from "./editor-zoom"
 import { SaveStatusIndicator } from "./save-status-indicator"
+import { resolveProjectSceneId } from "@/lib/editor-project-scene"
 import type { WritingMode } from "@/types/writing-mode"
 import type { EditorSectionOption } from "./editor-types"
 import type { EditorSearchMatch, SpellcheckLanguage } from "@/types/editor-search"
@@ -95,8 +103,13 @@ type EditorLayoutProps = {
 }
 
 export function EditorLayout({ projectId }: Readonly<EditorLayoutProps>) {
+  const currentProjectIdRef = useRef(projectId)
+  useLayoutEffect(() => {
+    currentProjectIdRef.current = projectId
+  }, [projectId])
   const [projectTitle, setProjectTitle] = useState("Proyecto")
   const [books, setBooks] = useState<SidebarBook[]>([])
+  const [loadedProjectId, setLoadedProjectId] = useState<string | null>(null)
   const [projectsError, setProjectsError] = useState<string | null>(null)
   const [writingMode, setWritingMode] = useState<WritingMode>("review")
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false)
@@ -119,7 +132,17 @@ export function EditorLayout({ projectId }: Readonly<EditorLayoutProps>) {
   )
   const editorVersionLabel = useEditorStore((s) => s.editorVersionLabel)
 
-  const activeSceneDetails = getActiveSceneDetails(books, activeSceneId)
+  const projectSceneIds = books.flatMap((book) =>
+    book.chapters.flatMap((chapter) => chapter.scenes.map((scene) => scene.id)),
+  )
+  const activeProjectSceneId =
+    loadedProjectId === projectId
+      ? resolveProjectSceneId(activeSceneId, projectSceneIds)
+      : null
+  const activeSceneDetails = getActiveSceneDetails(
+    books,
+    activeProjectSceneId,
+  )
   const currentSceneWordCount = currentContent
     ? getWordCount(currentContent)
     : (activeSceneDetails?.sceneWordCount ?? 0)
@@ -203,15 +226,12 @@ export function EditorLayout({ projectId }: Readonly<EditorLayoutProps>) {
     [books],
   )
 
-  const activeBookId = useMemo(
-    () =>
-      books.find((book) =>
-        book.chapters.some((chapter) =>
-          chapter.scenes.some((scene) => scene.id === activeSceneId),
-        ),
-      )?.id ?? null,
-    [activeSceneId, books],
-  )
+  const activeBookId =
+    books.find((book) =>
+      book.chapters.some((chapter) =>
+        chapter.scenes.some((scene) => scene.id === activeProjectSceneId),
+      ),
+    )?.id ?? null
 
   const defaultExportBookId = activeBookId ?? books[0]?.id ?? null
 
@@ -221,12 +241,32 @@ export function EditorLayout({ projectId }: Readonly<EditorLayoutProps>) {
       return
     }
 
-    const data = await getProject(projectId)
+    setProjectsError(null)
+    const requestedProjectId = projectId
+    const data = await getProject(requestedProjectId)
+
+    if (currentProjectIdRef.current !== requestedProjectId) {
+      return
+    }
+
+    const sceneIds = data.books.flatMap((book) =>
+      book.chapters.flatMap((chapter) =>
+        chapter.scenes.map((scene) => scene.id),
+      ),
+    )
+    const selectedSceneId = resolveProjectSceneId(
+      useEditorStore.getState().activeSceneId,
+      sceneIds,
+    )
+    if (useEditorStore.getState().activeSceneId !== selectedSceneId) {
+      setActiveScene(selectedSceneId)
+    }
 
     setProjectTitle(data.projectTitle)
     setBooks(data.books)
+    setLoadedProjectId(requestedProjectId)
     setProjectsError(null)
-  }, [projectId])
+  }, [projectId, setActiveScene])
 
   const handleScenesUpdated = useCallback(
     async (sceneIds: string[]) => {
@@ -250,7 +290,7 @@ export function EditorLayout({ projectId }: Readonly<EditorLayoutProps>) {
       .then(() => loadProject())
       .catch((error) => {
         console.error("Error loading projects:", error)
-        if (isMounted) {
+        if (isMounted && currentProjectIdRef.current === projectId) {
           setProjectsError("No se pudieron cargar los proyectos.")
         }
       })
@@ -258,7 +298,7 @@ export function EditorLayout({ projectId }: Readonly<EditorLayoutProps>) {
     return () => {
       isMounted = false
     }
-  }, [loadProject])
+  }, [loadProject, projectId])
 
   useEffect(() => {
     const handleShortcut = (event: KeyboardEvent) => {
@@ -297,7 +337,7 @@ export function EditorLayout({ projectId }: Readonly<EditorLayoutProps>) {
 
       <SidebarProvider className="flex min-h-0 flex-1">
         <div className="flex min-h-0 flex-1 overflow-hidden">
-          {writingMode !== "zen" && (
+          {loadedProjectId === projectId && writingMode !== "zen" && (
             <LeftSidebar
               projectTitle={projectTitle}
               books={books}
@@ -311,9 +351,9 @@ export function EditorLayout({ projectId }: Readonly<EditorLayoutProps>) {
             {projectsError && (
               <p className="mb-4 text-sm text-destructive">{projectsError}</p>
             )}
-            {activeSceneId ? (
+            {activeProjectSceneId ? (
               <EditorContainer
-                sceneId={activeSceneId}
+                sceneId={activeProjectSceneId}
                 projectId={projectId}
                 isZenMode={writingMode === "zen"}
                 onToggleZenMode={() =>
@@ -348,12 +388,12 @@ export function EditorLayout({ projectId }: Readonly<EditorLayoutProps>) {
             )}
           </main>
 
-          {isSearchPanelOpen ? (
+          {loadedProjectId === projectId && isSearchPanelOpen ? (
             <SearchReplacePanel
               open
               onOpenChange={handleSearchPanelChange}
               sections={sections}
-              activeSceneId={activeSceneId}
+              activeSceneId={activeProjectSceneId}
               currentContent={getLivePrimaryContent() ?? currentContent}
               selectedSceneVersionId={selectedSceneVersionId}
               onNavigateToMatch={handleNavigateToMatch}
@@ -362,7 +402,7 @@ export function EditorLayout({ projectId }: Readonly<EditorLayoutProps>) {
             />
           ) : null}
 
-          {writingMode !== "zen" && (
+          {loadedProjectId === projectId && writingMode !== "zen" && (
             <EditorRightPanel
               projectId={projectId}
               mode={writingMode}
@@ -383,7 +423,7 @@ export function EditorLayout({ projectId }: Readonly<EditorLayoutProps>) {
           >
             {activeSceneDetails?.chapterTitle ?? "Seleccioná una escena"}
           </span>
-          {activeSceneId && (
+          {activeProjectSceneId && (
             <span className="shrink-0">
               · {new Intl.NumberFormat("es-AR").format(statusWordCount)} palabras
             </span>
@@ -403,7 +443,7 @@ export function EditorLayout({ projectId }: Readonly<EditorLayoutProps>) {
         </div>
       </footer>
 
-      {isExportDialogOpen ? (
+      {loadedProjectId === projectId && isExportDialogOpen ? (
         <ExportDialog
           projectId={projectId}
           books={exportBooks}
@@ -415,7 +455,7 @@ export function EditorLayout({ projectId }: Readonly<EditorLayoutProps>) {
         />
       ) : null}
 
-      {isShareDialogOpen ? (
+      {loadedProjectId === projectId && isShareDialogOpen ? (
         <ShareDialog
           books={books}
           activeBookId={activeBookId}

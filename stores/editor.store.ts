@@ -55,7 +55,7 @@ type EditorState = {
   searchQuery: string
   spellcheckLanguage: SpellcheckLanguage
 
-  setActiveScene: (id: string) => void
+  setActiveScene: (id: string | null) => void
   setSelectedSceneVersion: (id: string | null) => void
   setEditorVersionLabel: (label: string) => void
   setCurrentContent: (content: ProseMirrorJSON | null) => void
@@ -105,7 +105,11 @@ export const useEditorStore = create<EditorState>((set) => ({
         saveStatusByPane: { ...state.saveStatusByPane, primary: "idle" },
         errorByPane: { ...state.errorByPane, primary: null },
         citationFocus:
-          state.citationFocus?.sceneId === id ? state.citationFocus : null,
+          id && state.citationFocus?.sceneId === id
+            ? state.citationFocus
+            : null,
+        searchFocus:
+          id && state.searchFocus?.sceneId === id ? state.searchFocus : null,
       }
     }),
   setSelectedSceneVersion: (id) =>
