@@ -207,6 +207,7 @@ export function EditorImageNodeView({
 
   const imageLayoutClassName = TEXT_FLOW_CLASS_NAMES[textFlow]
   const widthDescription = width ? `, ancho ${width} píxeles` : ""
+  const selectionLabel = alt ? `Seleccionar imagen: ${alt}` : "Seleccionar imagen"
   return (
     <NodeViewWrapper
       as="figure"
@@ -242,7 +243,7 @@ export function EditorImageNodeView({
           <button
             type="button"
             onClick={selectImage}
-            aria-label={`Seleccionar imagen${alt ? `: ${alt}` : ""}`}
+            aria-label={selectionLabel}
             aria-pressed={selected}
             className="block max-w-full cursor-pointer rounded-lg border-0 bg-transparent p-0 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
           >
