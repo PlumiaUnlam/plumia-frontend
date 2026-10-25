@@ -137,6 +137,25 @@ export async function createProject(payload: CreateProjectPayload) {
   return api.post<ProjectResponse>("/projects", payload)
 }
 
+export type EpubProjectImportResult = {
+  project: ProjectResponse
+  importedChapters: number
+  importedImages: number
+  skippedImages: number
+  importedWords: number
+}
+
+export async function importEpubProject(
+  file: File,
+  payload: CreateProjectPayload,
+) {
+  const form = new FormData()
+  form.append("epub", file, file.name)
+  form.append("project", JSON.stringify(payload))
+
+  return api.postFormData<EpubProjectImportResult>("/projects/import/epub", form)
+}
+
 export async function updateProject(
   projectId: string,
   payload: UpdateProjectPayload,

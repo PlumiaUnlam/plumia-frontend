@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, type FormEvent } from "react"
+import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -27,7 +28,10 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import {
   createProject,
+  importEpubProject,
   updateProject,
+  type CreateProjectPayload,
+  type EpubProjectImportResult,
   type ProjectResponse,
 } from "@/services/project.service"
 
@@ -37,6 +41,61 @@ type NewProjectFormProps = {
   project?: ProjectResponse
 }
 
+type ProjectFormValues = {
+  title: string
+  description: string
+  genre: string
+  wordCountTarget: string
+  status: string
+}
+
+function projectPayload(
+  values: ProjectFormValues,
+  isEditing: boolean,
+): CreateProjectPayload {
+  return {
+    title: values.title.trim(),
+    description: isEditing
+      ? values.description.trim()
+      : values.description.trim() || undefined,
+    genre: isEditing ? values.genre.trim() : values.genre.trim() || undefined,
+    wordCountTarget: values.wordCountTarget.trim()
+      ? Number(values.wordCountTarget)
+      : undefined,
+  }
+}
+
+function showEpubImportSummary(result: EpubProjectImportResult) {
+  const imageSummary = ` Se importaron ${result.importedImages} imágenes${
+    result.skippedImages
+      ? ` y se omitieron ${result.skippedImages} no compatibles.`
+      : "."
+  }`
+  toast.success("Obra importada desde EPUB", {
+    description: `${result.importedChapters} capítulos y ${result.importedWords.toLocaleString("es-ES")} palabras.${imageSummary}`,
+  })
+}
+
+async function saveProject(
+  project: ProjectResponse | undefined,
+  epubFile: File | null,
+  values: ProjectFormValues,
+  payload: CreateProjectPayload,
+): Promise<ProjectResponse> {
+  if (project) {
+    return updateProject(project.id, {
+      ...payload,
+      status: values.status as "draft" | "active" | "archived",
+    })
+  }
+  if (epubFile) {
+    const result = await importEpubProject(epubFile, payload)
+    showEpubImportSummary(result)
+    return result.project
+  }
+  return createProject(payload)
+}
+
 export function NewProjectForm({
   onCancel,
   onSuccess,
@@ -44,6 +103,7 @@ export function NewProjectForm({
 }: Readonly<NewProjectFormProps>) {
   const isEditing = Boolean(project)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [epubFile, setEpubFile] = useState<File | null>(null)
   const [values, setValues] = useState({
     title: project?.title ?? "",
     description: project?.description ?? "",
@@ -59,11 +119,44 @@ export function NewProjectForm({
     setErrors((prev) => ({ ...prev, [field]: "" }))
   }
 
+  const handleEpubFileChange = (file: File | null) => {
+    setErrors((prev) => ({ ...prev, epub: "", submit: "" }))
+    if (!file) {
+      setEpubFile(null)
+      return
+    }
+    if (!file.name.toLowerCase().endsWith(".epub")) {
+      setEpubFile(null)
+      setErrors((prev) => ({ ...prev, epub: "Seleccioná un archivo .epub." }))
+      return
+    }
+    if (file.size > 50 * 1024 * 1024) {
+      setEpubFile(null)
+      setErrors((prev) => ({
+        ...prev,
+        epub: "El EPUB no puede superar los 50 MB.",
+      }))
+      return
+    }
+
+    setEpubFile(file)
+    setErrors((prev) => ({ ...prev, title: "" }))
+    setValues((prev) => ({
+      ...prev,
+      title: prev.title.trim()
+        ? prev.title
+        : file.name.replace(/\.epub$/i, "").slice(0, 200),
+    }))
+  }
+
   const validate = () => {
     const nextErrors: Record<string, string> = {}
 
     if (!values.title.trim()) {
       nextErrors.title = "El nombre del proyecto es obligatorio."
+    }
+    if (errors.epub) {
+      nextErrors.epub = errors.epub
     }
 
     if (
@@ -89,30 +182,19 @@ export function NewProjectForm({
     setIsSubmitting(true)
 
     try {
-      const payload = {
-        title: values.title.trim(),
-        description: isEditing
-          ? values.description.trim()
-          : values.description.trim() || undefined,
-        genre: isEditing ? values.genre.trim() : values.genre.trim() || undefined,
-        wordCountTarget: values.wordCountTarget.trim()
-          ? Number(values.wordCountTarget)
-          : undefined,
-      }
-
-      const savedProject = project
-        ? await updateProject(project.id, {
-            ...payload,
-            status: values.status as "draft" | "active" | "archived",
-          })
-        : await createProject(payload)
+      const payload = projectPayload(values, isEditing)
+      const savedProject = await saveProject(project, epubFile, values, payload)
       onSuccess?.(savedProject)
       onCancel()
     } catch (error) {
       console.error(`Error ${isEditing ? "updating" : "creating"} project:`, error)
+      const fallbackMessage = `No se pudo ${isEditing ? "guardar" : "crear"} el proyecto. Inténtalo nuevamente.`
+      const reason = error instanceof Error ? error.message : fallbackMessage
       setErrors((prev) => ({
         ...prev,
-        submit: `No se pudo ${isEditing ? "guardar" : "crear"} el proyecto. Inténtalo nuevamente.`,
+        submit: epubFile
+          ? `No se pudo importar el EPUB. ${reason}`
+          : fallbackMessage,
       }))
     } finally {
       setIsSubmitting(false)
@@ -163,6 +245,31 @@ export function NewProjectForm({
               />
             </FieldContent>
           </Field>
+
+          {!isEditing ? (
+            <Field data-invalid={!!errors.epub}>
+              <FieldLabel htmlFor="epubFile">
+                Importar obra desde EPUB (opcional)
+              </FieldLabel>
+              <FieldContent>
+                <Input
+                  id="epubFile"
+                  type="file"
+                  accept=".epub,application/epub+zip"
+                  disabled={isSubmitting}
+                  onChange={(event) =>
+                    handleEpubFileChange(event.currentTarget.files?.[0] ?? null)
+                  }
+                  aria-invalid={!!errors.epub}
+                />
+                <p className="text-sm text-muted-foreground">
+                  Importa capítulos, formato básico e imágenes compatibles.
+                  Máximo 50 MB.
+                </p>
+              </FieldContent>
+              <FieldError>{errors.epub}</FieldError>
+            </Field>
+          ) : null}
 
           <div className="grid gap-4 md:grid-cols-2">
             <Field>
