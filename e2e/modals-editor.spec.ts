@@ -508,6 +508,54 @@ test.describe("Diálogos de texto del editor", () => {
 })
 
 test.describe("Chat con IA", () => {
+  test("Carga inicial: los paneles laterales están desde el inicio mientras llega el proyecto", async ({
+    page,
+  }) => {
+    await installModalBackend(page)
+    await page.route(/\/projects\/e2e-project(\?.*)?$/, async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 1500))
+      await route.fallback()
+    })
+    await page.goto("/projects/e2e-project/editor")
+
+    await expect(
+      page.getByRole("status", { name: "Cargando estructura del proyecto" }),
+    ).toBeVisible()
+    await expect(page.getByRole("button", { name: "Colapsar panel derecho" })).toBeVisible()
+    await expect(page.getByRole("button", { name: /Chat IA/ })).toBeVisible()
+
+    await expect(
+      page.getByRole("button", { name: "El umbral 10 palabras" }),
+    ).toBeVisible({ timeout: 10000 })
+    await expect(
+      page.getByRole("status", { name: "Cargando estructura del proyecto" }),
+    ).toHaveCount(0)
+  })
+
+  test("Panel derecho: cambiar de pestaña por primera vez no oculta el panel mientras carga", async ({
+    page,
+  }) => {
+    await installModalBackend(page)
+    await openEditor(page)
+
+    // Los chunks de las pestañas se piden recién al abrirlas; se demoran para ver el estado de carga.
+    await page.route(/\/_next\/static\/.*\.js/, async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 1500))
+      await route.continue()
+    })
+
+    const collapse = page.getByRole("button", { name: "Colapsar panel derecho" })
+    await expect(collapse).toBeVisible()
+    await page.getByRole("button", { name: /Chat IA/ }).click()
+
+    // Mientras llega el chunk, las pestañas siguen a la vista.
+    for (let i = 0; i < 10; i++) {
+      await expect(collapse).toBeVisible({ timeout: 100 })
+      await page.waitForTimeout(100)
+    }
+    await expect(page.getByText("Mensaje número 30", { exact: true })).toBeVisible({ timeout: 10000 })
+  })
+
   test("Conversación larga: se puede scrollear hasta el primer mensaje", async ({
     page,
   }) => {

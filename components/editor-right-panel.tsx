@@ -12,6 +12,8 @@ import {
 } from "lucide-react";
 import useSWR from "swr";
 
+import { Spinner } from "@/components/ui/spinner";
+
 import { getEntities } from "@/services/entities.service";
 import {
   acceptEntityProposal,
@@ -50,16 +52,30 @@ import type {
 } from "@/types/entity-state";
 import type { WritingMode } from "@/types/writing-mode";
 
-const ChatPanel = dynamic(() =>
-  import("@/components/chat-panel").then((module) => module.ChatPanel),
+// Sin `loading`, next/dynamic no crea su propio Suspense: al cargar el chunk por
+// primera vez suspendería hasta el límite del editor y haría desaparecer todo el panel.
+function PanelLoading() {
+  return (
+    <div className="flex h-full items-center justify-center">
+      <Spinner className="size-5 text-muted-foreground" />
+    </div>
+  );
+}
+
+const ChatPanel = dynamic(
+  () => import("@/components/chat-panel").then((module) => module.ChatPanel),
+  { loading: PanelLoading },
 );
-const WikiPanel = dynamic(() =>
-  import("@/components/wiki-panel").then((module) => module.WikiPanel),
+const WikiPanel = dynamic(
+  () => import("@/components/wiki-panel").then((module) => module.WikiPanel),
+  { loading: PanelLoading },
 );
-const StatsSidebarPanel = dynamic(() =>
-  import("@/components/statistics/stats-sidebar-panel").then(
-    (module) => module.StatsSidebarPanel,
-  ),
+const StatsSidebarPanel = dynamic(
+  () =>
+    import("@/components/statistics/stats-sidebar-panel").then(
+      (module) => module.StatsSidebarPanel,
+    ),
+  { loading: PanelLoading },
 );
 
 type RightTab = "wiki" | "chat" | "stats";

@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/sidebar";
 import { ConfirmDialog } from "@/components/modal/confirm-dialog";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Tooltip,
   TooltipContent,
@@ -60,6 +61,8 @@ type LeftSidebarProps = {
   projectTitle: string;
   books: SidebarBook[];
   projectId: string;
+  /** Mientras llega la estructura del proyecto se muestran filas de carga en vez de un árbol vacío. */
+  isLoading?: boolean;
   onRefresh: () => Promise<void>;
   onBeforeDocumentChange?: () => Promise<void>;
 };
@@ -80,11 +83,29 @@ function nextOrder(items: Array<{ order?: number }>) {
   return Math.max(0, ...items.map((item) => item.order ?? 0)) + 1;
 }
 
+function LeftSidebarSkeleton() {
+  return (
+    <div
+      className="flex flex-1 flex-col gap-2 p-3 group-data-[collapsible=icon]:hidden"
+      role="status"
+      aria-label="Cargando estructura del proyecto"
+    >
+      <Skeleton className="h-5 w-2/3" />
+      <Skeleton className="ml-3 h-4 w-3/4" />
+      <Skeleton className="ml-6 h-4 w-1/2" />
+      <Skeleton className="ml-6 h-4 w-2/3" />
+      <Skeleton className="ml-3 h-4 w-3/5" />
+      <Skeleton className="ml-6 h-4 w-1/2" />
+    </div>
+  );
+}
+
 //LLega ID del proyecto elegido
 export function LeftSidebar({
   projectTitle,
   books,
   projectId,
+  isLoading = false,
   onRefresh,
   onBeforeDocumentChange,
 }: Readonly<LeftSidebarProps>) {
@@ -361,6 +382,9 @@ export function LeftSidebar({
             <PanelLeftOpen className="size-4" />
           </Button>
         </SidebarHeader>
+        {isLoading ? (
+          <LeftSidebarSkeleton />
+        ) : (
         <LeftSidebarTree
           books={books}
           onAddChapter={(book) =>
@@ -384,6 +408,7 @@ export function LeftSidebar({
           onEditItem={openEditItem}
           onDeleteItem={setItemToDelete}
         />
+        )}
         <SidebarFooter className="border-t border-border bg-card p-2 group-data-[collapsible=icon]:border-t-0 group-data-[collapsible=icon]:p-1.5">
           <TooltipProvider>
             <div className="w-full">

@@ -14,6 +14,7 @@ import { Header } from "../header"
 import { LeftSidebar, type SidebarBook } from "../left-sidebar"
 import { getProject } from "@/services/project.service"
 import { SidebarProvider } from "@/components/ui/sidebar"
+import { Spinner } from "@/components/ui/spinner"
 import { EditorRightPanel } from "@/components/editor-right-panel"
 import {
   getLivePrimaryContent,
@@ -338,11 +339,12 @@ export function EditorLayout({ projectId }: Readonly<EditorLayoutProps>) {
 
       <SidebarProvider className="flex min-h-0 flex-1">
         <div className="flex min-h-0 flex-1 overflow-hidden">
-          {loadedProjectId === projectId && writingMode !== "zen" && (
+          {writingMode !== "zen" && (
             <LeftSidebar
               projectTitle={projectTitle}
               books={books}
               projectId={projectId}
+              isLoading={loadedProjectId !== projectId}
               onRefresh={loadProject}
               onBeforeDocumentChange={saveBeforeExport}
             />
@@ -385,6 +387,11 @@ export function EditorLayout({ projectId }: Readonly<EditorLayoutProps>) {
                   toolbarExpanded={false}
                   onToggleToolbar={() => undefined}
                 />
+                {loadedProjectId !== projectId && (
+                  <div className="flex flex-1 items-center justify-center">
+                    <Spinner className="size-6 text-muted-foreground" />
+                  </div>
+                )}
               </EditorZoomProvider>
             )}
           </main>
@@ -403,7 +410,7 @@ export function EditorLayout({ projectId }: Readonly<EditorLayoutProps>) {
             />
           ) : null}
 
-          {loadedProjectId === projectId && writingMode !== "zen" && (
+          {writingMode !== "zen" && (
             <Suspense fallback={null}>
               <EditorRightPanel
                 projectId={projectId}
