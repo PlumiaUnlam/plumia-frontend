@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react"
-import { Camera, CircleAlert, KeyRound, LogOut, Monitor, Moon, Settings, SlidersHorizontal, Sun, Trash2, UserRound } from "lucide-react"
+import { Camera, CircleAlert, KeyRound, LogOut, Monitor, Moon, Settings, SlidersHorizontal, Sun, Trash2, UserRound, X } from "lucide-react"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { useTheme } from "next-themes"
@@ -53,6 +53,7 @@ import {
 import {
   getProjectEntityRecognitionSettings,
   updateProjectEntityRecognitionSettings,
+  type RejectedEntityRecognitionProposal,
 } from "@/services/entity-recognition-settings.service"
 import { getDashboardProjects, type ProjectResponse } from "@/services/project.service"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -66,11 +67,35 @@ const ALLOWED_AVATAR_TYPES = new Set([
   "image/avif",
 ])
 
+function normalizeEntityName(name: string) {
+  return name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+}
+
+const ENTITY_TYPE_LABELS: Record<string, string> = {
+  CHARACTER: "Personaje",
+  LOCATION: "Ubicaci\u00f3n",
+  OBJECT: "Objeto",
+  ORGANIZATION: "Organizaci\u00f3n",
+  EVENT: "Evento",
+  CONCEPT: "Concepto",
+}
+
+function getEntityTypeLabel(type: string | null) {
+  if (!type) return "Entidad"
+  return ENTITY_TYPE_LABELS[type.toUpperCase()] ?? type
+}
+
 type UserMenuProps = {
   readonly inverted?: boolean
 }
 
 type ProfileSection = "account" | "ai" | "entityRecognition"
+type EntityCatalogSection = "important" | "ignored" | "rejected"
 
 type ProfileAvatarProps = {
   readonly src: string | null
@@ -166,9 +191,24 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
   const [importantEntityNames, setImportantEntityNames] = useState<string[]>([])
   const [newImportantEntityName, setNewImportantEntityName] = useState("")
+  const [ignoredEntityNames, setIgnoredEntityNames] = useState<string[]>([])
+  const [newIgnoredEntityName, setNewIgnoredEntityName] = useState("")
+  const [rejectedEntityProposals, setRejectedEntityProposals] = useState<RejectedEntityRecognitionProposal[]>([])
+  const [entityCatalogOpen, setEntityCatalogOpen] = useState(false)
+  const [entityCatalogSection, setEntityCatalogSection] = useState<EntityCatalogSection>("important")
+  const [importantEntitySearch, setImportantEntitySearch] = useState("")
+  const [ignoredEntitySearch, setIgnoredEntitySearch] = useState("")
+  const [rejectedEntitySearch, setRejectedEntitySearch] = useState("")
+  const [rejectedEntityTypeFilter, setRejectedEntityTypeFilter] = useState("ALL")
   const [projectNamesLoading, setProjectNamesLoading] = useState(false)
   const [projectNamesError, setProjectNamesError] = useState<string | null>(null)
+  const entityCatalogOpenRef = useRef(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const setEntityCatalogVisibility = (open: boolean) => {
+    entityCatalogOpenRef.current = open
+    setEntityCatalogOpen(open)
+  }
 
   let ThemeIcon = Monitor
   if (theme === "dark") {
@@ -207,7 +247,7 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
         settings.entityExtractionThresholds ?? DEFAULT_ENTITY_RECOGNITION_THRESHOLDS,
       )
     } catch {
-      setAiError("No pudimos cargar la configuraciÃ³n de IA.")
+      setAiError("No pudimos cargar la configuración de IA.")
     } finally {
       setAiLoading(false)
     }
@@ -247,6 +287,13 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
     setEntityRecognitionNotice(null)
     setProjectNamesError(null)
     setNewImportantEntityName("")
+    setNewIgnoredEntityName("")
+    setEntityCatalogVisibility(false)
+    setEntityCatalogSection("important")
+    setImportantEntitySearch("")
+    setIgnoredEntitySearch("")
+    setRejectedEntitySearch("")
+    setRejectedEntityTypeFilter("ALL")
     void loadAiSettings()
     void loadProjects()
     setProfileOpen(true)
@@ -323,7 +370,7 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
   const handleAiSubmit = async () => {
     const normalizedKey = aiKey.trim()
     if (!normalizedKey) {
-      setAiError("IngresÃ¡ una API Key de Gemini.")
+      setAiError("Ingresá una API Key de Gemini.")
       return
     }
 
@@ -336,7 +383,7 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
       setAiKey("")
       setAiNotice("La API Key de Gemini fue guardada de forma segura.")
     } catch {
-      setAiError("No pudimos guardar la API Key. IntentÃ¡ nuevamente.")
+      setAiError("No pudimos guardar la API Key. Intentá nuevamente.")
     } finally {
       setAiSaving(false)
     }
@@ -359,7 +406,7 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
       setAiNotice("La API Key propia fue eliminada.")
       setRemoveAiKeyOpen(false)
     } catch {
-      setAiError("No pudimos eliminar la API Key. IntentÃ¡ nuevamente.")
+      setAiError("No pudimos eliminar la API Key. Intentá nuevamente.")
     } finally {
       setRemovingAiKey(false)
     }
@@ -399,7 +446,7 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
         selectedProjectId
           ? updateProjectEntityRecognitionSettings(
               selectedProjectId,
-              importantEntityNames,
+              { importantEntityNames, ignoredEntityNames },
             )
           : Promise.resolve(null),
       ])
@@ -407,6 +454,8 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
       setEntityThresholds(nextSettings.entityExtractionThresholds)
       if (nextProjectSettings) {
         setImportantEntityNames(nextProjectSettings.importantEntityNames)
+        setIgnoredEntityNames(nextProjectSettings.ignoredEntityNames)
+        setRejectedEntityProposals(nextProjectSettings.rejectedEntities)
       }
       setEntityRecognitionNotice("La precisión de reconocimiento fue guardada.")
     } catch {
@@ -422,9 +471,13 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
     try {
       const settings = await getProjectEntityRecognitionSettings(projectId)
       setImportantEntityNames(settings.importantEntityNames)
+      setIgnoredEntityNames(settings.ignoredEntityNames)
+      setRejectedEntityProposals(settings.rejectedEntities)
     } catch {
       setProjectNamesError("No pudimos cargar la lista de entidades importantes.")
       setImportantEntityNames([])
+      setIgnoredEntityNames([])
+      setRejectedEntityProposals([])
     } finally {
       setProjectNamesLoading(false)
     }
@@ -433,12 +486,20 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
   const addImportantEntityName = () => {
     const value = newImportantEntityName.trim()
     if (!value) return
-    const normalize = (name: string) =>
-      name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim()
-    if (!importantEntityNames.some((name) => normalize(name) === normalize(value))) {
+    if (!importantEntityNames.some((name) => normalizeEntityName(name) === normalizeEntityName(value))) {
       setImportantEntityNames((current) => [...current, value])
     }
     setNewImportantEntityName("")
+    setProjectNamesError(null)
+  }
+
+  const addIgnoredEntityName = () => {
+    const value = newIgnoredEntityName.trim()
+    if (!value) return
+    if (!ignoredEntityNames.some((name) => normalizeEntityName(name) === normalizeEntityName(value))) {
+      setIgnoredEntityNames((current) => [...current, value])
+    }
+    setNewIgnoredEntityName("")
     setProjectNamesError(null)
   }
 
@@ -471,6 +532,31 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
   }
 
   const emailMatchesConfirmation = confirmEmail.trim() === email
+  const filterEntityNames = (names: string[], search: string) => {
+    const normalizedSearch = normalizeEntityName(search)
+    if (!normalizedSearch) return names
+    return names.filter((name) => normalizeEntityName(name).includes(normalizedSearch))
+  }
+  const filteredImportantEntityNames = filterEntityNames(
+    importantEntityNames,
+    importantEntitySearch,
+  )
+  const filteredIgnoredEntityNames = filterEntityNames(
+    ignoredEntityNames,
+    ignoredEntitySearch,
+  )
+  const filteredRejectedEntityProposals = rejectedEntityProposals.filter((proposal) => {
+    const searchText = normalizeEntityName(
+      [proposal.name, ...proposal.aliases].join(" "),
+    )
+    const matchesSearch =
+      !normalizeEntityName(rejectedEntitySearch) ||
+      searchText.includes(normalizeEntityName(rejectedEntitySearch))
+    const matchesType =
+      rejectedEntityTypeFilter === "ALL" ||
+      proposal.type?.toUpperCase() === rejectedEntityTypeFilter
+    return matchesSearch && matchesType
+  })
 
   return (
     <>
@@ -554,7 +640,16 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
 
       <FormDialog
         open={profileOpen}
-        onOpenChange={setProfileOpen}
+        onOpenChange={(open) => {
+          if (
+            !open &&
+            (entityCatalogOpenRef.current ||
+              document.querySelectorAll('[data-slot="dialog-content"]').length > 1)
+          ) {
+            return
+          }
+          setProfileOpen(open)
+        }}
         title={
           <span className="flex items-center gap-2">
             <UserRound className="size-4" />
@@ -563,6 +658,7 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
         }
         description="Administrá tus datos y la configuración de IA de tu cuenta."
         size="md"
+        contentClassName="md:h-[min(88dvh,800px)]"
         submitLabel={
           profileSection === "account"
             ? "Guardar cambios"
@@ -586,6 +682,13 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
               : handleEntityRecognitionSubmit
         }
         onInteractOutside={(event) => {
+          if (
+            entityCatalogOpenRef.current ||
+            document.querySelectorAll('[data-slot="dialog-content"]').length > 1
+          ) {
+            event.preventDefault()
+            return
+          }
           // La confirmación de eliminación vive en un portal propio, así que
           // sus eventos se ven como "afuera" de este diálogo y Radix lo
           // cerraría. Se decide por el DOM y no por el estado `deleteOpen`:
@@ -790,6 +893,8 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
                     void loadProjectEntityNames(projectId)
                   } else {
                     setImportantEntityNames([])
+                    setIgnoredEntityNames([])
+                    setRejectedEntityProposals([])
                   }
                 }}
                 disabled={projectsLoading || projectNamesLoading || projects.length === 0}
@@ -803,6 +908,25 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
             </Field>
             {selectedProjectId && (
               <>
+                <div className="flex items-center justify-between gap-3 rounded-md bg-muted/40 p-3 text-sm">
+                  <div className="min-w-0">
+                    <p className="font-medium">{importantEntityNames.length} importantes</p>
+                    <p className="text-xs text-muted-foreground">
+                      {ignoredEntityNames.length} ignoradas · {rejectedEntityProposals.length} rechazadas
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setEntityCatalogVisibility(true)}
+                    disabled={projectNamesLoading || entityRecognitionSaving}
+                  >
+                    Administrar entidades
+                  </Button>
+                </div>
+                {/* The catalog modal owns the editable lists to keep this tab compact. */}
+                {/*
+                <>
                 <div className="flex gap-2">
                   <Input
                     value={newImportantEntityName}
@@ -838,6 +962,8 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
                     <p className="text-xs text-muted-foreground">No hay entidades agregadas.</p>
                   )}
                 </div>
+                </>
+                */}
                 {projectNamesError && <FieldError>{projectNamesError}</FieldError>}
               </>
             )}
@@ -932,6 +1058,238 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
       </Tabs>
       </FormDialog>
 
+      <FormDialog
+        open={entityCatalogOpen}
+        onOpenChange={(open) => {
+          if (open) {
+            setEntityCatalogVisibility(true)
+            return
+          }
+          setEntityCatalogOpen(false)
+          setProfileOpen(true)
+          entityCatalogOpenRef.current = true
+          window.setTimeout(() => {
+            entityCatalogOpenRef.current = false
+          }, 0)
+        }}
+        title="Administrar entidades"
+        description="Configurá qué entidades deben priorizarse o ignorarse en este proyecto."
+        size="md"
+        layer={2}
+        contentClassName="md:h-[min(78dvh,680px)]"
+        bodyClassName="min-h-0"
+      >
+        <Tabs
+          value={entityCatalogSection}
+          onValueChange={(value) => setEntityCatalogSection(value as EntityCatalogSection)}
+          className="min-h-0"
+        >
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="important">Importantes</TabsTrigger>
+            <TabsTrigger value="ignored">Ignoradas</TabsTrigger>
+            <TabsTrigger value="rejected">Rechazadas</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="important" className="mt-4 space-y-3">
+            <p className="text-xs text-muted-foreground">
+              Se proponen aunque no superen el umbral de relevancia. La coincidencia ignora
+              mayúsculas y acentos, pero exige el nombre completo o un alias.
+            </p>
+            <Input
+              type="search"
+              value={importantEntitySearch}
+              onChange={(event) => setImportantEntitySearch(event.target.value)}
+              placeholder="Buscar entidad importante"
+              aria-label="Buscar entidad importante"
+            />
+            <div className="flex gap-2">
+              <Input
+                value={newImportantEntityName}
+                onChange={(event) => setNewImportantEntityName(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault()
+                    addImportantEntityName()
+                  }
+                }}
+                placeholder="Ej. La lámpara de obsidiana"
+              />
+              <Button type="button" variant="outline" onClick={addImportantEntityName}>
+                Agregar
+              </Button>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {filteredImportantEntityNames.map((name) => (
+                <button
+                  key={name}
+                  type="button"
+                  className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs hover:bg-muted"
+                  onClick={() =>
+                    setImportantEntityNames((current) => current.filter((item) => item !== name))
+                  }
+                  title="Quitar entidad importante"
+                >
+                  <span>{name}</span>
+                  <X className="size-3.5" aria-hidden="true" />
+                </button>
+              ))}
+              {filteredImportantEntityNames.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  {importantEntityNames.length === 0
+                    ? "No hay entidades importantes."
+                    : "No hay coincidencias."
+                  }
+                </p>
+              )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="ignored" className="mt-4 space-y-3">
+            <p className="text-xs text-muted-foreground">
+              Estas entidades no generarán propuestas nuevas para este proyecto. Las entidades
+              ya confirmadas y sus actualizaciones continúan analizándose.
+            </p>
+            <Input
+              type="search"
+              value={ignoredEntitySearch}
+              onChange={(event) => setIgnoredEntitySearch(event.target.value)}
+              placeholder="Buscar entidad ignorada"
+              aria-label="Buscar entidad ignorada"
+            />
+            <div className="flex gap-2">
+              <Input
+                value={newIgnoredEntityName}
+                onChange={(event) => setNewIgnoredEntityName(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault()
+                    addIgnoredEntityName()
+                  }
+                }}
+                placeholder="Ej. una escalera"
+              />
+              <Button type="button" variant="outline" onClick={addIgnoredEntityName}>
+                Agregar
+              </Button>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {filteredIgnoredEntityNames.map((name) => (
+                <button
+                  key={name}
+                  type="button"
+                  className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs hover:bg-muted"
+                  onClick={() =>
+                    setIgnoredEntityNames((current) => current.filter((item) => item !== name))
+                  }
+                  title="Quitar entidad ignorada"
+                >
+                  <span>{name}</span>
+                  <X className="size-3.5" aria-hidden="true" />
+                </button>
+              ))}
+              {filteredIgnoredEntityNames.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  {ignoredEntityNames.length === 0
+                    ? "No hay entidades ignoradas."
+                    : "No hay coincidencias."
+                  }
+                </p>
+              )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="rejected" className="mt-4 space-y-3">
+            <p className="text-xs text-muted-foreground">
+              Son propuestas que rechazaste anteriormente. Podés agregarlas a Ignoradas para
+              evitar que vuelvan a proponerse en análisis futuros.
+            </p>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Input
+                type="search"
+                value={rejectedEntitySearch}
+                onChange={(event) => setRejectedEntitySearch(event.target.value)}
+                placeholder="Buscar por nombre o alias"
+                aria-label="Buscar entidades rechazadas"
+              />
+              <select
+                value={rejectedEntityTypeFilter}
+                onChange={(event) => setRejectedEntityTypeFilter(event.target.value)}
+                aria-label="Filtrar entidades rechazadas por tipo"
+                className="h-9 rounded-md border bg-background px-3 text-sm sm:w-44"
+              >
+                <option value="ALL">Todos los tipos</option>
+                {Object.entries(ENTITY_TYPE_LABELS).map(([type, label]) => (
+                  <option key={type} value={type}>{label}</option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-2">
+              {filteredRejectedEntityProposals.map((proposal) => {
+                const isIgnored = ignoredEntityNames.some(
+                  (name) => normalizeEntityName(name) === normalizeEntityName(proposal.name),
+                )
+                const isImportant = importantEntityNames.some(
+                  (name) => normalizeEntityName(name) === normalizeEntityName(proposal.name),
+                )
+                return (
+                  <div key={proposal.id} className="flex items-center justify-between gap-3 rounded-md border p-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">{proposal.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {getEntityTypeLabel(proposal.type)}
+                        {proposal.sceneTitle ? `\u00b7 ${proposal.sceneTitle}` : ""}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 gap-2">
+                      <Button
+                        type="button"
+                        variant={isIgnored ? "secondary" : "outline"}
+                        size="sm"
+                        onClick={() =>
+                          setIgnoredEntityNames((current) =>
+                            isIgnored
+                              ? current.filter(
+                                  (name) => normalizeEntityName(name) !== normalizeEntityName(proposal.name),
+                                )
+                              : [...current, proposal.name],
+                          )
+                        }
+                      >
+                        {isIgnored ? "Quitar ignorada" : "Ignorar"}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={isImportant ? "secondary" : "outline"}
+                        size="sm"
+                        onClick={() =>
+                          setImportantEntityNames((current) =>
+                            isImportant
+                              ? current.filter(
+                                  (name) => normalizeEntityName(name) !== normalizeEntityName(proposal.name),
+                                )
+                              : [...current, proposal.name],
+                          )
+                        }
+                      >
+                        {isImportant ? "Quitar importante" : "Importante"}
+                      </Button>
+                    </div>
+                  </div>
+                )
+              })}
+              {filteredRejectedEntityProposals.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  {rejectedEntityProposals.length === 0
+                    ? "No hay propuestas rechazadas."
+                    : "No hay coincidencias."
+                  }
+                </p>
+              )}
+            </div>
+          </TabsContent>
+        </Tabs>
+      </FormDialog>
+
       <AlertDialog
         open={deleteOpen}
         onOpenChange={(open) => {
@@ -1023,3 +1381,6 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
     </>
   )
 }
+
+
+
