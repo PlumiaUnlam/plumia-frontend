@@ -42,7 +42,8 @@ export function BookCoverEditor({
 }: Readonly<BookCoverEditorProps>) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const localPreviewRef = useRef<string | null>(null)
-  const [localPreview, setLocalPreview] = useState<string | null>(null)
+  // La vista previa local pertenece al libro que se está subiendo: si se cambia de libro no se muestra en el otro.
+  const [localPreview, setLocalPreview] = useState<{ bookId: string; url: string } | null>(null)
   const [isUploading, setIsUploading] = useState(false)
   const [isRemoving, setIsRemoving] = useState(false)
   const [isConfirmOpen, setIsConfirmOpen] = useState(false)
@@ -62,7 +63,7 @@ export function BookCoverEditor({
   const replaceLocalPreview = (next: string | null) => {
     if (localPreviewRef.current) URL.revokeObjectURL(localPreviewRef.current)
     localPreviewRef.current = next
-    setLocalPreview(next)
+    setLocalPreview(next ? { bookId, url: next } : null)
   }
 
   useEffect(() => () => {
@@ -71,7 +72,8 @@ export function BookCoverEditor({
 
   const isBusy = isUploading || isRemoving
   const controlsDisabled = disabled || isBusy || isLoading
-  const previewUrl = localPreview ?? coverUrl ?? null
+  const localPreviewUrl = localPreview?.bookId === bookId ? localPreview.url : null
+  const previewUrl = localPreviewUrl ?? coverUrl ?? null
   const hasCover = Boolean(coverUrl)
 
   const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -137,7 +139,7 @@ export function BookCoverEditor({
             alt={`Portada de ${bookTitle}`}
             className="size-full object-cover"
             onError={() => {
-              if (!localPreview) void mutate()
+              if (!localPreviewUrl) void mutate()
             }}
           />
         ) : (

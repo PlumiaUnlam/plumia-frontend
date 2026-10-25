@@ -76,7 +76,7 @@ import type { ImageTextFlow } from "./image/image-text-flow"
 const menuButtonClass =
   "h-8 shrink-0 rounded-md px-2.5 text-sm font-medium text-foreground hover:bg-[#eee3f5] hover:text-[#70348c] data-[state=open]:bg-[#eee3f5] data-[state=open]:text-[#70348c] focus-visible:ring-2 focus-visible:ring-[#b98ad2] dark:hover:bg-muted dark:hover:text-foreground dark:data-[state=open]:bg-muted dark:data-[state=open]:text-foreground dark:focus-visible:ring-ring max-[640px]:px-2"
 const menuContentClass =
-  "max-h-[min(80vh,42rem)] w-64 max-w-[calc(100vw-1rem)] overflow-y-auto border-border bg-white text-foreground shadow-[0_3px_8px_rgba(60,64,67,0.24)] dark:text-popover-foreground"
+  "max-h-[min(80vh,42rem)] w-64 max-w-[calc(100vw-1rem)] overflow-y-auto border-border bg-popover text-popover-foreground shadow-[0_3px_8px_rgba(60,64,67,0.24)]"
 const editMenuContentClass = menuContentClass.replace("w-64", "w-[17rem]")
 const menuItemClass = "min-h-9 gap-3 text-foreground focus:bg-muted focus:text-foreground dark:focus:bg-accent dark:focus:text-accent-foreground"
 const imageTextFlowIcons = {

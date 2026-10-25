@@ -49,9 +49,9 @@ function DialogOverlay({
 
 /**
  * Tamaños de modal (ancho máximo en desktop; ver docs/design-system.md).
- * - `sm` 480px: formularios de 1–3 campos.
- * - `md` 640px: formularios con secciones.
- * - `lg` 880px: espacios de trabajo (2 columnas, galerías, vistas previas).
+ * - `sm` 544px: formularios de 1–3 campos.
+ * - `md` 704px: formularios con secciones.
+ * - `lg` 944px: espacios de trabajo (2 columnas, galerías, vistas previas).
  * - `default`, `medium`, `wide`, `large`: tamaños anteriores, solo para modales sin migrar.
  */
 export type DialogSize =
@@ -87,6 +87,15 @@ const LAYER_CLASS = {
   2: "z-[70]",
 } as const
 
+/** Clase de ancho máximo según el tamaño y el layout del modal. */
+function getSizeClassName(size: DialogSize, sectioned: boolean): string {
+  if (sectioned) return SECTIONED_SIZE_CLASS[size]
+  if (size === "sm" || size === "md" || size === "lg") {
+    return SECTIONED_SIZE_CLASS[size].replace("md:", "sm:")
+  }
+  return LEGACY_SIZE_CLASS[size]
+}
+
 function DialogContent({
   className,
   children,
@@ -107,11 +116,7 @@ function DialogContent({
   layer?: 1 | 2
 }) {
   const sectioned = layout === "sectioned"
-  const sizeClassName = sectioned
-    ? SECTIONED_SIZE_CLASS[size]
-    : size === "sm" || size === "md" || size === "lg"
-      ? SECTIONED_SIZE_CLASS[size].replace("md:", "sm:")
-      : LEGACY_SIZE_CLASS[size]
+  const sizeClassName = getSizeClassName(size, sectioned)
 
   return (
     <DialogPortal>

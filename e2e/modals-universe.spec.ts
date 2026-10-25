@@ -42,7 +42,7 @@ test.describe("Tablero (tarjetas)", () => {
     const updates = backend.callsTo("PATCH", /\/storyboard-cards\/card-1$/)
     expect(updates).toHaveLength(1)
     expect(updates[0].body).toMatchObject({ title: "La carta bajo la puerta (v2)" })
-    await expect(page.getByText("La carta bajo la puerta (v2)")).toBeVisible()
+    await expect(page.getByText("La carta bajo la puerta (v2)", { exact: true })).toBeVisible()
   })
 
   test("Eliminar tarjeta: cancelar la conserva y confirmar la borra", async ({ page }) => {
@@ -60,7 +60,7 @@ test.describe("Tablero (tarjetas)", () => {
     await alert.getByRole("button", { name: "Eliminar" }).click()
     await expect(alert).toBeHidden()
     expect(backend.callsTo("DELETE", /\/storyboard-cards\/card-1$/)).toHaveLength(1)
-    await expect(page.getByText("La carta bajo la puerta")).toHaveCount(0)
+    await expect(page.getByText("La carta bajo la puerta", { exact: true })).toHaveCount(0)
   })
 })
 
@@ -90,7 +90,7 @@ test.describe("Tablero (matriz de arcos)", () => {
       sourceType: "custom",
       customType: "Subtrama",
     })
-    await expect(page.getByText("Traición y confianza")).toBeVisible()
+    await expect(page.getByText("Traición y confianza", { exact: true })).toBeVisible()
   })
 
   test("Nueva nota: se asocia al arco y al capítulo elegidos", async ({ page }) => {
@@ -157,7 +157,7 @@ test.describe("Estadísticas", () => {
     await expect(dialog).toBeVisible()
 
     await dialog.getByRole("button", { name: "Guardar metas" }).click()
-    await expect(dialog.getByText("Definí al menos una meta para continuar.")).toBeVisible()
+    await expect(dialog.getByText("Definí al menos una meta para continuar.", { exact: true })).toBeVisible()
 
     await dialog.locator("#daily-target").fill("0")
     await dialog.getByRole("button", { name: "Guardar metas" }).click()
@@ -274,7 +274,7 @@ test.describe("Universo (worldbuilding)", () => {
 
     await dialog.locator("#timeline-title").fill("Llega el invierno")
     await submit.click()
-    await expect(dialog.getByText("No se pudo guardar el evento ahora")).toBeVisible()
+    await expect(dialog.getByText("No se pudo guardar el evento ahora", { exact: true })).toBeVisible()
     await expect(dialog).toBeVisible()
 
     await submit.click()
@@ -282,7 +282,7 @@ test.describe("Universo (worldbuilding)", () => {
     const created = backend.callsTo("POST", /\/knowledge\/timeline$/)
     expect(created).toHaveLength(2)
     expect(created[1].body).toMatchObject({ title: "Llega el invierno" })
-    await expect(page.getByText("Llega el invierno")).toBeVisible()
+    await expect(page.getByText("Llega el invierno", { exact: true })).toBeVisible()
   })
 
   test("Reordenar la cronología: pide confirmación antes de mover y envía la posición", async ({
@@ -325,7 +325,7 @@ test.describe("Universo (worldbuilding)", () => {
     await alert.getByRole("button", { name: "Eliminar" }).click()
     await expect(alert).toBeHidden()
     expect(backend.callsTo("DELETE", /\/knowledge\/timeline\/t1$/)).toHaveLength(1)
-    await expect(page.getByText("Desaparece el librero")).toHaveCount(0)
+    await expect(page.getByText("Desaparece el librero", { exact: true })).toHaveCount(0)
   })
 })
 
@@ -359,7 +359,7 @@ test.describe("Lector compartido", () => {
     await selectWord(page, "noche")
     const dialog = dialogNamed(page, "Comentar selección")
     await expect(dialog).toBeVisible()
-    await expect(dialog.getByText("“noche”")).toBeVisible()
+    await expect(dialog.getByText("“noche”", { exact: true })).toBeVisible()
     await dialog.getByRole("button", { name: "Cancelar" }).click()
     await expect(dialog).toBeHidden()
     expect(backend.callsTo("POST", /\/comments$/)).toHaveLength(0)
@@ -379,6 +379,6 @@ test.describe("Lector compartido", () => {
       selectedText: "noche",
       body: "¿Y si la noche llegara antes?",
     })
-    await expect(page.getByText("¿Y si la noche llegara antes?")).toBeVisible()
+    await expect(page.getByText("¿Y si la noche llegara antes?", { exact: true })).toBeVisible()
   })
 })

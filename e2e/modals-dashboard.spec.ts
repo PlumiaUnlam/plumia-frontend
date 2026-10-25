@@ -40,7 +40,7 @@ test.describe("Modales del panel de proyectos", () => {
       title: "La ciudad sumergida",
       genre: "Misterio",
     })
-    await expect(page.getByText("La ciudad sumergida")).toBeVisible()
+    await expect(page.getByText("La ciudad sumergida", { exact: true })).toBeVisible()
   })
 
   test("Crear proyecto: Cancelar y Escape cierran sin crear nada", async ({
@@ -72,7 +72,7 @@ test.describe("Modales del panel de proyectos", () => {
     await page.getByRole("button", { name: "Crear proyecto" }).first().click()
     const dialog = dialogNamed(page, "Crear nuevo proyecto")
     await expect(dialog.getByRole("button", { name: "Buscar archivo" })).toBeVisible()
-    await expect(dialog.getByText("Solo .epub · máx. 50 MB")).toBeVisible()
+    await expect(dialog.getByText("Solo .epub · máx. 50 MB", { exact: true })).toBeVisible()
 
     const input = dialog.getByLabel("Importar obra desde EPUB (opcional)")
 
@@ -82,7 +82,7 @@ test.describe("Modales del panel de proyectos", () => {
       mimeType: "text/plain",
       buffer: Buffer.from("hola"),
     })
-    await expect(dialog.getByText("Seleccioná un archivo .epub.")).toBeVisible()
+    await expect(dialog.getByText("Seleccioná un archivo .epub.", { exact: true })).toBeVisible()
 
     // Un EPUB válido se muestra por nombre y completa el título si estaba vacío.
     await input.setInputFiles({
@@ -90,12 +90,12 @@ test.describe("Modales del panel de proyectos", () => {
       mimeType: "application/epub+zip",
       buffer: Buffer.from("PK"),
     })
-    await expect(dialog.getByText("mi-novela.epub")).toBeVisible()
+    await expect(dialog.getByText("mi-novela.epub", { exact: true })).toBeVisible()
     await expect(dialog.getByLabel("Nombre del Proyecto")).toHaveValue("mi-novela")
 
     await dialog.getByRole("button", { name: "Quitar archivo" }).click()
-    await expect(dialog.getByText("mi-novela.epub")).toBeHidden()
-    await expect(dialog.getByText("Solo .epub · máx. 50 MB")).toBeVisible()
+    await expect(dialog.getByText("mi-novela.epub", { exact: true })).toBeHidden()
+    await expect(dialog.getByText("Solo .epub · máx. 50 MB", { exact: true })).toBeVisible()
   })
 
   test("Importar EPUB: si la importación falla se muestra el error y el modal sigue abierto", async ({
@@ -141,7 +141,7 @@ test.describe("Modales del panel de proyectos", () => {
     const updates = backend.callsTo("PATCH", /^\/projects\/e2e-project$/)
     expect(updates).toHaveLength(1)
     expect(updates[0].body).toMatchObject({ title: "Crónicas del mar" })
-    await expect(page.getByText("Crónicas del mar")).toBeVisible()
+    await expect(page.getByText("Crónicas del mar", { exact: true })).toBeVisible()
   })
 
   test("Editar proyecto: cancelar no guarda", async ({ page }) => {
@@ -155,7 +155,7 @@ test.describe("Modales del panel de proyectos", () => {
 
     await expect(dialog).toBeHidden()
     expect(backend.callsTo("PATCH", /^\/projects\//)).toHaveLength(0)
-    await expect(page.getByText("Crónicas del viento")).toBeVisible()
+    await expect(page.getByText("Crónicas del viento", { exact: true })).toBeVisible()
   })
 
   test("Eliminar proyecto: cancelar no borra y confirmar borra", async ({
@@ -176,7 +176,7 @@ test.describe("Modales del panel de proyectos", () => {
     await alert.getByRole("button", { name: "Eliminar proyecto" }).click()
     await expect(alert).toBeHidden()
     expect(backend.callsTo("DELETE", /^\/projects\/e2e-project$/)).toHaveLength(1)
-    await expect(page.getByText("Crónicas del viento")).toHaveCount(0)
+    await expect(page.getByText("Crónicas del viento", { exact: true })).toHaveCount(0)
   })
 
   test("Eliminar proyecto: mientras se elimina, Escape no cierra y los botones quedan bloqueados", async ({

@@ -26,6 +26,7 @@ export function NewItemModal({
 }: Readonly<NewItemModalProps>) {
   const [name, setName] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const handleSubmit = async () => {
     const trimmedName = name.trim()
@@ -33,10 +34,17 @@ export function NewItemModal({
     if (!trimmedName || isSubmitting) return
 
     setIsSubmitting(true)
+    setError(null)
     try {
       await onSubmit(trimmedName)
       setName("")
       onClose()
+    } catch (submitError) {
+      setError(
+        submitError instanceof Error
+          ? submitError.message
+          : "No se pudo crear el elemento.",
+      )
     } finally {
       setIsSubmitting(false)
     }
@@ -46,6 +54,7 @@ export function NewItemModal({
     if (isSubmitting) return
 
     setName("")
+    setError(null)
     onClose()
   }
 
@@ -58,6 +67,7 @@ export function NewItemModal({
       submitLabel={submitText}
       submitDisabled={!name.trim()}
       loading={isSubmitting}
+      error={error}
       onSubmit={handleSubmit}
     >
       <Field>
@@ -68,7 +78,10 @@ export function NewItemModal({
           <Input
             id="new-item-name"
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) => {
+              setName(e.target.value)
+              setError(null)
+            }}
             placeholder={placeholder}
             autoFocus
           />

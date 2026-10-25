@@ -1,5 +1,6 @@
 import type { Page, Route } from "@playwright/test"
 
+import type { AuthorAnnotation } from "@/types/author-annotation"
 import { installMockBackend, type MockBackend } from "./mock-backend"
 
 /**
@@ -125,10 +126,30 @@ function respond(route: Route, body: unknown, status = 200) {
   })
 }
 
-export async function installModalBackend(page: Page): Promise<ModalBackend> {
-  const base = await installMockBackend(page)
+export type ModalBackendOptions = {
+  /** Agrega un segundo libro («Libro II») al proyecto. */
+  secondBook?: boolean
+  /** Anotaciones privadas iniciales de la escena. */
+  authorAnnotations?: AuthorAnnotation[]
+}
+
+export async function installModalBackend(
+  page: Page,
+  options: ModalBackendOptions = {},
+): Promise<ModalBackend> {
+  const base = await installMockBackend(page, {
+    authorAnnotations: options.authorAnnotations,
+  })
 
   const project: Project = makeProject()
+  if (options.secondBook) {
+    project.books.push({
+      id: "e2e-book-2",
+      title: "Libro II",
+      sortKey: "002",
+      chapters: [],
+    })
+  }
   let projects: Project[] = [project]
   let versions: Json[] = []
   let cards: Json[] = [

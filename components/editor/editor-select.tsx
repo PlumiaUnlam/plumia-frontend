@@ -49,7 +49,7 @@ export function EditorSelect({ id, value, onValueChange, disabled, className, ch
           <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="max-h-[min(50dvh,24rem)] w-[var(--radix-dropdown-menu-trigger-width)] max-w-[calc(100vw-2rem)] overflow-y-auto border-border bg-white text-foreground dark:text-popover-foreground">
+      <DropdownMenuContent align="start" className="max-h-[min(50dvh,24rem)] w-[var(--radix-dropdown-menu-trigger-width)] max-w-[calc(100vw-2rem)] overflow-y-auto border-border bg-popover text-popover-foreground">
         <DropdownMenuRadioGroup value={String(value)} onValueChange={onValueChange}>{children}</DropdownMenuRadioGroup>
       </DropdownMenuContent>
     </DropdownMenu>

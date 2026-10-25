@@ -255,7 +255,6 @@ export function ExportDialog({
         <div className="flex flex-col gap-5">
           {bookId ? (
             <BookCoverEditor
-              key={bookId}
               bookId={bookId}
               bookTitle={books.find((book) => book.id === bookId)?.title ?? ""}
               label={

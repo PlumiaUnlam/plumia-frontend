@@ -80,7 +80,7 @@ export function TextFontFamilyMenuOptions({
 
   return (
     <>
-      <div className="sticky top-0 z-10 border-b border-border bg-white p-2">
+      <div className="sticky top-0 z-10 border-b border-border bg-popover p-2">
         <div className="relative">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input

@@ -34,6 +34,30 @@ test.describe("Modales del árbol del proyecto", () => {
     await expect(page.getByRole("button", { name: "Libro II", exact: true })).toBeVisible()
   })
 
+  test("Nuevo libro: si el servidor falla se muestra el error, el modal sigue abierto y se puede reintentar", async ({
+    page,
+  }) => {
+    const backend = await installModalBackend(page)
+    backend.failNext("POST", /\/books$/, 500, "No se pudo crear el libro ahora")
+    await openEditor(page)
+
+    await page.getByRole("button", { name: "Agregar libro" }).click()
+    const dialog = dialogNamed(page, "Nuevo Libro")
+    const name = dialog.getByLabel("Nombre del Libro")
+    await name.fill("Libro II")
+    await dialog.getByRole("button", { name: "Crear Libro" }).click()
+
+    await expect(dialog.getByText("No se pudo crear el libro ahora", { exact: true })).toBeVisible()
+    await expect(dialog).toBeVisible()
+
+    // Al modificar el nombre el error desaparece y el reintento funciona.
+    await name.fill("Libro II (v2)")
+    await expect(dialog.getByText("No se pudo crear el libro ahora", { exact: true })).toHaveCount(0)
+    await dialog.getByRole("button", { name: "Crear Libro" }).click()
+    await expect(dialog).toBeHidden()
+    expect(backend.callsTo("POST", /\/books$/)).toHaveLength(2)
+  })
+
   test("Nuevo libro: Escape y Cancelar cierran sin crear nada", async ({ page }) => {
     const backend = await installModalBackend(page)
     await openEditor(page)
@@ -244,14 +268,35 @@ test.describe("Exportar y compartir", () => {
     await page.getByRole("button", { name: "Exportar obra" }).click()
     const dialog = dialogNamed(page, "Exportar un libro")
     await expect(dialog).toBeVisible()
-    await expect(dialog.getByText("Portada (opcional)")).toBeVisible()
-    await expect(dialog.getByText("Libro electrónico")).toBeVisible()
+    await expect(dialog.getByText("Portada (opcional)", { exact: true })).toBeVisible()
+    await expect(dialog.getByText("Libro electrónico", { exact: true })).toBeVisible()
 
     await dialog.getByRole("button", { name: "Exportar", exact: true }).click()
-    await expect(dialog.getByText("40%")).toBeVisible()
+    await expect(dialog.getByText("40%", { exact: true })).toBeVisible()
     const exports = backend.callsTo("POST", /\/books\/e2e-book\/exports$/)
     expect(exports).toHaveLength(1)
     expect(exports[0].body).toMatchObject({ format: "EPUB" })
+  })
+
+  test("Exportar: al cambiar de libro el selector conserva el foco y la portada corresponde al libro elegido", async ({
+    page,
+  }) => {
+    await installModalBackend(page, { secondBook: true })
+    await openEditor(page)
+
+    await page.getByRole("button", { name: "Exportar obra" }).click()
+    const dialog = dialogNamed(page, "Exportar un libro")
+    const trigger = dialog.locator("#export-book")
+    await expect(trigger).toContainText("Libro I")
+    const handle = await trigger.elementHandle()
+
+    await trigger.click()
+    await page.getByRole("option", { name: "Libro II" }).click()
+
+    await expect(trigger).toContainText("Libro II")
+    // El selector es el mismo elemento (no se remontó) y mantiene el foco.
+    expect(await handle!.evaluate((node) => node.isConnected)).toBe(true)
+    await expect(trigger).toBeFocused()
   })
 
   test("Exportar: si el servicio falla se explica el error y se puede cerrar", async ({
@@ -265,7 +310,7 @@ test.describe("Exportar y compartir", () => {
     const dialog = dialogNamed(page, "Exportar un libro")
     await dialog.getByRole("button", { name: "Exportar", exact: true }).click()
 
-    await expect(dialog.getByText("No se pudo exportar")).toBeVisible()
+    await expect(dialog.getByText("No se pudo exportar", { exact: true })).toBeVisible()
     await dialog.getByRole("button", { name: "Cancelar" }).click()
     await expect(dialog).toBeHidden()
   })
@@ -279,10 +324,10 @@ test.describe("Exportar y compartir", () => {
     await page.getByRole("button", { name: "Compartir obra" }).click()
     const dialog = dialogNamed(page, "Compartir un libro")
     await expect(dialog).toBeVisible()
-    await expect(dialog.getByText("Sin invitaciones")).toBeVisible()
+    await expect(dialog.getByText("Sin invitaciones", { exact: true })).toBeVisible()
 
     await dialog.getByRole("button", { name: "Crear enlace seguro" }).click()
-    await expect(dialog.getByText("Ingresá una dirección de email válida.")).toBeVisible()
+    await expect(dialog.getByText("Ingresá una dirección de email válida.", { exact: true })).toBeVisible()
     expect(backend.callsTo("POST", /\/shares$/)).toHaveLength(0)
 
     await dialog.getByLabel("Email de la persona").fill("lectora@ejemplo.com")
@@ -290,7 +335,7 @@ test.describe("Exportar y compartir", () => {
     await page.getByRole("option", { name: "Lectura y comentarios" }).click()
     await dialog.getByRole("button", { name: "Crear enlace seguro" }).click()
 
-    await expect(dialog.getByText("Enlace creado")).toBeVisible()
+    await expect(dialog.getByText("Enlace creado", { exact: true })).toBeVisible()
     await expect(dialog.getByLabel("Enlace compartido")).toHaveValue(
       /\/shared\/invitacion-1\?token=token-1$/,
     )
@@ -305,7 +350,7 @@ test.describe("Exportar y compartir", () => {
       .getByRole("button", { name: "Revocar invitación de lectora@ejemplo.com" })
       .click()
     expect(backend.callsTo("DELETE", /\/shares\//)).toHaveLength(1)
-    await expect(dialog.getByText("Sin invitaciones")).toBeVisible()
+    await expect(dialog.getByText("Sin invitaciones", { exact: true })).toBeVisible()
 
     await dialog.getByRole("button", { name: "Cerrar" }).first().click()
     await expect(dialog).toBeHidden()
@@ -509,7 +554,7 @@ test.describe("Wiki del editor y corrector ortográfico", () => {
     await expect(dialog).toContainText("Tomás Reyes")
 
     await dialog.getByRole("button", { name: "Guardar estado" }).click()
-    await expect(dialog.getByText("Completá el atributo, valor y escena de inicio.")).toBeVisible()
+    await expect(dialog.getByText("Completá el atributo, valor y escena de inicio.", { exact: true })).toBeVisible()
     expect(backend.callsTo("POST", /\/states$/)).toHaveLength(0)
 
     await dialog.getByLabel("Nuevo valor").fill("Puerto de Bruma")

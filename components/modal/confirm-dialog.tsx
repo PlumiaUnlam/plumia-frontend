@@ -35,7 +35,7 @@ type ConfirmDialogProps = {
 }
 
 /**
- * Confirmación estándar (400px de ancho máximo). Reemplaza los diálogos de
+ * Confirmación estándar (448px de ancho máximo). Reemplaza los diálogos de
  * "¿Seguro que querés eliminar…?" armados a mano.
  */
 export function ConfirmDialog({

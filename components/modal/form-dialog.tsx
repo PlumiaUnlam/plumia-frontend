@@ -22,7 +22,7 @@ type FormDialogProps = {
   onOpenChange: (open: boolean) => void
   title: ReactNode
   description?: ReactNode
-  /** sm 480px · md 640px · lg 880px. En mobile ocupa toda la pantalla. */
+  /** sm 544px · md 704px · lg 944px. En mobile ocupa toda la pantalla. */
   size?: Extract<DialogSize, "sm" | "md" | "lg">
   /** Para un modal que se abre encima de otro (1 sobre la página, 2 sobre otro modal). */
   layer?: 1 | 2

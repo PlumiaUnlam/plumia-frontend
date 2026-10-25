@@ -102,7 +102,7 @@ const toolbarButtonClass =
 const toolbarGroupClass = "flex min-w-0 max-w-full shrink-0 flex-wrap items-center gap-0.5"
 const toolbarLabelButtonClass = "h-8 gap-1.5 rounded-md px-2 text-xs text-foreground hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/50 dark:hover:bg-muted dark:focus-visible:ring-ring"
 const toolbarMenuClass =
-  "border-border bg-white text-foreground shadow-[0_3px_8px_rgba(60,64,67,0.24)] dark:text-popover-foreground"
+  "border-border bg-popover text-popover-foreground shadow-[0_3px_8px_rgba(60,64,67,0.24)]"
 const toolbarMenuItemClass =
   "text-foreground focus:bg-muted focus:text-foreground dark:focus:bg-accent dark:focus:text-accent-foreground"
 const noteMenuItemClass = `min-h-9 gap-2 ${toolbarMenuItemClass}`
