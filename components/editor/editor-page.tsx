@@ -411,7 +411,7 @@ export function EditorLayout({ projectId }: Readonly<EditorLayoutProps>) {
         </div>
       </SidebarProvider>
 
-      <footer className="flex h-8 shrink-0 items-center justify-between gap-3 border-t border-[#e8dff0] bg-[#f6f0fa] px-3 text-[11px] text-[#725b85] dark:border-border dark:bg-background dark:text-muted-foreground sm:px-5">
+      <footer className="flex h-8 shrink-0 items-center justify-between gap-3 border-t border-[#e8dff0] bg-[#f6f0fa] px-3 text-[11px] text-[#725b85] dark:bg-background sm:px-5">
         <div className="flex min-w-0 flex-1 items-center gap-1.5">
           <span
             className="min-w-0 truncate"
@@ -431,7 +431,7 @@ export function EditorLayout({ projectId }: Readonly<EditorLayoutProps>) {
         </div>
         <div className="flex shrink-0 items-center gap-2 sm:gap-4">
           <span
-            className="max-w-[24vw] truncate text-[#76558e] dark:text-muted-foreground"
+            className="max-w-[24vw] truncate text-[#76558e]"
             title={editorVersionLabel}
           >
             {editorVersionLabel}

@@ -121,11 +121,11 @@ export function ColorPalette({ editor, kind, menuItemClass, menuType = "dropdown
     <div className="p-1">
       {kind !== "highlight" && (
         <Item
-          className={`mb-2 w-full gap-2 rounded-md border px-2 py-1.5 text-xs ${menuItemClass} ${activeColor === automaticColor.value ? "border-[#1a73e8] bg-[#e8f0fe] text-[#174ea6]" : "border-transparent"}`}
+          className={`mb-2 w-full gap-2 rounded-md border px-2 py-1.5 text-xs ${menuItemClass} ${activeColor === automaticColor.value ? "border-primary bg-primary/10 text-primary-text" : "border-transparent"}`}
           onSelect={() => applyColor(automaticColor.value)}
           title={`${title}: ${automaticColor.label}`}
         >
-          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-[#dadce0] bg-[#f8fafd] text-[11px] font-semibold text-[#5f6368]">
+          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-border bg-muted/40 text-[11px] font-semibold text-muted-foreground">
             A
           </span>
           <span>{automaticColor.label}</span>
@@ -152,13 +152,13 @@ export function ColorPalette({ editor, kind, menuItemClass, menuType = "dropdown
         ))}
       </fieldset>
 
-      <div className="mt-3 border-t border-[#dadce0] pt-2">
-        <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-[#5f6368]">
+      <div className="mt-3 border-t border-border pt-2">
+        <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
           Personalizado
         </div>
         {kind === "sceneDivider" ? (
           <div className="space-y-1.5">
-            <label htmlFor={customInputId} className="text-xs text-[#5f6368]">Color hexadecimal</label>
+            <label htmlFor={customInputId} className="text-xs text-muted-foreground">Color hexadecimal</label>
             <Input id={customInputId} key={customColor} defaultValue={customColor} maxLength={7}
               placeholder="#1f2937" className="h-9 py-0 text-sm"
               onKeyDown={(event) => {
@@ -178,10 +178,10 @@ export function ColorPalette({ editor, kind, menuItemClass, menuType = "dropdown
           </div>
         ) : <label
           htmlFor={customInputId}
-          className="inline-flex h-8 cursor-pointer items-center gap-2 rounded-md border border-transparent px-1.5 text-xs text-[#3c4043] hover:bg-[#f1f3f4]"
+          className="inline-flex h-8 cursor-pointer items-center gap-2 rounded-md border border-transparent px-1.5 text-xs text-foreground hover:bg-muted"
           title="Elegir color personalizado"
         >
-          <span className="relative flex h-6 w-6 items-center justify-center overflow-hidden rounded-full border border-[#dadce0] bg-white">
+          <span className="relative flex h-6 w-6 items-center justify-center overflow-hidden rounded-full border border-border bg-white">
             <span
               className="absolute inset-1 rounded-full"
               style={{ backgroundColor: customColor }}
@@ -222,7 +222,7 @@ function ColorItem({
 
   return (
     <Item
-      className={`relative h-7 w-7 rounded-full border border-[#dadce0] p-0 outline-none focus:bg-[#e8f0fe] focus:ring-2 focus:ring-[#1a73e8] ${menuItemClass}`}
+      className={`relative h-7 w-7 rounded-full border border-border p-0 outline-none focus:bg-primary/10 focus:ring-2 focus:ring-[#1a73e8] ${menuItemClass}`}
       onSelect={onSelect}
       title={`${title}: ${color}`}
       aria-label={`${title}: ${color}`}

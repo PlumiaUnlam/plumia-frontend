@@ -62,7 +62,7 @@ export function ListStyleGrid({
           ))}
       {isBullet && (
         <>
-          <div className="col-span-full mt-1 border-t border-[#dadce0] px-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-[#5f6368]">
+          <div className="col-span-full mt-1 border-t border-border px-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
             Color de viñeta
           </div>
           <div className="col-span-full">
@@ -76,7 +76,7 @@ export function ListStyleGrid({
       )}
       {!isBullet && (
         <>
-          <div className="col-span-full mt-1 border-t border-[#dadce0] px-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-[#5f6368]">
+          <div className="col-span-full mt-1 border-t border-border px-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
             Lista multinivel
           </div>
           {ORDERED_LIST_PRESETS.map((preset) => (
@@ -90,7 +90,7 @@ export function ListStyleGrid({
               menuItemClass={menuItemClass}
             />
           ))}
-          <div className="col-span-full mt-1 border-t border-[#dadce0] px-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-[#5f6368]">
+          <div className="col-span-full mt-1 border-t border-border px-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
             Color de numeración
           </div>
           <div className="col-span-full">
@@ -123,7 +123,7 @@ function BulletStyleItem({
 }>) {
   return (
     <DropdownMenuItem
-      className={`relative flex min-h-20 min-w-0 flex-col items-center justify-center gap-2 rounded-lg border p-2 text-xs ${menuItemClass} ${activeStyle === style ? "border-[#1a73e8] bg-[#e8f0fe] text-[#174ea6]" : "border-transparent"}`}
+      className={`relative flex min-h-20 min-w-0 flex-col items-center justify-center gap-2 rounded-lg border p-2 text-xs ${menuItemClass} ${activeStyle === style ? "border-primary bg-primary/10 text-primary-text" : "border-transparent"}`}
       onSelect={() => applyBulletListStyle(editor, style)}
       title={label}
       aria-label={label}
@@ -134,11 +134,11 @@ function BulletStyleItem({
             <span className="w-3 shrink-0 text-center text-sm leading-none">
               {marker}
             </span>
-            <span className="h-px min-w-0 flex-1 bg-[#9aa0a6]/70" />
+            <span className="h-px min-w-0 flex-1 bg-muted-foreground/70" />
           </span>
         ))}
       </span>
-      <span className="pointer-events-none max-w-full truncate text-[10px] text-[#5f6368]">
+      <span className="pointer-events-none max-w-full truncate text-[10px] text-muted-foreground">
         {label}
       </span>
       {activeStyle === style && <Check className="absolute right-1 top-1 h-3 w-3" />}
@@ -163,7 +163,7 @@ function OrderedStyleItem({
 }>) {
   return (
     <DropdownMenuItem
-      className={`relative flex min-h-20 min-w-0 flex-col justify-center gap-1 rounded-lg border px-2.5 py-2 text-xs ${menuItemClass} ${activeStyle === style ? "border-[#1a73e8] bg-[#e8f0fe] text-[#174ea6]" : "border-transparent"}`}
+      className={`relative flex min-h-20 min-w-0 flex-col justify-center gap-1 rounded-lg border px-2.5 py-2 text-xs ${menuItemClass} ${activeStyle === style ? "border-primary bg-primary/10 text-primary-text" : "border-transparent"}`}
       onSelect={() => applyOrderedListStyle(editor, style)}
       title={label}
       aria-label={label}
@@ -171,7 +171,7 @@ function OrderedStyleItem({
       {preview.map((item) => (
         <span key={item} className="pointer-events-none flex min-w-0 items-center gap-1 text-[10px] leading-tight">
           <span className="shrink-0">{item}</span>
-          <span className="h-px min-w-0 flex-1 bg-[#9aa0a6]/70" />
+          <span className="h-px min-w-0 flex-1 bg-muted-foreground/70" />
         </span>
       ))}
       {activeStyle === style && <Check className="absolute right-1 top-1 h-3 w-3" />}
@@ -196,7 +196,7 @@ function OrderedPresetItem({
 }>) {
   return (
     <DropdownMenuItem
-      className={`relative flex min-h-24 min-w-0 flex-col justify-center gap-1.5 rounded-lg border px-2.5 py-2.5 text-xs ${menuItemClass} ${activePreset === preset ? "border-[#1a73e8] bg-[#e8f0fe] text-[#174ea6]" : "border-transparent"}`}
+      className={`relative flex min-h-24 min-w-0 flex-col justify-center gap-1.5 rounded-lg border px-2.5 py-2.5 text-xs ${menuItemClass} ${activePreset === preset ? "border-primary bg-primary/10 text-primary-text" : "border-transparent"}`}
       onSelect={() => applyOrderedListPreset(editor, preset)}
       title={label}
       aria-label={label}
@@ -204,7 +204,7 @@ function OrderedPresetItem({
       {preview.map((item) => (
         <span key={item} className="pointer-events-none flex min-w-0 items-center gap-1 text-[10px] leading-tight">
           <span className="min-w-0 truncate">{item}</span>
-          <span className="h-px min-w-3 flex-1 bg-[#9aa0a6]/70" />
+          <span className="h-px min-w-3 flex-1 bg-muted-foreground/70" />
         </span>
       ))}
       {activePreset === preset && (

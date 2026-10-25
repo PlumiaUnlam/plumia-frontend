@@ -37,15 +37,8 @@ import {
   Waypoints,
 } from "lucide-react"
 
+import { ConfirmDialog } from "@/components/modal/confirm-dialog"
 import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
 import {
   Select,
   SelectContent,
@@ -1042,36 +1035,14 @@ function DeleteThreadDialog({
   readonly onConfirm: () => void
 }) {
   return (
-    <Dialog open={thread !== null} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Eliminar conversación</DialogTitle>
-          <DialogDescription>
-            ¿Seguro que querés eliminar “{thread?.title || "Nueva conversación"}”?
-            Esta acción no se puede deshacer.
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <Button
-            type="button"
-            variant="outline"
-            disabled={isDeleting}
-            onClick={() => onOpenChange(false)}
-          >
-            Cancelar
-          </Button>
-          <Button
-            type="button"
-            variant="destructive"
-            disabled={isDeleting}
-            onClick={onConfirm}
-          >
-            {isDeleting && <Loader2 className="size-3.5 animate-spin" />}
-            {isDeleting ? "Eliminando…" : "Eliminar"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <ConfirmDialog
+      open={thread !== null}
+      onOpenChange={onOpenChange}
+      title="Eliminar conversación"
+      description={`¿Querés eliminar “${thread?.title || "Nueva conversación"}”? Esta acción no se puede deshacer.`}
+      loading={isDeleting}
+      onConfirm={onConfirm}
+    />
   )
 }
 

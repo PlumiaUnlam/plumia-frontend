@@ -4,14 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import { Loader2, RefreshCw, Replace, Search, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+import { ConfirmDialog } from "@/components/modal/confirm-dialog"
 import { Input } from "@/components/ui/input"
 import { getScene, saveScene } from "@/services/scene.service"
 import { useEditorStore } from "@/stores/editor.store"
@@ -490,42 +483,20 @@ export function SearchReplacePanel({
         </div>
       </aside>
 
-      <Dialog
+      <ConfirmDialog
         open={pendingReplace !== null}
         onOpenChange={(dialogOpen) => {
-          if (!dialogOpen && !isReplacing) setPendingReplace(null)
+          if (!dialogOpen) setPendingReplace(null)
         }}
-      >
-        <DialogContent className="w-[min(30rem,calc(100vw-1.5rem))] max-w-none gap-0 overflow-hidden border-[#dadce0] p-0 dark:border-border sm:max-w-none">
-          <DialogHeader className="border-b border-[#dadce0] px-6 py-5 pr-12 dark:border-border">
-            <DialogTitle className="text-[#202124] dark:text-foreground">Confirmar reemplazo</DialogTitle>
-            <DialogDescription className="text-[#5f6368] dark:text-muted-foreground">
-              Se reemplazarán {pendingReplace?.matches.length ?? 0} ocurrencias
-              en {pendingReplace ? new Set(pendingReplace.matches.map((match) => match.sceneId)).size : 0} escenas.
-              Esta acción modificará los borradores actuales.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="mx-0 mt-4 border-t border-[#dadce0] bg-[#f8fafd] px-6 py-4 dark:border-border dark:bg-muted/50 sm:flex-row sm:justify-end">
-            <Button
-              type="button"
-              variant="outline"
-              disabled={isReplacing}
-              onClick={() => setPendingReplace(null)}
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="button"
-              disabled={isReplacing || pendingReplace === null}
-              onClick={() =>
-                pendingReplace && void handleReplace(pendingReplace.matches)
-              }
-            >
-              {isReplacing ? "Guardando…" : "Confirmar reemplazo"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        title="Confirmar reemplazo"
+        description={`Se reemplazarán ${pendingReplace?.matches.length ?? 0} ocurrencias en ${pendingReplace ? new Set(pendingReplace.matches.map((match) => match.sceneId)).size : 0} escenas. Esta acción modificará los borradores actuales.`}
+        confirmLabel="Confirmar reemplazo"
+        tone="default"
+        loading={isReplacing}
+        onConfirm={() => {
+          if (pendingReplace) return handleReplace(pendingReplace.matches)
+        }}
+      />
     </>
   )
 }

@@ -1,12 +1,6 @@
+import { ConfirmDialog } from "@/components/modal/confirm-dialog";
+import { FormDialog } from "@/components/modal/form-dialog";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Field, FieldContent, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
@@ -279,179 +273,79 @@ export function LeftSidebarHistory({
         </SheetContent>
       </Sheet>
 
-      <Dialog open={createVersionOpen} onOpenChange={onCreateVersionOpenChange}>
-        <DialogContent className="min-w-[420px] gap-0 overflow-hidden">
-          <DialogHeader className="border-b p-6 py-4">
-            <DialogTitle>Crear version</DialogTitle>
-            <DialogDescription>
-              Se guardara una copia editable de la escena actual.
-            </DialogDescription>
-          </DialogHeader>
+      <FormDialog
+        open={createVersionOpen}
+        onOpenChange={onCreateVersionOpenChange}
+        title="Crear versión"
+        description="Se guardará una copia editable de la escena actual."
+        submitLabel="Crear"
+        loading={isVersionActionSubmitting}
+        onSubmit={onCreateVersion}
+      >
+        <Field>
+          <FieldLabel htmlFor="new-version-name">Nombre</FieldLabel>
+          <FieldContent>
+            <Input
+              id="new-version-name"
+              value={newVersionName}
+              onChange={(e) => onCreateVersionNameChange(e.target.value)}
+              placeholder="Ej: Reescritura del final"
+              autoFocus
+            />
+          </FieldContent>
+        </Field>
+      </FormDialog>
 
-          <div className="space-y-5 px-6 py-6">
-            <Field>
-              <FieldLabel htmlFor="new-version-name">Nombre</FieldLabel>
-              <FieldContent>
-                <Input
-                  id="new-version-name"
-                  value={newVersionName}
-                  onChange={(e) => onCreateVersionNameChange(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      void onCreateVersion();
-                    }
-                  }}
-                  placeholder="Ej: Reescritura del final"
-                />
-              </FieldContent>
-            </Field>
-          </div>
-
-          <DialogFooter className="border-t px-6 py-4">
-            <Button
-              variant="outline"
-              disabled={isVersionActionSubmitting}
-              onClick={() => onCreateVersionOpenChange(false)}
-            >
-              Cancelar
-            </Button>
-            <Button
-              disabled={isVersionActionSubmitting}
-              onClick={() => {
-                void onCreateVersion();
-              }}
-            >
-              Crear
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
+      <ConfirmDialog
         open={!!restoreTarget}
         onOpenChange={(open) => {
-          if (!open && !isVersionActionSubmitting) onOpenRestore(null);
+          if (!open) onOpenRestore(null);
         }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Convertir en principal</DialogTitle>
-            <DialogDescription>
-              Esto reemplazara el borrador principal de la escena por
-              &ldquo;{restoreTarget?.label || "Version sin titulo"}&rdquo;.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              disabled={isVersionActionSubmitting}
-              onClick={() => onOpenRestore(null)}
-            >
-              Cancelar
-            </Button>
-            <Button
-              disabled={isVersionActionSubmitting}
-              onClick={() => {
-                void onRestoreVersion();
-              }}
-            >
-              Convertir en principal
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        title="Convertir en principal"
+        description={`Esto reemplazará el borrador principal de la escena por “${restoreTarget?.label || "Versión sin título"}”.`}
+        confirmLabel="Convertir en principal"
+        tone="default"
+        loading={isVersionActionSubmitting}
+        onConfirm={onRestoreVersion}
+      />
 
-      <Dialog
+      <FormDialog
         open={!!versionToRename}
         onOpenChange={(open) => {
-          if (!open && !isVersionActionSubmitting) {
+          if (!open) {
             onOpenRename(null);
             onRenameVersionNameChange("");
           }
         }}
+        title="Cambiar nombre"
+        submitLabel="Guardar"
+        loading={isVersionActionSubmitting}
+        onSubmit={onRenameVersion}
       >
-        <DialogContent className="min-w-[420px] gap-0 overflow-hidden">
-          <DialogHeader className="border-b p-6 py-4">
-            <DialogTitle>Cambiar nombre</DialogTitle>
-          </DialogHeader>
+        <Field>
+          <FieldLabel htmlFor="edit-version-name">Nombre</FieldLabel>
+          <FieldContent>
+            <Input
+              id="edit-version-name"
+              value={versionEditName}
+              onChange={(e) => onRenameVersionNameChange(e.target.value)}
+              placeholder="Nombre de la versión"
+              autoFocus
+            />
+          </FieldContent>
+        </Field>
+      </FormDialog>
 
-          <div className="space-y-5 px-6 py-6">
-            <Field>
-              <FieldLabel htmlFor="edit-version-name">Nombre</FieldLabel>
-              <FieldContent>
-                <Input
-                  id="edit-version-name"
-                  value={versionEditName}
-                  onChange={(e) => onRenameVersionNameChange(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      void onRenameVersion();
-                    }
-                  }}
-                  placeholder="Nombre de la version"
-                />
-              </FieldContent>
-            </Field>
-          </div>
-
-          <DialogFooter className="border-t px-6 py-4">
-            <Button
-              variant="outline"
-              disabled={isVersionActionSubmitting}
-              onClick={() => {
-                onOpenRename(null);
-                onRenameVersionNameChange("");
-              }}
-            >
-              Cancelar
-            </Button>
-            <Button
-              disabled={isVersionActionSubmitting}
-              onClick={() => {
-                void onRenameVersion();
-              }}
-            >
-              Guardar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
+      <ConfirmDialog
         open={!!versionToDelete}
         onOpenChange={(open) => {
-          if (!open && !isVersionActionSubmitting) onOpenDelete(null);
+          if (!open) onOpenDelete(null);
         }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Eliminar version</DialogTitle>
-            <DialogDescription>
-              ¿Seguro que quieres eliminar &ldquo;
-              {versionToDelete?.label || "Version sin titulo"}&rdquo;? Esta acción
-              no se puede deshacer.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              disabled={isVersionActionSubmitting}
-              onClick={() => onOpenDelete(null)}
-            >
-              Cancelar
-            </Button>
-            <Button
-              variant="destructive"
-              disabled={isVersionActionSubmitting}
-              onClick={() => {
-                void onDeleteVersion();
-              }}
-            >
-              Eliminar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        title="Eliminar versión"
+        description={`¿Querés eliminar “${versionToDelete?.label || "Versión sin título"}”? Esta acción no se puede deshacer.`}
+        loading={isVersionActionSubmitting}
+        onConfirm={onDeleteVersion}
+      />
     </>
   );
 }

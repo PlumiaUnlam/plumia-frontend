@@ -5,14 +5,7 @@ import type { Editor } from "@tiptap/react"
 import { ListRestart, ListStart } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+import { FormDialog } from "@/components/modal/form-dialog"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,8 +25,8 @@ import { ListStyleGrid } from "./list-style-grid"
 import { ColorPalette } from "./color-palette"
 
 const menuClass =
-  "border-[#dadce0] bg-white text-[#3c4043] shadow-[0_3px_8px_rgba(60,64,67,0.24)] dark:border-border dark:bg-popover dark:text-popover-foreground"
-const itemClass = "gap-3 text-[#3c4043] focus:bg-[#f1f3f4] focus:text-[#202124] dark:text-foreground dark:focus:bg-accent dark:focus:text-accent-foreground"
+  "border-border bg-popover text-foreground shadow-[0_3px_8px_rgba(60,64,67,0.24)] dark:text-popover-foreground"
+const itemClass = "gap-3 text-foreground focus:bg-muted focus:text-foreground dark:focus:bg-accent dark:focus:text-accent-foreground"
 
 function applyStartNumber(
   editor: Editor,
@@ -127,43 +120,30 @@ function StartNumberDialog({
   onApply,
 }: Readonly<StartNumberDialogProps>) {
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[calc(100dvh-1rem)] w-[min(22rem,calc(100vw-1.5rem))] max-w-none gap-0 overflow-x-hidden overflow-y-auto border-[#dadce0] bg-white p-0 dark:border-border dark:bg-popover sm:max-w-none">
-        <DialogHeader className="border-b border-[#dadce0] px-5 py-4 pr-12 dark:border-border">
-          <DialogTitle className="text-[#202124] dark:text-foreground">
-            Comenzar numeración desde
-          </DialogTitle>
-          <DialogDescription className="text-[#5f6368] dark:text-muted-foreground">
-            Elegí el número inicial para la lista actual.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-2 px-5 py-4">
-          <Label htmlFor={inputId} className="text-xs font-medium text-[#5f6368]">
-            Número inicial
-          </Label>
-          <Input
-            id={inputId}
-            type="number"
-            min="1"
-            step="1"
-            value={value}
-            onChange={(event) => onValueChange(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") onApply()
-            }}
-            className="h-9 py-0"
-          />
-        </div>
-        <DialogFooter className="mx-0 mb-0 border-t border-[#dadce0] bg-[#f8fafd] px-5 py-3 sm:flex-row sm:justify-end">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            Cancelar
-          </Button>
-          <Button type="button" onClick={onApply}>
-            Aplicar
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <FormDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Comenzar numeración desde"
+      description="Elegí el número inicial para la lista actual."
+      size="sm"
+      submitLabel="Aplicar"
+      onSubmit={onApply}
+    >
+      <div className="grid gap-2">
+        <Label htmlFor={inputId} className="text-sm font-medium">
+          Número inicial
+        </Label>
+        <Input
+          id={inputId}
+          type="number"
+          min="1"
+          step="1"
+          value={value}
+          onChange={(event) => onValueChange(event.target.value)}
+          autoFocus
+        />
+      </div>
+    </FormDialog>
   )
 }
 
@@ -193,7 +173,7 @@ export function ListNumberingActionsButton({
             type="button"
             size="icon-sm"
             variant="ghost"
-            className="h-7 w-7 rounded-md p-1 text-[#3c4043] hover:bg-[#e8eaed] hover:text-[#202124] [&_svg]:size-3.5"
+            className="h-7 w-7 rounded-md p-1 text-foreground hover:bg-muted hover:text-foreground [&_svg]:size-3.5"
             disabled={!orderedListActive}
             title="Opciones de numeración"
             aria-label="Opciones de numeración"

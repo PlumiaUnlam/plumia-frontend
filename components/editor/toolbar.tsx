@@ -98,16 +98,16 @@ import {
 } from "./text-extra-formatting"
 
 const toolbarButtonClass =
-  "h-8 w-8 rounded-md p-1 text-[#3c4043] hover:bg-[#e8eaed] hover:text-[#202124] focus-visible:ring-2 focus-visible:ring-[#a8c7fa] dark:text-foreground dark:hover:bg-muted dark:hover:text-foreground dark:focus-visible:ring-ring [&_svg]:size-3.5 max-[640px]:h-9 max-[640px]:w-9"
+  "h-8 w-8 rounded-md p-1 text-foreground hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 dark:hover:bg-muted dark:hover:text-foreground dark:focus-visible:ring-ring [&_svg]:size-3.5 max-[640px]:h-9 max-[640px]:w-9"
 const toolbarGroupClass = "flex min-w-0 max-w-full shrink-0 flex-wrap items-center gap-0.5"
-const toolbarLabelButtonClass = "h-8 gap-1.5 rounded-md px-2 text-xs text-[#3c4043] hover:bg-[#e8eaed] focus-visible:ring-2 focus-visible:ring-[#a8c7fa] dark:text-foreground dark:hover:bg-muted dark:focus-visible:ring-ring"
+const toolbarLabelButtonClass = "h-8 gap-1.5 rounded-md px-2 text-xs text-foreground hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/50 dark:hover:bg-muted dark:focus-visible:ring-ring"
 const toolbarMenuClass =
-  "border-[#dadce0] bg-white text-[#3c4043] shadow-[0_3px_8px_rgba(60,64,67,0.24)] dark:border-border dark:bg-popover dark:text-popover-foreground"
+  "border-border bg-white text-foreground shadow-[0_3px_8px_rgba(60,64,67,0.24)] dark:text-popover-foreground"
 const toolbarMenuItemClass =
-  "text-[#3c4043] focus:bg-[#f1f3f4] focus:text-[#202124] dark:text-foreground dark:focus:bg-accent dark:focus:text-accent-foreground"
+  "text-foreground focus:bg-muted focus:text-foreground dark:focus:bg-accent dark:focus:text-accent-foreground"
 const noteMenuItemClass = `min-h-9 gap-2 ${toolbarMenuItemClass}`
 const activeToolbarClass =
-  "bg-[#d3e3fd] text-[#174ea6] hover:bg-[#c2d7f8] dark:bg-primary/20 dark:text-primary dark:hover:bg-primary/30"
+  "bg-primary/15 text-primary-text hover:bg-primary/20 dark:bg-primary/20 dark:text-primary dark:hover:bg-primary/30"
 
 function renderWhen<T>(condition: unknown, content: T): T | null {
   if (!condition) return null
@@ -325,7 +325,7 @@ export function EditorToolbar({
     <TooltipProvider delayDuration={350}>
       <div
         id="editor-formatting-toolbar"
-        className="editor-toolbar mx-2 mb-1 flex min-w-0 flex-col gap-1 rounded-b-lg border border-[#dadce0] bg-[#f8f9fa] px-2 py-2 text-[#3c4043] shadow-sm dark:border-border dark:bg-card dark:text-card-foreground"
+        className="editor-toolbar mx-2 mb-1 flex min-w-0 flex-col gap-1 rounded-b-lg border border-border bg-muted/50 px-2 py-2 text-foreground shadow-sm dark:bg-card dark:text-card-foreground"
       >
         <div className="flex min-h-8 w-full flex-wrap items-center gap-1">
           <fieldset className={`${toolbarGroupClass} border-0`} style={{ padding: 0, margin: 0, minWidth: 0 }}>
@@ -359,7 +359,7 @@ export function EditorToolbar({
             </Button>
 
           </fieldset>
-          <fieldset className={`${toolbarGroupClass} border-0 border-l border-[#dadce0] pl-2 dark:border-border`} style={{ padding: 0, paddingLeft: "0.5rem", margin: 0, minWidth: 0 }}>
+          <fieldset className={`${toolbarGroupClass} border-0 border-l border-border pl-2`} style={{ padding: 0, paddingLeft: "0.5rem", margin: 0, minWidth: 0 }}>
             <legend className="sr-only">Fuente y tamaño</legend>
 
             <Button
@@ -397,7 +397,7 @@ export function EditorToolbar({
                       setIsFontFamilyEditing(false)
                     }
                   }}
-                  className="h-7 w-32 rounded-md border-[#dadce0] bg-white px-2 text-sm text-[#3c4043] shadow-none focus-visible:ring-2 focus-visible:ring-[#a8c7fa] dark:border-border dark:bg-input/30 dark:text-foreground dark:focus-visible:ring-ring"
+                  className="h-7 w-32 rounded-md border-border bg-white px-2 text-sm text-foreground shadow-none focus-visible:ring-2 focus-visible:ring-ring/50 dark:bg-input/30 dark:focus-visible:ring-ring"
                   style={{ fontFamily: getFontFamilyCss(displayedFontFamily) }}
                   placeholder="Buscar fuente"
                   aria-label="Escribir y aplicar una familia tipográfica"
@@ -409,7 +409,7 @@ export function EditorToolbar({
                     type="button"
                     size="sm"
                     variant="outline"
-                    className="h-7 w-32 justify-between gap-2 border-[#dadce0] bg-white px-2 text-sm font-normal text-[#3c4043] shadow-none hover:bg-[#f8fafd] hover:text-[#202124] dark:border-border dark:bg-input/30 dark:text-foreground dark:hover:bg-input/50 dark:hover:text-foreground"
+                    className="h-7 w-32 justify-between gap-2 border-border bg-white px-2 text-sm font-normal text-foreground shadow-none hover:bg-muted/40 hover:text-foreground dark:bg-input/30 dark:hover:bg-input/50 dark:hover:text-foreground"
                     style={{ fontFamily: getFontFamilyCss(displayedFontFamily) }}
                     title={`Familia tipográfica: ${displayedFontFamily}. Doble clic para escribir una fuente.`}
                     aria-label={`Familia tipográfica: ${displayedFontFamily}`}
@@ -440,7 +440,7 @@ export function EditorToolbar({
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <div className="mx-1 flex h-7 items-center gap-0.5 border-x border-[#dadce0] px-1 dark:border-border">
+            <div className="mx-1 flex h-7 items-center gap-0.5 border-x border-border px-1">
               <Button
                 type="button"
                 size="icon-sm"
@@ -460,7 +460,7 @@ export function EditorToolbar({
                     type="button"
                     size="sm"
                     variant="outline"
-                    className="h-7 min-w-10 border-[#80868b] bg-white px-1.5 text-sm font-normal text-[#3c4043] shadow-none hover:bg-[#f8fafd] hover:text-[#202124] dark:border-border dark:bg-input/30 dark:text-foreground dark:hover:bg-input/50 dark:hover:text-foreground"
+                    className="h-7 min-w-10 border-input bg-white px-1.5 text-sm font-normal text-foreground shadow-none hover:bg-muted/40 hover:text-foreground dark:bg-input/30 dark:hover:bg-input/50 dark:hover:text-foreground"
                     title={`Tamaño de fuente: ${displayedFontSize.replace("pt", "")} pt`}
                     aria-label={`Tamaño de fuente: ${displayedFontSize.replace("pt", "")} pt`}
                     onMouseDown={(event) => event.preventDefault()}
@@ -516,7 +516,7 @@ export function EditorToolbar({
             </div>
 
           </fieldset>
-          <fieldset className={`${toolbarGroupClass} flex-wrap border-0 border-l border-[#dadce0] pl-2 dark:border-border`} style={{ padding: 0, paddingLeft: "0.5rem", margin: 0, minWidth: 0 }}>
+          <fieldset className={`${toolbarGroupClass} flex-wrap border-0 border-l border-border pl-2`} style={{ padding: 0, paddingLeft: "0.5rem", margin: 0, minWidth: 0 }}>
             <legend className="sr-only">Formato de texto</legend>
 
             <Button
@@ -786,7 +786,7 @@ export function EditorToolbar({
             <ListNumberingActionsButton editor={editor} />
 
           </fieldset>
-          <fieldset className={`${toolbarGroupClass} border-0 border-l border-[#dadce0] pl-2 dark:border-border`} style={{ padding: 0, paddingLeft: "0.5rem", margin: 0, minWidth: 0 }}>
+          <fieldset className={`${toolbarGroupClass} border-0 border-l border-border pl-2`} style={{ padding: 0, paddingLeft: "0.5rem", margin: 0, minWidth: 0 }}>
             <legend className="sr-only">Párrafo</legend>
 
             <DropdownMenu>
@@ -875,7 +875,7 @@ export function EditorToolbar({
             </DropdownMenu>
 
           </fieldset>
-          <fieldset className={`${toolbarGroupClass} border-0 border-l border-[#dadce0] pl-2 dark:border-border`} style={{ padding: 0, paddingLeft: "0.5rem", margin: 0, minWidth: 0 }}>
+          <fieldset className={`${toolbarGroupClass} border-0 border-l border-border pl-2`} style={{ padding: 0, paddingLeft: "0.5rem", margin: 0, minWidth: 0 }}>
             <legend className="sr-only">Insertar</legend>
               {renderWhen(onInsertImage, (
                 <Button
@@ -943,7 +943,7 @@ export function EditorToolbar({
             <legend className="sr-only">Vista y revisión</legend>
             {renderWhen(onToggleSplit, (
               <Button type="button" size="sm" variant="outline"
-                className="h-8 gap-2 border-[#dadce0] bg-transparent px-3 text-xs text-[#3c4043] hover:bg-[#e8eaed] hover:text-[#202124] dark:border-border dark:text-foreground dark:hover:bg-muted dark:hover:text-foreground"
+                className="h-8 gap-2 border-border bg-transparent px-3 text-xs text-foreground hover:bg-muted hover:text-foreground dark:hover:bg-muted dark:hover:text-foreground"
                 disabled={getSplitButtonTitle(canSplit, isSplit) !== undefined} onMouseDown={(event) => event.preventDefault()}
                 onClick={onToggleSplit!} aria-pressed={isSplit}
                 title={getSplitButtonTitle(canSplit, isSplit)}>

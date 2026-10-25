@@ -12,7 +12,6 @@ import {
 import { useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import {
-  Loader2,
   Star,
   Calendar,
   FileText,
@@ -28,14 +27,7 @@ import { worldbuildingEntitiesMock } from "@/mocks/worldbuilding.mock";
 import { ImageReviewModal } from "@/components/modal/image-review-modal";
 
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { ConfirmDialog } from "@/components/modal/confirm-dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 import { useAuth } from "@/contexts/AuthContext";
@@ -1053,137 +1045,60 @@ function WorldbuildingDeleteDialogs({
   deleteConfirmEntity,
   deletingEntity,
   onEntityDialogChange,
-  onCancelEntityDelete,
   onConfirmEntityDelete,
   imageToDelete,
   deletingImage,
   imageActionError,
   onImageDialogChange,
-  onCancelImageDelete,
   onConfirmImageDelete,
   deleteConfirmRelationship,
   deletingRelationship,
   onRelationshipDialogChange,
-  onCancelRelationshipDelete,
   onConfirmRelationshipDelete,
 }: Readonly<{
   deleteConfirmEntity: Entity | null;
   deletingEntity: boolean;
   onEntityDialogChange: (open: boolean) => void;
-  onCancelEntityDelete: () => void;
   onConfirmEntityDelete: () => void;
   imageToDelete: ImageResponse | null;
   deletingImage: boolean;
   imageActionError: string | null;
   onImageDialogChange: (open: boolean) => void;
-  onCancelImageDelete: () => void;
   onConfirmImageDelete: () => void;
   deleteConfirmRelationship: Relationship | null;
   deletingRelationship: boolean;
   onRelationshipDialogChange: (open: boolean) => void;
-  onCancelRelationshipDelete: () => void;
   onConfirmRelationshipDelete: () => void;
 }>) {
   return (
     <>
-      <Dialog
+      <ConfirmDialog
         open={!!deleteConfirmEntity}
         onOpenChange={onEntityDialogChange}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirmar eliminación</DialogTitle>
-            <DialogDescription>
-              ¿Estás seguro de que querés eliminar &ldquo;
-              {deleteConfirmEntity?.canonicalName}&rdquo;? Esta acción no se
-              puede deshacer.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={onCancelEntityDelete}
-              disabled={deletingEntity}
-            >
-              Cancelar
-            </Button>
-            <Button
-              variant="destructive"
-              disabled={deletingEntity}
-              onClick={onConfirmEntityDelete}
-            >
-              {deletingEntity && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Eliminar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        title="Eliminar entidad"
+        description={`¿Querés eliminar “${deleteConfirmEntity?.canonicalName ?? ""}”? Esta acción no se puede deshacer.`}
+        loading={deletingEntity}
+        onConfirm={onConfirmEntityDelete}
+      />
 
-      <Dialog open={!!imageToDelete} onOpenChange={onImageDialogChange}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Eliminar imagen</DialogTitle>
-            <DialogDescription>
-              ¿Querés eliminar esta variante del baúl de imágenes? Esta acción
-              no se puede deshacer.
-            </DialogDescription>
-            {imageActionError && (
-              <p className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-                {imageActionError}
-              </p>
-            )}
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={onCancelImageDelete}
-              disabled={deletingImage}
-            >
-              Cancelar
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={onConfirmImageDelete}
-              disabled={deletingImage}
-            >
-              {deletingImage && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Eliminar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog
+        open={!!imageToDelete}
+        onOpenChange={onImageDialogChange}
+        title="Eliminar imagen"
+        description="¿Querés eliminar esta variante del baúl de imágenes? Esta acción no se puede deshacer."
+        loading={deletingImage}
+        error={imageActionError}
+        onConfirm={onConfirmImageDelete}
+      />
 
-      <Dialog
+      <ConfirmDialog
         open={!!deleteConfirmRelationship}
         onOpenChange={onRelationshipDialogChange}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirmar eliminación</DialogTitle>
-            <DialogDescription>
-              ¿Estás seguro de que querés eliminar esta relación? Esta acción no
-              se puede deshacer.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={onCancelRelationshipDelete}
-              disabled={deletingRelationship}
-            >
-              Cancelar
-            </Button>
-            <Button
-              variant="destructive"
-              disabled={deletingRelationship}
-              onClick={onConfirmRelationshipDelete}
-            >
-              {deletingRelationship && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Eliminar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        title="Eliminar relación"
+        description="¿Querés eliminar esta relación? Esta acción no se puede deshacer."
+        loading={deletingRelationship}
+        onConfirm={onConfirmRelationshipDelete}
+      />
     </>
   );
 }
@@ -1761,21 +1676,15 @@ export function Worldbuilding({ projectId }: Readonly<WorldbuildingProps>) {
         deleteConfirmEntity={deleteConfirmEntity}
         deletingEntity={deleting}
         onEntityDialogChange={handleEntityDeleteDialogChange}
-        onCancelEntityDelete={() => setDeleteConfirmEntity(null)}
         onConfirmEntityDelete={handleConfirmEntityDelete}
         imageToDelete={imageToDelete}
         deletingImage={deletingImage}
         imageActionError={imageActionError}
         onImageDialogChange={handleImageDeleteDialogChange}
-        onCancelImageDelete={() => {
-          setImageToDelete(null);
-          setImageActionError(null);
-        }}
         onConfirmImageDelete={() => void handleDeleteImage()}
         deleteConfirmRelationship={deleteConfirmRelationship}
         deletingRelationship={deletingRelationship}
         onRelationshipDialogChange={handleRelationshipDeleteDialogChange}
-        onCancelRelationshipDelete={() => setDeleteConfirmRelationship(null)}
         onConfirmRelationshipDelete={handleConfirmRelationshipDelete}
       />
 

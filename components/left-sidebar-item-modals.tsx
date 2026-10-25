@@ -1,14 +1,7 @@
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Field, FieldContent, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { ConfirmDialog } from "@/components/modal/confirm-dialog";
+import { FormDialog } from "@/components/modal/form-dialog";
 import { NewItemModal } from "@/components/modal/new-item-modal";
 import { BookCoverEditor } from "@/components/books/book-cover-editor";
 
@@ -50,107 +43,59 @@ export function LeftSidebarItemModals({
   onCreateChapter,
   onCreateSection,
 }: Readonly<LeftSidebarItemModalsProps>) {
+  const nameField = (
+    <Field>
+      <FieldLabel htmlFor="edit-sidebar-item-name">
+        Nombre <span className="text-destructive">*</span>
+      </FieldLabel>
+      <FieldContent>
+        <Input
+          id="edit-sidebar-item-name"
+          value={editName}
+          onChange={(e) => onEditNameChange(e.target.value)}
+          placeholder="Nombre"
+          autoFocus
+        />
+      </FieldContent>
+    </Field>
+  );
+
   return (
     <>
-      <Dialog
+      <FormDialog
         open={!!editingItem}
         onOpenChange={(open) => {
           if (!open) onCloseEditItem();
         }}
+        title={editingItem?.type === "book" ? "Editar libro" : "Editar elemento"}
+        size={editingItem?.type === "book" ? "md" : "sm"}
+        submitLabel="Guardar"
+        submitDisabled={!editName.trim()}
+        loading={isItemActionSubmitting}
+        onSubmit={onUpdateItem}
       >
-        <DialogContent className="min-w-[520px] gap-0 overflow-hidden">
-          <DialogHeader className="border-b p-6 py-4">
-            <DialogTitle>
-              {editingItem?.type === "book" ? "Editar libro" : "Editar elemento"}
-            </DialogTitle>
-          </DialogHeader>
+        {editingItem?.type === "book" ? (
+          <BookCoverEditor
+            bookId={editingItem.id}
+            bookTitle={editName.trim() || editingItem.title}
+          >
+            {nameField}
+          </BookCoverEditor>
+        ) : (
+          nameField
+        )}
+      </FormDialog>
 
-          <div className="space-y-5 px-6 py-6">
-            <Field>
-              <FieldLabel htmlFor="edit-sidebar-item-name">
-                Nombre <span className="text-destructive">*</span>
-              </FieldLabel>
-              <FieldContent>
-                <Input
-                  id="edit-sidebar-item-name"
-                  value={editName}
-                  onChange={(e) => onEditNameChange(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      void onUpdateItem();
-                    }
-                  }}
-                  placeholder="Nombre"
-                />
-              </FieldContent>
-            </Field>
-            {editingItem?.type === "book" && (
-              <Field>
-                <FieldLabel>Portada</FieldLabel>
-                <FieldContent>
-                  <BookCoverEditor
-                    bookId={editingItem.id}
-                    bookTitle={editName.trim() || editingItem.title}
-                  />
-                </FieldContent>
-              </Field>
-            )}
-          </div>
-
-          <DialogFooter className="border-t px-6 py-4">
-            <Button
-              variant="outline"
-              disabled={isItemActionSubmitting}
-              onClick={onCloseEditItem}
-            >
-              Cancelar
-            </Button>
-            <Button
-              disabled={!editName.trim() || isItemActionSubmitting}
-              onClick={() => {
-                void onUpdateItem();
-              }}
-            >
-              Guardar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
+      <ConfirmDialog
         open={!!itemToDelete}
         onOpenChange={(open) => {
-          if (!open && !isItemActionSubmitting) onDeleteItemChange(null);
+          if (!open) onDeleteItemChange(null);
         }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Eliminar elemento</DialogTitle>
-            <DialogDescription>
-              ¿Seguro que quieres eliminar &ldquo;{itemToDelete?.title}&rdquo;? Esta
-              acción no se puede deshacer.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              disabled={isItemActionSubmitting}
-              onClick={() => onDeleteItemChange(null)}
-            >
-              Cancelar
-            </Button>
-            <Button
-              variant="destructive"
-              disabled={isItemActionSubmitting}
-              onClick={() => {
-                void onDeleteItem();
-              }}
-            >
-              Eliminar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        title="Eliminar elemento"
+        description={`¿Querés eliminar “${itemToDelete?.title ?? ""}”? Esta acción no se puede deshacer.`}
+        loading={isItemActionSubmitting}
+        onConfirm={onDeleteItem}
+      />
 
       <NewItemModal
         show={modalType?.type === "chapter"}

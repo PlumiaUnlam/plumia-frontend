@@ -36,7 +36,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { Dialog } from "@/components/ui/dialog"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -279,28 +278,21 @@ function DashboardProjectDialogs({
 }>) {
   return (
     <>
-      <Dialog open={isCreateDialogOpen} onOpenChange={onCreateDialogOpenChange}>
-        {isCreateDialogOpen ? (
-          <NewProjectForm
-            onCancel={() => onCreateDialogOpenChange(false)}
-            onSuccess={onCreateSuccess}
-          />
-        ) : null}
-      </Dialog>
+      {isCreateDialogOpen ? (
+        <NewProjectForm
+          onCancel={() => onCreateDialogOpenChange(false)}
+          onSuccess={onCreateSuccess}
+        />
+      ) : null}
 
-      <Dialog
-        open={Boolean(projectToEdit)}
-        onOpenChange={onEditDialogOpenChange}
-      >
-        {projectToEdit ? (
-          <NewProjectForm
-            key={projectToEdit.id}
-            project={projectToEdit}
-            onCancel={() => onEditDialogOpenChange(false)}
-            onSuccess={onEditSuccess}
-          />
-        ) : null}
-      </Dialog>
+      {projectToEdit ? (
+        <NewProjectForm
+          key={projectToEdit.id}
+          project={projectToEdit}
+          onCancel={() => onEditDialogOpenChange(false)}
+          onSuccess={onEditSuccess}
+        />
+      ) : null}
 
       <AlertDialog
         open={Boolean(projectToDelete)}

@@ -24,15 +24,8 @@ import {
 } from "lucide-react"
 
 import type { SharedSceneProps } from "@/components/sharing/shared-scene"
+import { FormDialog } from "@/components/modal/form-dialog"
 import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
 import {
   Select,
   SelectContent,
@@ -680,38 +673,29 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
         )}
       </div>
 
-      <Dialog open={selection !== null} onOpenChange={(open) => !open && setSelection(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Comentar selección</DialogTitle>
-            <DialogDescription>
-              El subrayado quedará anclado a esta versión congelada.
-            </DialogDescription>
-          </DialogHeader>
-          <blockquote className="max-h-28 overflow-y-auto rounded-lg bg-amber-50 p-3 text-sm italic text-amber-950 dark:bg-amber-950/35 dark:text-amber-100">
-            “{selection?.selectedText}”
-          </blockquote>
-          <Textarea
-            value={commentBody}
-            onChange={(event) => setCommentBody(event.target.value)}
-            placeholder="Escribí tu comentario…"
-            autoFocus
-          />
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setSelection(null)}>
-              Cancelar
-            </Button>
-            <Button
-              type="button"
-              disabled={!commentBody.trim() || submittingComment}
-              onClick={() => void submitComment()}
-            >
-              {submittingComment && <Spinner className="size-4" />}
-              Comentar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <FormDialog
+        open={selection !== null}
+        onOpenChange={(open) => {
+          if (!open) setSelection(null)
+        }}
+        title="Comentar selección"
+        description="El subrayado quedará anclado a esta versión congelada."
+        submitLabel="Comentar"
+        submitDisabled={!commentBody.trim()}
+        loading={submittingComment}
+        onSubmit={submitComment}
+      >
+        <blockquote className="max-h-28 overflow-y-auto rounded-lg border-l-2 border-warning bg-warning-muted p-3 text-sm italic text-foreground">
+          “{selection?.selectedText}”
+        </blockquote>
+        <Textarea
+          value={commentBody}
+          onChange={(event) => setCommentBody(event.target.value)}
+          placeholder="Escribí tu comentario…"
+          aria-label="Comentario"
+          autoFocus
+        />
+      </FormDialog>
     </div>
   )
 }
