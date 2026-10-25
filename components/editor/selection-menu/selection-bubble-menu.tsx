@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
+import { TextSelection } from "@tiptap/pm/state"
 import { BubbleMenu } from "@tiptap/react/menus"
 import type { Editor } from "@tiptap/react"
 import { Link2, MessageSquarePlus } from "lucide-react"
@@ -16,6 +17,8 @@ type SelectionBubbleMenuProps = {
 
 export function SelectionBubbleMenu({ editor, projectId, onAddAnnotation }: Readonly<SelectionBubbleMenuProps>) {
   const [open, setOpen] = useState(false)
+  const scrollTarget = editor.view.dom.closest<HTMLElement>("[data-editor-scroll-container]") ?? undefined
+  const bubbleMenuOptions = useMemo(() => ({ scrollTarget }), [scrollTarget])
 
   useEffect(() => {
     const closePopover = () => setOpen(false)
@@ -26,7 +29,14 @@ export function SelectionBubbleMenu({ editor, projectId, onAddAnnotation }: Read
   }, [editor])
 
   return (
-    <BubbleMenu editor={editor} shouldShow={({ state }) => !state.selection.empty}>
+    <BubbleMenu
+      editor={editor}
+      className="z-50"
+      shouldShow={({ state }) =>
+        state.selection instanceof TextSelection && !state.selection.empty
+      }
+      options={bubbleMenuOptions}
+    >
       {open ? (
         <AddLinkPopover
           editor={editor}

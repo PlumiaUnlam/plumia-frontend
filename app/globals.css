@@ -52,6 +52,7 @@
 }
 
 .shared-reader-prose {
+  display: flow-root;
   color: color-mix(in oklch, var(--foreground) 92%, transparent);
   font-family: Georgia, "Times New Roman", serif;
   font-size: 1.08rem;
@@ -68,6 +69,11 @@
   margin-block: 1.4em 0.6em;
   font-weight: 700;
   line-height: 1.25;
+}
+
+.ProseMirror :is(h1, h2, h3, h4, h5, h6, hr, [data-scene-divider]),
+.shared-reader-prose :is(h1, h2, h3, h4, h5, h6, hr, [data-scene-divider]) {
+  clear: both;
 }
 
 .shared-reader-prose blockquote {
@@ -282,6 +288,10 @@
 }
 
 /* TipTap conserva los saltos de tabulación dentro del párrafo. */
+.ProseMirror {
+  display: flow-root;
+}
+
 .ProseMirror p {
   white-space: pre-wrap;
 }
@@ -469,16 +479,17 @@ p[data-drop-cap="true"]::first-letter {
 /* Separadores ornamentales insertados como nodos propios del editor. */
 .scene-divider,
 .scene-divider-preview {
-  --scene-divider-color: color-mix(
-    in oklch,
-    var(--primary) 72%,
-    var(--muted-foreground)
-  );
+  --scene-divider-color: #5b3d6f;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.35rem;
   color: var(--scene-divider-color);
+}
+
+.dark .scene-divider,
+.dark .scene-divider-preview {
+  --scene-divider-color: var(--foreground);
 }
 
 .scene-divider {
