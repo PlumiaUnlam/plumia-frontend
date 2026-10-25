@@ -44,9 +44,11 @@ import {
   getAiSettings,
   removeGeminiApiKey,
   saveGeminiApiKey,
+  updateAutoAnalyzeOnAutosave,
   type AiSettings,
 } from "@/services/ai-settings.service"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Switch } from "@/components/ui/switch"
 
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024
 const ALLOWED_AVATAR_TYPES = new Set([
@@ -135,7 +137,9 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
   const [aiKey, setAiKey] = useState("")
   const [aiLoading, setAiLoading] = useState(false)
   const [aiSaving, setAiSaving] = useState(false)
+  const [autoAnalysisSaving, setAutoAnalysisSaving] = useState(false)
   const [aiError, setAiError] = useState<string | null>(null)
+  const [autoAnalysisError, setAutoAnalysisError] = useState<string | null>(null)
   const [aiNotice, setAiNotice] = useState<string | null>(null)
   const [removeAiKeyOpen, setRemoveAiKeyOpen] = useState(false)
   const [removingAiKey, setRemovingAiKey] = useState(false)
@@ -193,6 +197,7 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
     setError(null)
     setAiKey("")
     setAiNotice(null)
+    setAutoAnalysisError(null)
     void loadAiSettings()
     setProfileOpen(true)
   }
@@ -292,7 +297,12 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
     setAiError(null)
     try {
       await removeGeminiApiKey()
-      setAiSettings({ configured: false, keyPrefix: null, updatedAt: null })
+      setAiSettings((current) => ({
+        configured: false,
+        keyPrefix: null,
+        updatedAt: null,
+        autoAnalyzeOnAutosave: current?.autoAnalyzeOnAutosave ?? true,
+      }))
       setAiKey("")
       setAiNotice("La API Key propia fue eliminada.")
       setRemoveAiKeyOpen(false)
@@ -300,6 +310,29 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
       setAiError("No pudimos eliminar la API Key. IntentÃ¡ nuevamente.")
     } finally {
       setRemovingAiKey(false)
+    }
+  }
+
+  const handleAutoAnalysisChange = async (enabled: boolean) => {
+    if (autoAnalysisSaving) return
+
+    setAutoAnalysisSaving(true)
+    setAutoAnalysisError(null)
+    setAiNotice(null)
+    try {
+      const nextSettings = await updateAutoAnalyzeOnAutosave(enabled)
+      setAiSettings(nextSettings)
+      setAiNotice(
+        enabled
+          ? "El analisis automatico al guardar fue activado."
+          : "El analisis automatico al guardar fue desactivado.",
+      )
+    } catch {
+      setAutoAnalysisError(
+        "No pudimos actualizar la preferencia de analisis automatico.",
+      )
+    } finally {
+      setAutoAnalysisSaving(false)
     }
   }
 
@@ -426,7 +459,11 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
         size="md"
         submitLabel={profileSection === "account" ? "Guardar cambios" : "Guardar API Key"}
         submitDisabled={profileSection === "ai" && !aiKey.trim()}
-        loading={profileSection === "account" ? saving : aiSaving}
+        loading={
+          profileSection === "account"
+            ? saving
+            : aiSaving || autoAnalysisSaving
+        }
         onSubmit={profileSection === "account" ? handleProfileSubmit : handleAiSubmit}
         onInteractOutside={(event) => {
           // La confirmación de eliminación vive en un portal propio, así que
@@ -577,6 +614,24 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
                   {aiSettings?.keyPrefix ? ` (${aiSettings.keyPrefix})` : ""}
                 </p>
               </div>
+
+              <div className="flex items-center justify-between gap-4 rounded-lg border p-3">
+                <div className="min-w-0">
+                  <p className="font-medium">Analizar automaticamente al guardar</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Si lo desactivas, los cambios se guardan sin utilizar IA.
+                    Podras usar Analizar cambios desde el editor cuando quieras.
+                  </p>
+                </div>
+                <Switch
+                  checked={aiSettings?.autoAnalyzeOnAutosave ?? true}
+                  onCheckedChange={handleAutoAnalysisChange}
+                  disabled={autoAnalysisSaving || aiLoading}
+                  aria-label="Analizar automaticamente al guardar"
+                />
+              </div>
+
+              {autoAnalysisError && <FieldError>{autoAnalysisError}</FieldError>}
 
               <Field>
                 <FieldLabel htmlFor="gemini-api-key">API Key de Gemini</FieldLabel>

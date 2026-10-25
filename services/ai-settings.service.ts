@@ -4,6 +4,7 @@ export type AiSettings = {
   configured: boolean
   keyPrefix: string | null
   updatedAt: string | null
+  autoAnalyzeOnAutosave: boolean
 }
 
 export function getAiSettings(): Promise<AiSettings> {
@@ -16,4 +17,10 @@ export function saveGeminiApiKey(apiKey: string): Promise<AiSettings> {
 
 export function removeGeminiApiKey(): Promise<void> {
   return api.delete<void>("/users/me/ai-settings/gemini")
+}
+
+export function updateAutoAnalyzeOnAutosave(
+  enabled: boolean,
+): Promise<AiSettings> {
+  return api.put<AiSettings>("/users/me/ai-settings/auto-analysis", { enabled })
 }
