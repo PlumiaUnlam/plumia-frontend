@@ -35,6 +35,20 @@ export function parseNoteContent(value: string | null | undefined): JSONContent[
   }
 }
 
+/** Atributos `kind` y `content` de una nota leídos desde su `<sup>`; comparten editor y lector. */
+export const noteReferenceDataAttributes = {
+  kind: {
+    default: "footnote",
+    parseHTML: (element: HTMLElement) => normalizeNoteKind(element.dataset.noteKind),
+    rendered: false,
+  },
+  content: {
+    default: [] as JSONContent[],
+    parseHTML: (element: HTMLElement) => parseNoteContent(element.dataset.noteContent),
+    rendered: false,
+  },
+}
+
 export function createNoteId(): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
     return crypto.randomUUID()

@@ -34,7 +34,7 @@ import {
   normalizeNoteContent,
   normalizeNoteKind,
   noteContentToPlainText,
-  parseNoteContent,
+  noteReferenceDataAttributes,
   type NoteKind,
 } from "@/lib/scene-notes"
 import { ToolbarButton } from "./toolbar-button"
@@ -487,18 +487,7 @@ export const NoteReference = Node.create({
         parseHTML: () => createNoteId(),
         rendered: false,
       },
-      kind: {
-        default: "footnote",
-        parseHTML: (element: HTMLElement) =>
-          normalizeNoteKind(element.dataset.noteKind),
-        rendered: false,
-      },
-      content: {
-        default: [],
-        parseHTML: (element: HTMLElement) =>
-          parseNoteContent(element.dataset.noteContent),
-        rendered: false,
-      },
+      ...noteReferenceDataAttributes,
     }
   },
 
