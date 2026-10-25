@@ -7,8 +7,8 @@ import {
   SidebarRail,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { ConfirmDialog } from "@/components/modal/confirm-dialog";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   Tooltip,
   TooltipContent,
@@ -417,17 +417,18 @@ export function LeftSidebar({
         </SidebarFooter>
         <SidebarRail />
       </Sidebar>
-      <Dialog open={navigationError !== null} onOpenChange={(open) => { if (!open) setNavigationError(null); }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>No se pudo guardar</DialogTitle>
-            <DialogDescription>{navigationError}</DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button onClick={() => setNavigationError(null)}>Volver al documento</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog
+        open={navigationError !== null}
+        onOpenChange={(open) => {
+          if (!open) setNavigationError(null);
+        }}
+        title="No se pudo guardar"
+        description={navigationError}
+        confirmLabel="Volver al documento"
+        tone="default"
+        showCancel={false}
+        onConfirm={() => setNavigationError(null)}
+      />
       <LeftSidebarHistory
         activeSceneId={activeSceneId}
         activeSceneTitle={activeScene?.title}

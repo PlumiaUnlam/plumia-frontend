@@ -7,9 +7,12 @@ import "./globals.css"
 import { Providers } from "./providers"
 
 const poppins = localFont({
-  src: "../public/fonts/editor/poppins.woff2",
+  src: [
+    { path: "../public/fonts/editor/poppins.woff2", weight: "400", style: "normal" },
+    { path: "../public/fonts/editor/poppins-500.woff2", weight: "500", style: "normal" },
+    { path: "../public/fonts/editor/poppins-600.woff2", weight: "600", style: "normal" },
+  ],
   variable: "--font-sans",
-  weight: "400",
   display: "swap",
 })
 

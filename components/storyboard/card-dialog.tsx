@@ -9,6 +9,7 @@ import type { CardDialogState } from "@/components/storyboard/storyboard-types"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogFooter,
   DialogHeader,
@@ -69,7 +70,8 @@ export function CardDialog({
       }}
     >
       <DialogContent
-        className="max-h-[86vh] overflow-y-auto sm:max-w-2xl"
+        layout="sectioned"
+        size="md"
         onEscapeKeyDown={(event) => {
           if (voiceBusy) event.preventDefault()
         }}
@@ -168,7 +170,7 @@ function CardDialogForm({
         <DialogTitle>{card ? "Editar Tarjeta" : "Nueva Tarjeta"}</DialogTitle>
       </DialogHeader>
 
-      <div className="space-y-5">
+      <DialogBody>
         <Field>
           <FieldLabel htmlFor="storyboard-title">
             Título de la escena *
@@ -231,7 +233,7 @@ function CardDialogForm({
           selectedEntityIds={entityIds}
           onChange={setEntityIds}
         />
-      </div>
+      </DialogBody>
 
       <DialogFooter>
         <Button

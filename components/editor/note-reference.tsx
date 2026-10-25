@@ -34,7 +34,7 @@ import {
   normalizeNoteContent,
   normalizeNoteKind,
   noteContentToPlainText,
-  parseNoteContent,
+  noteReferenceDataAttributes,
   type NoteKind,
 } from "@/lib/scene-notes"
 import { ToolbarButton } from "./toolbar-button"
@@ -112,6 +112,8 @@ function NoteContentEditor({
   onEditorReady: (editor: Editor | null) => void
 }>) {
   const [linkDraft, setLinkDraft] = useState<string | null>(null)
+  const linkInputRef = useRef<HTMLInputElement>(null)
+  const isLinkOpen = linkDraft !== null
   const miniEditor = useEditor({
     immediatelyRender: true,
     extensions: [
@@ -161,6 +163,10 @@ function NoteContentEditor({
       onEditorReady(null)
     }
   }, [miniEditor, onEditorReady])
+
+  useEffect(() => {
+    if (isLinkOpen) linkInputRef.current?.focus()
+  }, [isLinkOpen])
 
   const state = useEditorState({
     editor: miniEditor,
@@ -230,7 +236,7 @@ function NoteContentEditor({
       {linkDraft !== null && (
         <div className="flex gap-1.5">
           <input
-            autoFocus
+            ref={linkInputRef}
             data-note-link-input=""
             value={linkDraft}
             onChange={(event) => setLinkDraft(event.target.value)}
@@ -367,6 +373,12 @@ function NoteReferenceNodeView({
                   tabIndex={-1}
                   aria-label={label}
                   onClick={() => openPopover(false)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault()
+                      openPopover(false)
+                    }
+                  }}
                 />
               </TooltipTrigger>
             </PopoverAnchor>
@@ -475,18 +487,7 @@ export const NoteReference = Node.create({
         parseHTML: () => createNoteId(),
         rendered: false,
       },
-      kind: {
-        default: "footnote",
-        parseHTML: (element: HTMLElement) =>
-          normalizeNoteKind(element.getAttribute("data-note-kind")),
-        rendered: false,
-      },
-      content: {
-        default: [],
-        parseHTML: (element: HTMLElement) =>
-          parseNoteContent(element.getAttribute("data-note-content")),
-        rendered: false,
-      },
+      ...noteReferenceDataAttributes,
     }
   },
 

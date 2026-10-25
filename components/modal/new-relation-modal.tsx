@@ -2,14 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { FormDialog } from "@/components/modal/form-dialog";
 import {
   Field,
   FieldContent,
@@ -185,167 +178,152 @@ export function NewRelationModal({
   };
 
   return (
-    <Dialog open={show} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent size="wide" className="w-[calc(100vw-2rem)] min-w-0 gap-0 overflow-hidden">
-        <DialogHeader className="border-b p-6 py-4">
-          <DialogTitle>
-            {getRelationModalTitle(isProposal, isEditing)}
-          </DialogTitle>
-        </DialogHeader>
+    <FormDialog
+      open={show}
+      onOpenChange={(open) => !open && onClose()}
+      title={getRelationModalTitle(isProposal, isEditing)}
+      size="md"
+      submitLabel={getRelationSubmitLabel(isProposal, isEditing)}
+      submitDisabled={!canSubmit}
+      loading={submitting}
+      error={error}
+      onSubmit={handleSubmit}
+    >
+      <FieldGroup className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <EntitySelect
+          id="relation-source"
+          label="Desde"
+          value={sourceEntityId}
+          entities={entities}
+          excludeId={targetEntityId}
+          pendingLabel={isProposal ? initialValues?.sourceEntityName : undefined}
+          onChange={setSourceEntityId}
+        />
+        <EntitySelect
+          id="relation-target"
+          label="Hasta"
+          value={targetEntityId}
+          entities={entities}
+          excludeId={sourceEntityId}
+          pendingLabel={isProposal ? initialValues?.targetEntityName : undefined}
+          onChange={setTargetEntityId}
+        />
+      </FieldGroup>
 
-        <div className="max-h-[65vh] space-y-5 overflow-y-auto px-6 py-6">
-          {error && (
-            <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
-              {error}
-            </div>
+      <FieldSet className="space-y-2">
+        <FieldLegend>Tipo de relación</FieldLegend>
+
+        <FieldGroup className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+          {availableRelationOptions.map(
+            ({ id, label, color, icon: Icon }) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setRelationType(id)}
+                className={`flex flex-col items-center gap-1.5 rounded-lg border px-2 py-2.5 text-xs font-medium transition-colors ${
+                  activeRelationType === id
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border text-muted-foreground hover:border-primary/40 hover:bg-muted"
+                }`}
+              >
+                <Icon
+                  className="size-4"
+                  style={{
+                    color: activeRelationType === id ? undefined : color,
+                  }}
+                />
+                {label}
+              </button>
+            ),
           )}
+        </FieldGroup>
+      </FieldSet>
 
-          <FieldGroup className="grid grid-cols-2 gap-3">
-            <EntitySelect
-              id="relation-source"
-              label="Desde"
-              value={sourceEntityId}
-              entities={entities}
-              excludeId={targetEntityId}
-              pendingLabel={isProposal ? initialValues?.sourceEntityName : undefined}
-              onChange={setSourceEntityId}
-            />
-            <EntitySelect
-              id="relation-target"
-              label="Hasta"
-              value={targetEntityId}
-              entities={entities}
-              excludeId={sourceEntityId}
-              pendingLabel={isProposal ? initialValues?.targetEntityName : undefined}
-              onChange={setTargetEntityId}
-            />
-          </FieldGroup>
-
-          <FieldSet className="space-y-2">
-            <FieldLegend>Tipo de relación</FieldLegend>
-
-            <FieldGroup className="grid grid-cols-5 gap-2">
-              {availableRelationOptions.map(
-                ({ id, label, color, icon: Icon }) => (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => setRelationType(id)}
-                    className={`flex flex-col items-center gap-1.5 rounded-lg border px-2 py-2.5 text-xs font-medium transition-colors ${
-                      activeRelationType === id
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "border-border text-muted-foreground hover:border-primary/40 hover:bg-muted"
-                    }`}
-                  >
-                    <Icon
-                      className="size-4"
-                      style={{
-                        color: activeRelationType === id ? undefined : color,
-                      }}
-                    />
-                    {label}
-                  </button>
-                ),
-              )}
-            </FieldGroup>
-          </FieldSet>
-
-          <Field>
-            <div className="flex items-center justify-between">
-              <FieldLabel htmlFor="relation-intensity">Intensidad</FieldLabel>
-              <span className="text-sm font-semibold text-primary">
-                {intensity} / 5
-              </span>
-            </div>
-
-            <FieldContent>
-              <input
-                id="relation-intensity"
-                type="range"
-                min={1}
-                max={5}
-                value={intensity}
-                onChange={(event) => setIntensity(Number(event.target.value))}
-                className="w-full accent-primary"
-              />
-              <div className="mt-1 flex justify-between text-xs text-muted-foreground">
-                <span>Superficial</span>
-                <span>Profunda</span>
-              </div>
-            </FieldContent>
-          </Field>
-
-          {!isProposal && scenes.length > 0 && (
-            <FieldGroup className="grid grid-cols-2 gap-3">
-              <Field>
-                <FieldLabel htmlFor="relation-valid-from">
-                  Vigente desde
-                </FieldLabel>
-                <FieldContent>
-                  <select
-                    id="relation-valid-from"
-                    value={validFromSceneId}
-                    onChange={(event) => setValidFromSceneId(event.target.value)}
-                    className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm"
-                  >
-                    <option value="">Vigente en toda la obra</option>
-                    {scenes.map((scene) => (
-                      <option key={scene.id} value={scene.id}>
-                        {scene.title}
-                      </option>
-                    ))}
-                  </select>
-                </FieldContent>
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="relation-valid-to">
-                  Vigente hasta
-                </FieldLabel>
-                <FieldContent>
-                  <select
-                    id="relation-valid-to"
-                    value={validToSceneId}
-                    onChange={(event) => setValidToSceneId(event.target.value)}
-                    className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm"
-                  >
-                    <option value="">Sigue vigente</option>
-                    {scenes.map((scene) => (
-                      <option key={scene.id} value={scene.id}>
-                        {scene.title}
-                      </option>
-                    ))}
-                  </select>
-                </FieldContent>
-              </Field>
-            </FieldGroup>
-          )}
-
-          <Field>
-            <FieldLabel htmlFor="relation-description">
-              Descripción
-            </FieldLabel>
-            <FieldContent>
-              <Textarea
-                id="relation-description"
-                value={description}
-                onChange={(event) => setDescription(event.target.value)}
-                placeholder="Describe brevemente el vínculo entre estas entidades..."
-                rows={3}
-              />
-            </FieldContent>
-          </Field>
+      <Field>
+        <div className="flex items-center justify-between">
+          <FieldLabel htmlFor="relation-intensity">Intensidad</FieldLabel>
+          <span className="text-sm font-semibold text-primary">
+            {intensity} / 5
+          </span>
         </div>
 
-        <DialogFooter className="border-t px-6 py-4">
-          <Button variant="outline" onClick={onClose} disabled={submitting}>
-            Cancelar
-          </Button>
-          <Button disabled={!canSubmit || submitting} onClick={handleSubmit}>
-            {getRelationSubmitLabel(isProposal, isEditing)}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        <FieldContent>
+          <input
+            id="relation-intensity"
+            type="range"
+            min={1}
+            max={5}
+            value={intensity}
+            onChange={(event) => setIntensity(Number(event.target.value))}
+            className="w-full accent-primary"
+          />
+          <div className="mt-1 flex justify-between text-xs text-muted-foreground">
+            <span>Superficial</span>
+            <span>Profunda</span>
+          </div>
+        </FieldContent>
+      </Field>
+
+      {!isProposal && scenes.length > 0 && (
+        <FieldGroup className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Field>
+            <FieldLabel htmlFor="relation-valid-from">
+              Vigente desde
+            </FieldLabel>
+            <FieldContent>
+              <select
+                id="relation-valid-from"
+                value={validFromSceneId}
+                onChange={(event) => setValidFromSceneId(event.target.value)}
+                className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm dark:bg-input/30"
+              >
+                <option value="">Vigente en toda la obra</option>
+                {scenes.map((scene) => (
+                  <option key={scene.id} value={scene.id}>
+                    {scene.title}
+                  </option>
+                ))}
+              </select>
+            </FieldContent>
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="relation-valid-to">
+              Vigente hasta
+            </FieldLabel>
+            <FieldContent>
+              <select
+                id="relation-valid-to"
+                value={validToSceneId}
+                onChange={(event) => setValidToSceneId(event.target.value)}
+                className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm dark:bg-input/30"
+              >
+                <option value="">Sigue vigente</option>
+                {scenes.map((scene) => (
+                  <option key={scene.id} value={scene.id}>
+                    {scene.title}
+                  </option>
+                ))}
+              </select>
+            </FieldContent>
+          </Field>
+        </FieldGroup>
+      )}
+
+      <Field>
+        <FieldLabel htmlFor="relation-description">
+          Descripción
+        </FieldLabel>
+        <FieldContent>
+          <Textarea
+            id="relation-description"
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
+            placeholder="Describe brevemente el vínculo entre estas entidades..."
+            rows={3}
+          />
+        </FieldContent>
+      </Field>
+    </FormDialog>
   );
 }
 

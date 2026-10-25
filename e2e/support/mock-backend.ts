@@ -434,6 +434,29 @@ export async function installMockBackend(
       }
     }
 
+    // Endpoints que el editor consulta al abrirse. Sin estas respuestas la app
+    // recibe `{ message }` donde espera una lista y la página se cae.
+    if (
+      /^\/v1\/projects\/[^/]+\/(relationship-proposals|proposals|state-proposals)$/.test(
+        url.pathname,
+      ) ||
+      url.pathname.startsWith("/audit/") ||
+      url.pathname.startsWith("/publishing/")
+    ) {
+      await json(route, [])
+      return
+    }
+
+    if (/^\/knowledge\/projects\/[^/]+\/temporal-view$/.test(url.pathname)) {
+      await json(route, {
+        sceneId,
+        scenes: [{ id: sceneId, title: "El umbral" }],
+        entities: [],
+        relationships: [],
+      })
+      return
+    }
+
     if (url.pathname.startsWith("/knowledge/")) {
       await json(route, [])
       return

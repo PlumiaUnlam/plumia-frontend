@@ -32,8 +32,8 @@ import {
   normalizeNoteContent,
   normalizeNoteKind,
   noteContentToPlainText,
-  parseNoteContent,
   type NoteKind,
+  noteReferenceDataAttributes,
 } from "@/lib/scene-notes"
 
 export type SharedSceneProps = Readonly<{
@@ -119,18 +119,7 @@ const SharedNoteReference = Node.create({
   addAttributes() {
     return {
       id: { default: null, rendered: false },
-      kind: {
-        default: "footnote",
-        parseHTML: (element: HTMLElement) =>
-          normalizeNoteKind(element.getAttribute("data-note-kind")),
-        rendered: false,
-      },
-      content: {
-        default: [],
-        parseHTML: (element: HTMLElement) =>
-          parseNoteContent(element.getAttribute("data-note-content")),
-        rendered: false,
-      },
+      ...noteReferenceDataAttributes,
     }
   },
   parseHTML() {

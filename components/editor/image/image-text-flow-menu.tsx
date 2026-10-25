@@ -125,7 +125,7 @@ export function ImageTextFlowMenu({ editor }: Readonly<ImageTextFlowMenuProps>) 
                 type="button"
                 size="sm"
                 variant="outline"
-                className="h-8 max-w-full gap-1.5 border-[#dadce0] bg-white px-2 text-xs text-[#3c4043] shadow-sm dark:border-border dark:bg-background dark:text-foreground"
+                className="h-8 max-w-full gap-1.5 border-border bg-popover px-2 text-xs text-foreground shadow-sm"
                 title="Ajuste de imagen"
                 aria-label={`Ajuste de imagen: ${textFlowLabel}`}
               >
@@ -136,7 +136,7 @@ export function ImageTextFlowMenu({ editor }: Readonly<ImageTextFlowMenuProps>) 
             </DropdownMenuTrigger>
             <DropdownMenuContent
               align="center"
-              className="w-64 border-[#dadce0] bg-white text-[#3c4043] dark:border-border dark:bg-popover dark:text-popover-foreground"
+              className="w-64 border-border bg-popover text-foreground"
             >
               <DropdownMenuRadioGroup
                 value={imageSelection.textFlow}

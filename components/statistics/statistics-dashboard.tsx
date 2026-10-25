@@ -13,10 +13,8 @@ import {
   Clock3,
   Flame,
   Gauge,
-  Loader2,
   Pencil,
   RefreshCw,
-  Save,
   Sparkles,
   Target,
   TrendingUp,
@@ -41,14 +39,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { FormDialog } from "@/components/modal/form-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -451,63 +442,55 @@ function GoalsDialog({
   ];
 
   return (
-    <Dialog open onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>Definir metas de escritura</DialogTitle>
-          <DialogDescription>
-            Configurá una o ambas metas. Podés volver a editarlas cuando cambie
-            tu ritmo.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="grid gap-4 sm:grid-cols-2">
-          {fields.map((field) => (
-            <div key={field.type} className="rounded-xl border bg-background p-4">
-              <div className="mb-4">
-                <p className="font-medium">{field.title}</p>
-                <p className="text-xs text-muted-foreground">
-                  {field.description}
-                </p>
-              </div>
-              <div className="space-y-4">
-                <div className="space-y-1.5">
-                  <Label htmlFor={`${field.type}-target`}>Palabras</Label>
-                  <Input
-                    id={`${field.type}-target`}
-                    type="number"
-                    min={1}
-                    max={1_000_000}
-                    placeholder={field.placeholder}
-                    value={field.target}
-                    onChange={(event) => field.setTarget(event.target.value)}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor={`${field.type}-deadline`}>
-                    Fecha objetivo <span className="font-normal text-muted-foreground">(opcional)</span>
-                  </Label>
-                  <DeadlineDatePicker
-                    id={`${field.type}-deadline`}
-                    value={field.deadline}
-                    onChange={field.setDeadline}
-                  />
-                </div>
-              </div>
+    <FormDialog
+      open
+      onOpenChange={onOpenChange}
+      title="Definir metas de escritura"
+      description="Configurá una o ambas metas. Podés volver a editarlas cuando cambie tu ritmo."
+      size="md"
+      submitLabel="Guardar metas"
+      loading={saving}
+      error={message}
+      enterToSubmit={false}
+      onSubmit={handleSave}
+    >
+    <div className="grid gap-4 md:grid-cols-2">
+      {fields.map((field) => (
+        <div key={field.type} className="rounded-xl border bg-background p-4">
+          <div className="mb-4">
+            <p className="font-medium">{field.title}</p>
+            <p className="text-xs text-muted-foreground">
+              {field.description}
+            </p>
+          </div>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor={`${field.type}-target`}>Palabras</Label>
+              <Input
+                id={`${field.type}-target`}
+                type="number"
+                min={1}
+                max={1_000_000}
+                placeholder={field.placeholder}
+                value={field.target}
+                onChange={(event) => field.setTarget(event.target.value)}
+              />
             </div>
-          ))}
+            <div className="space-y-1.5">
+              <Label htmlFor={`${field.type}-deadline`}>
+                Fecha objetivo <span className="font-normal text-muted-foreground">(opcional)</span>
+              </Label>
+              <DeadlineDatePicker
+                id={`${field.type}-deadline`}
+                value={field.deadline}
+                onChange={field.setDeadline}
+              />
+            </div>
+          </div>
         </div>
-        {message ? <p className="text-sm text-destructive">{message}</p> : null}
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
-            Cancelar
-          </Button>
-          <Button onClick={() => void handleSave()} disabled={saving}>
-            {saving ? <Loader2 className="animate-spin" /> : <Save />}
-            Guardar metas
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      ))}
+    </div>
+    </FormDialog>
   );
 }
 

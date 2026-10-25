@@ -20,15 +20,8 @@ import { StoryboardCardPreview } from "@/components/storyboard/storyboard-card-p
 import { StoryboardColumn } from "@/components/storyboard/storyboard-column"
 import { STORYBOARD_COLUMNS } from "@/components/storyboard/storyboard-config"
 import type { CardDialogState } from "@/components/storyboard/storyboard-types"
+import { ConfirmDialog } from "@/components/modal/confirm-dialog"
 import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
 import { useAuth } from "@/contexts/AuthContext"
 import type { VoiceRecording } from "@/hooks/use-voice-transcriber"
 import {
@@ -472,40 +465,16 @@ export function Storyboard({ projectId }: Readonly<StoryboardProps>) {
         />
       ) : null}
 
-      <Dialog
+      <ConfirmDialog
         open={!!cardToDelete}
         onOpenChange={(open) => {
-          if (!open && !submitting) setCardToDelete(null)
+          if (!open) setCardToDelete(null)
         }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Eliminar tarjeta</DialogTitle>
-            <DialogDescription>
-              ¿Seguro que quieres eliminar &ldquo;{cardToDelete?.title}&rdquo;?
-              Esta acción no se puede deshacer.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              disabled={submitting}
-              onClick={() => setCardToDelete(null)}
-            >
-              Cancelar
-            </Button>
-            <Button
-              variant="destructive"
-              disabled={submitting}
-              onClick={() => {
-                void handleDelete()
-              }}
-            >
-              Eliminar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        title="Eliminar tarjeta"
+        description={`¿Querés eliminar “${cardToDelete?.title ?? ""}”? Esta acción no se puede deshacer.`}
+        loading={submitting}
+        onConfirm={handleDelete}
+      />
     </div>
   )
 }

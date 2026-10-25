@@ -36,8 +36,8 @@ import {
 } from "./paragraph-formatting"
 
 const selectClass =
-  "h-9 w-full rounded-md border border-[#dadce0] bg-white px-3 text-sm text-[#3c4043] outline-none transition focus:border-[#1a73e8] focus:ring-2 focus:ring-[#d2e3fc] dark:border-border dark:bg-input/30 dark:text-foreground dark:focus:border-ring dark:focus:ring-ring/50"
-const fieldLabelClass = "text-xs font-medium text-[#5f6368] dark:text-muted-foreground"
+  "h-9 w-full rounded-md border border-border bg-popover px-3 text-sm text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-[#d2e3fc] dark:bg-input/30 dark:focus:border-ring dark:focus:ring-ring/50"
+const fieldLabelClass = "text-sm font-semibold text-foreground"
 
 function getLineHeightLabel(lineHeight: ParagraphLineHeight) {
   const labels: Record<ParagraphLineHeight, string> = {
@@ -152,10 +152,10 @@ export function ParagraphFormatDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="flex max-h-[min(85dvh,48rem)] w-[min(48rem,calc(100vw-3rem))] max-w-none flex-col gap-0 overflow-hidden border-[#dadce0] bg-white p-0 dark:border-border dark:bg-popover sm:max-w-none">
-        <DialogHeader className="shrink-0 border-b border-[#dadce0] px-4 py-4 pr-10 dark:border-border sm:px-6 sm:py-5 sm:pr-12">
-          <DialogTitle className="text-[#202124] dark:text-foreground">Opciones de párrafo</DialogTitle>
-          <DialogDescription className="text-[#5f6368] dark:text-muted-foreground">
+      <DialogContent layout="sectioned" size="md">
+        <DialogHeader>
+          <DialogTitle>Opciones de párrafo</DialogTitle>
+          <DialogDescription>
             Configurá la alineación, sangría, espaciado y tabulaciones del párrafo actual.
           </DialogDescription>
         </DialogHeader>
@@ -163,7 +163,7 @@ export function ParagraphFormatDialog({
         <Tabs defaultValue="spacing" className="flex min-h-0 flex-1 flex-col gap-0">
           <TabsList
             variant="line"
-            className="grid h-auto min-h-11 w-full shrink-0 grid-cols-2 overflow-x-hidden overflow-y-hidden rounded-none border-b border-[#dadce0] px-3 py-1 group-data-horizontal/tabs:h-auto sm:px-6"
+            className="grid h-auto min-h-11 w-full shrink-0 grid-cols-2 overflow-x-hidden overflow-y-hidden rounded-none border-b border-border px-3 py-1 group-data-horizontal/tabs:h-auto sm:px-6"
           >
             <TabsTrigger value="spacing" className="h-full min-h-11 w-full min-w-0 whitespace-normal px-2 py-2 text-center group-data-horizontal/tabs:after:bottom-0">
               Sangría y espaciado
@@ -176,7 +176,7 @@ export function ParagraphFormatDialog({
           <TabsContent value="spacing" className="min-h-0 flex-1 space-y-6 overflow-x-hidden overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
             <section className="space-y-2">
               <Label className={fieldLabelClass}>Alineación</Label>
-              <div className="mt-2 flex flex-wrap items-center gap-2 rounded-md border border-[#dadce0] bg-white p-2">
+              <div className="mt-2 flex flex-wrap items-center gap-2 rounded-md border border-border bg-popover p-2">
                 {alignmentOptions.map(({ value, label, icon: Icon }) => (
                   <Button
                     key={value}
@@ -185,8 +185,8 @@ export function ParagraphFormatDialog({
                     variant="ghost"
                     className={
                       draft.textAlign === value
-                        ? "h-11 shrink-0 gap-2 whitespace-nowrap bg-[#d2e3fc] px-3 text-[#174ea6] hover:bg-[#c2d7f8]"
-                        : "h-11 shrink-0 gap-2 whitespace-nowrap px-3 text-[#3c4043] hover:bg-[#f1f3f4]"
+                        ? "h-11 shrink-0 gap-2 whitespace-nowrap bg-primary/15 px-3 text-primary-text hover:bg-primary/20"
+                        : "h-11 shrink-0 gap-2 whitespace-nowrap px-3 text-foreground hover:bg-muted"
                     }
                     title={label}
                     aria-label={label}
@@ -228,17 +228,17 @@ export function ParagraphFormatDialog({
               <div className="grid gap-3 sm:grid-cols-2">
                 {([["spacingBefore", "Antes"], ["spacingAfter", "Después"]] as const).map(([attribute, label]) => (
                   <div key={attribute} className="space-y-1.5">
-                    <Label htmlFor={`paragraph-${attribute}`} className="text-xs text-[#5f6368]">{label}</Label>
+                    <Label htmlFor={`paragraph-${attribute}`} className="text-xs font-normal text-muted-foreground">{label}</Label>
                     <div className="relative">
                       <Input id={`paragraph-${attribute}`} type="number" min="0" max="144" step="1"
                         value={draft[attribute] ?? ""} placeholder="Automático"
                         onChange={(event) => updateNumber(attribute, event.target.value)} className="h-9 py-0 pr-12 text-sm" />
-                      <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-[#5f6368]">pt</span>
+                      <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-muted-foreground">pt</span>
                     </div>
                   </div>
                 ))}
               </div>
-              <p className="text-xs leading-5 text-[#5f6368]">Dejá el campo vacío para mantener el espaciado automático.</p>
+              <p className="text-xs leading-5 text-muted-foreground">Dejá el campo vacío para mantener el espaciado automático.</p>
             </section>
 
             <section className="space-y-2">
@@ -252,7 +252,7 @@ export function ParagraphFormatDialog({
                   ] as const
                 ).map(([attribute, label]) => (
                   <div key={attribute} className="space-y-1.5">
-                    <Label htmlFor={`paragraph-${attribute}`} className="text-xs text-[#5f6368]">
+                    <Label htmlFor={`paragraph-${attribute}`} className="text-xs font-normal text-muted-foreground">
                       {label}
                     </Label>
                     <div className="relative">
@@ -266,7 +266,7 @@ export function ParagraphFormatDialog({
                         onChange={(event) => updateNumber(attribute, event.target.value)}
                         className="h-9 py-0 pr-12 text-sm"
                       />
-                      <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-[#5f6368]">
+                      <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-muted-foreground">
                         cm
                       </span>
                     </div>
@@ -298,13 +298,13 @@ export function ParagraphFormatDialog({
                   </EditorSelectOption>
                 ))}
               </EditorSelect>
-              <p className="mt-2 text-xs leading-5 text-[#5f6368]">
+              <p className="mt-2 text-xs leading-5 text-muted-foreground">
                 Este tamaño se usa cuando no hay posiciones definidas o después de la última posición.
               </p>
             </section>
             <section className="space-y-3">
               <Label htmlFor="paragraph-tab-stop" className={fieldLabelClass}>Posiciones de tabulación</Label>
-              <p id="paragraph-tab-stop-help" className="text-xs leading-5 text-[#5f6368]">Alineadas a la izquierda y medidas desde el inicio del área de texto del párrafo. Tab avanza a la próxima posición.</p>
+              <p id="paragraph-tab-stop-help" className="text-xs leading-5 text-muted-foreground">Alineadas a la izquierda y medidas desde el inicio del área de texto del párrafo. Tab avanza a la próxima posición.</p>
               <div className="flex items-center gap-2">
                 <div className="relative min-w-0 flex-1">
                   <Input id="paragraph-tab-stop" inputMode="decimal" value={tabStopInput} placeholder="Por ejemplo, 2,5"
@@ -313,7 +313,7 @@ export function ParagraphFormatDialog({
                     onChange={(event) => { setTabStopInput(event.target.value); setTabStopError(null) }}
                     onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addTabStop() } }}
                     className="h-9 pr-12" />
-                  <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-[#5f6368]">cm</span>
+                  <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-muted-foreground">cm</span>
                 </div>
                 <Button type="button" variant="outline" onClick={addTabStop}>Agregar</Button>
               </div>
@@ -331,16 +331,16 @@ export function ParagraphFormatDialog({
                   ))}
                   <Button type="button" variant="ghost" size="sm" onClick={() => setDraft((current) => ({ ...current, tabStops: [] }))}>Quitar todas</Button>
                 </fieldset>
-              ) : <p className="text-xs text-[#5f6368]">Sin posiciones personalizadas; se usa la tabulación predeterminada.</p>}
+              ) : <p className="text-xs text-muted-foreground">Sin posiciones personalizadas; se usa la tabulación predeterminada.</p>}
             </section>
           </TabsContent>
         </Tabs>
 
-        <DialogFooter className="mx-0 mb-0 shrink-0 flex-col-reverse border-t border-[#dadce0] bg-[#f8fafd] px-4 py-3 dark:border-border dark:bg-muted/50 sm:flex-row sm:justify-between sm:px-6">
+        <DialogFooter className="sm:justify-between">
           <Button
             type="button"
             variant="ghost"
-            className="text-[#1a73e8] hover:bg-[#e8f0fe] hover:text-[#174ea6]"
+            className="text-primary-text hover:bg-primary/10 hover:text-primary-text"
             onClick={() => { setDraft({ ...DEFAULT_PARAGRAPH_ATTRIBUTES }); setTabStopInput(""); setTabStopError(null) }}
           >
             Restablecer

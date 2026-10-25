@@ -1,14 +1,6 @@
 import { useState } from "react"
 
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog"
-
-import { Button } from "@/components/ui/button"
+import { FormDialog } from "@/components/modal/form-dialog"
 import { Field, FieldContent, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 
@@ -34,6 +26,7 @@ export function NewItemModal({
 }: Readonly<NewItemModalProps>) {
   const [name, setName] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const handleSubmit = async () => {
     const trimmedName = name.trim()
@@ -41,10 +34,17 @@ export function NewItemModal({
     if (!trimmedName || isSubmitting) return
 
     setIsSubmitting(true)
+    setError(null)
     try {
       await onSubmit(trimmedName)
       setName("")
       onClose()
+    } catch (submitError) {
+      setError(
+        submitError instanceof Error
+          ? submitError.message
+          : "No se pudo crear el elemento.",
+      )
     } finally {
       setIsSubmitting(false)
     }
@@ -54,49 +54,39 @@ export function NewItemModal({
     if (isSubmitting) return
 
     setName("")
+    setError(null)
     onClose()
   }
 
   return (
-    <Dialog open={show} onOpenChange={(open) => !open && handleClose()}>
-      <DialogContent size="medium" className="w-[calc(100vw-2rem)] min-w-0 gap-0 overflow-hidden">
-        <DialogHeader className="border-b p-6 py-4">
-          <DialogTitle>{title}</DialogTitle>
-        </DialogHeader>
-
-        <div className="max-h-[65vh] space-y-5 overflow-y-auto px-6 py-6">
-          <Field>
-            <FieldLabel htmlFor="new-item-name">
-              {label} <span className="text-destructive">*</span>
-            </FieldLabel>
-            <FieldContent>
-              <Input
-                id="new-item-name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder={placeholder}
-              />
-            </FieldContent>
-          </Field>
-        </div>
-
-        <DialogFooter className="border-t px-6 py-4">
-          <Button
-            variant="outline"
-            disabled={isSubmitting}
-            onClick={handleClose}
-          >
-            Cancelar
-          </Button>
-
-          <Button
-            disabled={!name.trim() || isSubmitting}
-            onClick={handleSubmit}
-          >
-            {submitText}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <FormDialog
+      open={show}
+      onOpenChange={(open) => !open && handleClose()}
+      title={title}
+      size="sm"
+      submitLabel={submitText}
+      submitDisabled={!name.trim()}
+      loading={isSubmitting}
+      error={error}
+      onSubmit={handleSubmit}
+    >
+      <Field>
+        <FieldLabel htmlFor="new-item-name">
+          {label} <span className="text-destructive">*</span>
+        </FieldLabel>
+        <FieldContent>
+          <Input
+            id="new-item-name"
+            value={name}
+            onChange={(e) => {
+              setName(e.target.value)
+              setError(null)
+            }}
+            placeholder={placeholder}
+            autoFocus
+          />
+        </FieldContent>
+      </Field>
+    </FormDialog>
   )
 }

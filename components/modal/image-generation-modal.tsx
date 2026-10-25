@@ -3,14 +3,7 @@
 import { useState } from "react";
 import { AlertTriangle, Loader2, Sparkles } from "lucide-react";
 
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { FormDialog } from "@/components/modal/form-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -373,125 +366,119 @@ export function ImageGenerationModal({
   };
 
   return (
-    <Dialog
+    <FormDialog
       open={show}
       onOpenChange={(open) => {
         if (!open && !submitting) onClose();
       }}
+      title={generationTitle}
+      description={
+        selectedReference
+          ? "La ficha y la imagen de referencia definen la base visual. Lo que indiques acá solo afecta esta imagen."
+          : "La ficha define la base visual. Lo que indiques acá solo afecta esta imagen."
+      }
+      size="md"
+      layer={2}
+      loading={submitting}
+      footer={
+        <>
+      <Button
+        type="button"
+        variant="outline"
+        onClick={onClose}
+        disabled={submitting}
+      >
+        Cancelar
+      </Button>
+      <Button
+        type="submit"
+        form="image-generation-form"
+        disabled={
+          submitting ||
+          imagesLoading ||
+          (characterNeedsAppearanceWarning && !acknowledgedMissingAppearance)
+        }
+      >
+        {submitting ? (
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        ) : (
+          <Sparkles className="mr-2 h-4 w-4" />
+        )}
+        {getSubmitButtonLabel(isVariant, images.length > 0)}
+      </Button>
+        </>
+      }
     >
-      <DialogContent size="medium" className="z-[70] w-[calc(100vw-2rem)] min-w-0 gap-0 overflow-hidden">
-        <DialogHeader className="border-b p-6 py-4">
-          <div className="flex items-center justify-between">
-            <DialogTitle>{generationTitle}</DialogTitle>
+      <form
+        id="image-generation-form"
+        onSubmit={submit}
+        className="space-y-5"
+      >
+        {error && (
+          <p className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+            {error}
+          </p>
+        )}
+
+        <VisualBaseSection visualBase={visualBase} />
+
+        <ReferenceImagePicker
+          images={images}
+          imagesLoading={imagesLoading}
+          selectedReference={selectedReference}
+          entityName={entityName}
+          category={category}
+          resolvedReferenceImageId={resolvedReferenceImageId}
+          onSelect={setSelectedReferenceImageId}
+        />
+
+        <Field>
+          <FieldLabel htmlFor="image-visual-instructions">
+            ¿Qué querés mostrar en esta imagen? (opcional)
+          </FieldLabel>
+          <FieldContent>
+            <Textarea
+              id="image-visual-instructions"
+              value={form.visualIdentity ?? ""}
+              onChange={(event) =>
+                update("visualIdentity", event.target.value)
+              }
+              placeholder={formConfig.promptPlaceholder}
+              rows={3}
+              maxLength={2000}
+            />
+          </FieldContent>
+          <p className="text-xs text-muted-foreground">
+            Podés describir la escena o un cambio puntual.
+          </p>
+        </Field>
+
+        <details className="rounded-lg border border-border p-3">
+          <summary className="cursor-pointer text-sm font-medium">
+            Ajustes por aspecto (opcional)
+          </summary>
+          <div className="mt-3 grid gap-4 md:grid-cols-2">
+            {formConfig.fields.map((field) => (
+              <GenerationField
+                key={field.field}
+                id={`image-${field.field}`}
+                label={field.label}
+                placeholder={field.placeholder}
+                value={form[field.field]}
+                onChange={(value) => update(field.field, value)}
+              />
+            ))}
           </div>
-        </DialogHeader>
+        </details>
 
-        <div className="max-h-[65vh] space-y-5 overflow-y-auto px-6 py-6">
-          <DialogDescription>
-            {selectedReference
-              ? "La ficha y la imagen de referencia definen la base visual. Lo que indiques acá solo afecta esta imagen."
-              : "La ficha define la base visual. Lo que indiques acá solo afecta esta imagen."}
-          </DialogDescription>
+        <CharacterAppearanceWarning
+          show={characterNeedsAppearanceWarning}
+          checked={acknowledgedMissingAppearance}
+          onChange={setAcknowledgedMissingAppearance}
+        />
 
-          <form
-            id="image-generation-form"
-            onSubmit={submit}
-            className="space-y-5"
-          >
-            {error && (
-              <p className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-                {error}
-              </p>
-            )}
-
-            <VisualBaseSection visualBase={visualBase} />
-
-            <ReferenceImagePicker
-              images={images}
-              imagesLoading={imagesLoading}
-              selectedReference={selectedReference}
-              entityName={entityName}
-              category={category}
-              resolvedReferenceImageId={resolvedReferenceImageId}
-              onSelect={setSelectedReferenceImageId}
-            />
-
-            <Field>
-              <FieldLabel htmlFor="image-visual-instructions">
-                ¿Qué querés mostrar en esta imagen? (opcional)
-              </FieldLabel>
-              <FieldContent>
-                <Textarea
-                  id="image-visual-instructions"
-                  value={form.visualIdentity ?? ""}
-                  onChange={(event) =>
-                    update("visualIdentity", event.target.value)
-                  }
-                  placeholder={formConfig.promptPlaceholder}
-                  rows={3}
-                  maxLength={2000}
-                />
-              </FieldContent>
-              <p className="text-xs text-muted-foreground">
-                Podés describir la escena o un cambio puntual.
-              </p>
-            </Field>
-
-            <details className="rounded-lg border border-border p-3">
-              <summary className="cursor-pointer text-sm font-medium">
-                Ajustes por aspecto (opcional)
-              </summary>
-              <div className="mt-3 grid gap-4 md:grid-cols-2">
-                {formConfig.fields.map((field) => (
-                  <GenerationField
-                    key={field.field}
-                    id={`image-${field.field}`}
-                    label={field.label}
-                    placeholder={field.placeholder}
-                    value={form[field.field]}
-                    onChange={(value) => update(field.field, value)}
-                  />
-                ))}
-              </div>
-            </details>
-
-            <CharacterAppearanceWarning
-              show={characterNeedsAppearanceWarning}
-              checked={acknowledgedMissingAppearance}
-              onChange={setAcknowledgedMissingAppearance}
-            />
-
-          </form>
-        </div>
-
-        <DialogFooter className="border-t px-6 py-4">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onClose}
-            disabled={submitting}
-          >
-            Cancelar
-          </Button>
-          <Button
-            type="submit"
-            form="image-generation-form"
-            disabled={
-              submitting ||
-              imagesLoading ||
-              (characterNeedsAppearanceWarning && !acknowledgedMissingAppearance)
-            }
-          >
-            {submitting ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Sparkles className="mr-2 h-4 w-4" />
-            )}
-            {getSubmitButtonLabel(isVariant, images.length > 0)}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      </form>
+    </FormDialog>
   );
 }
 

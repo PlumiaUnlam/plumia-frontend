@@ -74,11 +74,11 @@ import {
 import type { ImageTextFlow } from "./image/image-text-flow"
 
 const menuButtonClass =
-  "h-8 shrink-0 rounded-md px-2.5 text-sm font-medium text-[#3c4043] hover:bg-[#eee3f5] hover:text-[#70348c] data-[state=open]:bg-[#eee3f5] data-[state=open]:text-[#70348c] focus-visible:ring-2 focus-visible:ring-[#b98ad2] dark:text-foreground dark:hover:bg-muted dark:hover:text-foreground dark:data-[state=open]:bg-muted dark:data-[state=open]:text-foreground dark:focus-visible:ring-ring max-[640px]:px-2"
+  "h-8 shrink-0 rounded-md px-2.5 text-sm font-medium text-foreground hover:bg-[#eee3f5] hover:text-[#70348c] data-[state=open]:bg-[#eee3f5] data-[state=open]:text-[#70348c] focus-visible:ring-2 focus-visible:ring-[#b98ad2] dark:hover:bg-muted dark:hover:text-foreground dark:data-[state=open]:bg-muted dark:data-[state=open]:text-foreground dark:focus-visible:ring-ring max-[640px]:px-2"
 const menuContentClass =
-  "max-h-[min(80vh,42rem)] w-64 max-w-[calc(100vw-1rem)] overflow-y-auto border-[#dadce0] bg-white text-[#3c4043] shadow-[0_3px_8px_rgba(60,64,67,0.24)] dark:border-border dark:bg-popover dark:text-popover-foreground"
+  "max-h-[min(80vh,42rem)] w-64 max-w-[calc(100vw-1rem)] overflow-y-auto border-border bg-popover text-popover-foreground shadow-[0_3px_8px_rgba(60,64,67,0.24)]"
 const editMenuContentClass = menuContentClass.replace("w-64", "w-[17rem]")
-const menuItemClass = "min-h-9 gap-3 text-[#3c4043] focus:bg-[#f1f3f4] focus:text-[#202124] dark:text-foreground dark:focus:bg-accent dark:focus:text-accent-foreground"
+const menuItemClass = "min-h-9 gap-3 text-foreground focus:bg-muted focus:text-foreground dark:focus:bg-accent dark:focus:text-accent-foreground"
 const imageTextFlowIcons = {
   break: AlignCenter,
   "text-right": AlignLeft,
@@ -299,7 +299,7 @@ export function EditorMenuBar({
   return (
     <Menubar
       aria-label="Menús del editor"
-      className={`editor-menu-bar mx-2 mt-1 flex h-auto min-h-10 min-w-0 flex-wrap items-center gap-0.5 border border-[#dadce0] bg-[#f8fafd] px-1 py-1 text-[#3c4043] dark:border-border dark:bg-card dark:text-card-foreground ${toolbarExpanded ? "rounded-t-lg border-b-0" : "mb-1 rounded-lg"}`}
+      className={`editor-menu-bar mx-2 mt-1 flex h-auto min-h-10 min-w-0 flex-wrap items-center gap-0.5 border border-border bg-muted/40 px-1 py-1 text-foreground dark:bg-card dark:text-card-foreground ${toolbarExpanded ? "rounded-t-lg border-b-0" : "mb-1 rounded-lg"}`}
     >
       {menu(
         "Archivo",
@@ -595,14 +595,14 @@ export function EditorMenuBar({
       )}
 
       <fieldset
-        className="m-0 ml-auto flex min-w-0 shrink-0 items-center rounded-md border border-[#dadce0] bg-white p-0 dark:border-border dark:bg-background"
+        className="m-0 ml-auto flex min-w-0 shrink-0 items-center rounded-md border border-border bg-white p-0 dark:bg-background"
         aria-label="Zoom del editor"
       >
         <Button
           type="button"
           size="icon-sm"
           variant="ghost"
-          className="size-8 rounded-r-none text-[#3c4043] hover:bg-[#eee3f5] hover:text-[#70348c] dark:text-foreground dark:hover:bg-muted dark:hover:text-foreground"
+          className="size-8 rounded-r-none text-foreground hover:bg-[#eee3f5] hover:text-[#70348c] dark:hover:bg-muted dark:hover:text-foreground"
           disabled={!editor || !canZoomOut}
           aria-label="Alejar editor"
           title="Alejar (Ctrl/Cmd+-)"
@@ -615,7 +615,7 @@ export function EditorMenuBar({
           type="button"
           size="sm"
           variant="ghost"
-          className="h-8 min-w-14 rounded-none border-x border-[#dadce0] px-2 text-xs tabular-nums text-[#3c4043] hover:bg-[#eee3f5] hover:text-[#70348c] dark:border-border dark:text-foreground dark:hover:bg-muted dark:hover:text-foreground"
+          className="h-8 min-w-14 rounded-none border-x border-border px-2 text-xs tabular-nums text-foreground hover:bg-[#eee3f5] hover:text-[#70348c] dark:hover:bg-muted dark:hover:text-foreground"
           disabled={!editor}
           aria-label={`Restablecer zoom del editor, actual ${zoom}%`}
           title="Restablecer zoom (Ctrl/Cmd+0)"
@@ -628,7 +628,7 @@ export function EditorMenuBar({
           type="button"
           size="icon-sm"
           variant="ghost"
-          className="size-8 rounded-l-none text-[#3c4043] hover:bg-[#eee3f5] hover:text-[#70348c] dark:text-foreground dark:hover:bg-muted dark:hover:text-foreground"
+          className="size-8 rounded-l-none text-foreground hover:bg-[#eee3f5] hover:text-[#70348c] dark:hover:bg-muted dark:hover:text-foreground"
           disabled={!editor || !canZoomIn}
           aria-label="Acercar editor"
           title="Acercar (Ctrl/Cmd++)"
@@ -643,7 +643,7 @@ export function EditorMenuBar({
         type="button"
         size="icon-sm"
         variant="ghost"
-        className="size-8 shrink-0 rounded-md text-[#3c4043] hover:bg-[#eee3f5] hover:text-[#70348c] focus-visible:ring-2 focus-visible:ring-[#b98ad2] dark:text-foreground dark:hover:bg-muted dark:hover:text-foreground dark:focus-visible:ring-ring"
+        className="size-8 shrink-0 rounded-md text-foreground hover:bg-[#eee3f5] hover:text-[#70348c] focus-visible:ring-2 focus-visible:ring-[#b98ad2] dark:hover:bg-muted dark:hover:text-foreground dark:focus-visible:ring-ring"
         disabled={!editor}
         aria-expanded={toolbarExpanded}
         aria-controls="editor-formatting-toolbar"

@@ -16,12 +16,14 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - Define el comportamiento ante acciones repetidas, respuestas lentas, fallos y resultados obsoletos; evita efectos duplicados.
 - Mantén solo el estado necesario y deriva los valores que puedan calcularse a partir de él.
 - Haz que cada acción tenga un propósito y resultado perceptibles, y que pueda operarse de forma accesible.
-- Sigue las convenciones del proyecto y verifica los flujos afectados con las comprobaciones disponibles.
-
-## Lineamientos de calidad de código
-
 - Prioriza código claro, simple y mantenible; evita complejidad y duplicación innecesarias.
-- Usa patrones idiomáticos del stack y maneja explícitamente errores, límites y datos externos.
-- Mantén la accesibilidad y la semántica de la interfaz en cualquier interacción.
 - Corrige los problemas de análisis estático en su causa; evita ocultar advertencias sin justificación.
-- Revisa los cambios con las herramientas de calidad disponibles antes de terminarlos.
+- Sigue las convenciones del proyecto y revisa los flujos afectados con las comprobaciones disponibles.
+
+## Interfaz consistente
+
+- Reutiliza los componentes compartidos antes de crear piezas nuevas; si falta uno, créalo como común y no como variante aislada de una pantalla.
+- Centraliza colores, tamaños, espaciados y puntos de corte como valores compartidos, y documenta las convenciones visuales en un único lugar.
+- Diseña para cualquier pantalla y zoom, sin anchos mínimos fijos, y verifica móvil, tablet y escritorio.
+- Verifica los modos claro y oscuro, y distingue visualmente títulos, ayudas y errores.
+- Cada comportamiento de interfaz nuevo o modificado lleva su prueba automatizada: acción principal, cancelación, errores y espera.

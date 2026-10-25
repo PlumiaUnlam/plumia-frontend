@@ -35,11 +35,26 @@ export function parseNoteContent(value: string | null | undefined): JSONContent[
   }
 }
 
+/** Atributos `kind` y `content` de una nota leídos desde su `<sup>`; comparten editor y lector. */
+export const noteReferenceDataAttributes = {
+  kind: {
+    default: "footnote",
+    parseHTML: (element: HTMLElement) => normalizeNoteKind(element.dataset.noteKind),
+    rendered: false,
+  },
+  content: {
+    default: [] as JSONContent[],
+    parseHTML: (element: HTMLElement) => parseNoteContent(element.dataset.noteContent),
+    rendered: false,
+  },
+}
+
 export function createNoteId(): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
     return crypto.randomUUID()
   }
-  return `note-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
+  const bytes = crypto.getRandomValues(new Uint8Array(8))
+  return `note-${Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("")}`
 }
 
 /** Texto plano de la nota; los saltos de línea se conservan como "\n". */

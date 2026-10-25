@@ -12,13 +12,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
+import { FormDialog } from "@/components/modal/form-dialog";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -440,243 +434,226 @@ export function NewEntityModal({
   };
 
   return (
-    <Dialog open={show} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent size="large" className="z-[60] w-[calc(100vw-2rem)] min-w-0 gap-0 overflow-hidden">
-        <DialogHeader className="p-6 py-4 border-b">
-          <div className="flex items-center justify-between">
-            <DialogTitle>
-              {getEntityModalTitle(isProposal, isEditing)}
-            </DialogTitle>
-          </div>
-        </DialogHeader>
+    <FormDialog
+      open={show}
+      onOpenChange={(open) => !open && onClose()}
+      title={getEntityModalTitle(isProposal, isEditing)}
+      size="md"
+      layer={1}
+      submitLabel={submitLabel}
+      submitDisabled={!name.trim()}
+      loading={submitting}
+      error={error}
+      enterToSubmit={false}
+      onSubmit={handleSubmit}
+    >
+      <Field>
+        <FieldLabel htmlFor="entity-name">Nombre *</FieldLabel>
 
-        <div className="px-6 py-6 space-y-5 max-h-[65vh] overflow-y-auto">
-          {error && (
-            <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
-              {error}
+        <FieldContent>
+          <Input
+            id="entity-name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Ej: Maren Solís"
+          />
+        </FieldContent>
+      </Field>
+
+      <FieldSet className="space-y-2">
+        <FieldLegend>Tipo *</FieldLegend>
+
+        <FieldGroup className="grid grid-cols-3 gap-2">
+          {ENTITY_CATEGORY_STYLES.map((categoryStyle) => {
+            const { id, label, icon: Icon } = categoryStyle;
+            const isSelected = category === id;
+
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => {
+                  setCategory(id);
+                }}
+                className={`
+                    flex items-center gap-2
+                    rounded-lg border px-3 py-2
+                    transition-colors hover:bg-muted
+
+                    ${
+                      isSelected
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border"
+                    }
+                  `}
+              >
+                <Icon
+                  className="h-4 w-4"
+                  style={{ color: categoryStyle.color }}
+                />
+
+                <span className="text-sm font-medium">{label}</span>
+              </button>
+            );
+          })}
+        </FieldGroup>
+      </FieldSet>
+
+      <Field>
+        <FieldLabel htmlFor="entity-description">Descripción</FieldLabel>
+
+        <FieldContent>
+          <Textarea
+            id="entity-description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Describe la entidad..."
+            rows={4}
+          />
+        </FieldContent>
+      </Field>
+
+      <FieldSet className="space-y-2">
+        <FieldLegend>Identidad visual (opcional)</FieldLegend>
+        <p className="text-xs text-muted-foreground">
+          {visualIdentityCopy.help}
+        </p>
+        <Field>
+          <FieldLabel htmlFor="entity-visual-identity">
+            {visualIdentityCopy.label}
+          </FieldLabel>
+          <FieldContent>
+            <Textarea
+              id="entity-visual-identity"
+              value={visualIdentity}
+              onChange={(event) => updateVisualIdentity(event.target.value)}
+              placeholder={visualIdentityCopy.placeholder}
+              rows={3}
+              maxLength={2000}
+            />
+          </FieldContent>
+        </Field>
+        {!visualIdentity.trim() && (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 p-3">
+            <p className="text-xs text-muted-foreground">
+              {visualSuggestion
+                ? "Sugerencia basada en los datos visuales de la ficha."
+                : "Agregá los rasgos visuales que deban mantenerse."}
+            </p>
+            {visualSuggestion && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => updateVisualIdentity(visualSuggestion)}
+              >
+                Usar sugerencia
+              </Button>
+            )}
+          </div>
+        )}
+        <p className="text-xs text-muted-foreground">
+          Se guarda en la ficha y no reemplaza la descripción.
+        </p>
+      </FieldSet>
+
+      <Field>
+        <FieldLabel htmlFor="entity-image">
+          Imagen {imageSelectionLabel}
+        </FieldLabel>
+
+        <FieldContent>
+          <input
+            id="entity-image"
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/avif"
+            onChange={handleFileSelect}
+            className="hidden"
+          />
+
+          {renderImagePreview()}
+
+          {isEditing ? (
+            <ImageGallery
+              compact
+              images={imageGallery}
+              loading={imageGalleryLoading}
+              activeJob={activeImageJob}
+              category={category}
+              onGenerate={onImageGenerate ?? (() => undefined)}
+              onUpload={onImageUpload ?? (() => Promise.resolve())}
+              onSetPrimary={onSetPrimaryImage ?? (() => undefined)}
+              onDelete={onDeleteImage ?? (() => undefined)}
+              actionError={imageActionError}
+              actionsDisabled={
+                !onImageGenerate ||
+                !onImageUpload ||
+                !onSetPrimaryImage ||
+                !onDeleteImage
+              }
+            />
+          ) : (
+            <div className="space-y-2">
+              <ImageUploadActions
+                aiGeneratedUrl={aiGeneratedUrl}
+                aiGenerating={aiGenerating}
+                aiError={aiError}
+                aiElapsed={aiElapsed}
+                name={name}
+                selectedFile={selectedFile}
+                onFileClick={() => fileInputRef.current?.click()}
+                onGenerateAi={handleGenerateAi}
+                onCancelGeneration={handleCancelGeneration}
+                onGenerateImage={onGenerateImage}
+              />
             </div>
           )}
+        </FieldContent>
+      </Field>
 
-          <Field>
-            <FieldLabel htmlFor="entity-name">Nombre *</FieldLabel>
+      <Field>
+        <FieldLabel>Etiquetas</FieldLabel>
 
-            <FieldContent>
-              <Input
-                id="entity-name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Ej: Maren Solís"
-              />
-            </FieldContent>
-          </Field>
+        <FieldContent className="grid gap-2">
+          <div className="flex gap-2">
+            <Input
+              value={tagInput}
+              onChange={(e) => setTagInput(e.target.value)}
+              placeholder="Agregar etiqueta..."
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  addTag();
+                }
+              }}
+            />
 
-          <FieldSet className="space-y-2">
-            <FieldLegend>Tipo *</FieldLegend>
+            <Button onClick={addTag} type="button">
+              Agregar
+            </Button>
+          </div>
 
-            <FieldGroup className="grid grid-cols-3 gap-2">
-              {ENTITY_CATEGORY_STYLES.map((categoryStyle) => {
-                const { id, label, icon: Icon } = categoryStyle;
-                const isSelected = category === id;
+          <div className="flex min-w-0 gap-2 overflow-x-auto px-1">
+            {tags.map((tag) => (
+              <div
+                key={tag}
+                className="inline-flex shrink-0 items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-sm"
+              >
+                <Tag className="h-3 w-3" />
 
-                return (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => {
-                      setCategory(id);
-                    }}
-                    className={`
-                        flex items-center gap-2
-                        rounded-lg border px-3 py-2
-                        transition-colors hover:bg-muted
+                {tag}
 
-                        ${
-                          isSelected
-                            ? "border-primary bg-primary/10 text-primary"
-                            : "border-border"
-                        }
-                      `}
-                  >
-                    <Icon
-                      className="h-4 w-4"
-                      style={{ color: categoryStyle.color }}
-                    />
-
-                    <span className="text-sm font-medium">{label}</span>
-                  </button>
-                );
-              })}
-            </FieldGroup>
-          </FieldSet>
-
-          <Field>
-            <FieldLabel htmlFor="entity-description">Descripción</FieldLabel>
-
-            <FieldContent>
-              <Textarea
-                id="entity-description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Describe la entidad..."
-                rows={4}
-              />
-            </FieldContent>
-          </Field>
-
-          <FieldSet className="space-y-2">
-            <FieldLegend>Identidad visual (opcional)</FieldLegend>
-            <p className="text-xs text-muted-foreground">
-              {visualIdentityCopy.help}
-            </p>
-            <Field>
-              <FieldLabel htmlFor="entity-visual-identity">
-                {visualIdentityCopy.label}
-              </FieldLabel>
-              <FieldContent>
-                <Textarea
-                  id="entity-visual-identity"
-                  value={visualIdentity}
-                  onChange={(event) => updateVisualIdentity(event.target.value)}
-                  placeholder={visualIdentityCopy.placeholder}
-                  rows={3}
-                  maxLength={2000}
-                />
-              </FieldContent>
-            </Field>
-            {!visualIdentity.trim() && (
-              <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 p-3">
-                <p className="text-xs text-muted-foreground">
-                  {visualSuggestion
-                    ? "Sugerencia basada en los datos visuales de la ficha."
-                    : "Agregá los rasgos visuales que deban mantenerse."}
-                </p>
-                {visualSuggestion && (
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => updateVisualIdentity(visualSuggestion)}
-                  >
-                    Usar sugerencia
-                  </Button>
-                )}
+                <button onClick={() => removeTag(tag)} type="button">
+                  <X className="h-3 w-3" />
+                </button>
               </div>
-            )}
-            <p className="text-xs text-muted-foreground">
-              Se guarda en la ficha y no reemplaza la descripción.
-            </p>
-          </FieldSet>
-
-          <Field>
-            <FieldLabel htmlFor="entity-image">
-              Imagen {imageSelectionLabel}
-            </FieldLabel>
-
-            <FieldContent>
-              <input
-                id="entity-image"
-                ref={fileInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp,image/avif"
-                onChange={handleFileSelect}
-                className="hidden"
-              />
-
-              {renderImagePreview()}
-
-              {isEditing ? (
-                <ImageGallery
-                  compact
-                  images={imageGallery}
-                  loading={imageGalleryLoading}
-                  activeJob={activeImageJob}
-                  category={category}
-                  onGenerate={onImageGenerate ?? (() => undefined)}
-                  onUpload={onImageUpload ?? (() => Promise.resolve())}
-                  onSetPrimary={onSetPrimaryImage ?? (() => undefined)}
-                  onDelete={onDeleteImage ?? (() => undefined)}
-                  actionError={imageActionError}
-                  actionsDisabled={
-                    !onImageGenerate ||
-                    !onImageUpload ||
-                    !onSetPrimaryImage ||
-                    !onDeleteImage
-                  }
-                />
-              ) : (
-                <div className="space-y-2">
-                  <ImageUploadActions
-                    aiGeneratedUrl={aiGeneratedUrl}
-                    aiGenerating={aiGenerating}
-                    aiError={aiError}
-                    aiElapsed={aiElapsed}
-                    name={name}
-                    selectedFile={selectedFile}
-                    onFileClick={() => fileInputRef.current?.click()}
-                    onGenerateAi={handleGenerateAi}
-                    onCancelGeneration={handleCancelGeneration}
-                    onGenerateImage={onGenerateImage}
-                  />
-                </div>
-              )}
-            </FieldContent>
-          </Field>
-
-          <Field>
-            <FieldLabel>Etiquetas</FieldLabel>
-
-            <FieldContent className="grid gap-2">
-              <div className="flex gap-2">
-                <Input
-                  value={tagInput}
-                  onChange={(e) => setTagInput(e.target.value)}
-                  placeholder="Agregar etiqueta..."
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      addTag();
-                    }
-                  }}
-                />
-
-                <Button onClick={addTag} type="button">
-                  Agregar
-                </Button>
-              </div>
-
-              <div className="flex min-w-0 gap-2 overflow-x-auto px-1">
-                {tags.map((tag) => (
-                  <div
-                    key={tag}
-                    className="inline-flex shrink-0 items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-sm"
-                  >
-                    <Tag className="h-3 w-3" />
-
-                    {tag}
-
-                    <button onClick={() => removeTag(tag)} type="button">
-                      <X className="h-3 w-3" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </FieldContent>
-          </Field>
-        </div>
-
-        <DialogFooter className="px-6 py-4 border-t">
-          <Button variant="outline" onClick={onClose} disabled={submitting}>
-            Cancelar
-          </Button>
-
-          <Button disabled={!name.trim() || submitting} onClick={handleSubmit}>
-            {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {submitLabel}
-          </Button>
-        </DialogFooter>
-        {children}
-      </DialogContent>
-    </Dialog>
+            ))}
+          </div>
+        </FieldContent>
+      </Field>
+      {children}
+    </FormDialog>
   );
 }
 

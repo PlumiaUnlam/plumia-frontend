@@ -2,15 +2,7 @@
 
 import { EditorSelect, EditorSelectOption } from "./editor-select"
 
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
+import { FormDialog } from "@/components/modal/form-dialog"
 import type { SpellcheckLanguage } from "@/types/editor-search"
 
 type SpellcheckSettingsDialogProps = {
@@ -39,51 +31,37 @@ export function SpellcheckSettingsDialog({
   onSave,
 }: Readonly<SpellcheckSettingsDialogProps>) {
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[min(28rem,calc(100vw-1.5rem))] max-w-none gap-0 overflow-hidden border-[#dadce0] p-0 dark:border-border sm:max-w-none">
-        <DialogHeader className="border-b border-[#dadce0] px-6 py-5 pr-12 dark:border-border">
-          <DialogTitle className="text-[#202124] dark:text-foreground">Configuración del corrector</DialogTitle>
-          <DialogDescription className="text-[#5f6368] dark:text-muted-foreground">
-            Elegí el idioma del corrector y las sugerencias. Hacé clic derecho sobre una palabra para revisarla.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-2 px-6 py-5">
-          <label
-            htmlFor="spellcheck-settings-language"
-            className="text-xs font-medium text-[#5f6368] dark:text-muted-foreground"
-          >
-            Idioma
-          </label>
-          <EditorSelect
-            id="spellcheck-settings-language"
-            value={language}
-            onValueChange={(value) =>
-              onLanguageChange(value as SpellcheckLanguage)
-            }
-            className="h-10 w-full rounded-lg border border-[#dadce0] bg-white px-3 text-sm text-[#3c4043] outline-none focus-visible:border-[#1a73e8] focus-visible:ring-2 focus-visible:ring-[#d2e3fc] dark:border-border dark:bg-input/30 dark:text-foreground dark:focus-visible:border-ring dark:focus-visible:ring-ring/50"
-          >
-            {languageOptions.map((option) => (
-              <EditorSelectOption key={option.value} value={option.value}>
-                {option.label}
-              </EditorSelectOption>
-            ))}
-          </EditorSelect>
-        </div>
-
-        <DialogFooter className="mx-0 mt-0 mb-0 border-t border-[#dadce0] bg-[#f8fafd] px-6 pt-4 pb-5 dark:border-border dark:bg-muted/50 sm:flex-row sm:justify-end">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-          >
-            Cancelar
-          </Button>
-          <Button type="button" onClick={onSave}>
-            Guardar
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <FormDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Configuración del corrector"
+      description="Elegí el idioma del corrector y las sugerencias. Hacé clic derecho sobre una palabra para revisarla."
+      size="sm"
+      submitLabel="Guardar"
+      onSubmit={onSave}
+    >
+      <div className="grid gap-2">
+        <label
+          htmlFor="spellcheck-settings-language"
+          className="text-sm font-medium"
+        >
+          Idioma
+        </label>
+        <EditorSelect
+          id="spellcheck-settings-language"
+          value={language}
+          onValueChange={(value) =>
+            onLanguageChange(value as SpellcheckLanguage)
+          }
+          className="h-10 w-full rounded-lg border border-border bg-popover px-3 text-sm text-foreground outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-ring/50 dark:bg-input/30"
+        >
+          {languageOptions.map((option) => (
+            <EditorSelectOption key={option.value} value={option.value}>
+              {option.label}
+            </EditorSelectOption>
+          ))}
+        </EditorSelect>
+      </div>
+    </FormDialog>
   )
 }

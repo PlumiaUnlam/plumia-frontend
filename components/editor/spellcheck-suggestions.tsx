@@ -8,7 +8,7 @@ import { Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { addWordToSpellcheckDictionary, loadSpellchecker } from "@/lib/spellcheck"
 import type { SpellcheckLanguage } from "@/types/editor-search"
 import {
@@ -328,17 +328,17 @@ export function SpellcheckSuggestions({ editor, language }: Readonly<{ editor: E
 
   return (
     <Dialog open={target !== null} onOpenChange={(open) => { if (!open) close() }}>
-      <DialogContent className="w-[min(30rem,calc(100vw-1.5rem))] max-w-none max-h-[80dvh] gap-0 overflow-y-auto border-[#dadce0] bg-white p-0 dark:border-border dark:bg-popover sm:max-w-none"
+      <DialogContent layout="sectioned" size="md"
         onCloseAutoFocus={(event) => {
           event.preventDefault()
           if (!editor.isDestroyed) editor.commands.focus()
         }}>
-        <DialogHeader className="border-b border-[#dadce0] px-6 py-5 pr-12 dark:border-border">
-          <DialogTitle className="text-[#202124] dark:text-foreground">Sugerencias ortográficas</DialogTitle>
-          <DialogDescription className="text-[#5f6368] dark:text-muted-foreground">Revisá «{target?.word}» y elegí una corrección.</DialogDescription>
+        <DialogHeader>
+          <DialogTitle>Sugerencias ortográficas</DialogTitle>
+          <DialogDescription>Revisá «{target?.word}» y elegí una corrección.</DialogDescription>
         </DialogHeader>
-        <div className="space-y-4 px-6 py-5">
-          <div className="text-sm text-[#5f6368] dark:text-muted-foreground">
+        <DialogBody>
+          <div className="text-sm text-muted-foreground">
             <SpellcheckStatus
               result={currentResult}
               onRetry={() => setAttempt((value) => value + 1)}
@@ -349,7 +349,7 @@ export function SpellcheckSuggestions({ editor, language }: Readonly<{ editor: E
               className="m-0 grid min-w-0 grid-cols-2 gap-2 border-0 p-0"
               aria-label="Correcciones sugeridas"
             >
-              {currentResult.suggestions.map((word) => <Button key={word} type="button" variant="outline" className="h-auto min-h-9 justify-start whitespace-normal break-all border-[#dadce0] bg-white text-[#3c4043] dark:border-border dark:bg-input/30 dark:text-foreground" onClick={() => apply(word)}>{word}</Button>)}
+              {currentResult.suggestions.map((word) => <Button key={word} type="button" variant="outline" className="h-auto min-h-9 justify-start whitespace-normal break-all border-border bg-popover text-foreground dark:bg-input/30" onClick={() => apply(word)}>{word}</Button>)}
             </fieldset>
           )}
           <div className="space-y-1.5">
@@ -358,7 +358,7 @@ export function SpellcheckSuggestions({ editor, language }: Readonly<{ editor: E
               onChange={(event) => setReplacement(event.target.value)}
               onKeyDown={(event) => { if (event.key === "Enter" && replacement.trim()) { event.preventDefault(); apply(replacement) } }} />
           </div>
-          <div className="grid grid-cols-1 gap-2 border-t border-[#dadce0] pt-3 dark:border-border sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-2 border-t border-border pt-3 sm:grid-cols-3">
             <Button type="button" variant="outline" className="h-auto min-h-9 whitespace-normal px-2 py-2 text-xs" onClick={ignoreOccurrence}>
               Ignorar esta vez
             </Button>
@@ -369,12 +369,12 @@ export function SpellcheckSuggestions({ editor, language }: Readonly<{ editor: E
               Agregar al diccionario
             </Button>
           </div>
-          <p className="text-xs text-[#5f6368] dark:text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
             El diccionario personal se guarda en este navegador. Ignorar todas solo afecta esta escena abierta.
           </p>
           {editError && <p role="alert" className="text-sm text-destructive">{editError}</p>}
-        </div>
-        <DialogFooter className="mx-0 mb-0 border-t border-[#dadce0] bg-[#f8fafd] px-6 py-4 dark:border-border dark:bg-muted/50 sm:flex-row sm:justify-end">
+        </DialogBody>
+        <DialogFooter>
           <Button type="button" variant="outline" onClick={close}>Cerrar</Button>
           <Button type="button" disabled={!replacement.trim() || replacement.trim() === target?.word} onClick={() => apply(replacement)}>Reemplazar</Button>
         </DialogFooter>

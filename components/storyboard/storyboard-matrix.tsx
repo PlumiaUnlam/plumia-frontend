@@ -13,6 +13,8 @@ import {
 import useSWR from "swr"
 
 import { Badge } from "@/components/ui/badge"
+import { ConfirmDialog } from "@/components/modal/confirm-dialog"
+import { FormDialog } from "@/components/modal/form-dialog"
 import { Button } from "@/components/ui/button"
 import {
   Combobox,
@@ -22,14 +24,6 @@ import {
   ComboboxItem,
   ComboboxList,
 } from "@/components/ui/combobox"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import {
   Select,
@@ -234,134 +228,116 @@ function ArcDialog({
   }
 
   return (
-    <Dialog
+    <FormDialog
       open={open}
       onOpenChange={(nextOpen) => {
         if (!nextOpen) reset()
         onOpenChange(nextOpen)
       }}
+      title="Nuevo arco narrativo"
+      description="Usá una entidad, una relación existente o creá un arco nuevo."
+      size="sm"
+      submitLabel="Crear arco"
+      submitDisabled={!canSubmit}
+      loading={submitting}
+      onSubmit={handleSubmit}
     >
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Nuevo arco narrativo</DialogTitle>
-          <DialogDescription>
-            Usa una entidad, una relación existente o crea un arco nuevo.
-          </DialogDescription>
-        </DialogHeader>
+      <div className="grid gap-2">
+        <label htmlFor={sourceTypeInputId} className="text-sm font-semibold">Tipo de arco</label>
+        <Select
+          value={sourceType}
+          onValueChange={(value) =>
+            setSourceType(value as StoryboardArcSourceType)
+          }
+        >
+          <SelectTrigger id={sourceTypeInputId} className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent align="start">
+            {Object.entries(SOURCE_LABELS).map(([value, label]) => (
+              <SelectItem key={value} value={value}>
+                {label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
-        <div className="grid gap-4">
+      {sourceType === "custom" ? (
+        <>
           <div className="grid gap-2">
-            <label htmlFor={sourceTypeInputId} className="text-sm font-medium">Tipo de arco</label>
-            <Select
-              value={sourceType}
-              onValueChange={(value) =>
-                setSourceType(value as StoryboardArcSourceType)
-              }
-            >
-              <SelectTrigger id={sourceTypeInputId} className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent align="start">
-                {Object.entries(SOURCE_LABELS).map(([value, label]) => (
-                  <SelectItem key={value} value={value}>
-                    {label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <label htmlFor={nameInputId} className="text-sm font-semibold">Nombre</label>
+            <Input
+              id={nameInputId}
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              placeholder="Ej: Traición y confianza"
+            />
           </div>
+          <div className="grid gap-2">
+            <label htmlFor={customTypeInputId} className="text-sm font-semibold">Tipo</label>
+            <Input
+              id={customTypeInputId}
+              value={customType}
+              onChange={(event) => setCustomType(event.target.value)}
+              placeholder="Ej: Arco emocional, Subtrama, Conflicto"
+            />
+          </div>
+        </>
+      ) : null}
 
-          {sourceType === "custom" ? (
-            <div className="grid gap-2">
-              <label htmlFor={nameInputId} className="text-sm font-medium">Nombre</label>
-              <Input
-                id={nameInputId}
-                value={title}
-                onChange={(event) => setTitle(event.target.value)}
-                placeholder="Ej: Traición y confianza"
-              />
-              <label htmlFor={customTypeInputId} className="text-sm font-medium">Tipo</label>
-              <Input
-                id={customTypeInputId}
-                value={customType}
-                onChange={(event) => setCustomType(event.target.value)}
-                placeholder="Ej: Arco emocional, Subtrama, Conflicto"
-              />
-            </div>
-          ) : null}
-
-          {sourceType === "entity" ? (
-            <div className="grid gap-2">
-              <label htmlFor={entitySelectId} className="text-sm font-medium">Entidad</label>
-              <Select
-                value={entityId || UNASSIGNED_VALUE}
-                onValueChange={(value) =>
-                  setEntityId(value === UNASSIGNED_VALUE ? "" : value)
-                }
-              >
-                <SelectTrigger id={entitySelectId} className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent align="start">
-                  <SelectItem value={UNASSIGNED_VALUE}>
-                    Selecciona una entidad
-                  </SelectItem>
-                  {entities.map((entity) => (
-                    <SelectItem key={entity.id} value={entity.id}>
-                      {entity.canonicalName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          ) : null}
-
-          {sourceType === "relationship" ? (
-            <div className="grid gap-2">
-              <label htmlFor={relationshipSelectId} className="text-sm font-medium">Relación</label>
-              <Select
-                value={relationshipId || UNASSIGNED_VALUE}
-                onValueChange={(value) =>
-                  setRelationshipId(value === UNASSIGNED_VALUE ? "" : value)
-                }
-              >
-                <SelectTrigger id={relationshipSelectId} className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent align="start">
-                  <SelectItem value={UNASSIGNED_VALUE}>
-                    Selecciona una relación
-                  </SelectItem>
-                  {relationships.map((relationship) => (
-                    <SelectItem key={relationship.id} value={relationship.id}>
-                      {getRelationshipLabel(relationship, entitiesById)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          ) : null}
+      {sourceType === "entity" ? (
+        <div className="grid gap-2">
+          <label htmlFor={entitySelectId} className="text-sm font-semibold">Entidad</label>
+          <Select
+            value={entityId || UNASSIGNED_VALUE}
+            onValueChange={(value) =>
+              setEntityId(value === UNASSIGNED_VALUE ? "" : value)
+            }
+          >
+            <SelectTrigger id={entitySelectId} className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent align="start">
+              <SelectItem value={UNASSIGNED_VALUE}>
+                Selecciona una entidad
+              </SelectItem>
+              {entities.map((entity) => (
+                <SelectItem key={entity.id} value={entity.id}>
+                  {entity.canonicalName}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
+      ) : null}
 
-        <DialogFooter>
-          <Button
-            variant="outline"
-            disabled={submitting}
-            onClick={() => onOpenChange(false)}
+      {sourceType === "relationship" ? (
+        <div className="grid gap-2">
+          <label htmlFor={relationshipSelectId} className="text-sm font-semibold">Relación</label>
+          <Select
+            value={relationshipId || UNASSIGNED_VALUE}
+            onValueChange={(value) =>
+              setRelationshipId(value === UNASSIGNED_VALUE ? "" : value)
+            }
           >
-            Cancelar
-          </Button>
-          <Button
-            disabled={!canSubmit || submitting}
-            onClick={() => {
-              void handleSubmit()
-            }}
-          >
-            Crear arco
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+            <SelectTrigger id={relationshipSelectId} className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent align="start">
+              <SelectItem value={UNASSIGNED_VALUE}>
+                Selecciona una relación
+              </SelectItem>
+              {relationships.map((relationship) => (
+                <SelectItem key={relationship.id} value={relationship.id}>
+                  {getRelationshipLabel(relationship, entitiesById)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      ) : null}
+    </FormDialog>
   )
 }
 
@@ -409,139 +385,117 @@ function NoteDialog({
   }
 
   return (
-    <Dialog
+    <FormDialog
       open={open}
       onOpenChange={(nextOpen) => {
         if (!nextOpen) reset()
         onOpenChange(nextOpen)
       }}
+      title="Nueva nota"
+      description="Seleccioná el arco narrativo y el capítulo donde irá la nota."
+      size="sm"
+      submitLabel="Crear nota"
+      submitDisabled={!canSubmit}
+      loading={submitting}
+      onSubmit={handleSubmit}
     >
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Nueva nota</DialogTitle>
-          <DialogDescription>
-            Selecciona el arco narrativo y el capítulo donde irá la nota.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="grid gap-4">
-          <div ref={portalContainerRef} />
-          <div className="grid gap-2">
-            <label htmlFor={arcInputId} className="text-sm font-medium">Arco narrativo</label>
-            <Combobox<StoryboardArc>
-              items={arcs}
-              value={selectedArc}
-              onValueChange={(arc) => setArcId(arc?.id ?? "")}
-              itemToStringValue={(arc) => arc.title}
-              itemToStringLabel={(arc) =>
-                `${arc.title} ${getArcSubtitle(arc, entitiesById)}`
-              }
-              isItemEqualToValue={(arc, value) => arc.id === value.id}
-            >
-              <ComboboxInput
-                id={arcInputId}
-                placeholder="Buscar arco..."
-                showClear
-                className="h-10 w-full rounded-lg border-border bg-background text-base md:text-sm dark:bg-input/30 [&_[data-slot=input-group-control]]:h-full [&_[data-slot=input-group-control]]:text-base md:[&_[data-slot=input-group-control]]:text-sm"
-              />
-              <ComboboxContent
-                side="bottom"
-                align="start"
-                className="w-[var(--anchor-width)] min-w-[var(--anchor-width)]"
-                portalContainer={portalContainerRef}
-              >
-                <ComboboxEmpty>No hay arcos para mostrar</ComboboxEmpty>
-                <ComboboxList>
-                  {(arc: StoryboardArc) => (
-                    <ComboboxItem key={arc.id} value={arc}>
-                      <ArcIcon arc={arc} entitiesById={entitiesById} />
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate font-medium">
-                          {arc.title}
-                        </span>
-                        <span className="block text-xs text-muted-foreground">
-                          {getArcSubtitle(arc, entitiesById)}
-                        </span>
-                      </span>
-                    </ComboboxItem>
-                  )}
-                </ComboboxList>
-              </ComboboxContent>
-            </Combobox>
-          </div>
-
-          <div className="grid gap-2">
-            <label htmlFor={chapterInputId} className="text-sm font-medium">Capítulo</label>
-            <Combobox<StoryboardChapter>
-              items={chapters}
-              value={selectedChapter}
-              onValueChange={(chapter) => setChapterId(chapter?.id ?? "")}
-              itemToStringValue={(chapter) => chapter.title}
-              itemToStringLabel={(chapter) => chapter.title}
-              isItemEqualToValue={(chapter, value) => chapter.id === value.id}
-            >
-              <ComboboxInput
-                id={chapterInputId}
-                placeholder="Buscar capítulo..."
-                showClear
-                className="h-10 w-full rounded-lg border-border bg-background text-base md:text-sm dark:bg-input/30 [&_[data-slot=input-group-control]]:h-full [&_[data-slot=input-group-control]]:text-base md:[&_[data-slot=input-group-control]]:text-sm"
-              />
-              <ComboboxContent
-                side="bottom"
-                align="start"
-                className="w-[var(--anchor-width)] min-w-[var(--anchor-width)]"
-                portalContainer={portalContainerRef}
-              >
-                <ComboboxEmpty>No hay capítulos para mostrar</ComboboxEmpty>
-                <ComboboxList>
-                  {(chapter: StoryboardChapter) => (
-                    <ComboboxItem key={chapter.id} value={chapter}>
-                      <BookOpen className="size-4 text-muted-foreground" />
-                      <span className="truncate">{chapter.title}</span>
-                    </ComboboxItem>
-                  )}
-                </ComboboxList>
-              </ComboboxContent>
-            </Combobox>
-          </div>
-
-          <div className="grid gap-2">
-            <label htmlFor={noteInputId} className="text-sm font-medium">Nota</label>
-            <Textarea
-              id={noteInputId}
-              value={content}
-              onChange={(event) => setContent(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
-                  event.preventDefault()
-                  void handleSubmit()
-                }
-              }}
-              placeholder="Escribe una nota breve"
-              className="min-h-28 resize-none"
-            />
-          </div>
-        </div>
-
-        <DialogFooter>
-          <Button
-            variant="outline"
-            disabled={submitting}
-            onClick={() => onOpenChange(false)}
+      <div ref={portalContainerRef} className="contents" />
+      <div className="grid gap-2">
+        <label htmlFor={arcInputId} className="text-sm font-semibold">Arco narrativo</label>
+        <Combobox<StoryboardArc>
+          items={arcs}
+          value={selectedArc}
+          onValueChange={(arc) => setArcId(arc?.id ?? "")}
+          itemToStringValue={(arc) => arc.title}
+          itemToStringLabel={(arc) =>
+            `${arc.title} ${getArcSubtitle(arc, entitiesById)}`
+          }
+          isItemEqualToValue={(arc, value) => arc.id === value.id}
+        >
+          <ComboboxInput
+            id={arcInputId}
+            placeholder="Buscar arco..."
+            showClear
+            className="h-10 w-full rounded-lg border-border bg-background text-base md:text-sm dark:bg-input/30 [&_[data-slot=input-group-control]]:h-full [&_[data-slot=input-group-control]]:text-base md:[&_[data-slot=input-group-control]]:text-sm"
+          />
+          <ComboboxContent
+            side="bottom"
+            align="start"
+            className="w-[var(--anchor-width)] min-w-[var(--anchor-width)]"
+            portalContainer={portalContainerRef}
           >
-            Cancelar
-          </Button>
-          <Button
-            disabled={!canSubmit || submitting}
-            onClick={() => {
+            <ComboboxEmpty>No hay arcos para mostrar</ComboboxEmpty>
+            <ComboboxList>
+              {(arc: StoryboardArc) => (
+                <ComboboxItem key={arc.id} value={arc}>
+                  <ArcIcon arc={arc} entitiesById={entitiesById} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-medium">
+                      {arc.title}
+                    </span>
+                    <span className="block text-xs text-muted-foreground">
+                      {getArcSubtitle(arc, entitiesById)}
+                    </span>
+                  </span>
+                </ComboboxItem>
+              )}
+            </ComboboxList>
+          </ComboboxContent>
+        </Combobox>
+      </div>
+
+      <div className="grid gap-2">
+        <label htmlFor={chapterInputId} className="text-sm font-semibold">Capítulo</label>
+        <Combobox<StoryboardChapter>
+          items={chapters}
+          value={selectedChapter}
+          onValueChange={(chapter) => setChapterId(chapter?.id ?? "")}
+          itemToStringValue={(chapter) => chapter.title}
+          itemToStringLabel={(chapter) => chapter.title}
+          isItemEqualToValue={(chapter, value) => chapter.id === value.id}
+        >
+          <ComboboxInput
+            id={chapterInputId}
+            placeholder="Buscar capítulo..."
+            showClear
+            className="h-10 w-full rounded-lg border-border bg-background text-base md:text-sm dark:bg-input/30 [&_[data-slot=input-group-control]]:h-full [&_[data-slot=input-group-control]]:text-base md:[&_[data-slot=input-group-control]]:text-sm"
+          />
+          <ComboboxContent
+            side="bottom"
+            align="start"
+            className="w-[var(--anchor-width)] min-w-[var(--anchor-width)]"
+            portalContainer={portalContainerRef}
+          >
+            <ComboboxEmpty>No hay capítulos para mostrar</ComboboxEmpty>
+            <ComboboxList>
+              {(chapter: StoryboardChapter) => (
+                <ComboboxItem key={chapter.id} value={chapter}>
+                  <BookOpen className="size-4 text-muted-foreground" />
+                  <span className="truncate">{chapter.title}</span>
+                </ComboboxItem>
+              )}
+            </ComboboxList>
+          </ComboboxContent>
+        </Combobox>
+      </div>
+
+      <div className="grid gap-2">
+        <label htmlFor={noteInputId} className="text-sm font-semibold">Nota</label>
+        <Textarea
+          id={noteInputId}
+          value={content}
+          onChange={(event) => setContent(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+              event.preventDefault()
               void handleSubmit()
-            }}
-          >
-            Crear nota
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+            }
+          }}
+          placeholder="Escribe una nota breve"
+          className="min-h-28 resize-none"
+        />
+      </div>
+    </FormDialog>
   )
 }
 
@@ -834,75 +788,27 @@ export function StoryboardMatrix({
         onSubmit={addNote}
       />
 
-      <Dialog
+      <ConfirmDialog
         open={!!arcToDelete}
         onOpenChange={(open) => {
-          if (!open && !submitting) setArcToDelete(null)
+          if (!open) setArcToDelete(null)
         }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Eliminar arco narrativo</DialogTitle>
-            <DialogDescription>
-              ¿Seguro que quieres eliminar &ldquo;{arcToDelete?.title}&rdquo;?
-              También se eliminarán sus notas de la matriz.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              disabled={submitting}
-              onClick={() => setArcToDelete(null)}
-            >
-              Cancelar
-            </Button>
-            <Button
-              variant="destructive"
-              disabled={submitting}
-              onClick={() => {
-                void removeArc()
-              }}
-            >
-              Eliminar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        title="Eliminar arco narrativo"
+        description={`¿Querés eliminar “${arcToDelete?.title ?? ""}”? También se eliminarán sus notas de la matriz.`}
+        loading={submitting}
+        onConfirm={removeArc}
+      />
 
-      <Dialog
+      <ConfirmDialog
         open={!!noteToDelete}
         onOpenChange={(open) => {
-          if (!open && !submitting) setNoteToDelete(null)
+          if (!open) setNoteToDelete(null)
         }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Eliminar nota</DialogTitle>
-            <DialogDescription>
-              ¿Seguro que quieres eliminar esta nota? Esta acción no se puede
-              deshacer.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              disabled={submitting}
-              onClick={() => setNoteToDelete(null)}
-            >
-              Cancelar
-            </Button>
-            <Button
-              variant="destructive"
-              disabled={submitting}
-              onClick={() => {
-                void removeNote()
-              }}
-            >
-              Eliminar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        title="Eliminar nota"
+        description="¿Querés eliminar esta nota? Esta acción no se puede deshacer."
+        loading={submitting}
+        onConfirm={removeNote}
+      />
     </div>
   )
 }

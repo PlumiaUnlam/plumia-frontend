@@ -80,9 +80,9 @@ export function TextFontFamilyMenuOptions({
 
   return (
     <>
-      <div className="sticky top-0 z-10 border-b border-[#dadce0] bg-white p-2 dark:border-border dark:bg-popover">
+      <div className="sticky top-0 z-10 border-b border-border bg-popover p-2">
         <div className="relative">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-[#5f6368] dark:text-muted-foreground" />
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             ref={searchInputRef}
             value={query}
@@ -96,7 +96,7 @@ export function TextFontFamilyMenuOptions({
             }}
             placeholder="Buscar fuente..."
             aria-label="Buscar familia tipográfica"
-            className="h-9 rounded-md border-[#dadce0] bg-white pl-9 pr-2 text-sm shadow-none focus-visible:ring-2 focus-visible:ring-[#a8c7fa] dark:border-border dark:bg-input/30 dark:text-foreground dark:focus-visible:ring-ring"
+            className="h-9 rounded-md border-border bg-white pl-9 pr-2 text-sm shadow-none focus-visible:ring-2 focus-visible:ring-ring/50 dark:bg-input/30 dark:focus-visible:ring-ring"
           />
         </div>
       </div>
@@ -123,7 +123,7 @@ export function TextFontFamilyMenuOptions({
             {visibleGroups.map((group, index) => (
               <div key={group.label}>
                 {index > 0 && <DropdownMenuSeparator />}
-                <DropdownMenuLabel className="px-2 py-1.5 text-xs font-semibold uppercase tracking-wide text-[#5f6368]">
+                <DropdownMenuLabel className="px-2 py-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   {group.label}
                 </DropdownMenuLabel>
                 {group.options.map((font) => (
@@ -139,14 +139,14 @@ export function TextFontFamilyMenuOptions({
               </div>
             ))}
             {hasMoreResults ? (
-              <p className="px-2 py-3 text-center text-xs text-[#5f6368] dark:text-muted-foreground">
+              <p className="px-2 py-3 text-center text-xs text-muted-foreground">
                 Desplazate para cargar más fuentes
               </p>
             ) : null}
           </div>
         </DropdownMenuRadioGroup>
       ) : (
-        <p className="px-3 py-5 text-center text-sm text-[#5f6368]">
+        <p className="px-3 py-5 text-center text-sm text-muted-foreground">
           No se encontraron fuentes.
         </p>
       )}

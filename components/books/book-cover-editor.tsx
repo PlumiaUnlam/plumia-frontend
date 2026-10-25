@@ -1,20 +1,11 @@
 "use client"
 
-import { useEffect, useRef, useState, type ChangeEvent } from "react"
+import { useEffect, useRef, useState, type ChangeEvent, type ReactNode } from "react"
 import { BookOpen, ImageUp, Loader2, Trash2 } from "lucide-react"
 import useSWR from "swr"
 import { toast } from "sonner"
 
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
+import { ConfirmDialog } from "@/components/modal/confirm-dialog"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import {
@@ -35,6 +26,10 @@ type BookCoverEditorProps = {
   bookTitle: string
   disabled?: boolean
   compact?: boolean
+  /** Título del bloque de portada (solo en el modo no compacto). */
+  label?: ReactNode
+  /** Campos que van a la derecha de la portada, encima de los botones (modo no compacto). */
+  children?: ReactNode
 }
 
 export function BookCoverEditor({
@@ -42,10 +37,13 @@ export function BookCoverEditor({
   bookTitle,
   disabled = false,
   compact = false,
+  label = "Portada",
+  children,
 }: Readonly<BookCoverEditorProps>) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const localPreviewRef = useRef<string | null>(null)
-  const [localPreview, setLocalPreview] = useState<string | null>(null)
+  // La vista previa local pertenece al libro que se está subiendo: si se cambia de libro no se muestra en el otro.
+  const [localPreview, setLocalPreview] = useState<{ bookId: string; url: string } | null>(null)
   const [isUploading, setIsUploading] = useState(false)
   const [isRemoving, setIsRemoving] = useState(false)
   const [isConfirmOpen, setIsConfirmOpen] = useState(false)
@@ -65,7 +63,7 @@ export function BookCoverEditor({
   const replaceLocalPreview = (next: string | null) => {
     if (localPreviewRef.current) URL.revokeObjectURL(localPreviewRef.current)
     localPreviewRef.current = next
-    setLocalPreview(next)
+    setLocalPreview(next ? { bookId, url: next } : null)
   }
 
   useEffect(() => () => {
@@ -74,7 +72,8 @@ export function BookCoverEditor({
 
   const isBusy = isUploading || isRemoving
   const controlsDisabled = disabled || isBusy || isLoading
-  const previewUrl = localPreview ?? coverUrl ?? null
+  const localPreviewUrl = localPreview?.bookId === bookId ? localPreview.url : null
+  const previewUrl = localPreviewUrl ?? coverUrl ?? null
   const hasCover = Boolean(coverUrl)
 
   const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -120,11 +119,17 @@ export function BookCoverEditor({
   }
 
   return (
-    <div className={cn("flex gap-4", compact ? "items-center" : "items-start")}>
+    <div
+      className={cn(
+        compact
+          ? "flex items-center gap-4"
+          : "grid gap-5 sm:grid-cols-[10rem_minmax(0,1fr)]",
+      )}
+    >
       <div
         className={cn(
           "relative aspect-[5/8] shrink-0 overflow-hidden rounded-md border border-border bg-muted",
-          compact ? "w-20" : "w-32",
+          compact ? "w-20" : "w-40 max-sm:mx-auto",
         )}
       >
         {previewUrl ? (
@@ -134,16 +139,16 @@ export function BookCoverEditor({
             alt={`Portada de ${bookTitle}`}
             className="size-full object-cover"
             onError={() => {
-              if (!localPreview) void mutate()
+              if (!localPreviewUrl) void mutate()
             }}
           />
         ) : (
           <div className="flex size-full flex-col items-center justify-center gap-1.5 p-2 text-center text-muted-foreground">
-            <BookOpen className={compact ? "size-5" : "size-7"} strokeWidth={1.6} />
+            <BookOpen className={compact ? "size-5" : "size-9"} strokeWidth={1.6} />
             <span
               className={cn(
                 "line-clamp-4 break-words font-serif leading-tight text-foreground/80",
-                compact ? "text-[10px]" : "text-xs",
+                compact ? "text-2xs" : "text-sm",
               )}
             >
               {bookTitle || "Sin título"}
@@ -157,7 +162,7 @@ export function BookCoverEditor({
         )}
       </div>
 
-      <div className="min-w-0 space-y-2">
+      <div className={cn("min-w-0", compact ? "space-y-2" : "flex flex-col gap-5")}>
         <input
           ref={fileInputRef}
           type="file"
@@ -167,6 +172,9 @@ export function BookCoverEditor({
           aria-hidden="true"
           onChange={(event) => void handleFileChange(event)}
         />
+        {compact ? null : children}
+        <div className={cn(!compact && "flex flex-col gap-2")}>
+        {compact ? null : <span className="text-sm font-semibold">{label}</span>}
         <div className="flex flex-wrap gap-2">
           <Button
             type="button"
@@ -195,28 +203,21 @@ export function BookCoverEditor({
         <p className="text-xs text-muted-foreground">
           JPG o PNG, hasta 10 MB. Recomendado: 1600 × 2560 px.
         </p>
+        </div>
       </div>
 
-      <AlertDialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Quitar la portada?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Se borra la imagen de “{bookTitle}”. El EPUB se exportará sin portada,
-              empezando por la página de título.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              onClick={() => void handleRemove()}
-            >
-              Quitar portada
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={isConfirmOpen}
+        onOpenChange={setIsConfirmOpen}
+        title="¿Quitar la portada?"
+        description={`Se borra la imagen de “${bookTitle}”. El EPUB se exportará sin portada, empezando por la página de título.`}
+        confirmLabel="Quitar portada"
+        loading={isRemoving}
+        onConfirm={async () => {
+          await handleRemove()
+          setIsConfirmOpen(false)
+        }}
+      />
     </div>
   )
 }

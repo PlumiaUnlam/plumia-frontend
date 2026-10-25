@@ -2,14 +2,7 @@
 
 import { useState } from "react"
 
-import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+import { FormDialog } from "@/components/modal/form-dialog"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import type { CreateEntityStateInput } from "@/types/entity-state"
@@ -84,55 +77,53 @@ export function EntityStateModal({
   }
 
   return (
-    <Dialog open={open} onOpenChange={(nextOpen) => !nextOpen && onClose()}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>{title}: {entityName}</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          {error && <p className="rounded-md bg-destructive/10 p-2 text-sm text-destructive">{error}</p>}
-          <label className="grid gap-1.5 text-sm font-medium">
-            <span>Atributo dinámico</span>
-            <select
-              value={selectedKey}
-              onChange={(event) => setSelectedKey(event.target.value)}
-              className="h-10 rounded-lg border border-border bg-background px-3 text-sm"
-            >
-              {stateKeys.map((key) => <option key={key.value} value={key.value}>{key.label}</option>)}
-            </select>
-          </label>
-          {selectedKey === "custom" && (
-            <label className="grid gap-1.5 text-sm font-medium">
-              Nombre del atributo
-              <Input value={customKey} onChange={(event) => setCustomKey(event.target.value)} placeholder="Ej.: armadura" />
-            </label>
-          )}
-          <label className="grid gap-1.5 text-sm font-medium">
-            Nuevo valor
-            <Textarea value={toValue} onChange={(event) => setToValue(event.target.value)} placeholder="Ej.: Puerto de Bruma" rows={2} />
-          </label>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="grid gap-1.5 text-sm font-medium">
-              <span>Válido desde</span>
-              <select value={validFromSceneId} onChange={(event) => setValidFromSceneId(event.target.value)} className="h-10 rounded-lg border border-border bg-background px-3 text-sm">
-                <option value="">Seleccionar escena</option>
-                {scenes.map((scene) => <option key={scene.id} value={scene.id}>{scene.title ?? "Escena sin título"}</option>)}
-              </select>
-            </label>
-            <label className="grid gap-1.5 text-sm font-medium">
-              <span>Válido hasta</span>
-              <select value={validToSceneId} onChange={(event) => setValidToSceneId(event.target.value)} className="h-10 rounded-lg border border-border bg-background px-3 text-sm">
-                <option value="">Sigue vigente</option>
-                {scenes.map((scene) => <option key={scene.id} value={scene.id}>{scene.title ?? "Escena sin título"}</option>)}
-              </select>
-            </label>
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={submitting}>Cancelar</Button>
-          <Button onClick={handleSubmit} disabled={submitting}>{submitting ? "Guardando..." : "Guardar estado"}</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <FormDialog
+      open={open}
+      onOpenChange={(nextOpen) => !nextOpen && onClose()}
+      title={`${title}: ${entityName}`}
+      size="sm"
+      submitLabel="Guardar estado"
+      loading={submitting}
+      error={error}
+      enterToSubmit={false}
+      onSubmit={handleSubmit}
+    >
+      <label className="grid gap-1.5 text-sm font-semibold">
+        <span>Atributo dinámico</span>
+        <select
+          value={selectedKey}
+          onChange={(event) => setSelectedKey(event.target.value)}
+          className="h-10 rounded-lg border border-border bg-background px-3 text-sm dark:bg-input/30"
+        >
+          {stateKeys.map((key) => <option key={key.value} value={key.value}>{key.label}</option>)}
+        </select>
+      </label>
+      {selectedKey === "custom" && (
+        <label className="grid gap-1.5 text-sm font-semibold">
+          Nombre del atributo
+          <Input value={customKey} onChange={(event) => setCustomKey(event.target.value)} placeholder="Ej.: armadura" />
+        </label>
+      )}
+      <label className="grid gap-1.5 text-sm font-semibold">
+        Nuevo valor
+        <Textarea value={toValue} onChange={(event) => setToValue(event.target.value)} placeholder="Ej.: Puerto de Bruma" rows={2} />
+      </label>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="grid gap-1.5 text-sm font-semibold">
+          <span>Válido desde</span>
+          <select value={validFromSceneId} onChange={(event) => setValidFromSceneId(event.target.value)} className="h-10 rounded-lg border border-border bg-background px-3 text-sm dark:bg-input/30">
+            <option value="">Seleccionar escena</option>
+            {scenes.map((scene) => <option key={scene.id} value={scene.id}>{scene.title ?? "Escena sin título"}</option>)}
+          </select>
+        </label>
+        <label className="grid gap-1.5 text-sm font-semibold">
+          <span>Válido hasta</span>
+          <select value={validToSceneId} onChange={(event) => setValidToSceneId(event.target.value)} className="h-10 rounded-lg border border-border bg-background px-3 text-sm dark:bg-input/30">
+            <option value="">Sigue vigente</option>
+            {scenes.map((scene) => <option key={scene.id} value={scene.id}>{scene.title ?? "Escena sin título"}</option>)}
+          </select>
+        </label>
+      </div>
+    </FormDialog>
   )
 }

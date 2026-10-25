@@ -3,14 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import { BookOpen, Loader2, RotateCcw } from "lucide-react"
 
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+import { FormDialog } from "@/components/modal/form-dialog"
 import { Button } from "@/components/ui/button"
 import { BookCoverEditor } from "@/components/books/book-cover-editor"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -162,141 +155,145 @@ export function ExportDialog({
     setError(null)
   }
 
+  const bookField = (
+    <div className="space-y-1.5">
+      <label
+        htmlFor="export-book"
+        className="text-sm font-semibold"
+      >
+        Libro
+      </label>
+      <Select
+        value={bookId ?? undefined}
+        disabled={isBusy || books.length === 0}
+        onValueChange={setSelectedBookId}
+      >
+        <SelectTrigger id="export-book" className="h-10 w-full">
+          <SelectValue
+            placeholder={
+              books.length === 0
+                ? "El proyecto no tiene libros"
+                : "Seleccioná un libro"
+            }
+          />
+        </SelectTrigger>
+        <SelectContent align="start">
+          {books.map((book) => (
+            <SelectItem key={book.id} value={book.id}>
+              {book.title}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  )
+
+  const formatCard = (
+    <div className="flex min-h-[76px] w-full items-center gap-3 rounded-md border border-border bg-card px-3">
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+        <BookOpen className="size-7" strokeWidth={1.8} />
+      </span>
+      <span className="min-w-0 space-y-0.5">
+        <span className="block text-sm font-semibold leading-4 text-foreground">
+          EPUB
+        </span>
+        <span className="block text-xs font-medium leading-4 text-foreground">
+          Libro electrónico
+        </span>
+        <span className="block text-2xs font-normal leading-3 text-muted-foreground">
+          Compatible con lectores digitales
+        </span>
+      </span>
+    </div>
+  )
+
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="flex max-h-[85vh] flex-col overflow-hidden sm:max-w-xl">
-        <DialogHeader>
-          <DialogTitle>Exportar un libro</DialogTitle>
-          <DialogDescription>
-            Elegí el libro que querés exportar. El archivo se genera en formato
-            EPUB.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
-          {isHistoricalVersion ? (
-            <Alert className="bg-muted/50">
-              <AlertTitle>Versión histórica seleccionada</AlertTitle>
-              <AlertDescription>
-                Volvé al borrador principal para exportar
-              </AlertDescription>
-            </Alert>
-          ) : (
-            <div className="space-y-3">
-              <div className="space-y-1.5">
-                <label
-                  htmlFor="export-book"
-                  className="text-xs font-medium text-foreground"
-                >
-                  Libro
-                </label>
-                <Select
-                  value={bookId ?? undefined}
-                  disabled={isBusy || books.length === 0}
-                  onValueChange={setSelectedBookId}
-                >
-                  <SelectTrigger id="export-book" className="h-10 w-full">
-                    <SelectValue
-                      placeholder={
-                        books.length === 0
-                          ? "El proyecto no tiene libros"
-                          : "Seleccioná un libro"
-                      }
-                    />
-                  </SelectTrigger>
-                  <SelectContent align="start">
-                    {books.map((book) => (
-                      <SelectItem key={book.id} value={book.id}>
-                        {book.title}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {bookId && (
-                <div className="space-y-1.5">
-                  <span className="text-xs font-medium text-foreground">
-                    Portada <span className="font-normal text-muted-foreground">(opcional)</span>
-                  </span>
-                  <BookCoverEditor
-                    key={bookId}
-                    compact
-                    bookId={bookId}
-                    bookTitle={books.find((book) => book.id === bookId)?.title ?? ""}
-                    disabled={isBusy}
-                  />
-                </div>
-              )}
-
-              <div className="flex min-h-[76px] w-full items-center gap-3 rounded-md border border-border bg-card px-3">
-                <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-                  <BookOpen className="size-7" strokeWidth={1.8} />
-                </span>
-                <span className="min-w-0 space-y-0.5">
-                  <span className="block text-sm font-semibold leading-4 text-foreground">
-                    EPUB
-                  </span>
-                  <span className="block text-xs font-medium leading-4 text-foreground">
-                    Libro electrónico
-                  </span>
-                  <span className="block text-[11px] font-normal leading-3 text-muted-foreground">
-                    Compatible con lectores digitales
-                  </span>
-                </span>
-              </div>
-            </div>
-          )}
-
-          {job && !error && (
-            <div className="space-y-2 rounded-lg border border-border bg-muted/50 p-3 text-foreground">
-              <div className="flex items-center justify-between text-sm">
-                <span>{statusLabel(job.status)}</span>
-                <span>{job.progress}%</span>
-              </div>
-              <Progress
-                value={Math.min(100, Math.max(0, job.progress))}
-                className="h-2"
-                aria-label={`Progreso de exportación: ${job.progress}%`}
-              />
-            </div>
-          )}
-
-          {error && (
-            <Alert variant="destructive">
-              <AlertTitle>No se pudo exportar</AlertTitle>
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-        </div>
-
-        <DialogFooter>
-          {error && job && (
-            <Button type="button" variant="outline" onClick={retry}>
-              <RotateCcw className="mr-2 h-4 w-4" />
-              Reintentar
-            </Button>
-          )}
-          <Button
-            type="button"
-            variant="outline"
-            disabled={isSubmitting}
-            onClick={() => handleOpenChange(false)}
-          >
-            Cancelar
-          </Button>
-          {!isHistoricalVersion && (
-            <Button
-              type="button"
-              disabled={!canExport}
-              onClick={() => void handleExport()}
+    <FormDialog
+      open={open}
+      onOpenChange={handleOpenChange}
+      title="Exportar un libro"
+      description="Elegí el libro que querés exportar. El archivo se genera en formato EPUB."
+      size="md"
+      loading={isSubmitting}
+      footer={
+        <>
+      {error && job && (
+        <Button type="button" variant="outline" onClick={retry}>
+          <RotateCcw className="mr-2 h-4 w-4" />
+          Reintentar
+        </Button>
+      )}
+      <Button
+        type="button"
+        variant="outline"
+        disabled={isSubmitting}
+        onClick={() => handleOpenChange(false)}
+      >
+        Cancelar
+      </Button>
+      {!isHistoricalVersion && (
+        <Button
+          type="button"
+          disabled={!canExport}
+          onClick={() => void handleExport()}
+        >
+          {isSubmitting && <Loader2 className="mr-1.5 size-3.5 animate-spin" />}
+          Exportar
+        </Button>
+      )}
+        </>
+      }
+    >
+      {isHistoricalVersion ? (
+        <Alert className="bg-muted/50">
+          <AlertTitle>Versión histórica seleccionada</AlertTitle>
+          <AlertDescription>
+            Volvé al borrador principal para exportar
+          </AlertDescription>
+        </Alert>
+      ) : (
+        <div className="flex flex-col gap-5">
+          {bookId ? (
+            <BookCoverEditor
+              bookId={bookId}
+              bookTitle={books.find((book) => book.id === bookId)?.title ?? ""}
+              label={
+                <>
+                  Portada{" "}
+                  <span className="font-normal text-muted-foreground">(opcional)</span>
+                </>
+              }
+              disabled={isBusy}
             >
-              {isSubmitting && <Loader2 className="mr-1.5 size-3.5 animate-spin" />}
-              Exportar
-            </Button>
+              {bookField}
+            </BookCoverEditor>
+          ) : (
+            bookField
           )}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          {formatCard}
+        </div>
+      )}
+
+      {job && !error && (
+        <div className="space-y-2 rounded-lg border border-border bg-muted/50 p-3 text-foreground">
+          <div className="flex items-center justify-between text-sm">
+            <span>{statusLabel(job.status)}</span>
+            <span>{job.progress}%</span>
+          </div>
+          <Progress
+            value={Math.min(100, Math.max(0, job.progress))}
+            className="h-2"
+            aria-label={`Progreso de exportación: ${job.progress}%`}
+          />
+        </div>
+      )}
+
+      {error && (
+        <Alert variant="destructive">
+          <AlertTitle>No se pudo exportar</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+    </FormDialog>
   )
 }

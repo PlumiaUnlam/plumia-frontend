@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react"
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react"
 import { Camera, CircleAlert, LogOut, Monitor, Moon, Settings, Sun, Trash2, UserRound } from "lucide-react"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
@@ -10,6 +10,7 @@ import { useAuth } from "@/contexts/AuthContext"
 import { deleteAccountErrorMessage } from "@/helpers/api-errors"
 import { cn } from "@/lib/utils"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { FormDialog } from "@/components/modal/form-dialog"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,14 +23,6 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -208,8 +201,7 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
     setError(null)
   }
 
-  const handleProfileSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
+  const handleProfileSubmit = async () => {
     const normalizedName = displayName.trim()
 
     if (!normalizedName) {
@@ -349,147 +341,131 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <Dialog open={profileOpen} onOpenChange={setProfileOpen}>
-        <DialogContent
-          onInteractOutside={(event) => {
-            // La confirmación de eliminación vive en un portal propio, así que
-            // sus eventos se ven como "afuera" de este diálogo y Radix lo
-            // cerraría. Se decide por el DOM y no por el estado `deleteOpen`:
-            // Radix emite el evento más de una vez por click y la última
-            // llegada ocurre recién cuando `deleteOpen` ya volvió a false.
-            const confirmacionMontada = document.querySelector(
-              '[data-slot="alert-dialog-content"]',
-            )
-            if (confirmacionMontada) event.preventDefault()
-          }}
-        >
-          <form onSubmit={handleProfileSubmit} className="contents">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <UserRound className="size-4" />
-                Configurar perfil
-              </DialogTitle>
-              <DialogDescription>
-                Elegí cómo querés aparecer dentro de PlumIA.
-              </DialogDescription>
-            </DialogHeader>
+      <FormDialog
+        open={profileOpen}
+        onOpenChange={setProfileOpen}
+        title={
+          <span className="flex items-center gap-2">
+            <UserRound className="size-4" />
+            Configurar perfil
+          </span>
+        }
+        description="Elegí cómo querés aparecer dentro de PlumIA."
+        size="sm"
+        submitLabel="Guardar cambios"
+        loading={saving}
+        onSubmit={handleProfileSubmit}
+        onInteractOutside={(event) => {
+          // La confirmación de eliminación vive en un portal propio, así que
+          // sus eventos se ven como "afuera" de este diálogo y Radix lo
+          // cerraría. Se decide por el DOM y no por el estado `deleteOpen`:
+          // Radix emite el evento más de una vez por click y la última
+          // llegada ocurre recién cuando `deleteOpen` ya volvió a false.
+          const confirmacionMontada = document.querySelector(
+            '[data-slot="alert-dialog-content"]',
+          )
+          if (confirmacionMontada) event.preventDefault()
+        }}
+      >
+      <div className="flex items-center gap-3 rounded-lg border bg-muted/30 p-3">
+        <ProfileAvatar
+          src={previewSrc}
+          alt="Vista previa"
+          initials={getInitials(displayName, email)}
+          large
+        />
+        <div className="min-w-0">
+          <p className="truncate font-medium">{displayName || "Usuario"}</p>
+          <p className="truncate text-xs text-muted-foreground">{email}</p>
+        </div>
+      </div>
 
-            <div className="flex items-center gap-3 rounded-lg border bg-muted/30 p-3">
-              <ProfileAvatar
-                src={previewSrc}
-                alt="Vista previa"
-                initials={getInitials(displayName, email)}
-                large
-              />
-              <div className="min-w-0">
-                <p className="truncate font-medium">{displayName || "Usuario"}</p>
-                <p className="truncate text-xs text-muted-foreground">{email}</p>
-              </div>
-            </div>
-
-            <FieldGroup className="gap-4">
-              <Field>
-                <FieldLabel htmlFor="profile-display-name">Nombre visible</FieldLabel>
-                <Input
-                  id="profile-display-name"
-                  value={displayName}
-                  onChange={(event) => setDisplayName(event.target.value)}
-                  autoComplete="name"
-                  maxLength={100}
-                  disabled={saving}
-                />
-                <FieldDescription>
-                  Es el nombre que aparece como autor en tus libros exportados.
-                </FieldDescription>
-              </Field>
-              <Field>
-                <FieldLabel>Foto de perfil</FieldLabel>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,image/avif"
-                  className="sr-only"
-                  onChange={handleAvatarChange}
-                  disabled={saving}
-                />
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={saving}
-                  >
-                    <Camera />
-                    {previewSrc ? "Cambiar imagen" : "Subir imagen"}
-                  </Button>
-                  {(currentPhotoURL || avatarFile) && !removeAvatar && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setAvatarFile(null)
-                        setAvatarPreview(null)
-                        setRemoveAvatar(true)
-                      }}
-                      disabled={saving}
-                    >
-                      <Trash2 />
-                      Quitar
-                    </Button>
-                  )}
-                </div>
-                <FieldDescription>
-                  JPG, PNG, WebP o AVIF. Máximo 5 MB.
-                </FieldDescription>
-              </Field>
-              {error && <FieldError>{error}</FieldError>}
-            </FieldGroup>
-
-            {/* Zona de peligro: deliberadamente separada de los campos
-                editables y fuera del FieldGroup, para que no se confunda con
-                el formulario de perfil. `type="button"` explícito: esto vive
-                dentro del form de "Guardar cambios" y no debe heredar submit,
-                o apretar Enter en un input borraría la cuenta. */}
-            <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3">
-              <p className="text-sm font-medium text-destructive">
-                Eliminar cuenta
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Se borran tus proyectos, capítulos, escenas e imágenes. Esta
-                acción no se puede deshacer.
-              </p>
+      <FieldGroup className="gap-4">
+        <Field>
+          <FieldLabel htmlFor="profile-display-name">Nombre visible</FieldLabel>
+          <Input
+            id="profile-display-name"
+            value={displayName}
+            onChange={(event) => setDisplayName(event.target.value)}
+            autoComplete="name"
+            maxLength={100}
+            disabled={saving}
+          />
+          <FieldDescription>
+            Es el nombre que aparece como autor en tus libros exportados.
+          </FieldDescription>
+        </Field>
+        <Field>
+          <FieldLabel>Foto de perfil</FieldLabel>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/avif"
+            className="sr-only"
+            onChange={handleAvatarChange}
+            disabled={saving}
+          />
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={saving}
+            >
+              <Camera />
+              {previewSrc ? "Cambiar imagen" : "Subir imagen"}
+            </Button>
+            {(currentPhotoURL || avatarFile) && !removeAvatar && (
               <Button
                 type="button"
-                variant="destructive"
+                variant="ghost"
                 size="sm"
-                className="mt-3"
-                onClick={openDeleteDialog}
+                onClick={() => {
+                  setAvatarFile(null)
+                  setAvatarPreview(null)
+                  setRemoveAvatar(true)
+                }}
                 disabled={saving}
               >
                 <Trash2 />
-                Eliminar cuenta
+                Quitar
               </Button>
-            </div>
+            )}
+          </div>
+          <FieldDescription>
+            JPG, PNG, WebP o AVIF. Máximo 5 MB.
+          </FieldDescription>
+        </Field>
+        {error && <FieldError>{error}</FieldError>}
+      </FieldGroup>
 
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setProfileOpen(false)}
-                disabled={saving}
-              >
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={saving}>
-                {saving && <Spinner />}
-                Guardar cambios
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      {/* Zona de peligro: deliberadamente separada de los campos
+          editables y fuera del FieldGroup, para que no se confunda con
+          el formulario de perfil. `type="button"` explícito: esto vive
+          dentro del form de "Guardar cambios" y no debe heredar submit,
+          o apretar Enter en un input borraría la cuenta. */}
+      <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3">
+        <p className="text-sm font-medium text-destructive">
+          Eliminar cuenta
+        </p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Se borran tus proyectos, capítulos, escenas e imágenes. Esta
+          acción no se puede deshacer.
+        </p>
+        <Button
+          type="button"
+          variant="destructive"
+          size="sm"
+          className="mt-3"
+          onClick={openDeleteDialog}
+          disabled={saving}
+        >
+          <Trash2 />
+          Eliminar cuenta
+        </Button>
+      </div>
+      </FormDialog>
 
       <AlertDialog
         open={deleteOpen}

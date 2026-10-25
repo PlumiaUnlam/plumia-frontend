@@ -19,16 +19,7 @@ import { Navbar } from "@/components/navbar"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
+import { ConfirmDialog } from "@/components/modal/confirm-dialog"
 import {
   Card,
   CardContent,
@@ -36,7 +27,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { Dialog } from "@/components/ui/dialog"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -53,7 +43,6 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Spinner } from "@/components/ui/spinner"
 import { EmailNotVerifiedError } from "@/services/api.service"
 import {
   deleteProject,
@@ -279,58 +268,35 @@ function DashboardProjectDialogs({
 }>) {
   return (
     <>
-      <Dialog open={isCreateDialogOpen} onOpenChange={onCreateDialogOpenChange}>
-        {isCreateDialogOpen ? (
-          <NewProjectForm
-            onCancel={() => onCreateDialogOpenChange(false)}
-            onSuccess={onCreateSuccess}
-          />
-        ) : null}
-      </Dialog>
+      {isCreateDialogOpen ? (
+        <NewProjectForm
+          onCancel={() => onCreateDialogOpenChange(false)}
+          onSuccess={onCreateSuccess}
+        />
+      ) : null}
 
-      <Dialog
-        open={Boolean(projectToEdit)}
-        onOpenChange={onEditDialogOpenChange}
-      >
-        {projectToEdit ? (
-          <NewProjectForm
-            key={projectToEdit.id}
-            project={projectToEdit}
-            onCancel={() => onEditDialogOpenChange(false)}
-            onSuccess={onEditSuccess}
-          />
-        ) : null}
-      </Dialog>
+      {projectToEdit ? (
+        <NewProjectForm
+          key={projectToEdit.id}
+          project={projectToEdit}
+          onCancel={() => onEditDialogOpenChange(false)}
+          onSuccess={onEditSuccess}
+        />
+      ) : null}
 
-      <AlertDialog
+      <ConfirmDialog
         open={Boolean(projectToDelete)}
         onOpenChange={onDeleteDialogOpenChange}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar este proyecto?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {projectToDelete
-                ? `“${projectToDelete.title}” y todo su contenido dejarán de estar disponibles. Esta acción no se puede deshacer.`
-                : "Esta acción no se puede deshacer."}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              disabled={isDeleting}
-              onClick={(event) => {
-                event.preventDefault()
-                void onDeleteProject()
-              }}
-            >
-              {isDeleting ? <Spinner className="size-4" /> : <Trash2 />}
-              {isDeleting ? "Eliminando…" : "Eliminar proyecto"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        title="¿Eliminar este proyecto?"
+        description={
+          projectToDelete
+            ? `“${projectToDelete.title}” y todo su contenido dejarán de estar disponibles. Esta acción no se puede deshacer.`
+            : "Esta acción no se puede deshacer."
+        }
+        confirmLabel="Eliminar proyecto"
+        loading={isDeleting}
+        onConfirm={onDeleteProject}
+      />
     </>
   )
 }

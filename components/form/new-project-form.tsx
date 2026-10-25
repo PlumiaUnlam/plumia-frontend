@@ -1,16 +1,10 @@
 "use client"
 
-import { useState, type FormEvent } from "react"
+import { useState } from "react"
 import { toast } from "sonner"
 
-import { Button } from "@/components/ui/button"
-import {
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import { Spinner } from "@/components/ui/spinner"
+import { FormDialog } from "@/components/modal/form-dialog"
+import { FilePicker } from "@/components/ui/file-picker"
 import {
   Select,
   SelectContent,
@@ -172,9 +166,7 @@ export function NewProjectForm({
     return Object.keys(nextErrors).length === 0
   }
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-
+  const handleSubmit = async () => {
     if (!validate()) {
       return
     }
@@ -202,148 +194,127 @@ export function NewProjectForm({
   }
 
   return (
-    <DialogContent className="max-w-2xl">
-      <DialogHeader>
-        <DialogTitle>
-          {isEditing ? "Editar proyecto" : "Crear nuevo proyecto"}
-        </DialogTitle>
-        <DialogDescription>
-          {isEditing
-            ? "Actualiza los datos generales y el estado del proyecto."
-            : "Completa los datos básicos para empezar a trabajar en tu nueva historia."}
-        </DialogDescription>
-      </DialogHeader>
+    <FormDialog
+      open
+      onOpenChange={(open) => {
+        if (!open) onCancel()
+      }}
+      title={isEditing ? "Editar proyecto" : "Crear nuevo proyecto"}
+      description={
+        isEditing
+          ? "Actualizá los datos generales y el estado del proyecto."
+          : "Completá los datos básicos para empezar a trabajar en tu nueva historia."
+      }
+      size="md"
+      submitLabel={submitButtonLabel}
+      loading={isSubmitting}
+      error={errors.submit}
+      onSubmit={handleSubmit}
+    >
+    <Field data-invalid={!!errors.title}>
+      <FieldLabel htmlFor="title">Nombre del Proyecto</FieldLabel>
+      <FieldContent>
+        <Input
+          id="title"
+          value={values.title}
+          onChange={(event) => setField("title", event.target.value)}
+          type="text"
+          placeholder="Nombre del Proyecto"
+          autoComplete="off"
+          maxLength={200}
+          aria-invalid={!!errors.title}
+        />
+      </FieldContent>
+      <FieldError>{errors.title}</FieldError>
+    </Field>
 
-      <div className="w-full space-y-4">
-        <form className="space-y-4" onSubmit={handleSubmit}>
-          <Field data-invalid={!!errors.title}>
-            <FieldLabel htmlFor="title">Nombre del Proyecto</FieldLabel>
-            <FieldContent>
-              <Input
-                id="title"
-                value={values.title}
-                onChange={(event) => setField("title", event.target.value)}
-                type="text"
-                placeholder="Nombre del Proyecto"
-                autoComplete="off"
-                maxLength={200}
-                aria-invalid={!!errors.title}
-              />
-            </FieldContent>
-            <FieldError>{errors.title}</FieldError>
-          </Field>
+    <Field>
+      <FieldLabel htmlFor="description">Descripción</FieldLabel>
+      <FieldContent>
+        <Textarea
+          id="description"
+          value={values.description}
+          onChange={(event) => setField("description", event.target.value)}
+          placeholder="Describe brevemente tu proyecto"
+          rows={4}
+        />
+      </FieldContent>
+    </Field>
 
-          <Field>
-            <FieldLabel htmlFor="description">Descripción</FieldLabel>
-            <FieldContent>
-              <Textarea
-                id="description"
-                value={values.description}
-                onChange={(event) => setField("description", event.target.value)}
-                placeholder="Describe brevemente tu proyecto"
-                rows={4}
-              />
-            </FieldContent>
-          </Field>
+    {!isEditing ? (
+      <Field data-invalid={!!errors.epub}>
+        <FieldLabel htmlFor="epubFile">
+          Importar obra desde EPUB (opcional)
+        </FieldLabel>
+        <FieldContent>
+          <FilePicker
+            id="epubFile"
+            accept=".epub,application/epub+zip"
+            file={epubFile}
+            disabled={isSubmitting}
+            invalid={!!errors.epub}
+            placeholder="Solo .epub · máx. 50 MB"
+            onChange={handleEpubFileChange}
+          />
+        </FieldContent>
+        <FieldError>{errors.epub}</FieldError>
+      </Field>
+    ) : null}
 
-          {!isEditing ? (
-            <Field data-invalid={!!errors.epub}>
-              <FieldLabel htmlFor="epubFile">
-                Importar obra desde EPUB (opcional)
-              </FieldLabel>
-              <FieldContent>
-                <Input
-                  id="epubFile"
-                  type="file"
-                  accept=".epub,application/epub+zip"
-                  disabled={isSubmitting}
-                  onChange={(event) =>
-                    handleEpubFileChange(event.currentTarget.files?.[0] ?? null)
-                  }
-                  aria-invalid={!!errors.epub}
-                />
-                <p className="text-sm text-muted-foreground">
-                  Importa capítulos, formato básico e imágenes compatibles.
-                  Máximo 50 MB.
-                </p>
-              </FieldContent>
-              <FieldError>{errors.epub}</FieldError>
-            </Field>
-          ) : null}
+    <div className="grid gap-5 md:grid-cols-2">
+      <Field>
+        <FieldLabel htmlFor="genre">Género</FieldLabel>
+        <FieldContent>
+          <Input
+            id="genre"
+            value={values.genre}
+            onChange={(event) => setField("genre", event.target.value)}
+            type="text"
+            placeholder="Fantasía"
+            autoComplete="off"
+            maxLength={100}
+          />
+        </FieldContent>
+      </Field>
 
-          <div className="grid gap-4 md:grid-cols-2">
-            <Field>
-              <FieldLabel htmlFor="genre">Género</FieldLabel>
-              <FieldContent>
-                <Input
-                  id="genre"
-                  value={values.genre}
-                  onChange={(event) => setField("genre", event.target.value)}
-                  type="text"
-                  placeholder="Fantasía"
-                  autoComplete="off"
-                  maxLength={100}
-                />
-              </FieldContent>
-            </Field>
+      <Field data-invalid={!!errors.wordCountTarget}>
+        <FieldLabel htmlFor="wordCountTarget">Objetivo de palabras</FieldLabel>
+        <FieldContent>
+          <Input
+            id="wordCountTarget"
+            value={values.wordCountTarget}
+            onChange={(event) => setField("wordCountTarget", event.target.value)}
+            type="number"
+            min="1"
+            step="1"
+            placeholder="80000"
+            aria-invalid={!!errors.wordCountTarget}
+          />
+        </FieldContent>
+        <FieldError>{errors.wordCountTarget}</FieldError>
+      </Field>
+    </div>
 
-            <Field data-invalid={!!errors.wordCountTarget}>
-              <FieldLabel htmlFor="wordCountTarget">Objetivo de palabras</FieldLabel>
-              <FieldContent>
-                <Input
-                  id="wordCountTarget"
-                  value={values.wordCountTarget}
-                  onChange={(event) => setField("wordCountTarget", event.target.value)}
-                  type="number"
-                  min="1"
-                  step="1"
-                  placeholder="80000"
-                  aria-invalid={!!errors.wordCountTarget}
-                />
-              </FieldContent>
-              <FieldError>{errors.wordCountTarget}</FieldError>
-            </Field>
-          </div>
-
-          {isEditing ? (
-            <Field>
-              <FieldLabel htmlFor="status">Estado</FieldLabel>
-              <FieldContent>
-                <Select
-                  value={values.status}
-                  onValueChange={(value) => setField("status", value)}
-                >
-                  <SelectTrigger id="status" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent align="start">
-                    <SelectItem value="draft">Borrador</SelectItem>
-                    <SelectItem value="active">Activo</SelectItem>
-                    <SelectItem value="archived">Archivado</SelectItem>
-                  </SelectContent>
-                </Select>
-              </FieldContent>
-            </Field>
-          ) : null}
-
-          {errors.submit ? (
-            <p className="text-sm text-destructive">{errors.submit}</p>
-          ) : null}
-
-          <div className="flex justify-end gap-3">
-            <Button type="button" variant="outline" onClick={onCancel} className="gap-2">
-              Cancelar
-            </Button>
-            <Button
-              type="submit"
-              disabled={isSubmitting}
-              className="rounded-xl shadow-sm text-base"
-            >
-              {isSubmitting ? <Spinner className="size-4" /> : submitButtonLabel}
-            </Button>
-          </div>
-        </form>
-      </div>
-    </DialogContent>
+    {isEditing ? (
+      <Field>
+        <FieldLabel htmlFor="status">Estado</FieldLabel>
+        <FieldContent>
+          <Select
+            value={values.status}
+            onValueChange={(value) => setField("status", value)}
+          >
+            <SelectTrigger id="status" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent align="start">
+              <SelectItem value="draft">Borrador</SelectItem>
+              <SelectItem value="active">Activo</SelectItem>
+              <SelectItem value="archived">Archivado</SelectItem>
+            </SelectContent>
+          </Select>
+        </FieldContent>
+      </Field>
+    ) : null}
+    </FormDialog>
   )
 }

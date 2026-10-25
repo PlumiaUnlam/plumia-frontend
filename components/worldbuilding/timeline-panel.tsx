@@ -38,15 +38,9 @@ import {
 
 import { EntitySelector } from "@/components/storyboard/entity-selector"
 import { Badge } from "@/components/ui/badge"
+import { FormDialog } from "@/components/modal/form-dialog"
+import { ConfirmDialog } from "@/components/modal/confirm-dialog"
 import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
@@ -843,44 +837,20 @@ export function TimelinePanel({
         }}
       />
 
-      <Dialog
+      <ConfirmDialog
         open={deleteConfirmEvent !== null}
         onOpenChange={(open) => {
-          if (!open && !isDeleting) {
+          if (!open) {
             setDeleteConfirmEvent(null)
             setDeleteError(null)
           }
         }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirmar eliminación</DialogTitle>
-            <DialogDescription>
-              ¿Estás seguro de que querés eliminar &ldquo;
-              {deleteConfirmEvent?.title}&rdquo;? Esta acción no se puede
-              deshacer.
-            </DialogDescription>
-          </DialogHeader>
-          {deleteError && <p className="text-sm text-destructive">{deleteError}</p>}
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setDeleteConfirmEvent(null)}
-              disabled={isDeleting}
-            >
-              Cancelar
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={() => void confirmDelete()}
-              disabled={isDeleting}
-            >
-              {isDeleting && <Loader2 className="animate-spin" />}
-              Eliminar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        title="Eliminar evento"
+        description={`¿Querés eliminar “${deleteConfirmEvent?.title ?? ""}”? Esta acción no se puede deshacer.`}
+        loading={isDeleting}
+        error={deleteError}
+        onConfirm={confirmDelete}
+      />
     </div>
   )
 }
@@ -1028,33 +998,27 @@ function TimelineMoveDialog({ pendingMove, isMoving, error, onConfirm, onOpenCha
   }
 
   return (
-    <Dialog open={pendingMove !== null} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Confirmar reordenamiento</DialogTitle>
-          <DialogDescription>
-            {confirmationMessage}
-          </DialogDescription>
-        </DialogHeader>
-        {pendingMove?.dateWarning && (
-          <div className="flex gap-3 rounded-lg border border-amber-500/40 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:bg-amber-950/20 dark:text-amber-200">
-            <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-            <p>
-              Este orden contradice las fechas indicadas. {pendingMove.dateWarning}
-              {" "}Podés continuar si el orden narrativo es intencional.
-            </p>
-          </div>
-        )}
-        {error && <p className="text-sm text-destructive">{error}</p>}
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isMoving}>Cancelar</Button>
-          <Button onClick={onConfirm} disabled={isMoving}>
-            {isMoving && <Loader2 className="animate-spin" />}
-            Confirmar movimiento
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <ConfirmDialog
+      open={pendingMove !== null}
+      onOpenChange={onOpenChange}
+      title="Confirmar reordenamiento"
+      description={confirmationMessage}
+      confirmLabel="Confirmar movimiento"
+      tone="default"
+      loading={isMoving}
+      error={error}
+      onConfirm={onConfirm}
+    >
+      {pendingMove?.dateWarning && (
+        <div className="flex gap-3 rounded-lg border border-warning/40 bg-warning-muted px-4 py-3 text-sm text-foreground">
+          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" />
+          <p>
+            Este orden contradice las fechas indicadas. {pendingMove.dateWarning}
+            {" "}Podés continuar si el orden narrativo es intencional.
+          </p>
+        </div>
+      )}
+    </ConfirmDialog>
   )
 }
 
@@ -1116,61 +1080,62 @@ function TimelineEventDialog({ arcs, entities, createdEntity, event, open, onReq
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent size="wide" className="w-[calc(100vw-2rem)] min-w-0 gap-0 overflow-hidden">
-        <DialogHeader className="border-b p-6 py-4">
-          <DialogTitle>{isEditing ? "Editar evento" : "Nuevo evento"}</DialogTitle>
-        </DialogHeader>
-        <div className="max-h-[65vh] space-y-5 overflow-y-auto px-6 py-6">
-          {error && (
-            <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
-              {error}
-            </div>
-          )}
-          <FormField label="Nombre del evento *" htmlFor="timeline-title"><Input id="timeline-title" value={displayedDraft.title} onChange={(inputEvent) => updateDraft({ title: inputEvent.target.value })} placeholder="Ej: Desaparición de Tomás Reyes" /></FormField>
-          <div className="grid grid-cols-2 gap-3">
-            <FormField label="Fecha" htmlFor="timeline-date"><Input id="timeline-date" value={displayedDraft.date} onChange={(inputEvent) => updateDraft({ date: inputEvent.target.value })} placeholder="Ej: 1847-03-15" /></FormField>
-            <FormField label="Período" htmlFor="timeline-period"><Input id="timeline-period" value={displayedDraft.temporalLabel} onChange={(inputEvent) => updateDraft({ temporalLabel: inputEvent.target.value })} placeholder="Ej: Unos días después" /></FormField>
-          </div>
-          <FormField label="Descripción" htmlFor="timeline-description"><Textarea id="timeline-description" value={displayedDraft.description} onChange={(inputEvent) => updateDraft({ description: inputEvent.target.value })} placeholder="Describe qué ocurre en este evento..." rows={4} /></FormField>
-          <div className="space-y-2">
-            <Label htmlFor="timeline-arc">Arco narrativo</Label>
-            <Select
-              value={displayedDraft.storyboardArcId ?? noArcValue}
-              onValueChange={(value) =>
-                updateDraft({ storyboardArcId: value === noArcValue ? null : value })
-              }
-            >
-              <SelectTrigger id="timeline-arc" className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent align="start">
-                <SelectItem value={noArcValue}>
-                  Sin arco — hecho general de la obra
-                </SelectItem>
-                {arcs.map((arc) => (
-                  <SelectItem key={arc.id} value={arc.id}>
-                    {arc.title}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">Usá esta opción para hechos históricos o eventos que atraviesan toda la obra.</p>
-          </div>
-          <div className="space-y-3">
-            <Label>Impacto narrativo</Label>
-            <div className="grid grid-cols-3 gap-3">
-              {(Object.keys(impactLabels) as TimelineImpact[]).map((impact) => <Button key={impact} type="button" variant="outline" className={displayedDraft.impact === impact ? "border-primary bg-primary/10 text-primary hover:bg-primary/10 hover:text-primary" : ""} onClick={() => updateDraft({ impact })}>{impactLabels[impact]}</Button>)}
-            </div>
-          </div>
-          <div className="space-y-3">
-            <Label>Entidades involucradas</Label>
-            <EntitySelector entities={entities} label="" selectedEntityIds={displayedDraft.entityIds} onChange={(entityIds) => updateDraft({ entityIds })} onCreateEntity={onRequestCreateEntity} />
-          </div>
+    <FormDialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next && submitting) return
+        onOpenChange(next)
+      }}
+      title={isEditing ? "Editar evento" : "Nuevo evento"}
+      size="md"
+      submitLabel={isEditing ? "Guardar cambios" : "Crear evento"}
+      submitDisabled={!displayedDraft.title.trim()}
+      loading={submitting}
+      error={error}
+      enterToSubmit={false}
+      onSubmit={handleSave}
+    >
+      <FormField label="Nombre del evento *" htmlFor="timeline-title"><Input id="timeline-title" value={displayedDraft.title} onChange={(inputEvent) => updateDraft({ title: inputEvent.target.value })} placeholder="Ej: Desaparición de Tomás Reyes" /></FormField>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <FormField label="Fecha" htmlFor="timeline-date"><Input id="timeline-date" value={displayedDraft.date} onChange={(inputEvent) => updateDraft({ date: inputEvent.target.value })} placeholder="Ej: 1847-03-15" /></FormField>
+        <FormField label="Período" htmlFor="timeline-period"><Input id="timeline-period" value={displayedDraft.temporalLabel} onChange={(inputEvent) => updateDraft({ temporalLabel: inputEvent.target.value })} placeholder="Ej: Unos días después" /></FormField>
+      </div>
+      <FormField label="Descripción" htmlFor="timeline-description"><Textarea id="timeline-description" value={displayedDraft.description} onChange={(inputEvent) => updateDraft({ description: inputEvent.target.value })} placeholder="Describe qué ocurre en este evento..." rows={4} /></FormField>
+      <div className="space-y-2">
+        <Label htmlFor="timeline-arc">Arco narrativo</Label>
+        <Select
+          value={displayedDraft.storyboardArcId ?? noArcValue}
+          onValueChange={(value) =>
+            updateDraft({ storyboardArcId: value === noArcValue ? null : value })
+          }
+        >
+          <SelectTrigger id="timeline-arc" className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent align="start">
+            <SelectItem value={noArcValue}>
+              Sin arco — hecho general de la obra
+            </SelectItem>
+            {arcs.map((arc) => (
+              <SelectItem key={arc.id} value={arc.id}>
+                {arc.title}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <p className="text-xs text-muted-foreground">Usá esta opción para hechos históricos o eventos que atraviesan toda la obra.</p>
+      </div>
+      <div className="space-y-3">
+        <Label>Impacto narrativo</Label>
+        <div className="grid grid-cols-3 gap-2">
+          {(Object.keys(impactLabels) as TimelineImpact[]).map((impact) => <Button key={impact} type="button" variant="outline" className={displayedDraft.impact === impact ? "border-primary bg-primary/10 text-primary hover:bg-primary/10 hover:text-primary" : ""} onClick={() => updateDraft({ impact })}>{impactLabels[impact]}</Button>)}
         </div>
-        <DialogFooter className="border-t px-6 py-4"><Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>Cancelar</Button><Button disabled={!displayedDraft.title.trim() || submitting} onClick={() => void handleSave()}>{submitting && <Loader2 className="animate-spin" />}{isEditing ? "Guardar cambios" : "Crear evento"}</Button></DialogFooter>
-      </DialogContent>
-    </Dialog>
+      </div>
+      <div className="space-y-3">
+        <Label>Entidades involucradas</Label>
+        <EntitySelector entities={entities} label="" selectedEntityIds={displayedDraft.entityIds} onChange={(entityIds) => updateDraft({ entityIds })} onCreateEntity={onRequestCreateEntity} />
+      </div>
+    </FormDialog>
   )
 }
 

@@ -37,15 +37,8 @@ import {
   Waypoints,
 } from "lucide-react"
 
+import { ConfirmDialog } from "@/components/modal/confirm-dialog"
 import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
 import {
   Select,
   SelectContent,
@@ -1042,36 +1035,14 @@ function DeleteThreadDialog({
   readonly onConfirm: () => void
 }) {
   return (
-    <Dialog open={thread !== null} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Eliminar conversación</DialogTitle>
-          <DialogDescription>
-            ¿Seguro que querés eliminar “{thread?.title || "Nueva conversación"}”?
-            Esta acción no se puede deshacer.
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <Button
-            type="button"
-            variant="outline"
-            disabled={isDeleting}
-            onClick={() => onOpenChange(false)}
-          >
-            Cancelar
-          </Button>
-          <Button
-            type="button"
-            variant="destructive"
-            disabled={isDeleting}
-            onClick={onConfirm}
-          >
-            {isDeleting && <Loader2 className="size-3.5 animate-spin" />}
-            {isDeleting ? "Eliminando…" : "Eliminar"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <ConfirmDialog
+      open={thread !== null}
+      onOpenChange={onOpenChange}
+      title="Eliminar conversación"
+      description={`¿Querés eliminar “${thread?.title || "Nueva conversación"}”? Esta acción no se puede deshacer.`}
+      loading={isDeleting}
+      onConfirm={onConfirm}
+    />
   )
 }
 
@@ -1350,8 +1321,8 @@ function VoiceSettingsModal({
     >
       <div className="flex items-center justify-between gap-2">
         <div>
-          <p className="text-[10px] font-semibold">Configurar micrófono</p>
-          <p className="text-[9px] text-muted-foreground">
+          <p className="text-xs font-semibold">Configurar micrófono</p>
+          <p className="text-2xs text-muted-foreground">
             Hablá para comprobar que la señal se escuche correctamente.
           </p>
         </div>
@@ -1366,7 +1337,7 @@ function VoiceSettingsModal({
           <X className="size-3" />
         </Button>
       </div>
-      <div className="mt-3 text-[9px] font-medium text-muted-foreground">
+      <div className="mt-3 text-2xs font-medium text-muted-foreground">
         <label htmlFor="chat-audio-input" className="block">
           Entrada de audio
         </label>
@@ -1378,7 +1349,7 @@ function VoiceSettingsModal({
           <SelectTrigger
             id="chat-audio-input"
             size="sm"
-            className="mt-1 w-full bg-card text-[10px] text-foreground"
+            className="mt-1 w-full bg-card text-xs text-foreground"
           >
             <SelectValue placeholder="Micrófono predeterminado" />
           </SelectTrigger>
@@ -1392,7 +1363,7 @@ function VoiceSettingsModal({
         </Select>
       </div>
       <div className="mt-3">
-        <div className="mb-1 flex justify-between text-[9px] text-muted-foreground">
+        <div className="mb-1 flex justify-between text-2xs text-muted-foreground">
           <span>Nivel detectado</span>
           <span>{Math.round(audioLevel * 100)}%</span>
         </div>

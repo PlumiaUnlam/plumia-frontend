@@ -15,14 +15,7 @@ import {
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { FormDialog } from "@/components/modal/form-dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { EntityIconTile } from "@/components/worldbuilding/entity-icon-tile";
 import { EntityImage } from "@/components/worldbuilding/entity-image";
@@ -1742,166 +1735,164 @@ function EntityUpdateReviewDialog({
   );
 
   return (
-    <Dialog open={!!proposal} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>Actualizar entidad</DialogTitle>
-          <DialogDescription>
-            Revisá la información nueva detectada antes de sumarla a la ficha.
-          </DialogDescription>
-        </DialogHeader>
-
-        {proposal && currentEntity && (
-          <div className="grid gap-4 md:grid-cols-2">
-            <section className="rounded-lg border border-border bg-muted/20 p-4">
-              <h3 className="mb-2 text-sm font-semibold text-foreground">
-                Ficha actual
-              </h3>
-              <div className="space-y-3 text-sm">
-                <div>
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                    Nombre
-                  </p>
-                  <p>{currentEntity.canonicalName}</p>
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                    Descripción
-                  </p>
-                  <p className="whitespace-pre-wrap text-muted-foreground">
-                    {currentEntity.description || "Sin descripción"}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                    Alias
-                  </p>
-                  <div className="mt-1 flex flex-wrap gap-1">
-                    {currentEntity.aliases.length > 0 ? (
-                      currentEntity.aliases.map((alias) => (
-                        <Badge
-                          key={alias}
-                          variant="secondary"
-                          className="text-[10px]"
-                        >
-                          {alias}
-                        </Badge>
-                      ))
-                    ) : (
-                      <span className="text-xs text-muted-foreground">
-                        Sin alias
-                      </span>
-                    )}
-                  </div>
-                </div>
+    <FormDialog
+      open={!!proposal}
+      onOpenChange={(open) => !open && onClose()}
+      title="Actualizar entidad"
+      description="Revisá la información nueva detectada antes de sumarla a la ficha."
+      size="lg"
+      footer={
+        <>
+      <Button
+        variant="outline"
+        onClick={onClose}
+        disabled={accepting || rejecting}
+      >
+        Cerrar
+      </Button>
+      <Button
+        variant="outline"
+        onClick={onEdit}
+        disabled={!proposal || accepting || rejecting}
+      >
+        Editar propuesta
+      </Button>
+      <Button
+        variant="outline"
+        onClick={onReject}
+        disabled={!proposal || accepting || rejecting}
+      >
+        <X className="size-4" />
+        {rejecting ? "Rechazando..." : "Rechazar"}
+      </Button>
+      <Button
+        onClick={onAccept}
+        disabled={!proposal || accepting || rejecting}
+      >
+        <Check className="size-4" />
+        {accepting ? "Aplicando..." : "Aplicar cambios"}
+      </Button>
+        </>
+      }
+    >
+    {proposal && currentEntity && (
+      <div className="grid gap-4 md:grid-cols-2">
+        <section className="rounded-lg border border-border bg-muted/20 p-4">
+          <h3 className="mb-2 text-sm font-semibold text-foreground">
+            Ficha actual
+          </h3>
+          <div className="space-y-3 text-sm">
+            <div>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                Nombre
+              </p>
+              <p>{currentEntity.canonicalName}</p>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                Descripción
+              </p>
+              <p className="whitespace-pre-wrap text-muted-foreground">
+                {currentEntity.description || "Sin descripción"}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                Alias
+              </p>
+              <div className="mt-1 flex flex-wrap gap-1">
+                {currentEntity.aliases.length > 0 ? (
+                  currentEntity.aliases.map((alias) => (
+                    <Badge
+                      key={alias}
+                      variant="secondary"
+                      className="text-[10px]"
+                    >
+                      {alias}
+                    </Badge>
+                  ))
+                ) : (
+                  <span className="text-xs text-muted-foreground">
+                    Sin alias
+                  </span>
+                )}
               </div>
-            </section>
-
-            <section className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4">
-              <h3 className="mb-2 text-sm font-semibold text-foreground">
-                Sugerencia detectada
-              </h3>
-              <div className="space-y-3 text-sm">
-                <div>
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                    Nueva descripción
-                  </p>
-                  <p className="whitespace-pre-wrap text-muted-foreground">
-                    {proposal.proposedData.description ||
-                      "Sin descripción nueva"}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                    Alias nuevos
-                  </p>
-                  <div className="mt-1 flex flex-wrap gap-1">
-                    {suggestedAliases.length > 0 ? (
-                      suggestedAliases.map((alias) => (
-                        <Badge
-                          key={alias}
-                          variant="secondary"
-                          className="text-[10px]"
-                        >
-                          {alias}
-                        </Badge>
-                      ))
-                    ) : (
-                      <span className="text-xs text-muted-foreground">
-                        Sin alias nuevos
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                    Características nuevas
-                  </p>
-                  <div className="mt-1 space-y-1">
-                    {suggestedAttributes.length > 0 ? (
-                      suggestedAttributes.map(([key, value]) => (
-                        <div
-                          key={key}
-                          className="rounded-md border border-border/60 bg-background/60 px-2 py-1 text-xs"
-                        >
-                          <span className="font-medium text-foreground">
-                            {key}:
-                          </span>{" "}
-                          <span className="text-muted-foreground">
-                            {typeof value === "string"
-                              ? value
-                              : JSON.stringify(value)}
-                          </span>
-                        </div>
-                      ))
-                    ) : (
-                      <span className="text-xs text-muted-foreground">
-                        Sin características nuevas
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  Detectado en: {proposal.sceneTitle ?? "Sin titulo"}
-                  {proposal.chapterTitle ? ` · ${proposal.chapterTitle}` : ""}
-                </div>
-              </div>
-            </section>
+            </div>
           </div>
-        )}
+        </section>
 
-        <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={onClose}
-            disabled={accepting || rejecting}
-          >
-            Cerrar
-          </Button>
-          <Button
-            variant="outline"
-            onClick={onEdit}
-            disabled={!proposal || accepting || rejecting}
-          >
-            Editar propuesta
-          </Button>
-          <Button
-            variant="outline"
-            onClick={onReject}
-            disabled={!proposal || accepting || rejecting}
-          >
-            <X className="size-4" />
-            {rejecting ? "Rechazando..." : "Rechazar"}
-          </Button>
-          <Button
-            onClick={onAccept}
-            disabled={!proposal || accepting || rejecting}
-          >
-            <Check className="size-4" />
-            {accepting ? "Aplicando..." : "Aplicar cambios"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        <section className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4">
+          <h3 className="mb-2 text-sm font-semibold text-foreground">
+            Sugerencia detectada
+          </h3>
+          <div className="space-y-3 text-sm">
+            <div>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                Nueva descripción
+              </p>
+              <p className="whitespace-pre-wrap text-muted-foreground">
+                {proposal.proposedData.description ||
+                  "Sin descripción nueva"}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                Alias nuevos
+              </p>
+              <div className="mt-1 flex flex-wrap gap-1">
+                {suggestedAliases.length > 0 ? (
+                  suggestedAliases.map((alias) => (
+                    <Badge
+                      key={alias}
+                      variant="secondary"
+                      className="text-[10px]"
+                    >
+                      {alias}
+                    </Badge>
+                  ))
+                ) : (
+                  <span className="text-xs text-muted-foreground">
+                    Sin alias nuevos
+                  </span>
+                )}
+              </div>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                Características nuevas
+              </p>
+              <div className="mt-1 space-y-1">
+                {suggestedAttributes.length > 0 ? (
+                  suggestedAttributes.map(([key, value]) => (
+                    <div
+                      key={key}
+                      className="rounded-md border border-border/60 bg-background/60 px-2 py-1 text-xs"
+                    >
+                      <span className="font-medium text-foreground">
+                        {key}:
+                      </span>{" "}
+                      <span className="text-muted-foreground">
+                        {typeof value === "string"
+                          ? value
+                          : JSON.stringify(value)}
+                      </span>
+                    </div>
+                  ))
+                ) : (
+                  <span className="text-xs text-muted-foreground">
+                    Sin características nuevas
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="text-xs text-muted-foreground">
+              Detectado en: {proposal.sceneTitle ?? "Sin titulo"}
+              {proposal.chapterTitle ? ` · ${proposal.chapterTitle}` : ""}
+            </div>
+          </div>
+        </section>
+      </div>
+    )}
+    </FormDialog>
   );
 }
