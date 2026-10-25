@@ -30,6 +30,8 @@ import {
   createProject,
   importEpubProject,
   updateProject,
+  type CreateProjectPayload,
+  type EpubProjectImportResult,
   type ProjectResponse,
 } from "@/services/project.service"
 
@@ -37,6 +39,61 @@ type NewProjectFormProps = {
   onCancel: () => void
   onSuccess?: (project: ProjectResponse) => void
   project?: ProjectResponse
+}
+
+type ProjectFormValues = {
+  title: string
+  description: string
+  genre: string
+  wordCountTarget: string
+  status: string
+}
+
+function projectPayload(
+  values: ProjectFormValues,
+  isEditing: boolean,
+): CreateProjectPayload {
+  return {
+    title: values.title.trim(),
+    description: isEditing
+      ? values.description.trim()
+      : values.description.trim() || undefined,
+    genre: isEditing ? values.genre.trim() : values.genre.trim() || undefined,
+    wordCountTarget: values.wordCountTarget.trim()
+      ? Number(values.wordCountTarget)
+      : undefined,
+  }
+}
+
+function showEpubImportSummary(result: EpubProjectImportResult) {
+  const imageSummary = ` Se importaron ${result.importedImages} imágenes${
+    result.skippedImages
+      ? ` y se omitieron ${result.skippedImages} no compatibles.`
+      : "."
+  }`
+  toast.success("Obra importada desde EPUB", {
+    description: `${result.importedChapters} capítulos y ${result.importedWords.toLocaleString("es-ES")} palabras.${imageSummary}`,
+  })
+}
+
+async function saveProject(
+  project: ProjectResponse | undefined,
+  epubFile: File | null,
+  values: ProjectFormValues,
+  payload: CreateProjectPayload,
+): Promise<ProjectResponse> {
+  if (project) {
+    return updateProject(project.id, {
+      ...payload,
+      status: values.status as "draft" | "active" | "archived",
+    })
+  }
+  if (epubFile) {
+    const result = await importEpubProject(epubFile, payload)
+    showEpubImportSummary(result)
+    return result.project
+  }
+  return createProject(payload)
 }
 
 export function NewProjectForm({
@@ -125,37 +182,8 @@ export function NewProjectForm({
     setIsSubmitting(true)
 
     try {
-      const payload = {
-        title: values.title.trim(),
-        description: isEditing
-          ? values.description.trim()
-          : values.description.trim() || undefined,
-        genre: isEditing ? values.genre.trim() : values.genre.trim() || undefined,
-        wordCountTarget: values.wordCountTarget.trim()
-          ? Number(values.wordCountTarget)
-          : undefined,
-      }
-
-      let savedProject: ProjectResponse
-      if (project) {
-        savedProject = await updateProject(project.id, {
-          ...payload,
-          status: values.status as "draft" | "active" | "archived",
-        })
-      } else if (epubFile) {
-        const result = await importEpubProject(epubFile, payload)
-        savedProject = result.project
-        const imageSummary = ` Se importaron ${result.importedImages} imágenes${
-          result.skippedImages
-            ? ` y se omitieron ${result.skippedImages} no compatibles.`
-            : "."
-        }`
-        toast.success("Obra importada desde EPUB", {
-          description: `${result.importedChapters} capítulos y ${result.importedWords.toLocaleString("es-ES")} palabras.${imageSummary}`,
-        })
-      } else {
-        savedProject = await createProject(payload)
-      }
+      const payload = projectPayload(values, isEditing)
+      const savedProject = await saveProject(project, epubFile, values, payload)
       onSuccess?.(savedProject)
       onCancel()
     } catch (error) {
