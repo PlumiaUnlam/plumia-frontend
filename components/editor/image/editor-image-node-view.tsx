@@ -62,8 +62,8 @@ export function EditorImageNodeView({
   const imageRef = useRef<HTMLImageElement | null>(null)
   const resizeListenersRef = useRef<{
     onPointerMove: (event: PointerEvent) => void
-    onPointerUp: () => void
-    onPointerCancel: () => void
+    onPointerUp: (event: PointerEvent) => void
+    onPointerCancel: (event: PointerEvent) => void
   } | null>(null)
   const currentWidthRef = useRef<number | null>(
     typeof node.attrs.width === "number" ? node.attrs.width : null,
@@ -121,7 +121,9 @@ export function EditorImageNodeView({
       setDraftWidth(nextWidth)
     }
 
-    const stopResize = () => {
+    const stopResize = (upEvent: PointerEvent) => {
+      if (upEvent.pointerId !== event.pointerId) return
+
       resizeListenersRef.current = null
       window.removeEventListener("pointermove", onPointerMove)
       window.removeEventListener("pointerup", stopResize)
@@ -138,7 +140,9 @@ export function EditorImageNodeView({
       currentWidthRef.current = nextWidth
     }
 
-    const cancelResize = () => {
+    const cancelResize = (cancelEvent: PointerEvent) => {
+      if (cancelEvent.pointerId !== event.pointerId) return
+
       resizeListenersRef.current = null
       window.removeEventListener("pointermove", onPointerMove)
       window.removeEventListener("pointerup", stopResize)
@@ -154,8 +158,8 @@ export function EditorImageNodeView({
       onPointerCancel: cancelResize,
     }
     window.addEventListener("pointermove", onPointerMove)
-    window.addEventListener("pointerup", stopResize, { once: true })
-    window.addEventListener("pointercancel", cancelResize, { once: true })
+    window.addEventListener("pointerup", stopResize)
+    window.addEventListener("pointercancel", cancelResize)
   }
 
   const resizeWithKeyboard = (event: ReactKeyboardEvent<HTMLButtonElement>) => {
