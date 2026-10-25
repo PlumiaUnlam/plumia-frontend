@@ -1,5 +1,27 @@
 export type ImageTextFlow = "break" | "text-right" | "text-left"
 
+export const IMAGE_TEXT_FLOW_OPTIONS = [
+  {
+    value: "break",
+    label: "Renglón completo",
+    shortLabel: "Renglón completo",
+  },
+  {
+    value: "text-right",
+    label: "Imagen a la izquierda, texto a la derecha",
+    shortLabel: "Texto a la derecha",
+  },
+  {
+    value: "text-left",
+    label: "Imagen a la derecha, texto a la izquierda",
+    shortLabel: "Texto a la izquierda",
+  },
+] as const satisfies ReadonlyArray<{
+  value: ImageTextFlow
+  label: string
+  shortLabel: string
+}>
+
 export const DEFAULT_IMAGE_TEXT_FLOW: ImageTextFlow = "break"
 export const MAX_WRAPPED_IMAGE_WIDTH = 320
 export const WRAPPED_IMAGE_WIDTH_PERCENT = 45

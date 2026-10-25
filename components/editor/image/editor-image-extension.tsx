@@ -1,4 +1,5 @@
 import Image from "@tiptap/extension-image"
+import { NodeSelection } from "@tiptap/pm/state"
 import { ReactNodeViewRenderer } from "@tiptap/react"
 import { mergeAttributes } from "@tiptap/core"
 
@@ -7,7 +8,16 @@ import {
   DEFAULT_IMAGE_TEXT_FLOW,
   getImageTextFlowHTMLAttributes,
   normalizeImageTextFlow,
+  type ImageTextFlow,
 } from "./image-text-flow"
+
+declare module "@tiptap/core" {
+  interface Commands<ReturnType> {
+    imageTextFlow: {
+      setImageTextFlow: (position: number, textFlow: ImageTextFlow) => ReturnType
+    }
+  }
+}
 
 function parseWidth(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) {
@@ -69,6 +79,27 @@ export const EditorImage = Image.extend({
             attributes.width,
           ),
       },
+    }
+  },
+
+  addCommands() {
+    return {
+      setImageTextFlow:
+        (position, value) =>
+        ({ tr, dispatch }) => {
+          const image = tr.doc.nodeAt(position)
+          if (!image || image.type !== this.type) return false
+
+          if (dispatch) {
+            tr.setNodeMarkup(position, undefined, {
+              ...image.attrs,
+              textFlow: normalizeImageTextFlow(value),
+            })
+            tr.setSelection(NodeSelection.create(tr.doc, position))
+          }
+
+          return true
+        },
     }
   },
 

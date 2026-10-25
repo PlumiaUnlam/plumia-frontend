@@ -1,7 +1,11 @@
 import type { Editor } from "@tiptap/react"
 import { useEditorState } from "@tiptap/react"
+import { NodeSelection } from "@tiptap/pm/state"
 import type { ReactNode } from "react"
 import {
+  AlignCenter,
+  AlignLeft,
+  AlignRight,
   Bold,
   Columns2,
   Download,
@@ -40,6 +44,8 @@ import {
   MenubarPortal,
   MenubarSubTrigger,
   MenubarCheckboxItem,
+  MenubarRadioGroup,
+  MenubarRadioItem,
   MenubarContent,
   MenubarItem,
   MenubarSeparator,
@@ -61,6 +67,11 @@ import {
 } from "./text-extra-formatting"
 import { toggleFormatPainter, useFormatPainterState } from "./format-painter"
 import { useEditorZoom } from "./editor-zoom"
+import {
+  IMAGE_TEXT_FLOW_OPTIONS,
+  normalizeImageTextFlow,
+} from "./image/image-text-flow"
+import type { ImageTextFlow } from "./image/image-text-flow"
 
 const menuButtonClass =
   "h-8 shrink-0 rounded-md px-2.5 text-sm font-medium text-[#3c4043] hover:bg-[#eee3f5] hover:text-[#70348c] data-[state=open]:bg-[#eee3f5] data-[state=open]:text-[#70348c] focus-visible:ring-2 focus-visible:ring-[#b98ad2] dark:text-foreground dark:hover:bg-muted dark:hover:text-foreground dark:data-[state=open]:bg-muted dark:data-[state=open]:text-foreground dark:focus-visible:ring-ring max-[640px]:px-2"
@@ -68,6 +79,11 @@ const menuContentClass =
   "max-h-[min(80vh,42rem)] w-64 max-w-[calc(100vw-1rem)] overflow-y-auto border-[#dadce0] bg-white text-[#3c4043] shadow-[0_3px_8px_rgba(60,64,67,0.24)] dark:border-border dark:bg-popover dark:text-popover-foreground"
 const editMenuContentClass = menuContentClass.replace("w-64", "w-[17rem]")
 const menuItemClass = "min-h-9 gap-3 text-[#3c4043] focus:bg-[#f1f3f4] focus:text-[#202124] dark:text-foreground dark:focus:bg-accent dark:focus:text-accent-foreground"
+const imageTextFlowIcons = {
+  break: AlignCenter,
+  "text-right": AlignLeft,
+  "text-left": AlignRight,
+} satisfies Record<ImageTextFlow, typeof AlignCenter>
 
 type EditorMenuBarProps = {
   editor: Editor | null
@@ -180,6 +196,13 @@ export function EditorMenuBar({
         isParagraph: currentEditor.isActive("paragraph"),
         canInsertNote:
           currentEditor.isEditable && currentEditor.can().insertNote(),
+        selectedImageTextFlow:
+          currentEditor.state.selection instanceof NodeSelection &&
+          currentEditor.state.selection.node.type.name === "image"
+            ? normalizeImageTextFlow(
+                currentEditor.state.selection.node.attrs.textFlow,
+              )
+            : null,
       }
     },
   }) ?? {
@@ -194,6 +217,29 @@ export function EditorMenuBar({
     isTextHighlight: false,
     isParagraph: false,
     canInsertNote: false,
+    selectedImageTextFlow: null,
+  }
+
+  const updateSelectedImageTextFlow = (value: string) => {
+    if (!editor) return
+    if (!IMAGE_TEXT_FLOW_OPTIONS.some((option) => option.value === value)) {
+      return
+    }
+    const selection = editor.state.selection
+    if (
+      !(selection instanceof NodeSelection) ||
+      selection.node.type.name !== "image"
+    ) {
+      return
+    }
+    editor
+      .chain()
+      .focus()
+      .setImageTextFlow(
+        selection.from,
+        normalizeImageTextFlow(value),
+      )
+      .run()
   }
 
   let annotationMenuLabel = "Mostrar comentarios"
@@ -324,6 +370,40 @@ export function EditorMenuBar({
             undefined,
             !onInsertImage,
           )}
+          <MenubarSub>
+            <MenubarSubTrigger className={menuItemClass}>
+              <AlignCenter className="size-4" />
+              Ajuste de texto
+            </MenubarSubTrigger>
+            <MenubarPortal>
+              <MenubarSubContent className={menuContentClass}>
+                {editorState.selectedImageTextFlow ? (
+                  <MenubarRadioGroup
+                    value={editorState.selectedImageTextFlow}
+                    onValueChange={updateSelectedImageTextFlow}
+                  >
+                    {IMAGE_TEXT_FLOW_OPTIONS.map((option) => {
+                      const OptionIcon = imageTextFlowIcons[option.value]
+                      return (
+                        <MenubarRadioItem
+                          key={option.value}
+                          value={option.value}
+                          className={menuItemClass}
+                        >
+                          <OptionIcon className="size-4" />
+                          <span>{option.label}</span>
+                        </MenubarRadioItem>
+                      )
+                    })}
+                  </MenubarRadioGroup>
+                ) : (
+                  <div className="px-3 py-2 text-xs text-muted-foreground">
+                    Seleccioná una imagen para cambiar su ajuste.
+                  </div>
+                )}
+              </MenubarSubContent>
+            </MenubarPortal>
+          </MenubarSub>
           {editor && onInsertDivider && (
             <MenubarSub>
               <MenubarSubTrigger className={menuItemClass}>Separador de escena</MenubarSubTrigger>

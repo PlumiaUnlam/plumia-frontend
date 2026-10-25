@@ -13,21 +13,7 @@ import {
   NodeViewWrapper,
   type NodeViewProps,
 } from "@tiptap/react"
-import {
-  AlignCenter,
-  AlignLeft,
-  AlignRight,
-  ChevronDown,
-  MoveDiagonal2,
-} from "lucide-react"
-import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+import { MoveDiagonal2 } from "lucide-react"
 
 import {
   DEFAULT_EDITOR_IMAGE_WIDTH,
@@ -39,18 +25,6 @@ import {
   normalizeImageTextFlow,
   type ImageTextFlow,
 } from "./image-text-flow"
-
-const TEXT_FLOW_LABELS: Record<ImageTextFlow, string> = {
-  break: "Renglón completo",
-  "text-right": "Texto a la derecha",
-  "text-left": "Texto a la izquierda",
-}
-
-const TEXT_FLOW_ICONS: Record<ImageTextFlow, typeof AlignCenter> = {
-  break: AlignCenter,
-  "text-right": AlignLeft,
-  "text-left": AlignRight,
-}
 
 const TEXT_FLOW_CLASS_NAMES: Record<ImageTextFlow, string> = {
   break: "mx-auto my-6 max-w-full",
@@ -79,8 +53,10 @@ function getImageMaxWidth(image: HTMLImageElement, wrapsText: boolean) {
 }
 
 export function EditorImageNodeView({
+  editor,
   node,
   selected,
+  getPos,
   updateAttributes,
 }: NodeViewProps) {
   const imageRef = useRef<HTMLImageElement | null>(null)
@@ -222,12 +198,13 @@ export function EditorImageNodeView({
     setDraftWidth(null)
   }
 
-  const updateTextFlow = (value: string) => {
-    updateAttributes({ textFlow: normalizeImageTextFlow(value) })
+  const selectImage = () => {
+    const position = getPos()
+    if (typeof position === "number") {
+      editor.commands.setNodeSelection(position)
+    }
   }
 
-  const textFlowLabel = TEXT_FLOW_LABELS[textFlow]
-  const TextFlowIcon = TEXT_FLOW_ICONS[textFlow]
   const imageLayoutClassName = TEXT_FLOW_CLASS_NAMES[textFlow]
   const widthDescription = width ? `, ancho ${width} píxeles` : ""
   return (
@@ -236,7 +213,7 @@ export function EditorImageNodeView({
       className={[
         "group relative flex justify-center",
         imageLayoutClassName,
-        selected ? "ring-2 ring-primary ring-offset-2" : "",
+        wrapsText ? "z-10" : "",
         isResizing ? "select-none" : "",
       ]
         .filter(Boolean)
@@ -253,69 +230,39 @@ export function EditorImageNodeView({
       data-drag-handle
       contentEditable={false}
     >
-      <div className="relative inline-flex max-w-full flex-col items-center">
-        <img
-          ref={imageRef}
-          src={src}
-          alt={alt}
-          onLoad={handleLoad}
-          style={
-            width
-              ? {
-                  width: `${width}px`,
-                  maxWidth: "100%",
-                  height: "auto",
-                  margin: 0,
-                }
-              : {
-                  maxWidth: "100%",
-                  height: "auto",
-                  margin: 0,
-                }
-          }
-          className="block rounded-lg border border-border shadow-sm"
-        />
+      <div className="inline-flex max-w-full flex-col items-center">
+        <div
+          className={[
+            "relative inline-flex max-w-full",
+            selected ? "ring-2 ring-primary ring-offset-2" : "",
+          ]
+            .filter(Boolean)
+            .join(" ")}
+        >
+          <img
+            ref={imageRef}
+            src={src}
+            alt={alt}
+            onClick={selectImage}
+            onLoad={handleLoad}
+            style={
+              width
+                ? {
+                    width: `${width}px`,
+                    maxWidth: "100%",
+                    height: "auto",
+                    margin: 0,
+                  }
+                : {
+                    maxWidth: "100%",
+                    height: "auto",
+                    margin: 0,
+                  }
+            }
+            className="block rounded-lg border border-border shadow-sm"
+          />
 
-        {selected && (
-          <>
-            <div className="absolute -top-11 left-0 z-30">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    className="h-8 gap-1.5 border-[#dadce0] bg-white px-2 text-xs text-[#3c4043] shadow-sm dark:border-border dark:bg-background dark:text-foreground"
-                    onMouseDown={(event) => event.preventDefault()}
-                    title="Ajuste de texto"
-                    aria-label="Ajuste de texto"
-                  >
-                    <TextFlowIcon className="size-4" />
-                    {textFlowLabel}
-                    <ChevronDown className="size-3" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-64 border-[#dadce0] bg-white text-[#3c4043] dark:border-border dark:bg-popover dark:text-popover-foreground">
-                  <DropdownMenuRadioGroup
-                    value={textFlow}
-                    onValueChange={updateTextFlow}
-                  >
-                    <DropdownMenuRadioItem value="break" className="min-h-10 gap-2">
-                      <AlignCenter className="size-4" />
-                      Renglón completo
-                    </DropdownMenuRadioItem>
-                    <DropdownMenuRadioItem value="text-right" className="min-h-10 gap-2">
-                      <AlignLeft className="size-4" />
-                      Imagen a la izquierda, texto a la derecha
-                    </DropdownMenuRadioItem>
-                    <DropdownMenuRadioItem value="text-left" className="min-h-10 gap-2">
-                      <AlignRight className="size-4" />
-                      Imagen a la derecha, texto a la izquierda
-                    </DropdownMenuRadioItem>
-                  </DropdownMenuRadioGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
+          {selected && (
             <button
               type="button"
               onPointerDown={startResize}
@@ -326,8 +273,9 @@ export function EditorImageNodeView({
             >
               <MoveDiagonal2 className="h-4 w-4" />
             </button>
-          </>
-        )}
+          )}
+        </div>
+
       </div>
     </NodeViewWrapper>
   )
