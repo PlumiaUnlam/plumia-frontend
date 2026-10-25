@@ -39,7 +39,8 @@ export function createNoteId(): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
     return crypto.randomUUID()
   }
-  return `note-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
+  const bytes = crypto.getRandomValues(new Uint8Array(8))
+  return `note-${Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("")}`
 }
 
 /** Texto plano de la nota; los saltos de línea se conservan como "\n". */

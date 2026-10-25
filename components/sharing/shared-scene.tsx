@@ -122,13 +122,13 @@ const SharedNoteReference = Node.create({
       kind: {
         default: "footnote",
         parseHTML: (element: HTMLElement) =>
-          normalizeNoteKind(element.getAttribute("data-note-kind")),
+          normalizeNoteKind(element.dataset.noteKind),
         rendered: false,
       },
       content: {
         default: [],
         parseHTML: (element: HTMLElement) =>
-          parseNoteContent(element.getAttribute("data-note-content")),
+          parseNoteContent(element.dataset.noteContent),
         rendered: false,
       },
     }
