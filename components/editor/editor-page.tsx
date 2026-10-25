@@ -7,6 +7,7 @@ import {
   useMemo,
   useRef,
   useState,
+  Suspense,
 } from "react"
 import dynamic from "next/dynamic"
 import { Header } from "../header"
@@ -403,10 +404,12 @@ export function EditorLayout({ projectId }: Readonly<EditorLayoutProps>) {
           ) : null}
 
           {loadedProjectId === projectId && writingMode !== "zen" && (
-            <EditorRightPanel
-              projectId={projectId}
-              mode={writingMode}
-            />
+            <Suspense fallback={null}>
+              <EditorRightPanel
+                projectId={projectId}
+                mode={writingMode}
+              />
+            </Suspense>
           )}
         </div>
       </SidebarProvider>

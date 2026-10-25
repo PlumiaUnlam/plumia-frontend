@@ -13,6 +13,7 @@ const severityLabel = {
 
 export function AuditAlertCard({
   alert,
+  focused = false,
   updating,
   onFocusEvidence,
   onResolve,
@@ -20,6 +21,7 @@ export function AuditAlertCard({
   onApplyKnowledgeUpdate,
 }: {
   readonly alert: AuditAlert;
+  readonly focused?: boolean;
   readonly updating: boolean;
   readonly onFocusEvidence: () => void;
   readonly onResolve: () => void;
@@ -36,7 +38,10 @@ export function AuditAlertCard({
   );
 
   return (
-    <article className="w-full min-w-0 max-w-full overflow-hidden rounded-xl border border-amber-500/25 bg-amber-500/5 p-3">
+    <article
+      id={`audit-alert-${alert.id}`}
+      className={`w-full min-w-0 max-w-full overflow-hidden rounded-xl border border-amber-500/25 bg-amber-500/5 p-3 ${focused ? "ring-2 ring-primary/50" : ""}`}
+    >
       <div className="flex w-full min-w-0 items-start gap-2">
         <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600" />
         <div className="min-w-0 flex-1">

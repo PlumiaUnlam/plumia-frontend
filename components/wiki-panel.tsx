@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ComponentType } from "react";
+import { useEffect, useMemo, useState, type ComponentType } from "react";
 import {
   AlertTriangle,
   Check,
@@ -103,6 +103,7 @@ type WikiPanelProps = {
     message: string;
   } | null;
   readonly showReviewSections: boolean;
+  readonly focusedAlertId: string | null;
 };
 
 type WikiSectionKey =
@@ -155,6 +156,7 @@ export function WikiPanel({
   actionError,
   entityActionFeedback,
   showReviewSections,
+  focusedAlertId,
 }: Readonly<WikiPanelProps>) {
   const [searchQuery, setSearchQuery] = useState("");
   const [reviewingProposalId, setReviewingProposalId] = useState<string | null>(
@@ -187,6 +189,29 @@ export function WikiPanel({
       [section]: !current[section],
     }));
   };
+
+  useEffect(() => {
+    if (
+      !focusedAlertId ||
+      !showReviewSections ||
+      !expandedSections.inconsistencies ||
+      searchQuery !== "" ||
+      !auditAlerts.some((alert) => alert.id === focusedAlertId)
+    ) return;
+    const frame = requestAnimationFrame(() => {
+      document.getElementById(`audit-alert-${focusedAlertId}`)?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [
+    auditAlerts,
+    expandedSections.inconsistencies,
+    focusedAlertId,
+    searchQuery,
+    showReviewSections,
+  ]);
 
   const filteredEntities = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -382,6 +407,7 @@ export function WikiPanel({
 
           <AuditAlertsSection
             visible={showReviewSections}
+            focusedAlertId={focusedAlertId}
             expanded={expandedSections.inconsistencies}
             alerts={filteredAuditAlerts}
             loading={auditAlertsLoading}
@@ -820,6 +846,7 @@ function AuditAlertList({
   loading,
   error,
   alerts,
+  focusedAlertId,
   updatingAlertId,
   onUpdate,
   onFocus,
@@ -828,6 +855,7 @@ function AuditAlertList({
   loading: boolean;
   error: Error | undefined;
   alerts: readonly AuditAlert[];
+  focusedAlertId: string | null;
   updatingAlertId: string | null;
   onUpdate: (alertId: string, status: AuditAlertResolution) => Promise<void>;
   onFocus: (alert: AuditAlert) => void;
@@ -860,6 +888,7 @@ function AuditAlertList({
     <AuditAlertCard
       key={alert.id}
       alert={alert}
+      focused={alert.id === focusedAlertId}
       updating={updatingAlertId === alert.id}
       onFocusEvidence={() => onFocus(alert)}
       onResolve={() => void onUpdate(alert.id, "RESOLVED")}
@@ -873,6 +902,7 @@ function AuditAlertsSection({
   visible,
   expanded,
   alerts,
+  focusedAlertId,
   loading,
   error,
   updatingAlertId,
@@ -884,6 +914,7 @@ function AuditAlertsSection({
   visible: boolean;
   expanded: boolean;
   alerts: readonly AuditAlert[];
+  focusedAlertId: string | null;
   loading: boolean;
   error: Error | undefined;
   updatingAlertId: string | null;
@@ -907,6 +938,7 @@ function AuditAlertsSection({
           loading={loading}
           error={error}
           alerts={alerts}
+          focusedAlertId={focusedAlertId}
           updatingAlertId={updatingAlertId}
           onUpdate={onUpdate}
           onFocus={onFocus}

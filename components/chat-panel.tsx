@@ -38,6 +38,13 @@ import {
 } from "lucide-react"
 
 import { ConfirmDialog } from "@/components/modal/confirm-dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import {
   Select,
@@ -66,8 +73,8 @@ type ChatPanelProps = {
 const HISTORY_PAGE_SIZE = 8
 const PRODUCT_TIME_ZONE = "America/Argentina/Buenos_Aires"
 const WAITING_MESSAGES = [
-  "Buscando fragmentos relevantes…",
-  "Contrastando manuscrito, Wiki y línea de tiempo…",
+  "Buscando fuentes relevantes…",
+  "Contrastando la información encontrada…",
   "Verificando las referencias…",
   "Preparando una respuesta respaldada…",
 ]
@@ -75,7 +82,7 @@ const WAITING_MESSAGES = [
 const promptSuggestions = [
   "¿Qué hechos importantes registra la línea de tiempo?",
   "¿Cómo se relacionan los personajes mencionados en esta parte?",
-  "¿Qué detalles de la Wiki aparecen también en el manuscrito?",
+  "¿Dónde encuentro las herramientas de PlumIA?",
 ]
 
 export function ChatPanel({
@@ -427,9 +434,10 @@ export function ChatPanel({
     <div
       className={
         isFullscreen
-          ? "fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-2 backdrop-blur-[2px] sm:p-6 lg:p-10"
-          : "contents"
+          ? "chat-panel fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-2 backdrop-blur-[2px] sm:p-6 lg:p-10"
+          : "chat-panel contents"
       }
+      data-expanded={isFullscreen}
     >
       <section
         className={`flex min-h-0 flex-col bg-card ${
@@ -442,11 +450,11 @@ export function ChatPanel({
           className={`relative shrink-0 border-b border-border ${
             isFullscreen
               ? "px-4 py-3"
-              : "flex h-16 flex-col justify-center px-3 py-2"
+              : "flex min-h-16 flex-col justify-center px-3 py-3"
           }`}
         >
           <div className="flex items-center gap-1.5">
-            <div className="flex min-w-0 flex-1 items-center gap-2 text-[11px] font-medium text-primary">
+            <div className="flex min-w-0 flex-1 items-center gap-2 text-xs font-medium text-primary sm:text-sm">
               <Sparkles className="size-3.5 shrink-0" />
               <span className="min-w-0 truncate">
                 {currentThread?.title || "Nueva conversación"}
@@ -501,8 +509,8 @@ export function ChatPanel({
               )}
             </Button>
           </div>
-          <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
-            Las respuestas se basan en tu obra y muestran las fuentes utilizadas.
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+            Consultá tu obra o el uso de PlumIA con fuentes verificables.
           </p>
           {isHistoryOpen && (
             <ChatHistoryMenu
@@ -534,6 +542,7 @@ export function ChatPanel({
               primaryImageUrls={primaryImageUrls}
               isSending={isSending}
               waitingMessageIndex={waitingMessageIndex}
+              isFullscreen={isFullscreen}
               onSuggestion={setDraft}
               onBeforeSourceNavigation={handleBeforeSourceNavigation}
             />
@@ -589,6 +598,7 @@ function ChatMessages({
   primaryImageUrls,
   isSending,
   waitingMessageIndex,
+  isFullscreen,
   onSuggestion,
   onBeforeSourceNavigation,
 }: {
@@ -598,6 +608,7 @@ function ChatMessages({
   readonly primaryImageUrls: Readonly<Record<string, string>>
   readonly isSending: boolean
   readonly waitingMessageIndex: number
+  readonly isFullscreen: boolean
   readonly onSuggestion: (suggestion: string) => void
   readonly onBeforeSourceNavigation: () => void
 }) {
@@ -614,6 +625,7 @@ function ChatMessages({
             message={message}
             projectId={projectId}
             primaryImageUrls={primaryImageUrls}
+            isFullscreen={isFullscreen}
             onBeforeSourceNavigation={onBeforeSourceNavigation}
           />
         ))}
@@ -716,9 +728,9 @@ function ChatComposer({
             rows={1}
             maxLength={4000}
             disabled={isSending}
-            aria-label="Pregunta sobre tu obra"
-            placeholder="Pregunta sobre tu obra..."
-            className="max-h-28 min-h-9 w-full resize-none overflow-y-auto bg-transparent px-1 py-1 text-[11px] leading-relaxed text-foreground outline-none placeholder:text-muted-foreground [scrollbar-width:none] [&::-webkit-scrollbar]:hidden disabled:opacity-60"
+            aria-label="Pregunta sobre tu obra o PlumIA"
+            placeholder="Preguntá sobre tu obra o PlumIA..."
+            className={`max-h-28 min-h-9 w-full resize-none overflow-y-auto bg-transparent px-1 py-1 leading-relaxed text-foreground outline-none placeholder:text-muted-foreground [scrollbar-width:none] [&::-webkit-scrollbar]:hidden disabled:opacity-60 ${isFullscreen ? "text-base" : "text-sm"}`}
           />
           {isRecording && (
             <div className="mt-2 flex items-center gap-2 text-[10px] text-muted-foreground">
@@ -765,7 +777,7 @@ function ChatComposer({
           )}
           <div className="mt-1 flex items-center justify-between gap-2">
             <span className="px-1 text-[9px] text-muted-foreground">
-              PlumIA · fuentes de tu proyecto
+              Respuestas con fuentes
             </span>
             <div className="flex items-center gap-1">
               <Button
@@ -866,12 +878,12 @@ function EmptyChatState({
       <div className="mb-3 flex size-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
         <Feather className="size-5" />
       </div>
-      <h3 className="text-xs font-semibold text-foreground">
+      <h3 className="chat-empty-title text-sm font-semibold text-foreground">
         Tu obra, lista para consultar
       </h3>
-      <p className="mt-1 max-w-60 text-[10px] leading-relaxed text-muted-foreground">
-        Pregunta por escenas, personajes, relaciones, imágenes o hechos de la
-        línea de tiempo.
+      <p className="chat-empty-description mt-1 max-w-60 text-xs leading-relaxed text-muted-foreground">
+        Pregunta por escenas, personajes, relaciones, hechos de la línea de
+        tiempo o cómo usar PlumIA.
       </p>
       <div className="mt-4 w-full space-y-2">
         {promptSuggestions.map((suggestion) => (
@@ -879,7 +891,7 @@ function EmptyChatState({
             key={suggestion}
             type="button"
             onClick={() => onSuggestion(suggestion)}
-            className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-left text-[10px] leading-relaxed text-foreground transition-colors hover:border-primary/30 hover:bg-primary/5"
+            className="chat-suggestion w-full rounded-xl border border-border bg-background px-3 py-2.5 text-left text-xs leading-relaxed text-foreground transition-colors hover:border-primary/30 hover:bg-primary/5"
           >
             {suggestion}
           </button>
@@ -893,16 +905,21 @@ function ChatBubble({
   message,
   projectId,
   primaryImageUrls,
+  isFullscreen,
   onBeforeSourceNavigation,
 }: {
   readonly message: ChatMessage
   readonly projectId: string
   readonly primaryImageUrls: Readonly<Record<string, string>>
+  readonly isFullscreen: boolean
   readonly onBeforeSourceNavigation: () => void
 }) {
   const isUser = message.role === "user"
   const actions = message.actions ?? []
   const [sourcesExpanded, setSourcesExpanded] = useState(true)
+  const [allSourcesOpen, setAllSourcesOpen] = useState(false)
+  const primarySources = message.sources.slice(0, 3)
+  const additionalSources = message.sources.length - primarySources.length
   return (
     <article className={isUser ? "ml-8" : "mr-3"}>
       <div className={`flex items-start gap-2 ${isUser ? "justify-end" : ""}`}>
@@ -912,7 +929,7 @@ function ChatBubble({
           </div>
         )}
         <div
-          className={`min-w-0 rounded-2xl px-3 py-2.5 text-[11px] leading-[1.55] whitespace-pre-wrap ${
+          className={`min-w-0 rounded-2xl px-3 py-2.5 leading-relaxed whitespace-pre-wrap ${isFullscreen ? "text-base" : "text-sm"} ${
             isUser
               ? "rounded-br-md bg-primary text-primary-foreground"
               : "rounded-tl-md bg-muted text-foreground"
@@ -923,7 +940,7 @@ function ChatBubble({
       </div>
       {!isUser && actions.length > 0 && (
         <div className="ml-8 mt-2 space-y-1.5">
-          <span className="px-1 text-[9px] font-semibold tracking-wide text-muted-foreground uppercase">
+          <span className="px-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
             Acceso directo
           </span>
           {actions.map((action) => (
@@ -938,7 +955,7 @@ function ChatBubble({
       {!isUser && message.sources.length > 0 && (
         <div className="ml-8 mt-2 space-y-1.5">
           <div className="flex items-center justify-between gap-2 px-1">
-            <span className="text-[9px] font-semibold tracking-wide text-muted-foreground uppercase">
+            <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
               Referencias utilizadas{" "}
               <span className="ml-1 font-normal text-muted-foreground/70">
                 · {message.sources.length}
@@ -964,7 +981,7 @@ function ChatBubble({
           </div>
           {sourcesExpanded && (
             <div className="space-y-1.5">
-              {message.sources.map((source, index) => (
+              {primarySources.map((source, index) => (
                 <SourceCard
                   key={source.id}
                   source={source}
@@ -978,10 +995,47 @@ function ChatBubble({
                   }
                 />
               ))}
+              {additionalSources > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setAllSourcesOpen(true)}
+                  className="w-full rounded-xl border border-border px-3 py-2 text-left text-xs font-medium text-primary transition-colors hover:bg-primary/5"
+                >
+                  +{additionalSources} fuentes revisadas · Ver todas
+                </button>
+              )}
             </div>
           )}
         </div>
       )}
+      <Dialog open={allSourcesOpen} onOpenChange={setAllSourcesOpen}>
+        <DialogContent size="md" className="max-h-[85dvh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Fuentes revisadas</DialogTitle>
+            <DialogDescription>
+              Las fuentes citadas aparecen primero. También podés abrir las demás para revisar el contexto.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            {message.sources.map((source, index) => (
+              <SourceCard
+                key={source.id}
+                source={source}
+                citationNumber={index + 1}
+                projectId={projectId}
+                onBeforeNavigation={() => {
+                  setAllSourcesOpen(false)
+                  onBeforeSourceNavigation()
+                }}
+                imageUrl={
+                  (source.entityId && primaryImageUrls[source.entityId]) ||
+                  source.imageUrl || undefined
+                }
+              />
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     </article>
   )
 }
@@ -1008,15 +1062,15 @@ function NavigationActionCard({
         <Waypoints className="size-3.5" />
       </div>
       <span className="min-w-0 flex-1">
-        <span className="flex items-center gap-1.5 text-[10px] font-semibold text-foreground">
+        <span className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
           <span className="truncate">{action.label}</span>
           <ExternalLink className="size-2.5 shrink-0 text-primary opacity-0 transition-opacity group-hover:opacity-100" />
         </span>
-        <span className="mt-0.5 block text-[9px] text-muted-foreground">
+        <span className="mt-0.5 block text-xs text-muted-foreground">
           {action.description}
         </span>
       </span>
-      <span className="shrink-0 text-[9px] font-semibold text-primary">
+      <span className="shrink-0 text-xs font-semibold text-primary">
         Ir ahí
       </span>
     </button>
@@ -1499,10 +1553,12 @@ function SourceCardContent({
         </div>
       )}
       <span className="min-w-0 flex-1">
-        <span className="flex items-center gap-1.5 text-[9px] font-semibold text-foreground">
-          <span className="shrink-0 text-primary">[{citationNumber}]</span>{" "}
+        <span className="chat-source-title flex items-center gap-1.5 font-semibold text-foreground">
+          <span className="shrink-0 text-primary">
+            {source.cited === false ? "Revisada" : `[${citationNumber}]`}
+          </span>{" "}
           {wikiDetails ? (
-            <span className="truncate text-[10px] font-semibold">
+            <span className="truncate font-semibold">
               {wikiDetails.name}
             </span>
           ) : (
@@ -1517,17 +1573,17 @@ function SourceCardContent({
             <span className="mt-0.5 inline-flex rounded-full bg-primary/10 px-1.5 py-0.5 text-[8px] font-medium text-primary">
               {wikiDetails.entityType}
             </span>
-            <span className="mt-1 line-clamp-2 block text-[9px] leading-relaxed text-muted-foreground">
+            <span className="chat-source-description mt-1 line-clamp-2 block leading-relaxed text-muted-foreground">
               {wikiDetails.description}
             </span>
             {wikiDetails.aliases.length > 0 && (
-              <span className="mt-1 block truncate text-[8px] text-muted-foreground/80">
+              <span className="chat-source-description mt-1 block truncate text-muted-foreground/80">
                 También: {wikiDetails.aliases.slice(0, 3).join(" · ")}
               </span>
             )}
           </>
         ) : (
-          <span className="mt-0.5 line-clamp-2 block text-[9px] leading-relaxed text-muted-foreground">
+          <span className="chat-source-description mt-0.5 line-clamp-2 block leading-relaxed text-muted-foreground">
             {source.excerpt}
           </span>
         )}
@@ -1605,7 +1661,7 @@ function ThinkingBubble({
         <Feather className="size-3" />
       </div>
       <div className="flex min-h-9 items-center gap-2 rounded-2xl rounded-tl-md bg-muted px-3 py-1.5">
-        <span className="text-[10px] text-muted-foreground" aria-live="polite">
+        <span className="chat-thinking-status text-xs text-muted-foreground" aria-live="polite">
           {status}
         </span>
       </div>

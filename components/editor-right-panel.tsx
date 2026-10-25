@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
+import { useSearchParams } from "next/navigation";
 import {
   BarChart2,
   GitBranch,
@@ -79,10 +80,22 @@ const tabs = [
   { id: "stats" as const, label: "Stats", icon: BarChart2 },
 ];
 
-export function EditorRightPanel({
+export function EditorRightPanel(props: EditorRightPanelProps) {
+  const focusedAlertId = useSearchParams().get("alertId");
+  return (
+    <EditorRightPanelContent
+      key={focusedAlertId ?? "default"}
+      {...props}
+      focusedAlertId={focusedAlertId}
+    />
+  );
+}
+
+function EditorRightPanelContent({
   projectId,
   mode,
-}: EditorRightPanelProps) {
+  focusedAlertId,
+}: EditorRightPanelProps & { focusedAlertId: string | null }) {
   const activeSceneId = useEditorStore((state) => state.activeSceneId);
   const setActiveScene = useEditorStore((state) => state.setActiveScene);
   const focusCitation = useEditorStore((state) => state.focusCitation);
@@ -92,6 +105,7 @@ export function EditorRightPanel({
   const refreshTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [activeTab, setActiveTab] = useState<RightTab>("wiki");
   const [isCollapsed, setIsCollapsed] = useState(false);
+
   const [acceptingProposalId, setAcceptingProposalId] = useState<string | null>(
     null,
   );
@@ -509,6 +523,7 @@ export function EditorRightPanel({
         <div className="min-h-0 flex-1 overflow-hidden bg-card">
           {activeTab === "wiki" && (
             <WikiPanel
+              key={focusedAlertId ?? "default"}
               entities={entities ?? []}
               proposals={proposals ?? []}
               relationshipProposals={relationshipProposals ?? []}
@@ -550,7 +565,8 @@ export function EditorRightPanel({
               onApplyAuditKnowledgeUpdate={handleApplyAuditKnowledgeUpdate}
               actionError={actionError}
               entityActionFeedback={entityActionFeedback}
-              showReviewSections={mode === "review"}
+              showReviewSections={mode === "review" || Boolean(focusedAlertId)}
+              focusedAlertId={focusedAlertId}
             />
           )}
 
