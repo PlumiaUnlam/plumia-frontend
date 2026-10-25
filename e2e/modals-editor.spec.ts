@@ -508,6 +508,53 @@ test.describe("Diálogos de texto del editor", () => {
 })
 
 test.describe("Chat con IA", () => {
+  test("Conversación larga: se puede scrollear hasta el primer mensaje", async ({
+    page,
+  }) => {
+    await installModalBackend(page)
+    await openEditor(page)
+
+    await page.getByRole("button", { name: /Chat IA/ }).click()
+    const first = page.getByText("Mensaje número 1", { exact: true })
+    const last = page.getByText("Mensaje número 30", { exact: true })
+    await expect(last).toBeInViewport()
+    await expect(first).not.toBeInViewport()
+
+    await first.scrollIntoViewIfNeeded()
+    await expect(first).toBeInViewport()
+  })
+
+  test("Historial: se ubica bajo el reloj y se cierra con clic afuera, Escape o el reloj", async ({
+    page,
+  }) => {
+    await installModalBackend(page)
+    await openEditor(page)
+
+    await page.getByRole("button", { name: /Chat IA/ }).click()
+    const toggle = page.getByRole("button", { name: "Abrir historial de conversaciones" })
+    const menu = page.getByRole("dialog", { name: "Historial de conversaciones" })
+
+    await toggle.click()
+    await expect(menu).toBeVisible()
+    const toggleBox = (await toggle.boundingBox())!
+    const menuBox = (await menu.boundingBox())!
+    expect(menuBox.y).toBeGreaterThanOrEqual(toggleBox.y + toggleBox.height)
+    expect(menuBox.x + menuBox.width).toBeGreaterThanOrEqual(toggleBox.x + toggleBox.width - 1)
+
+    await page.getByPlaceholder("Preguntá sobre tu obra o PlumIA...").click()
+    await expect(menu).toBeHidden()
+
+    await toggle.click()
+    await expect(menu).toBeVisible()
+    await page.keyboard.press("Escape")
+    await expect(menu).toBeHidden()
+
+    await toggle.click()
+    await expect(menu).toBeVisible()
+    await toggle.click()
+    await expect(menu).toBeHidden()
+  })
+
   test("Eliminar conversación: cancelar la conserva y confirmar la borra", async ({
     page,
   }) => {

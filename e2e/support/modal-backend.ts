@@ -614,7 +614,23 @@ export async function installModalBackend(
     }
     const threadMatch = path.match(/^\/chat\/threads\/([^/]+)(\/messages)?$/)
     if (threadMatch) {
-      if (threadMatch[2]) return respond(route, [])
+      if (threadMatch[2]) {
+        // Conversación larga: obliga al panel del chat a scrollear.
+        return respond(
+          route,
+          Array.from({ length: 30 }, (_, index) => ({
+            id: `message-${index + 1}`,
+            threadId: threadMatch[1],
+            role: index % 2 === 0 ? "user" : "assistant",
+            content: `Mensaje número ${index + 1}`,
+            sources: [],
+            actions: [],
+            inputTokens: null,
+            outputTokens: null,
+            createdAt: ts,
+          })),
+        )
+      }
       if (method === "DELETE") {
         threads = threads.filter((thread) => thread.id !== threadMatch[1])
         return route.fulfill({ status: 204 })

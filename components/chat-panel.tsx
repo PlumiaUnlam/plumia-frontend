@@ -221,6 +221,31 @@ export function ChatPanel({
     }
   }, [])
 
+  // El historial se cierra con un clic fuera o con Escape.
+  useEffect(() => {
+    if (!isHistoryOpen) return
+    const closeOnOutsidePress = (event: PointerEvent) => {
+      if (
+        event.target instanceof Element &&
+        event.target.closest(
+          "[data-chat-history], [data-chat-history-toggle], [role=alertdialog]",
+        )
+      ) {
+        return
+      }
+      setIsHistoryOpen(false)
+    }
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setIsHistoryOpen(false)
+    }
+    document.addEventListener("pointerdown", closeOnOutsidePress)
+    document.addEventListener("keydown", closeOnEscape)
+    return () => {
+      document.removeEventListener("pointerdown", closeOnOutsidePress)
+      document.removeEventListener("keydown", closeOnEscape)
+    }
+  }, [isHistoryOpen])
+
   useEffect(() => {
     if (!isHistoryOpen) return
     const timeout = window.setTimeout(() => {
@@ -468,6 +493,7 @@ export function ChatPanel({
               onClick={() => setIsHistoryOpen((open) => !open)}
               aria-label="Abrir historial de conversaciones"
               aria-expanded={isHistoryOpen}
+              data-chat-history-toggle=""
               title="Historial de conversaciones"
               className={`size-7 rounded-lg ${
                 isHistoryOpen
@@ -534,7 +560,7 @@ export function ChatPanel({
             isFullscreen ? "px-3 py-4 sm:px-6 sm:py-6" : "p-3"
           }`}
         >
-          <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col justify-end">
+          <div className="mx-auto flex min-h-full w-full max-w-3xl shrink-0 flex-col justify-end">
             <ChatMessages
               isLoading={isLoading}
               messages={messages}
@@ -1129,7 +1155,8 @@ function ChatHistoryMenu({
     <dialog
       open
       aria-label="Historial de conversaciones"
-      className="absolute right-2 top-[4.5rem] z-30 w-[min(19rem,calc(100%-1rem))] overflow-hidden rounded-2xl border border-border bg-popover p-2 text-popover-foreground shadow-xl shadow-primary/10"
+      data-chat-history=""
+      className="absolute top-full right-2 left-auto z-30 m-0 mt-1 w-[min(19rem,calc(100%-1rem))] overflow-hidden rounded-2xl border border-border bg-popover p-2 text-popover-foreground shadow-xl shadow-primary/10"
     >
       <div className="flex items-center gap-2 px-2.5 py-2">
         <History className="size-3.5 text-primary" />
