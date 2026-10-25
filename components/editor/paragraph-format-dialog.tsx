@@ -37,7 +37,7 @@ import {
 
 const selectClass =
   "h-9 w-full rounded-md border border-border bg-popover px-3 text-sm text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-[#d2e3fc] dark:bg-input/30 dark:focus:border-ring dark:focus:ring-ring/50"
-const fieldLabelClass = "text-xs font-medium text-muted-foreground"
+const fieldLabelClass = "text-sm font-semibold text-foreground"
 
 function getLineHeightLabel(lineHeight: ParagraphLineHeight) {
   const labels: Record<ParagraphLineHeight, string> = {
@@ -228,7 +228,7 @@ export function ParagraphFormatDialog({
               <div className="grid gap-3 sm:grid-cols-2">
                 {([["spacingBefore", "Antes"], ["spacingAfter", "Después"]] as const).map(([attribute, label]) => (
                   <div key={attribute} className="space-y-1.5">
-                    <Label htmlFor={`paragraph-${attribute}`} className="text-xs text-muted-foreground">{label}</Label>
+                    <Label htmlFor={`paragraph-${attribute}`} className="text-xs font-normal text-muted-foreground">{label}</Label>
                     <div className="relative">
                       <Input id={`paragraph-${attribute}`} type="number" min="0" max="144" step="1"
                         value={draft[attribute] ?? ""} placeholder="Automático"
@@ -252,7 +252,7 @@ export function ParagraphFormatDialog({
                   ] as const
                 ).map(([attribute, label]) => (
                   <div key={attribute} className="space-y-1.5">
-                    <Label htmlFor={`paragraph-${attribute}`} className="text-xs text-muted-foreground">
+                    <Label htmlFor={`paragraph-${attribute}`} className="text-xs font-normal text-muted-foreground">
                       {label}
                     </Label>
                     <div className="relative">

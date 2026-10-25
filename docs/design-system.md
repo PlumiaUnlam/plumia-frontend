@@ -80,6 +80,17 @@ Reglas:
 </FormDialog>
 ```
 
+## Reglas de implementación de modales
+
+- Arma cada modal con `FormDialog` o `ConfirmDialog` (`components/modal/`). No uses `Dialog` ni `AlertDialog` crudos; si necesitas control propio del foco o del cierre, usa `DialogContent layout="sectioned"` con `DialogHeader`, `DialogBody` y `DialogFooter`.
+- No definas anchos, `min-w-*`, paddings de encabezado o pie, colores ni `z-[…]` en un modal. Para un modal sobre otro usa `layer`.
+- `ConfirmDialog` no se cierra solo al confirmar: el manejador de `onConfirm` debe cerrarlo cuando la acción termina bien.
+- Si el contenido tiene botones sin `type="button"`, usa `enterToSubmit={false}`.
+- Usa `Field`, `FieldLabel` (título, en negrita) y `FieldDescription` (ayuda, más chica y atenuada), `FilePicker` para archivos y `Spinner` para esperas.
+- Fuera de `components/ui/` no escribas hex ni paletas de Tailwind: usa los tokens de `app/globals.css`. El texto no baja de 11px (`text-2xs`) y los pesos son 400, 500 y 600.
+- Bordes y botones deben distinguirse en claro y oscuro: usa `border-border` y `border-input`.
+- Al crear o cambiar un modal, agrega o actualiza su test en `e2e/modals-*.spec.ts` con `installModalBackend` (payload enviado, cancelar o Escape sin cambios, errores visibles). Si usa un endpoint nuevo, súmalo a `e2e/support/modal-backend.ts`. Ejecuta `pnpm test:e2e` antes de terminar.
+
 ## Pendiente (siguientes pasos)
 
 - Reemplazar `Loader2 … animate-spin` por `<Spinner />`, estados vacíos por `Empty`, `<button>` crudos por `Button`.
