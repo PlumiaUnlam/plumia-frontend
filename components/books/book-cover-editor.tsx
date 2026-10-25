@@ -5,16 +5,7 @@ import { BookOpen, ImageUp, Loader2, Trash2 } from "lucide-react"
 import useSWR from "swr"
 import { toast } from "sonner"
 
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
+import { ConfirmDialog } from "@/components/modal/confirm-dialog"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import {
@@ -213,26 +204,18 @@ export function BookCoverEditor({
         </div>
       </div>
 
-      <AlertDialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Quitar la portada?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Se borra la imagen de “{bookTitle}”. El EPUB se exportará sin portada,
-              empezando por la página de título.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              onClick={() => void handleRemove()}
-            >
-              Quitar portada
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={isConfirmOpen}
+        onOpenChange={setIsConfirmOpen}
+        title="¿Quitar la portada?"
+        description={`Se borra la imagen de “${bookTitle}”. El EPUB se exportará sin portada, empezando por la página de título.`}
+        confirmLabel="Quitar portada"
+        loading={isRemoving}
+        onConfirm={async () => {
+          await handleRemove()
+          setIsConfirmOpen(false)
+        }}
+      />
     </div>
   )
 }

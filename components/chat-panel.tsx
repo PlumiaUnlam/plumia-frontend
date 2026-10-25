@@ -1321,8 +1321,8 @@ function VoiceSettingsModal({
     >
       <div className="flex items-center justify-between gap-2">
         <div>
-          <p className="text-[10px] font-semibold">Configurar micrófono</p>
-          <p className="text-[9px] text-muted-foreground">
+          <p className="text-xs font-semibold">Configurar micrófono</p>
+          <p className="text-2xs text-muted-foreground">
             Hablá para comprobar que la señal se escuche correctamente.
           </p>
         </div>
@@ -1337,7 +1337,7 @@ function VoiceSettingsModal({
           <X className="size-3" />
         </Button>
       </div>
-      <div className="mt-3 text-[9px] font-medium text-muted-foreground">
+      <div className="mt-3 text-2xs font-medium text-muted-foreground">
         <label htmlFor="chat-audio-input" className="block">
           Entrada de audio
         </label>
@@ -1349,7 +1349,7 @@ function VoiceSettingsModal({
           <SelectTrigger
             id="chat-audio-input"
             size="sm"
-            className="mt-1 w-full bg-card text-[10px] text-foreground"
+            className="mt-1 w-full bg-card text-xs text-foreground"
           >
             <SelectValue placeholder="Micrófono predeterminado" />
           </SelectTrigger>
@@ -1363,7 +1363,7 @@ function VoiceSettingsModal({
         </Select>
       </div>
       <div className="mt-3">
-        <div className="mb-1 flex justify-between text-[9px] text-muted-foreground">
+        <div className="mb-1 flex justify-between text-2xs text-muted-foreground">
           <span>Nivel detectado</span>
           <span>{Math.round(audioLevel * 100)}%</span>
         </div>

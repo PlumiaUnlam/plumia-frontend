@@ -209,6 +209,25 @@ test.describe("Universo (worldbuilding)", () => {
     })
   })
 
+  test("Eliminar entidad: cancelar la conserva y confirmar la borra", async ({ page }) => {
+    const backend = await installModalBackend(page)
+    await visit(page, "/worldbuilding", "Worldbuilding")
+
+    await page.getByText("Gabriel Ortega", { exact: true }).first().click()
+    await page.getByRole("button", { name: "Eliminar", exact: true }).click()
+    const alert = alertNamed(page, "Eliminar entidad")
+    await expect(alert).toContainText("Gabriel Ortega")
+    await alert.getByRole("button", { name: "Cancelar" }).click()
+    await expect(alert).toBeHidden()
+    expect(backend.callsTo("DELETE", /\/knowledge\/entities\//)).toHaveLength(0)
+
+    await page.getByRole("button", { name: "Eliminar", exact: true }).click()
+    await alert.getByRole("button", { name: "Eliminar" }).click()
+    await expect(alert).toBeHidden()
+    expect(backend.callsTo("DELETE", /\/knowledge\/entities\/gabriel-ortega$/)).toHaveLength(1)
+    await expect(page.getByText("Gabriel Ortega", { exact: true })).toHaveCount(0)
+  })
+
   test("Nueva relación: no deja elegir la misma entidad en ambos lados y envía los datos", async ({
     page,
   }) => {
@@ -264,6 +283,31 @@ test.describe("Universo (worldbuilding)", () => {
     expect(created).toHaveLength(2)
     expect(created[1].body).toMatchObject({ title: "Llega el invierno" })
     await expect(page.getByText("Llega el invierno")).toBeVisible()
+  })
+
+  test("Reordenar la cronología: pide confirmación antes de mover y envía la posición", async ({
+    page,
+  }) => {
+    const backend = await installModalBackend(page)
+    await visit(page, "/worldbuilding?tab=timeline", "Worldbuilding")
+
+    await page.getByRole("button", { name: "Reordenar cronología" }).click()
+    await page.getByRole("button", { name: "Bajar Desaparece el librero" }).click()
+
+    const alert = alertNamed(page, "Confirmar reordenamiento")
+    await expect(alert).toContainText("Desaparece el librero")
+    await expect(alert).toContainText("hacia abajo")
+
+    // Cancelar no mueve nada.
+    await alert.getByRole("button", { name: "Cancelar" }).click()
+    await expect(alert).toBeHidden()
+    expect(backend.callsTo("POST", /\/move$/)).toHaveLength(0)
+
+    // Confirmar manda el movimiento del evento elegido.
+    await page.getByRole("button", { name: "Bajar Desaparece el librero" }).click()
+    await alert.getByRole("button", { name: "Confirmar movimiento" }).click()
+    await expect(alert).toBeHidden()
+    expect(backend.callsTo("POST", /\/knowledge\/timeline\/t1\/move$/)).toHaveLength(1)
   })
 
   test("Eliminar evento: cancelar lo conserva y confirmar lo borra", async ({ page }) => {

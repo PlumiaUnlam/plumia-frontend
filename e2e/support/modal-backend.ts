@@ -200,6 +200,24 @@ export async function installModalBackend(page: Page): Promise<ModalBackend> {
       createdAt: ts,
       updatedAt: ts,
     },
+    {
+      id: "t2",
+      projectId,
+      title: "Maren encuentra el códice",
+      description: "Primera pista del Códice Carmesí.",
+      date: null,
+      temporalLabel: "Día 3",
+      impact: "MEDIUM",
+      storyboardArcId: null,
+      arc: null,
+      entityIds: [entityIds.maren],
+      position: "a1",
+      source: "MANUAL",
+      sourceSceneId: null,
+      confidenceScore: 1,
+      createdAt: ts,
+      updatedAt: ts,
+    },
   ]
   let threads: Json[] = [
     { id: "thread-1", projectId, title: "Ideas para el final", isArchived: false, createdAt: ts, updatedAt: ts },
@@ -798,6 +816,10 @@ export async function installModalBackend(page: Page): Promise<ModalBackend> {
         timeline = [...timeline, event]
         return respond(route, event, 201)
       }
+    }
+    const moveMatch = path.match(/^\/knowledge\/timeline\/([^/]+)\/move$/)
+    if (moveMatch && method === "POST") {
+      return respond(route, timeline.find((event) => event.id === moveMatch[1]) ?? {})
     }
     const timelineMatch = path.match(/^\/knowledge\/timeline\/([^/]+)$/)
     if (timelineMatch && method === "DELETE") {

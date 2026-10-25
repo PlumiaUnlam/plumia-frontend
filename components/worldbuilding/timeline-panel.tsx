@@ -41,14 +41,6 @@ import { Badge } from "@/components/ui/badge"
 import { FormDialog } from "@/components/modal/form-dialog"
 import { ConfirmDialog } from "@/components/modal/confirm-dialog"
 import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
@@ -1006,33 +998,27 @@ function TimelineMoveDialog({ pendingMove, isMoving, error, onConfirm, onOpenCha
   }
 
   return (
-    <Dialog open={pendingMove !== null} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Confirmar reordenamiento</DialogTitle>
-          <DialogDescription>
-            {confirmationMessage}
-          </DialogDescription>
-        </DialogHeader>
-        {pendingMove?.dateWarning && (
-          <div className="flex gap-3 rounded-lg border border-amber-500/40 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:bg-amber-950/20 dark:text-amber-200">
-            <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-            <p>
-              Este orden contradice las fechas indicadas. {pendingMove.dateWarning}
-              {" "}Podés continuar si el orden narrativo es intencional.
-            </p>
-          </div>
-        )}
-        {error && <p className="text-sm text-destructive">{error}</p>}
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isMoving}>Cancelar</Button>
-          <Button onClick={onConfirm} disabled={isMoving}>
-            {isMoving && <Loader2 className="animate-spin" />}
-            Confirmar movimiento
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <ConfirmDialog
+      open={pendingMove !== null}
+      onOpenChange={onOpenChange}
+      title="Confirmar reordenamiento"
+      description={confirmationMessage}
+      confirmLabel="Confirmar movimiento"
+      tone="default"
+      loading={isMoving}
+      error={error}
+      onConfirm={onConfirm}
+    >
+      {pendingMove?.dateWarning && (
+        <div className="flex gap-3 rounded-lg border border-warning/40 bg-warning-muted px-4 py-3 text-sm text-foreground">
+          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" />
+          <p>
+            Este orden contradice las fechas indicadas. {pendingMove.dateWarning}
+            {" "}Podés continuar si el orden narrativo es intencional.
+          </p>
+        </div>
+      )}
+    </ConfirmDialog>
   )
 }
 
