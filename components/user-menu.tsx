@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react"
-import { Camera, CircleAlert, KeyRound, LogOut, Monitor, Moon, Settings, Sun, Trash2, UserRound } from "lucide-react"
+import { Camera, CircleAlert, KeyRound, LogOut, Monitor, Moon, Settings, SlidersHorizontal, Sun, Trash2, UserRound } from "lucide-react"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { useTheme } from "next-themes"
@@ -45,8 +45,16 @@ import {
   removeGeminiApiKey,
   saveGeminiApiKey,
   updateAutoAnalyzeOnAutosave,
+  updateEntityRecognitionThresholds,
+  DEFAULT_ENTITY_RECOGNITION_THRESHOLDS,
   type AiSettings,
+  type EntityRecognitionThresholds,
 } from "@/services/ai-settings.service"
+import {
+  getProjectEntityRecognitionSettings,
+  updateProjectEntityRecognitionSettings,
+} from "@/services/entity-recognition-settings.service"
+import { getDashboardProjects, type ProjectResponse } from "@/services/project.service"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Switch } from "@/components/ui/switch"
 
@@ -62,7 +70,7 @@ type UserMenuProps = {
   readonly inverted?: boolean
 }
 
-type ProfileSection = "account" | "ai"
+type ProfileSection = "account" | "ai" | "entityRecognition"
 
 type ProfileAvatarProps = {
   readonly src: string | null
@@ -147,6 +155,19 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
   const [confirmEmail, setConfirmEmail] = useState("")
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [entityThresholds, setEntityThresholds] = useState<EntityRecognitionThresholds>(
+    DEFAULT_ENTITY_RECOGNITION_THRESHOLDS,
+  )
+  const [entityRecognitionSaving, setEntityRecognitionSaving] = useState(false)
+  const [entityRecognitionError, setEntityRecognitionError] = useState<string | null>(null)
+  const [entityRecognitionNotice, setEntityRecognitionNotice] = useState<string | null>(null)
+  const [projects, setProjects] = useState<ProjectResponse[]>([])
+  const [projectsLoading, setProjectsLoading] = useState(false)
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
+  const [importantEntityNames, setImportantEntityNames] = useState<string[]>([])
+  const [newImportantEntityName, setNewImportantEntityName] = useState("")
+  const [projectNamesLoading, setProjectNamesLoading] = useState(false)
+  const [projectNamesError, setProjectNamesError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   let ThemeIcon = Monitor
@@ -180,11 +201,35 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
     setAiLoading(true)
     setAiError(null)
     try {
-      setAiSettings(await getAiSettings())
+      const settings = await getAiSettings()
+      setAiSettings(settings)
+      setEntityThresholds(
+        settings.entityExtractionThresholds ?? DEFAULT_ENTITY_RECOGNITION_THRESHOLDS,
+      )
     } catch {
       setAiError("No pudimos cargar la configuraciÃ³n de IA.")
     } finally {
       setAiLoading(false)
+    }
+  }
+
+  const loadProjects = async () => {
+    setProjectsLoading(true)
+    try {
+      const nextProjects = await getDashboardProjects()
+      setProjects(nextProjects)
+      const nextProjectId =
+        (selectedProjectId && nextProjects.some((project) => project.id === selectedProjectId)
+          ? selectedProjectId
+          : nextProjects[0]?.id) ?? null
+      setSelectedProjectId(nextProjectId)
+      if (nextProjectId) {
+        void loadProjectEntityNames(nextProjectId)
+      }
+    } catch {
+      setEntityRecognitionError("No pudimos cargar tus proyectos.")
+    } finally {
+      setProjectsLoading(false)
     }
   }
 
@@ -198,7 +243,12 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
     setAiKey("")
     setAiNotice(null)
     setAutoAnalysisError(null)
+    setEntityRecognitionError(null)
+    setEntityRecognitionNotice(null)
+    setProjectNamesError(null)
+    setNewImportantEntityName("")
     void loadAiSettings()
+    void loadProjects()
     setProfileOpen(true)
   }
 
@@ -302,6 +352,8 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
         keyPrefix: null,
         updatedAt: null,
         autoAnalyzeOnAutosave: current?.autoAnalyzeOnAutosave ?? true,
+        entityExtractionThresholds:
+          current?.entityExtractionThresholds ?? DEFAULT_ENTITY_RECOGNITION_THRESHOLDS,
       }))
       setAiKey("")
       setAiNotice("La API Key propia fue eliminada.")
@@ -334,6 +386,60 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
     } finally {
       setAutoAnalysisSaving(false)
     }
+  }
+
+  const handleEntityRecognitionSubmit = async () => {
+    setEntityRecognitionSaving(true)
+    setEntityRecognitionError(null)
+    setEntityRecognitionNotice(null)
+    setProjectNamesError(null)
+    try {
+      const [nextSettings, nextProjectSettings] = await Promise.all([
+        updateEntityRecognitionThresholds(entityThresholds),
+        selectedProjectId
+          ? updateProjectEntityRecognitionSettings(
+              selectedProjectId,
+              importantEntityNames,
+            )
+          : Promise.resolve(null),
+      ])
+      setAiSettings(nextSettings)
+      setEntityThresholds(nextSettings.entityExtractionThresholds)
+      if (nextProjectSettings) {
+        setImportantEntityNames(nextProjectSettings.importantEntityNames)
+      }
+      setEntityRecognitionNotice("La precisión de reconocimiento fue guardada.")
+    } catch {
+      setEntityRecognitionError("No pudimos guardar la precisión de reconocimiento.")
+    } finally {
+      setEntityRecognitionSaving(false)
+    }
+  }
+
+  const loadProjectEntityNames = async (projectId: string) => {
+    setProjectNamesLoading(true)
+    setProjectNamesError(null)
+    try {
+      const settings = await getProjectEntityRecognitionSettings(projectId)
+      setImportantEntityNames(settings.importantEntityNames)
+    } catch {
+      setProjectNamesError("No pudimos cargar la lista de entidades importantes.")
+      setImportantEntityNames([])
+    } finally {
+      setProjectNamesLoading(false)
+    }
+  }
+
+  const addImportantEntityName = () => {
+    const value = newImportantEntityName.trim()
+    if (!value) return
+    const normalize = (name: string) =>
+      name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim()
+    if (!importantEntityNames.some((name) => normalize(name) === normalize(value))) {
+      setImportantEntityNames((current) => [...current, value])
+    }
+    setNewImportantEntityName("")
+    setProjectNamesError(null)
   }
 
   const handleLogout = async () => {
@@ -407,7 +513,7 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
           <DropdownMenuSeparator />
           <DropdownMenuItem onSelect={openProfileDialog}>
             <Settings />
-            Configurar perfil
+            Configuración
           </DropdownMenuItem>
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>
@@ -452,19 +558,33 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
         title={
           <span className="flex items-center gap-2">
             <UserRound className="size-4" />
-            Configurar perfil
+            Configuración
           </span>
         }
         description="Administrá tus datos y la configuración de IA de tu cuenta."
         size="md"
-        submitLabel={profileSection === "account" ? "Guardar cambios" : "Guardar API Key"}
+        submitLabel={
+          profileSection === "account"
+            ? "Guardar cambios"
+            : profileSection === "ai"
+              ? "Guardar API Key"
+              : "Guardar configuración"
+        }
         submitDisabled={profileSection === "ai" && !aiKey.trim()}
         loading={
           profileSection === "account"
             ? saving
-            : aiSaving || autoAnalysisSaving
+            : profileSection === "ai"
+              ? aiSaving || autoAnalysisSaving
+              : entityRecognitionSaving
         }
-        onSubmit={profileSection === "account" ? handleProfileSubmit : handleAiSubmit}
+        onSubmit={
+          profileSection === "account"
+            ? handleProfileSubmit
+            : profileSection === "ai"
+              ? handleAiSubmit
+              : handleEntityRecognitionSubmit
+        }
         onInteractOutside={(event) => {
           // La confirmación de eliminación vive en un portal propio, así que
           // sus eventos se ven como "afuera" de este diálogo y Radix lo
@@ -482,7 +602,7 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
         onValueChange={(value) => setProfileSection(value as ProfileSection)}
         className="min-h-0"
       >
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="account">
             <UserRound />
             Datos de la cuenta
@@ -490,6 +610,10 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
           <TabsTrigger value="ai">
             <KeyRound />
             Configuración de IA
+          </TabsTrigger>
+          <TabsTrigger value="entityRecognition">
+            <SlidersHorizontal />
+            Reconocimiento
           </TabsTrigger>
         </TabsList>
 
@@ -592,6 +716,132 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
           Eliminar cuenta
         </Button>
       </div>
+        </TabsContent>
+
+        <TabsContent value="entityRecognition" className="mt-0 space-y-4">
+          <div className="rounded-lg border bg-muted/30 p-3 text-sm">
+            <p className="font-medium">Precisión de entidades nuevas</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Ajustá la relevancia narrativa mínima para que una entidad nueva llegue a propuestas.
+              Las entidades confirmadas continúan analizándose aunque tengan baja relevancia.
+            </p>
+          </div>
+
+          {Object.entries(entityThresholds).map(([type, value]) => (
+            <Field key={type}>
+              <FieldLabel htmlFor={`entity-threshold-${type}`}>{type}</FieldLabel>
+              <div className="flex items-center gap-3">
+                <input
+                  id={`entity-threshold-${type}`}
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.05"
+                  value={value}
+                  onChange={(event) =>
+                    setEntityThresholds((current) => ({
+                      ...current,
+                      [type]: Number(event.target.value),
+                    }))
+                  }
+                  className="min-w-0 flex-1"
+                />
+                <span className="w-10 text-right text-sm tabular-nums text-muted-foreground">
+                  {value.toFixed(2)}
+                </span>
+              </div>
+            </Field>
+          ))}
+
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setEntityThresholds(DEFAULT_ENTITY_RECOGNITION_THRESHOLDS)}
+            disabled={entityRecognitionSaving}
+          >
+            Restaurar valores recomendados
+          </Button>
+
+          {entityRecognitionError && <FieldError>{entityRecognitionError}</FieldError>}
+          {entityRecognitionNotice && (
+            <Alert>
+              <AlertDescription>{entityRecognitionNotice}</AlertDescription>
+            </Alert>
+          )}
+
+          <div className="space-y-3 rounded-lg border p-3">
+            <div>
+              <p className="font-medium">Entidades importantes del proyecto</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Estas entidades se proponen aunque no superen el umbral. La coincidencia usa el
+                nombre completo o alias, ignorando mayúsculas y acentos.
+              </p>
+            </div>
+            <Field>
+              <FieldLabel htmlFor="entity-recognition-project">Proyecto</FieldLabel>
+              <select
+                id="entity-recognition-project"
+                value={selectedProjectId ?? ""}
+                onChange={(event) => {
+                  const projectId = event.target.value || null
+                  setSelectedProjectId(projectId)
+                  if (projectId) {
+                    void loadProjectEntityNames(projectId)
+                  } else {
+                    setImportantEntityNames([])
+                  }
+                }}
+                disabled={projectsLoading || projectNamesLoading || projects.length === 0}
+                className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+              >
+                <option value="">Seleccioná un proyecto</option>
+                {projects.map((project) => (
+                  <option key={project.id} value={project.id}>{project.title}</option>
+                ))}
+              </select>
+            </Field>
+            {selectedProjectId && (
+              <>
+                <div className="flex gap-2">
+                  <Input
+                    value={newImportantEntityName}
+                    onChange={(event) => setNewImportantEntityName(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault()
+                        addImportantEntityName()
+                      }
+                    }}
+                    placeholder="Ej. La lámpara de obsidiana"
+                    disabled={projectNamesLoading || entityRecognitionSaving}
+                  />
+                  <Button type="button" variant="outline" onClick={addImportantEntityName}>
+                    Agregar
+                  </Button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {importantEntityNames.map((name) => (
+                    <button
+                      key={name}
+                      type="button"
+                      className="rounded-full border px-2.5 py-1 text-xs hover:bg-muted"
+                      onClick={() =>
+                        setImportantEntityNames((current) => current.filter((item) => item !== name))
+                      }
+                      title="Quitar entidad importante"
+                    >
+                      {name} ×
+                    </button>
+                  ))}
+                  {importantEntityNames.length === 0 && !projectNamesLoading && (
+                    <p className="text-xs text-muted-foreground">No hay entidades agregadas.</p>
+                  )}
+                </div>
+                {projectNamesError && <FieldError>{projectNamesError}</FieldError>}
+              </>
+            )}
+          </div>
         </TabsContent>
 
         <TabsContent value="ai" className="mt-0 space-y-4">
