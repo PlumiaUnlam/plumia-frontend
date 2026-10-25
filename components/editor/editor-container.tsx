@@ -9,6 +9,7 @@ import {
   resolveSceneContentImages,
   getSceneVersion,
   getSceneVersions,
+  requestSceneAnalysis,
 } from "@/services/scene.service"
 import {
   setLivePrimaryContent,
@@ -114,6 +115,7 @@ function SceneEditor({
     message: string
     tone: "default" | "success"
   } | null>(null)
+  const [analysisInFlight, setAnalysisInFlight] = useState(false)
 
   const handleSaveComplete = useCallback(
     (result: SavedSceneResult) => {
@@ -133,24 +135,43 @@ function SceneEditor({
   })
 
   const handleAnalyzeChanges = useCallback(() => {
-    void saveNow().then((outcome) => {
-      if (outcome.status === "failed") return
+    if (analysisInFlight) return
 
-      if (outcome.status === "saved" && outcome.result.contentChanged) {
+    setAnalysisInFlight(true)
+    void saveNow()
+      .then(async (outcome) => {
+        if (outcome.status === "failed") return
+
+        const automaticAnalysisQueued =
+          outcome.status === "saved" &&
+          "analysisStatus" in outcome.result &&
+          outcome.result.analysisStatus === "QUEUED"
+
+        if (!automaticAnalysisQueued) {
+          const result = await requestSceneAnalysis(sceneId)
+          if (result.status === "NO_CHANGES") {
+            setAnalysisFeedback({
+              message: "No hay cambios nuevos para analizar",
+              tone: "default",
+            })
+            return
+          }
+        }
+
         setAnalysisFeedback({
           message:
             "Cambios guardados; el analisis se ejecutara en segundo plano",
           tone: "success",
         })
-        return
-      }
-
-      setAnalysisFeedback({
-        message: "No hay cambios nuevos para analizar",
-        tone: "default",
       })
-    })
-  }, [saveNow])
+      .catch(() => {
+        setAnalysisFeedback({
+          message: "No se pudo programar el analisis. Intenta nuevamente.",
+          tone: "default",
+        })
+      })
+      .finally(() => setAnalysisInFlight(false))
+  }, [analysisInFlight, saveNow, sceneId])
 
   const handleContentChange = useCallback((nextEditor: Editor) => {
     latestEditorRef.current = nextEditor
@@ -209,7 +230,7 @@ function SceneEditor({
         onAnalyzeChanges={
           selectedVersionId === null ? handleAnalyzeChanges : undefined
         }
-        isAnalysisSaving={saveStatus === "saving"}
+        isAnalysisSaving={saveStatus === "saving" || analysisInFlight}
         isZenMode={isZenMode}
         onToggleZenMode={onToggleZenMode}
         onOpenSearch={onOpenSearch}

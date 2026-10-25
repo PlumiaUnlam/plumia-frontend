@@ -4,6 +4,7 @@ import type {
   SceneDocument,
   ProseMirrorJSON,
   SaveSceneResult,
+  SceneAnalysisResult,
   SaveSceneVersionResult,
   SceneVersionDocument,
   SceneVersionSummary,
@@ -186,6 +187,10 @@ export async function saveScene(
     content: normalizedContent,
     wordCount: countWords(normalizedContent),
   })
+}
+
+export function requestSceneAnalysis(sceneId: string): Promise<SceneAnalysisResult> {
+  return api.post<SceneAnalysisResult>(`/scenes/${sceneId}/analyze`, {})
 }
 
 export async function getSceneVersions(

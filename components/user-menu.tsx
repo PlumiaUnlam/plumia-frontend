@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react"
-import { Camera, CircleAlert, LogOut, Monitor, Moon, Settings, Sun, Trash2, UserRound } from "lucide-react"
+import { Camera, CircleAlert, KeyRound, LogOut, Monitor, Moon, Settings, Sun, Trash2, UserRound } from "lucide-react"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { useTheme } from "next-themes"
@@ -40,6 +40,15 @@ import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/c
 import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
 import { uploadProfileImage } from "@/services/upload.service"
+import {
+  getAiSettings,
+  removeGeminiApiKey,
+  saveGeminiApiKey,
+  updateAutoAnalyzeOnAutosave,
+  type AiSettings,
+} from "@/services/ai-settings.service"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Switch } from "@/components/ui/switch"
 
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024
 const ALLOWED_AVATAR_TYPES = new Set([
@@ -52,6 +61,8 @@ const ALLOWED_AVATAR_TYPES = new Set([
 type UserMenuProps = {
   readonly inverted?: boolean
 }
+
+type ProfileSection = "account" | "ai"
 
 type ProfileAvatarProps = {
   readonly src: string | null
@@ -114,6 +125,7 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
   const { setTheme, theme } = useTheme()
   const { firebaseUser, user, logout, deleteAccount, updateUserProfile } = useAuth()
   const [profileOpen, setProfileOpen] = useState(false)
+  const [profileSection, setProfileSection] = useState<ProfileSection>("account")
   const [displayName, setDisplayName] = useState("")
   const [avatarFile, setAvatarFile] = useState<File | null>(null)
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
@@ -121,6 +133,16 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
   const [saving, setSaving] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [aiSettings, setAiSettings] = useState<AiSettings | null>(null)
+  const [aiKey, setAiKey] = useState("")
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiSaving, setAiSaving] = useState(false)
+  const [autoAnalysisSaving, setAutoAnalysisSaving] = useState(false)
+  const [aiError, setAiError] = useState<string | null>(null)
+  const [autoAnalysisError, setAutoAnalysisError] = useState<string | null>(null)
+  const [aiNotice, setAiNotice] = useState<string | null>(null)
+  const [removeAiKeyOpen, setRemoveAiKeyOpen] = useState(false)
+  const [removingAiKey, setRemovingAiKey] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [confirmEmail, setConfirmEmail] = useState("")
   const [deleting, setDeleting] = useState(false)
@@ -154,12 +176,29 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
     [currentDisplayName, email],
   )
 
+  const loadAiSettings = async () => {
+    setAiLoading(true)
+    setAiError(null)
+    try {
+      setAiSettings(await getAiSettings())
+    } catch {
+      setAiError("No pudimos cargar la configuraciÃ³n de IA.")
+    } finally {
+      setAiLoading(false)
+    }
+  }
+
   const openProfileDialog = () => {
     setDisplayName(currentDisplayName)
+    setProfileSection("account")
     setAvatarFile(null)
     setAvatarPreview(null)
     setRemoveAvatar(false)
     setError(null)
+    setAiKey("")
+    setAiNotice(null)
+    setAutoAnalysisError(null)
+    void loadAiSettings()
     setProfileOpen(true)
   }
 
@@ -228,6 +267,72 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
       setError("No pudimos guardar los cambios. Intentá nuevamente.")
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleAiSubmit = async () => {
+    const normalizedKey = aiKey.trim()
+    if (!normalizedKey) {
+      setAiError("IngresÃ¡ una API Key de Gemini.")
+      return
+    }
+
+    setAiSaving(true)
+    setAiError(null)
+    setAiNotice(null)
+    try {
+      const nextSettings = await saveGeminiApiKey(normalizedKey)
+      setAiSettings(nextSettings)
+      setAiKey("")
+      setAiNotice("La API Key de Gemini fue guardada de forma segura.")
+    } catch {
+      setAiError("No pudimos guardar la API Key. IntentÃ¡ nuevamente.")
+    } finally {
+      setAiSaving(false)
+    }
+  }
+
+  const handleRemoveAiKey = async () => {
+    setRemovingAiKey(true)
+    setAiError(null)
+    try {
+      await removeGeminiApiKey()
+      setAiSettings((current) => ({
+        configured: false,
+        keyPrefix: null,
+        updatedAt: null,
+        autoAnalyzeOnAutosave: current?.autoAnalyzeOnAutosave ?? true,
+      }))
+      setAiKey("")
+      setAiNotice("La API Key propia fue eliminada.")
+      setRemoveAiKeyOpen(false)
+    } catch {
+      setAiError("No pudimos eliminar la API Key. IntentÃ¡ nuevamente.")
+    } finally {
+      setRemovingAiKey(false)
+    }
+  }
+
+  const handleAutoAnalysisChange = async (enabled: boolean) => {
+    if (autoAnalysisSaving) return
+
+    setAutoAnalysisSaving(true)
+    setAutoAnalysisError(null)
+    setAiNotice(null)
+    try {
+      const nextSettings = await updateAutoAnalyzeOnAutosave(enabled)
+      setAiSettings(nextSettings)
+      setAiNotice(
+        enabled
+          ? "El analisis automatico al guardar fue activado."
+          : "El analisis automatico al guardar fue desactivado.",
+      )
+    } catch {
+      setAutoAnalysisError(
+        "No pudimos actualizar la preferencia de analisis automatico.",
+      )
+    } finally {
+      setAutoAnalysisSaving(false)
     }
   }
 
@@ -350,11 +455,16 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
             Configurar perfil
           </span>
         }
-        description="Elegí cómo querés aparecer dentro de PlumIA."
-        size="sm"
-        submitLabel="Guardar cambios"
-        loading={saving}
-        onSubmit={handleProfileSubmit}
+        description="Administrá tus datos y la configuración de IA de tu cuenta."
+        size="md"
+        submitLabel={profileSection === "account" ? "Guardar cambios" : "Guardar API Key"}
+        submitDisabled={profileSection === "ai" && !aiKey.trim()}
+        loading={
+          profileSection === "account"
+            ? saving
+            : aiSaving || autoAnalysisSaving
+        }
+        onSubmit={profileSection === "account" ? handleProfileSubmit : handleAiSubmit}
         onInteractOutside={(event) => {
           // La confirmación de eliminación vive en un portal propio, así que
           // sus eventos se ven como "afuera" de este diálogo y Radix lo
@@ -367,6 +477,23 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
           if (confirmacionMontada) event.preventDefault()
         }}
       >
+      <Tabs
+        value={profileSection}
+        onValueChange={(value) => setProfileSection(value as ProfileSection)}
+        className="min-h-0"
+      >
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="account">
+            <UserRound />
+            Datos de la cuenta
+          </TabsTrigger>
+          <TabsTrigger value="ai">
+            <KeyRound />
+            Configuración de IA
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="account" className="mt-0 space-y-4">
       <div className="flex items-center gap-3 rounded-lg border bg-muted/30 p-3">
         <ProfileAvatar
           src={previewSrc}
@@ -465,6 +592,94 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
           Eliminar cuenta
         </Button>
       </div>
+        </TabsContent>
+
+        <TabsContent value="ai" className="mt-0 space-y-4">
+          {aiLoading ? (
+            <div className="rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground">
+              Cargando configuración de IA...
+            </div>
+          ) : (
+            <>
+              <div className="rounded-lg border bg-muted/30 p-3 text-sm">
+                <p className="font-medium">
+                  Extracción de entidades e inconsistencias
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Podés usar tu propia API Key de Gemini. Se almacena cifrada y
+                  nunca volvemos a mostrarla completa.
+                </p>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Estado: {aiSettings?.configured ? "Configurada" : "Se usa la clave del servidor"}
+                  {aiSettings?.keyPrefix ? ` (${aiSettings.keyPrefix})` : ""}
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between gap-4 rounded-lg border p-3">
+                <div className="min-w-0">
+                  <p className="font-medium">Analizar automaticamente al guardar</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Si lo desactivas, los cambios se guardan sin utilizar IA.
+                    Podras usar Analizar cambios desde el editor cuando quieras.
+                  </p>
+                </div>
+                <Switch
+                  checked={aiSettings?.autoAnalyzeOnAutosave ?? true}
+                  onCheckedChange={handleAutoAnalysisChange}
+                  disabled={autoAnalysisSaving || aiLoading}
+                  aria-label="Analizar automaticamente al guardar"
+                />
+              </div>
+
+              {autoAnalysisError && <FieldError>{autoAnalysisError}</FieldError>}
+
+              <Field>
+                <FieldLabel htmlFor="gemini-api-key">API Key de Gemini</FieldLabel>
+                <Input
+                  id="gemini-api-key"
+                  type="password"
+                  value={aiKey}
+                  onChange={(event) => {
+                    setAiKey(event.target.value)
+                    setAiError(null)
+                    setAiNotice(null)
+                  }}
+                  placeholder={
+                    aiSettings?.configured
+                      ? "Ingresá una nueva clave para reemplazarla"
+                      : "Pegá tu API Key"
+                  }
+                  autoComplete="new-password"
+                  disabled={aiSaving || removingAiKey}
+                />
+                <FieldDescription>
+                  La clave se aplicará a todos tus proyectos de PlumIA.
+                </FieldDescription>
+              </Field>
+
+              {aiError && <FieldError>{aiError}</FieldError>}
+              {aiNotice && (
+                <Alert>
+                  <AlertDescription>{aiNotice}</AlertDescription>
+                </Alert>
+              )}
+
+              {aiSettings?.configured && (
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setRemoveAiKeyOpen(true)}
+                  disabled={aiSaving || removingAiKey}
+                >
+                  <Trash2 />
+                  Eliminar API Key propia
+                </Button>
+              )}
+            </>
+          )}
+        </TabsContent>
+      </Tabs>
       </FormDialog>
 
       <AlertDialog
@@ -521,6 +736,36 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
             >
               {deleting ? <Spinner className="size-4" /> : <Trash2 />}
               {deleting ? "Eliminando…" : "Eliminar mi cuenta"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={removeAiKeyOpen}
+        onOpenChange={(open) => {
+          if (!removingAiKey) setRemoveAiKeyOpen(open)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar tu API Key de Gemini?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Los próximos análisis volverán a utilizar la clave configurada por el servidor.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={removingAiKey}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={removingAiKey}
+              onClick={(event) => {
+                event.preventDefault()
+                void handleRemoveAiKey()
+              }}
+            >
+              {removingAiKey ? <Spinner /> : null}
+              Eliminar API Key
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

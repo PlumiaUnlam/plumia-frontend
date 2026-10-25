@@ -31,6 +31,12 @@ export type SaveSceneResult = {
    * previo (ej: solo se reformateó). El backend usa esto para NO disparar IA.
    */
   contentChanged: boolean
+  analysisStatus: "QUEUED" | "NOT_REQUESTED"
+}
+
+export type SceneAnalysisResult = {
+  status: "QUEUED" | "ALREADY_QUEUED" | "NO_CHANGES"
+  pendingChunks: number
 }
 
 export type SceneVersionSummary = {
