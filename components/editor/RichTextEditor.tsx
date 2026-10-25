@@ -28,6 +28,7 @@ import {
 } from "./editor-search-focus"
 import { EditorToolbar } from "./toolbar"
 import { EditorImage } from "./image/editor-image-extension"
+import { ImageTextFlowMenu } from "./image/image-text-flow-menu"
 import { useEditorImage } from "./image/use-editor-image"
 import { EntityLink } from "./entity-link/entity-link-extension"
 import { useEntityLink } from "./entity-link/use-entity-link"
@@ -590,7 +591,10 @@ export function RichTextEditor({
       )}
 
       <div className="flex min-h-0 flex-1">
-        <div className="min-h-0 min-w-0 flex-1 overflow-auto">
+        <div
+          className="min-h-0 min-w-0 flex-1 overflow-auto"
+          data-editor-scroll-container
+        >
           <div
             className="mx-auto max-w-3xl px-6 pb-10 pt-4"
             data-editor-canvas
@@ -626,6 +630,7 @@ export function RichTextEditor({
               projectId={projectId}
               onAddAnnotation={allowAnnotations ? handleStartAnnotation : undefined}
             />
+            <ImageTextFlowMenu editor={editor} />
             <ListNumberingMenu editor={editor} />
             <EntityLinkHoverTooltip
               editor={editor}
@@ -669,6 +674,7 @@ export function RichTextEditor({
                 flex-col
 
                 [&_.ProseMirror]:flex-1
+                [&_.ProseMirror]:flow-root
                 [&_.ProseMirror]:outline-none
                 [&_.ProseMirror>*]:relative
               "

@@ -4,7 +4,6 @@ import { Fragment, useEffect, useMemo, type ReactNode } from "react"
 import {
   Extension,
   Node,
-  mergeAttributes,
   type JSONContent,
 } from "@tiptap/core"
 import Image from "@tiptap/extension-image"
@@ -15,7 +14,13 @@ import { Decoration, DecorationSet } from "@tiptap/pm/view"
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model"
 
 import { ParagraphFormatting } from "@/components/editor/paragraph-formatting"
+import { SceneDivider } from "@/components/editor/scene-divider"
 import { EntityLink } from "@/components/editor/entity-link/entity-link-extension"
+import {
+  DEFAULT_IMAGE_TEXT_FLOW,
+  getImageTextFlowHTMLAttributes,
+  normalizeImageTextFlow,
+} from "@/components/editor/image/image-text-flow"
 import type {
   ReaderComment,
   TextSelectionAnchor,
@@ -77,10 +82,19 @@ const SharedImage = Image.extend({
         renderHTML: (attributes) =>
           typeof attributes.width === "number"
             ? {
+                "data-width": String(attributes.width),
                 width: String(attributes.width),
-                style: `width: ${attributes.width}px; max-width: 100%; height: auto;`,
               }
             : {},
+      },
+      textFlow: {
+        default: DEFAULT_IMAGE_TEXT_FLOW,
+        parseHTML: (element) => normalizeImageTextFlow(element.dataset.textFlow),
+        renderHTML: (attributes) =>
+          getImageTextFlowHTMLAttributes(
+            attributes.textFlow,
+            attributes.width,
+          ),
       },
     }
   },
@@ -93,29 +107,6 @@ const SharedImage = Image.extend({
 const SharedEntityLink = EntityLink.extend({
   renderHTML() {
     return ["span", 0]
-  },
-})
-
-const SharedSceneDivider = Node.create({
-  name: "sceneDivider",
-  group: "block",
-  atom: true,
-  selectable: false,
-  addAttributes() {
-    return { variant: { default: "flourish" } }
-  },
-  parseHTML() {
-    return [{ tag: "div[data-scene-divider]" }]
-  },
-  renderHTML({ HTMLAttributes }) {
-    return [
-      "div",
-      mergeAttributes(HTMLAttributes, {
-        "data-scene-divider": "true",
-        class: "my-8 text-center text-xl tracking-[0.5em] text-muted-foreground",
-      }),
-      "❦",
-    ]
   },
 })
 
@@ -304,7 +295,7 @@ export function SharedScene({
       StarterKit,
       ParagraphFormatting,
       SharedImage,
-      SharedSceneDivider,
+      SceneDivider,
       SharedNoteReference,
       SharedEntityLink,
       commentHighlights,
