@@ -239,28 +239,35 @@ export function EditorImageNodeView({
             .filter(Boolean)
             .join(" ")}
         >
-          <img
-            ref={imageRef}
-            src={src}
-            alt={alt}
+          <button
+            type="button"
             onClick={selectImage}
-            onLoad={handleLoad}
-            style={
-              width
-                ? {
-                    width: `${width}px`,
-                    maxWidth: "100%",
-                    height: "auto",
-                    margin: 0,
-                  }
-                : {
-                    maxWidth: "100%",
-                    height: "auto",
-                    margin: 0,
-                  }
-            }
-            className="block rounded-lg border border-border shadow-sm"
-          />
+            aria-label={`Seleccionar imagen${alt ? `: ${alt}` : ""}`}
+            aria-pressed={selected}
+            className="block max-w-full cursor-pointer rounded-lg border-0 bg-transparent p-0 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          >
+            <img
+              ref={imageRef}
+              src={src}
+              alt={alt}
+              onLoad={handleLoad}
+              style={
+                width
+                  ? {
+                      width: `${width}px`,
+                      maxWidth: "100%",
+                      height: "auto",
+                      margin: 0,
+                    }
+                  : {
+                      maxWidth: "100%",
+                      height: "auto",
+                      margin: 0,
+                    }
+              }
+              className="block rounded-lg border border-border shadow-sm"
+            />
+          </button>
 
           {selected && (
             <button
