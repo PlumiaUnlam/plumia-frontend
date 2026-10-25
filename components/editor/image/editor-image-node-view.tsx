@@ -275,7 +275,6 @@ export function EditorImageNodeView({
             </button>
           )}
         </div>
-
       </div>
     </NodeViewWrapper>
   )

@@ -196,12 +196,15 @@ export function EditorMenuBar({
         isParagraph: currentEditor.isActive("paragraph"),
         canInsertNote:
           currentEditor.isEditable && currentEditor.can().insertNote(),
-        selectedImageTextFlow:
+        selectedImage:
           currentEditor.state.selection instanceof NodeSelection &&
           currentEditor.state.selection.node.type.name === "image"
-            ? normalizeImageTextFlow(
-                currentEditor.state.selection.node.attrs.textFlow,
-              )
+            ? {
+                position: currentEditor.state.selection.from,
+                textFlow: normalizeImageTextFlow(
+                  currentEditor.state.selection.node.attrs.textFlow,
+                ),
+              }
             : null,
       }
     },
@@ -217,7 +220,7 @@ export function EditorMenuBar({
     isTextHighlight: false,
     isParagraph: false,
     canInsertNote: false,
-    selectedImageTextFlow: null,
+    selectedImage: null,
   }
 
   const updateSelectedImageTextFlow = (value: string) => {
@@ -225,18 +228,13 @@ export function EditorMenuBar({
     if (!IMAGE_TEXT_FLOW_OPTIONS.some((option) => option.value === value)) {
       return
     }
-    const selection = editor.state.selection
-    if (
-      !(selection instanceof NodeSelection) ||
-      selection.node.type.name !== "image"
-    ) {
-      return
-    }
+    const imagePosition = editorState.selectedImage?.position
+    if (imagePosition === undefined) return
     editor
       .chain()
       .focus()
       .setImageTextFlow(
-        selection.from,
+        imagePosition,
         normalizeImageTextFlow(value),
       )
       .run()
@@ -373,13 +371,13 @@ export function EditorMenuBar({
           <MenubarSub>
             <MenubarSubTrigger className={menuItemClass}>
               <AlignCenter className="size-4" />
-              Ajuste de texto
+              Ajuste de imagen
             </MenubarSubTrigger>
             <MenubarPortal>
               <MenubarSubContent className={menuContentClass}>
-                {editorState.selectedImageTextFlow ? (
+                {editorState.selectedImage ? (
                   <MenubarRadioGroup
-                    value={editorState.selectedImageTextFlow}
+                    value={editorState.selectedImage.textFlow}
                     onValueChange={updateSelectedImageTextFlow}
                   >
                     {IMAGE_TEXT_FLOW_OPTIONS.map((option) => {

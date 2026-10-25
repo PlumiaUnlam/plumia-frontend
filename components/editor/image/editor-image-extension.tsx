@@ -84,6 +84,7 @@ export const EditorImage = Image.extend({
 
   addCommands() {
     return {
+      ...this.parent?.(),
       setImageTextFlow:
         (position, value) =>
         ({ tr, dispatch }) => {
