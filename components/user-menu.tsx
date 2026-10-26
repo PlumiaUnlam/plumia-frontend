@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react"
-import { Camera, CircleAlert, KeyRound, LogOut, Monitor, Moon, Settings, SlidersHorizontal, Sun, Trash2, UserRound, X } from "lucide-react"
+import { Camera, CircleAlert, KeyRound, LogOut, Monitor, Moon, Search, Settings, SlidersHorizontal, Sun, Trash2, UserRound, X } from "lucide-react"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { useTheme } from "next-themes"
@@ -55,7 +55,11 @@ import {
   updateProjectEntityRecognitionSettings,
   type RejectedEntityRecognitionProposal,
 } from "@/services/entity-recognition-settings.service"
-import { getDashboardProjects, type ProjectResponse } from "@/services/project.service"
+import {
+  getDashboardProjects,
+  updateProject,
+  type ProjectResponse,
+} from "@/services/project.service"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Switch } from "@/components/ui/switch"
 
@@ -90,11 +94,33 @@ function getEntityTypeLabel(type: string | null) {
   return ENTITY_TYPE_LABELS[type.toUpperCase()] ?? type
 }
 
+function getProjectWorldRules(project: ProjectResponse | undefined) {
+  const genreRules = project?.genreRules
+  if (!genreRules || Array.isArray(genreRules)) return []
+
+  const rules = genreRules.rules
+  return Array.isArray(rules)
+    ? rules.filter((rule): rule is string => typeof rule === "string")
+    : []
+}
+
+function normalizeWorldRule(rule: string) {
+  return rule.trim().toLocaleLowerCase()
+}
+
+function areStringArraysEqual(left: string[], right: string[]) {
+  return left.length === right.length && left.every((value, index) => value === right[index])
+}
+
 type UserMenuProps = {
   readonly inverted?: boolean
 }
 
-type ProfileSection = "account" | "ai" | "entityRecognition"
+type ProfileSection =
+  | "account"
+  | "ai"
+  | "entityRecognition"
+  | "inconsistencies"
 type EntityCatalogSection = "important" | "ignored" | "rejected"
 
 type ProfileAvatarProps = {
@@ -186,6 +212,12 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
   const [entityRecognitionSaving, setEntityRecognitionSaving] = useState(false)
   const [entityRecognitionError, setEntityRecognitionError] = useState<string | null>(null)
   const [entityRecognitionNotice, setEntityRecognitionNotice] = useState<string | null>(null)
+  const [worldRules, setWorldRules] = useState<string[]>([])
+  const [newWorldRule, setNewWorldRule] = useState("")
+  const [worldRulesSearch, setWorldRulesSearch] = useState("")
+  const [worldRulesSaving, setWorldRulesSaving] = useState(false)
+  const [worldRulesError, setWorldRulesError] = useState<string | null>(null)
+  const [worldRulesNotice, setWorldRulesNotice] = useState<string | null>(null)
   const [projects, setProjects] = useState<ProjectResponse[]>([])
   const [projectsLoading, setProjectsLoading] = useState(false)
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
@@ -202,7 +234,13 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
   const [rejectedEntityTypeFilter, setRejectedEntityTypeFilter] = useState("ALL")
   const [projectNamesLoading, setProjectNamesLoading] = useState(false)
   const [projectNamesError, setProjectNamesError] = useState<string | null>(null)
+  const [profileCloseWarningOpen, setProfileCloseWarningOpen] = useState(false)
   const entityCatalogOpenRef = useRef(false)
+  const entityRecognitionBaselineRef = useRef({
+    projectId: null as string | null,
+    importantEntityNames: [] as string[],
+    ignoredEntityNames: [] as string[],
+  })
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const setEntityCatalogVisibility = (open: boolean) => {
@@ -263,6 +301,9 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
           ? selectedProjectId
           : nextProjects[0]?.id) ?? null
       setSelectedProjectId(nextProjectId)
+      setWorldRules(
+        getProjectWorldRules(nextProjects.find((project) => project.id === nextProjectId)),
+      )
       if (nextProjectId) {
         void loadProjectEntityNames(nextProjectId)
       }
@@ -276,6 +317,7 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
   const openProfileDialog = () => {
     setDisplayName(currentDisplayName)
     setProfileSection("account")
+    setProfileCloseWarningOpen(false)
     setAvatarFile(null)
     setAvatarPreview(null)
     setRemoveAvatar(false)
@@ -285,6 +327,10 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
     setAutoAnalysisError(null)
     setEntityRecognitionError(null)
     setEntityRecognitionNotice(null)
+    setWorldRulesError(null)
+    setWorldRulesNotice(null)
+    setNewWorldRule("")
+    setWorldRulesSearch("")
     setProjectNamesError(null)
     setNewImportantEntityName("")
     setNewIgnoredEntityName("")
@@ -456,12 +502,63 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
         setImportantEntityNames(nextProjectSettings.importantEntityNames)
         setIgnoredEntityNames(nextProjectSettings.ignoredEntityNames)
         setRejectedEntityProposals(nextProjectSettings.rejectedEntities)
+        entityRecognitionBaselineRef.current = {
+          projectId: selectedProjectId,
+          importantEntityNames: [...nextProjectSettings.importantEntityNames],
+          ignoredEntityNames: [...nextProjectSettings.ignoredEntityNames],
+        }
       }
       setEntityRecognitionNotice("La precisión de reconocimiento fue guardada.")
     } catch {
       setEntityRecognitionError("No pudimos guardar la precisión de reconocimiento.")
     } finally {
       setEntityRecognitionSaving(false)
+    }
+  }
+
+  const addWorldRule = () => {
+    const value = newWorldRule.trim()
+    if (!value) return
+
+    if (!worldRules.some((rule) => normalizeWorldRule(rule) === normalizeWorldRule(value))) {
+      setWorldRules((current) => [...current, value])
+    }
+    setNewWorldRule("")
+    setWorldRulesError(null)
+    setWorldRulesNotice(null)
+  }
+
+  const handleWorldRulesSubmit = async () => {
+    if (!selectedProjectId) {
+      setWorldRulesError("Selecciona un proyecto para guardar sus reglas.")
+      return
+    }
+
+    const selectedProject = projects.find((project) => project.id === selectedProjectId)
+    const currentGenreRules =
+      selectedProject?.genreRules && !Array.isArray(selectedProject.genreRules)
+        ? selectedProject.genreRules
+        : {}
+
+    setWorldRulesSaving(true)
+    setWorldRulesError(null)
+    setWorldRulesNotice(null)
+    try {
+      const savedProject = await updateProject(selectedProjectId, {
+        genreRules: {
+          ...currentGenreRules,
+          rules: worldRules,
+        },
+      })
+      setProjects((current) =>
+        current.map((project) => (project.id === savedProject.id ? savedProject : project)),
+      )
+      setWorldRules(getProjectWorldRules(savedProject))
+      setWorldRulesNotice("Las reglas del mundo fueron guardadas.")
+    } catch {
+      setWorldRulesError("No pudimos guardar las reglas del mundo.")
+    } finally {
+      setWorldRulesSaving(false)
     }
   }
 
@@ -473,11 +570,21 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
       setImportantEntityNames(settings.importantEntityNames)
       setIgnoredEntityNames(settings.ignoredEntityNames)
       setRejectedEntityProposals(settings.rejectedEntities)
+      entityRecognitionBaselineRef.current = {
+        projectId,
+        importantEntityNames: [...settings.importantEntityNames],
+        ignoredEntityNames: [...settings.ignoredEntityNames],
+      }
     } catch {
       setProjectNamesError("No pudimos cargar la lista de entidades importantes.")
       setImportantEntityNames([])
       setIgnoredEntityNames([])
       setRejectedEntityProposals([])
+      entityRecognitionBaselineRef.current = {
+        projectId,
+        importantEntityNames: [],
+        ignoredEntityNames: [],
+      }
     } finally {
       setProjectNamesLoading(false)
     }
@@ -557,6 +664,67 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
       proposal.type?.toUpperCase() === rejectedEntityTypeFilter
     return matchesSearch && matchesType
   })
+  const normalizedWorldRulesSearch = normalizeEntityName(worldRulesSearch)
+  const filteredWorldRules = worldRules.filter(
+    (rule) =>
+      !normalizedWorldRulesSearch ||
+      normalizeEntityName(rule).includes(normalizedWorldRulesSearch),
+  )
+
+  const hasUnsavedProfileChanges = () => {
+    const savedThresholds =
+      aiSettings?.entityExtractionThresholds ?? DEFAULT_ENTITY_RECOGNITION_THRESHOLDS
+    const thresholdsChanged = Object.entries(entityThresholds).some(
+      ([type, value]) => savedThresholds[type as keyof EntityRecognitionThresholds] !== value,
+    )
+    const entityBaseline = entityRecognitionBaselineRef.current
+    const entityListsChanged =
+      entityBaseline.projectId === selectedProjectId &&
+      (!areStringArraysEqual(importantEntityNames, entityBaseline.importantEntityNames) ||
+        !areStringArraysEqual(ignoredEntityNames, entityBaseline.ignoredEntityNames))
+    const savedWorldRules = getProjectWorldRules(
+      projects.find((project) => project.id === selectedProjectId),
+    )
+    const worldRulesChanged =
+      selectedProjectId !== null && !areStringArraysEqual(worldRules, savedWorldRules)
+
+    return (
+      displayName.trim() !== currentDisplayName.trim() ||
+      avatarFile !== null ||
+      avatarPreview !== null ||
+      removeAvatar ||
+      aiKey.trim().length > 0 ||
+      thresholdsChanged ||
+      entityListsChanged ||
+      newImportantEntityName.trim().length > 0 ||
+      newIgnoredEntityName.trim().length > 0 ||
+      worldRulesChanged ||
+      newWorldRule.trim().length > 0
+    )
+  }
+
+  const requestProfileClose = (open: boolean) => {
+    if (open) {
+      setProfileOpen(true)
+      return
+    }
+    if (
+      entityCatalogOpenRef.current ||
+      document.querySelectorAll('[data-slot="dialog-content"]').length > 1
+    ) {
+      return
+    }
+    if (hasUnsavedProfileChanges()) {
+      setProfileCloseWarningOpen(true)
+      return
+    }
+    setProfileOpen(false)
+  }
+
+  const discardProfileChanges = () => {
+    setProfileCloseWarningOpen(false)
+    setProfileOpen(false)
+  }
 
   return (
     <>
@@ -640,16 +808,7 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
 
       <FormDialog
         open={profileOpen}
-        onOpenChange={(open) => {
-          if (
-            !open &&
-            (entityCatalogOpenRef.current ||
-              document.querySelectorAll('[data-slot="dialog-content"]').length > 1)
-          ) {
-            return
-          }
-          setProfileOpen(open)
-        }}
+        onOpenChange={requestProfileClose}
         title={
           <span className="flex items-center gap-2">
             <UserRound className="size-4" />
@@ -657,29 +816,38 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
           </span>
         }
         description="Administrá tus datos y la configuración de IA de tu cuenta."
-        size="md"
+        size="lg"
         contentClassName="md:h-[min(88dvh,800px)]"
         submitLabel={
           profileSection === "account"
             ? "Guardar cambios"
             : profileSection === "ai"
               ? "Guardar API Key"
-              : "Guardar configuración"
+              : profileSection === "entityRecognition"
+                ? "Guardar configuración"
+                : "Guardar reglas"
         }
-        submitDisabled={profileSection === "ai" && !aiKey.trim()}
+        submitDisabled={
+          (profileSection === "ai" && !aiKey.trim()) ||
+          (profileSection === "inconsistencies" && !selectedProjectId)
+        }
         loading={
           profileSection === "account"
             ? saving
             : profileSection === "ai"
               ? aiSaving || autoAnalysisSaving
-              : entityRecognitionSaving
+              : profileSection === "entityRecognition"
+                ? entityRecognitionSaving
+                : worldRulesSaving
         }
         onSubmit={
           profileSection === "account"
             ? handleProfileSubmit
             : profileSection === "ai"
               ? handleAiSubmit
-              : handleEntityRecognitionSubmit
+              : profileSection === "entityRecognition"
+                ? handleEntityRecognitionSubmit
+                : handleWorldRulesSubmit
         }
         onInteractOutside={(event) => {
           if (
@@ -705,7 +873,7 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
         onValueChange={(value) => setProfileSection(value as ProfileSection)}
         className="min-h-0"
       >
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="account">
             <UserRound />
             Datos de la cuenta
@@ -717,6 +885,10 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
           <TabsTrigger value="entityRecognition">
             <SlidersHorizontal />
             Reconocimiento
+          </TabsTrigger>
+          <TabsTrigger value="inconsistencies">
+            <CircleAlert />
+            Inconsistencias
           </TabsTrigger>
         </TabsList>
 
@@ -847,9 +1019,9 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
                       [type]: Number(event.target.value),
                     }))
                   }
-                  className="min-w-0 flex-1"
+                  className="min-w-0 flex-1 accent-primary"
                 />
-                <span className="w-10 text-right text-sm tabular-nums text-muted-foreground">
+                <span className="w-10 text-right text-sm tabular-nums text-primary">
                   {value.toFixed(2)}
                 </span>
               </div>
@@ -889,6 +1061,11 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
                 onChange={(event) => {
                   const projectId = event.target.value || null
                   setSelectedProjectId(projectId)
+                  setWorldRules(
+                    getProjectWorldRules(projects.find((project) => project.id === projectId)),
+                  )
+                  setWorldRulesError(null)
+                  setWorldRulesNotice(null)
                   if (projectId) {
                     void loadProjectEntityNames(projectId)
                   } else {
@@ -968,6 +1145,149 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
               </>
             )}
           </div>
+        </TabsContent>
+
+        <TabsContent value="inconsistencies" className="mt-0 space-y-4">
+          <div className="rounded-lg border bg-muted/30 p-3 text-sm">
+            <p className="font-medium">Reglas del mundo</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Agrega reglas narrativas concretas para que el analisis pueda advertir cuando una
+              escena contradice la logica de tu obra.
+            </p>
+          </div>
+
+          <Field>
+            <FieldLabel htmlFor="world-rules-project">Proyecto</FieldLabel>
+            <select
+              id="world-rules-project"
+              value={selectedProjectId ?? ""}
+              onChange={(event) => {
+                const projectId = event.target.value || null
+                setSelectedProjectId(projectId)
+                setWorldRulesSearch("")
+                setWorldRules(
+                  getProjectWorldRules(projects.find((project) => project.id === projectId)),
+                )
+                setWorldRulesError(null)
+                setWorldRulesNotice(null)
+                if (projectId) {
+                  void loadProjectEntityNames(projectId)
+                }
+              }}
+              disabled={projectsLoading || worldRulesSaving || projects.length === 0}
+              className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+            >
+              <option value="">Selecciona un proyecto</option>
+              {projects.map((project) => (
+                <option key={project.id} value={project.id}>
+                  {project.title}
+                </option>
+              ))}
+            </select>
+          </Field>
+
+          {selectedProjectId && (
+            <div className="space-y-4 rounded-lg border p-3">
+              <div className="rounded-xl border border-dashed bg-muted/20 p-4">
+                <div className="mb-3">
+                  <p className="font-medium">Agregar regla al universo</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Escribi una regla concreta y verificable para tu historia.
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Input
+                    id="new-world-rule"
+                    value={newWorldRule}
+                    onChange={(event) => setNewWorldRule(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault()
+                        addWorldRule()
+                      }
+                    }}
+                    placeholder="Ej. La magia requiere contacto visual"
+                    disabled={worldRulesSaving}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={addWorldRule}
+                    disabled={worldRulesSaving || !newWorldRule.trim()}
+                  >
+                    Agregar
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-medium">Reglas configuradas</p>
+                  <span className="text-xs text-muted-foreground">
+                    {worldRules.length} {worldRules.length === 1 ? "regla" : "reglas"}
+                  </span>
+                </div>
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    value={worldRulesSearch}
+                    onChange={(event) => setWorldRulesSearch(event.target.value)}
+                    placeholder="Buscar una regla..."
+                    aria-label="Buscar reglas del mundo"
+                    className="pl-9"
+                  />
+                </div>
+              </div>
+
+              {filteredWorldRules.length > 0 ? (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {filteredWorldRules.map((rule) => {
+                    const ruleIndex = worldRules.indexOf(rule)
+                    return (
+                      <div
+                        key={`${rule}-${ruleIndex}`}
+                        className="group flex min-h-28 items-start gap-3 rounded-xl border bg-card p-4 shadow-sm transition-colors hover:bg-muted/30"
+                      >
+                        <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                          <CircleAlert className="size-4" />
+                        </div>
+                        <p className="min-w-0 flex-1 text-sm leading-6">{rule}</p>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="size-7 shrink-0 opacity-70 transition-opacity group-hover:opacity-100"
+                          onClick={() =>
+                            setWorldRules((current) =>
+                              current.filter((_, itemIndex) => itemIndex !== ruleIndex),
+                            )
+                          }
+                          disabled={worldRulesSaving}
+                          aria-label="Eliminar regla del mundo"
+                        >
+                          <X />
+                        </Button>
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : (
+                <div className="rounded-xl border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">
+                  {worldRules.length === 0
+                    ? "Todavia no hay reglas configuradas para este proyecto."
+                    : "No se encontraron reglas con esa busqueda."}
+                </div>
+              )}
+
+            </div>
+          )}
+
+          {worldRulesError && <FieldError>{worldRulesError}</FieldError>}
+          {worldRulesNotice && (
+            <Alert>
+              <AlertDescription>{worldRulesNotice}</AlertDescription>
+            </Alert>
+          )}
         </TabsContent>
 
         <TabsContent value="ai" className="mt-0 space-y-4">
@@ -1289,6 +1609,29 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
           </TabsContent>
         </Tabs>
       </FormDialog>
+
+      <AlertDialog
+        open={profileCloseWarningOpen}
+        onOpenChange={setProfileCloseWarningOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Salir sin guardar?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Hay cambios de configuracion pendientes. Si cerras ahora, se perderan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Seguir editando</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={discardProfileChanges}
+            >
+              Descartar cambios
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog
         open={deleteOpen}
