@@ -106,6 +106,17 @@ export function EditorRightPanel(props: EditorRightPanelProps) {
   );
 }
 
+function useShowWikiOnAlertChange(
+  focusedAlertId: string | null,
+  setActiveTab: (tab: RightTab) => void,
+) {
+  const [trackedAlertId, setTrackedAlertId] = useState(focusedAlertId);
+  if (trackedAlertId !== focusedAlertId) {
+    setTrackedAlertId(focusedAlertId);
+    setActiveTab("wiki");
+  }
+}
+
 function EditorRightPanelContent({
   projectId,
   mode,
@@ -119,11 +130,7 @@ function EditorRightPanelContent({
   );
   const refreshTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [activeTab, setActiveTab] = useState<RightTab>("wiki");
-  const [trackedAlertId, setTrackedAlertId] = useState(focusedAlertId);
-  if (trackedAlertId !== focusedAlertId) {
-    setTrackedAlertId(focusedAlertId);
-    setActiveTab("wiki");
-  }
+  useShowWikiOnAlertChange(focusedAlertId, setActiveTab);
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   const [acceptingProposalId, setAcceptingProposalId] = useState<string | null>(
