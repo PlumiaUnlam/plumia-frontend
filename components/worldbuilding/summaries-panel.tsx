@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Album,
+  ArrowLeft,
   AlertCircle,
   BookOpen,
   CheckCircle2,
@@ -310,7 +311,11 @@ export function SummariesPanel({
 
   return (
     <div className="flex h-full min-h-0 w-full min-w-0 overflow-hidden">
-      <aside className="flex h-full min-h-0 w-80 shrink-0 flex-col overflow-hidden border-r border-border bg-muted/30">
+      <aside
+        className={`flex h-full min-h-0 w-full shrink-0 flex-col overflow-hidden border-r border-border bg-muted/30 md:w-80 ${
+          activeChapter ? "max-md:hidden" : ""
+        }`}
+      >
         <div className="space-y-3 border-b border-border bg-card/50 p-3">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-1">
@@ -425,11 +430,25 @@ export function SummariesPanel({
         </ScrollArea>
       </aside>
 
-      <main className="min-h-0 flex-1 overflow-y-auto bg-muted/30">
+      <main
+        className={`min-h-0 flex-1 overflow-y-auto bg-muted/30 ${
+          activeChapter ? "" : "max-md:hidden"
+        }`}
+      >
         {activeChapter ? (
           <div className="flex min-h-full flex-col">
-            <div className="shrink-0 border-b border-border bg-card/30 px-8 py-6">
-              <div className="flex items-start justify-between gap-4">
+            <div className="shrink-0 px-2 pt-2 md:hidden">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setActiveChapterId(null)}
+              >
+                <ArrowLeft className="size-4" />
+                Capítulos
+              </Button>
+            </div>
+            <div className="shrink-0 border-b border-border bg-card/30 px-4 py-4 md:px-8 md:py-6">
+              <div className="flex flex-col items-start gap-3 md:flex-row md:justify-between md:gap-4">
                 <div className="min-w-0">
                   <div className="mb-1.5 flex items-center gap-2">
                     <BookOpen className="size-3.5 text-primary/70" />
@@ -468,7 +487,7 @@ export function SummariesPanel({
                   </div>
                 </div>
 
-                <div className="flex shrink-0 items-center gap-2">
+                <div className="flex shrink-0 flex-wrap items-center gap-2">
                   {activeSummary && !generatingIds.has(activeChapter.id) && (
                     <>
                       <Button
@@ -507,7 +526,7 @@ export function SummariesPanel({
               </div>
             </div>
 
-            <div className="flex min-h-0 flex-1 px-8 py-8">
+            <div className="flex min-h-0 flex-1 px-4 py-5 md:px-8 md:py-8">
               {generatingIds.has(activeChapter.id) && (
                 <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 text-muted-foreground">
                   <div className="relative">

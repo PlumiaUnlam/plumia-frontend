@@ -30,6 +30,7 @@ import {
   type AudioInputDevice,
   type VoiceRecording,
 } from "@/hooks/use-voice-transcriber"
+import { voiceTitle } from "@/lib/voice-title"
 import type {
   CreateStoryboardCardInput,
   StoryboardCard,
@@ -264,12 +265,6 @@ function CardDialogForm({
       </DialogFooter>
     </>
   )
-}
-
-function voiceTitle(text: string): string {
-  const firstSentence = text.split(/[.!?]/u)[0]?.trim() ?? ""
-  const title = firstSentence || text.trim()
-  return title.slice(0, 200) || "Idea registrada por voz"
 }
 
 type VoiceRecorderSectionProps = Readonly<{

@@ -1,15 +1,11 @@
 "use client"
 
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useTheme } from "next-themes"
 import dynamic from "next/dynamic"
+import { useRouter } from "next/navigation"
 import {
+  ArrowLeft,
   BookOpen,
   Check,
   ChevronDown,
@@ -24,6 +20,9 @@ import {
 } from "lucide-react"
 
 import type { SharedSceneProps } from "@/components/sharing/shared-scene"
+import { useReaderComments } from "@/components/sharing/use-reader-comments"
+import { CommentsSheet } from "@/components/mobile/comments-sheet"
+import { SelectionCommentBar } from "@/components/mobile/selection-comment-bar"
 import { FormDialog } from "@/components/modal/form-dialog"
 import { Button } from "@/components/ui/button"
 import {
@@ -36,15 +35,13 @@ import {
 import { Spinner } from "@/components/ui/spinner"
 import { Textarea } from "@/components/ui/textarea"
 import { useAuth } from "@/contexts/AuthContext"
+import { useViewportKind } from "@/hooks/use-viewport-kind"
 import { messageForApiError } from "@/helpers/api-errors"
 import {
   acceptShareInvitation,
-  createReaderComment,
-  createReaderCommentReply,
   getReaderComments,
   getSharedManuscript,
   getSharedStorageUrl,
-  updateReaderComment,
 } from "@/services/sharing.service"
 import type { ProseMirrorJSON } from "@/types/scene"
 import type {
@@ -77,6 +74,9 @@ function SharedReaderHeader({
   resolvedTheme,
   onSelectChapter,
   onToggleTheme,
+  commentCount,
+  onOpenComments,
+  onBack,
 }: Readonly<{
   manuscriptTitle: string;
   frozenAt: string;
@@ -86,13 +86,30 @@ function SharedReaderHeader({
   resolvedTheme: string | undefined;
   onSelectChapter: (chapterId: string) => void;
   onToggleTheme: () => void;
+  /** Solo en mobile: abre el panel de comentarios. */
+  commentCount?: number;
+  onOpenComments?: () => void;
+  /** Solo para la autora en mobile: vuelve a su lista de versiones compartidas. */
+  onBack?: () => void;
 }>) {
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center border-b border-black/10 bg-[#fffdf8]/95 px-4 backdrop-blur dark:border-white/10 dark:bg-[#211827]/95">
-      <BookOpen className="mr-2 size-5 text-primary" />
+      {onBack ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          className="-ml-2 mr-1 shrink-0"
+          aria-label="Volver"
+          onClick={onBack}
+        >
+          <ArrowLeft className="size-4" aria-hidden />
+        </Button>
+      ) : null}
+      <BookOpen className="mr-2 size-5 shrink-0 text-primary" />
       <div className="min-w-0">
         <h1 className="truncate text-sm font-semibold">{manuscriptTitle}</h1>
-        <p className="text-[11px] text-muted-foreground">
+        <p className="truncate text-[11px] text-muted-foreground">
           Versión congelada · {new Date(frozenAt).toLocaleString("es-UY")}
         </p>
       </div>
@@ -100,7 +117,7 @@ function SharedReaderHeader({
         <SelectTrigger
           aria-label="Ir a capítulo"
           size="sm"
-          className="ml-auto max-w-40 text-xs lg:hidden"
+          className="ml-auto max-w-40 text-xs max-md:max-w-32 lg:hidden"
         >
           <SelectValue placeholder="Ir a capítulo" />
         </SelectTrigger>
@@ -112,6 +129,23 @@ function SharedReaderHeader({
           ))}
         </SelectContent>
       </Select>
+      {onOpenComments ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          className="relative ml-1 shrink-0"
+          aria-label={`Comentarios (${commentCount ?? 0})`}
+          onClick={onOpenComments}
+        >
+          <MessageSquare className="size-4" aria-hidden />
+          {commentCount ? (
+            <span className="absolute -right-0.5 -top-0.5 flex min-w-4 items-center justify-center rounded-full bg-primary px-1 text-2xs font-medium text-primary-foreground">
+              {commentCount}
+            </span>
+          ) : null}
+        </Button>
+      ) : null}
       <div className="ml-2 hidden items-center gap-2 text-xs text-muted-foreground sm:flex lg:ml-auto">
         {viewer.canComment ? (
           <MessageSquare className="size-4" />
@@ -211,117 +245,94 @@ function LazySharedScene(props: Readonly<SharedSceneProps>) {
   )
 }
 
-export function SharedReader({ slug, initialToken }: SharedReaderProps) {
-  const { resolvedTheme, setTheme } = useTheme()
-  const {
-    firebaseUser,
-    loading: authLoading,
-    loginWithGoogle,
-    logout,
-  } = useAuth()
-  const [view, setView] = useState<SharedManuscriptView | null>(null)
-  const [comments, setComments] = useState<ReaderComment[]>([])
-  const [activeChapterId, setActiveChapterId] = useState<string | null>(null)
-  const [activeCommentId, setActiveCommentId] = useState<string | null>(null)
-  const [selection, setSelection] = useState<TextSelectionAnchor | null>(null)
-  const [commentBody, setCommentBody] = useState("")
-  const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({})
-  const [replyingToCommentId, setReplyingToCommentId] = useState<string | null>(
-    null,
-  )
-  const [showResolvedComments, setShowResolvedComments] = useState(false)
-  const [submittingReplyFor, setSubmittingReplyFor] = useState<string | null>(null)
-  const [submittingComment, setSubmittingComment] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [discussionError, setDiscussionError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [signingIn, setSigningIn] = useState(false)
-  const [loadedUserId, setLoadedUserId] = useState<string | null>(null)
+async function loadSharedReaderData(slug: string, token: string | undefined) {
+  const loadedView = token
+    ? await acceptShareInvitation(slug, token)
+    : await getSharedManuscript(slug, token)
+  const [resolvedView, loadedComments] = await Promise.all([
+    resolveSnapshotImages(loadedView, slug, token),
+    loadedView.viewer.canComment
+      ? getReaderComments(slug, token)
+      : Promise.resolve([]),
+  ])
+  return { resolvedView, loadedComments }
+}
 
+type LoadSharedReaderResult =
+  | Awaited<ReturnType<typeof loadSharedReaderData>>
+  | { error: string }
+
+async function tryLoadSharedReader(
+  slug: string,
+  token: string | undefined,
+): Promise<LoadSharedReaderResult> {
+  try {
+    return await loadSharedReaderData(slug, token)
+  } catch (loadError) {
+    return {
+      error: messageForApiError(
+        loadError,
+        "No se pudo abrir la versión compartida.",
+      ),
+    }
+  }
+}
+
+function useLoadSharedReader({
+  slug,
+  initialToken,
+  userId,
+  setView,
+  setComments,
+  setError,
+  setLoadedUserId,
+  setLoading,
+}: Readonly<{
+  slug: string
+  initialToken: string | undefined
+  /** `undefined` mientras la sesión carga o si no hay usuario: no se pide nada. */
+  userId: string | undefined
+  setView: (view: SharedManuscriptView) => void
+  setComments: (comments: ReaderComment[]) => void
+  setError: (error: string | null) => void
+  setLoadedUserId: (userId: string) => void
+  setLoading: (loading: boolean) => void
+}>) {
   useEffect(() => {
-    if (authLoading) return
-    if (!firebaseUser) return
+    if (!userId) return
 
     let cancelled = false
-    void (async () => {
-      try {
-        const loadedView = initialToken
-          ? await acceptShareInvitation(slug, initialToken)
-          : await getSharedManuscript(slug, initialToken)
-        const [resolvedView, loadedComments] = await Promise.all([
-          resolveSnapshotImages(loadedView, slug, initialToken),
-          loadedView.viewer.canComment
-            ? getReaderComments(slug, initialToken)
-            : Promise.resolve([]),
-        ])
-        if (cancelled) return
-        setView(resolvedView)
-        setComments(loadedComments)
-        setActiveChapterId(
-          resolvedView.manuscript.books[0]?.chapters[0]?.id ?? null,
-        )
+    void tryLoadSharedReader(slug, initialToken).then((result) => {
+      if (cancelled) return
+      if ("error" in result) {
+        setError(result.error)
+      } else {
+        setView(result.resolvedView)
+        setComments(result.loadedComments)
         setError(null)
-        setDiscussionError(null)
-      } catch (loadError) {
-        if (!cancelled) {
-          setError(
-            messageForApiError(
-              loadError,
-              "No se pudo abrir la versión compartida.",
-            ),
-          )
-        }
-      } finally {
-        if (!cancelled) {
-          setLoadedUserId(firebaseUser.uid)
-          setLoading(false)
-        }
       }
-    })()
+      setLoadedUserId(userId)
+      setLoading(false)
+    })
     return () => {
       cancelled = true
     }
-  }, [authLoading, firebaseUser, initialToken, slug])
+  }, [
+    userId,
+    slug,
+    initialToken,
+    setView,
+    setComments,
+    setError,
+    setLoadedUserId,
+    setLoading,
+  ])
+}
 
-  const handleGoogleSignIn = async () => {
-    setSigningIn(true)
-    setLoading(true)
-    setLoadedUserId(null)
-    setView(null)
-    setComments([])
-    setError(null)
-    setDiscussionError(null)
-    try {
-      if (firebaseUser) {
-        await logout()
-      }
-      await loginWithGoogle()
-    } catch (signInError) {
-      setLoading(false)
-      setLoadedUserId(null)
-      setError(getGoogleSignInErrorMessage(signInError))
-    } finally {
-      setSigningIn(false)
-    }
-  }
-
-  const chapters = useMemo(
-    () =>
-      view?.manuscript.books.flatMap((book) =>
-        book.chapters.map((chapter) => ({ ...chapter, bookTitle: book.title })),
-      ) ?? [],
-    [view],
-  )
-  const commentsByScene = useMemo(() => {
-    const grouped = new Map<string, ReaderComment[]>()
-    for (const comment of comments) {
-      const current = grouped.get(comment.snapshotSceneId)
-      if (current) current.push(comment)
-      else grouped.set(comment.snapshotSceneId, [comment])
-    }
-    return grouped
-  }, [comments])
-
+function useActiveChapterObserver(
+  chapters: readonly { id: string }[],
+  onActiveChapter: (chapterId: string) => void,
+) {
   useEffect(() => {
     if (chapters.length === 0) return
     const observer = new IntersectionObserver(
@@ -332,7 +343,7 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
         const chapterId = visible?.target instanceof HTMLElement
           ? visible.target.dataset.chapterId
           : undefined
-        if (chapterId) setActiveChapterId(chapterId)
+        if (chapterId) onActiveChapter(chapterId)
       },
       { rootMargin: "-15% 0px -70%", threshold: [0, 0.2, 0.6] },
     )
@@ -341,7 +352,473 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
       if (element) observer.observe(element)
     }
     return () => observer.disconnect()
-  }, [chapters])
+  }, [chapters, onActiveChapter])
+}
+
+function SharedReaderLoading() {
+  return (
+    <div className="flex min-h-screen items-center justify-center gap-3 bg-[#f4f0e8] text-muted-foreground dark:bg-[#18131d]">
+      <Spinner className="size-5" /> Abriendo versión compartida…
+    </div>
+  )
+}
+
+function SharedReaderGateCard({
+  title,
+  children,
+}: Readonly<{ title: string; children: React.ReactNode }>) {
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-[#f4f0e8] p-6 dark:bg-[#18131d]">
+      <div className="max-w-md rounded-2xl bg-card p-8 text-center shadow-xl">
+        <BookOpen className="mx-auto mb-4 size-10 text-primary" />
+        <h1 className="text-xl font-semibold">{title}</h1>
+        {children}
+      </div>
+    </main>
+  )
+}
+
+function SharedReaderSignIn({
+  error,
+  signingIn,
+  onSignIn,
+}: Readonly<{
+  error: string | null
+  signingIn: boolean
+  onSignIn: () => void
+}>) {
+  return (
+    <SharedReaderGateCard title="Verificá tu invitación">
+      <p className="mt-2 text-sm text-muted-foreground">
+        Ingresá con la cuenta de Google que recibió este enlace. No se creará
+        una cuenta de PlumIA.
+      </p>
+      {error && (
+        <p className="mt-4 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          {error}
+        </p>
+      )}
+      <Button className="mt-5 w-full" disabled={signingIn} onClick={onSignIn}>
+        {signingIn ? <Spinner className="size-4" /> : <LogIn />}
+        Continuar con Google
+      </Button>
+    </SharedReaderGateCard>
+  )
+}
+
+function SharedReaderOpenError({
+  error,
+  hasToken,
+  email,
+  signingIn,
+  onSignIn,
+}: Readonly<{
+  error: string | null
+  hasToken: boolean
+  email: string | null
+  signingIn: boolean
+  onSignIn: () => void
+}>) {
+  return (
+    <SharedReaderGateCard title="No pudimos abrir esta versión">
+      <p className="mt-2 text-sm text-muted-foreground">
+        {error ?? "La invitación no está disponible."}
+      </p>
+      {!hasToken && (
+        <p className="mt-4 text-xs text-muted-foreground">
+          Abrí el enlace completo que recibiste por correo.
+        </p>
+      )}
+      <p className="mt-4 text-xs text-muted-foreground">
+        Sesión actual: {email}
+      </p>
+      <Button
+        className="mt-4"
+        variant="outline"
+        disabled={signingIn}
+        onClick={onSignIn}
+      >
+        {signingIn ? <Spinner className="size-4" /> : <LogIn />}
+        Usar otra cuenta de Google
+      </Button>
+    </SharedReaderGateCard>
+  )
+}
+
+type ChapterNavItem = { id: string; title: string; bookTitle: string }
+
+function SharedChapterNav({
+  chapters,
+  activeChapterId,
+  onSelectChapter,
+}: Readonly<{
+  chapters: readonly ChapterNavItem[]
+  activeChapterId: string | null
+  onSelectChapter: (chapterId: string) => void
+}>) {
+  return (
+    <nav className="hidden lg:block">
+      <div className="sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto rounded-xl bg-[#fffdf8] p-4 shadow-sm dark:bg-[#211827]">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          Contenido
+        </p>
+        <div className="space-y-1">
+          {chapters.map((chapter) => (
+            <button
+              key={chapter.id}
+              type="button"
+              onClick={() => onSelectChapter(chapter.id)}
+              className={`w-full rounded-lg px-3 py-2 text-left text-sm transition-colors ${
+                activeChapterId === chapter.id
+                  ? "bg-primary/10 font-medium text-primary"
+                  : "text-foreground/70 hover:bg-black/5"
+              }`}
+            >
+              <span className="block truncate text-[10px] uppercase text-muted-foreground">
+                {chapter.bookTitle}
+              </span>
+              {chapter.title}
+            </button>
+          ))}
+        </div>
+      </div>
+    </nav>
+  )
+}
+
+function SharedManuscriptBody({
+  manuscript,
+  canComment,
+  commentsByScene,
+  activeCommentId,
+  onSelection,
+  onCommentClick,
+}: Readonly<{
+  manuscript: SharedManuscriptView["manuscript"]
+  canComment: boolean
+  commentsByScene: ReadonlyMap<string, ReaderComment[]>
+  activeCommentId: string | null
+  onSelection: SharedSceneProps["onSelection"]
+  onCommentClick: (commentId: string) => void
+}>) {
+  return (
+    <main className="min-w-0">
+      <section className="overflow-hidden rounded-sm bg-[#fffdf8] shadow-[0_18px_60px_-35px_rgba(50,35,20,0.55)] ring-1 ring-black/5 dark:bg-[#211827] dark:ring-white/10">
+        <div className="border-b border-black/5 px-5 py-10 text-center sm:px-16 sm:py-12">
+          <p className="mb-3 text-xs uppercase tracking-[0.35em] text-muted-foreground">
+            Manuscrito
+          </p>
+          <h2 className="break-words font-serif text-4xl font-semibold max-sm:text-3xl">
+            {manuscript.title}
+          </h2>
+        </div>
+
+        {manuscript.books.map((book) => (
+          <div key={book.id}>
+            {manuscript.books.length > 1 && (
+              <div className="border-b border-black/5 px-5 py-10 text-center sm:px-16 sm:py-12">
+                <p className="text-xs uppercase tracking-[0.25em] text-muted-foreground">
+                  Libro
+                </p>
+                <h2 className="mt-2 font-serif text-3xl font-semibold">
+                  {book.title}
+                </h2>
+              </div>
+            )}
+            {book.chapters.map((chapter) => (
+              <section
+                key={chapter.id}
+                id={`shared-chapter-${chapter.id}`}
+                data-chapter-id={chapter.id}
+                className="scroll-mt-20 border-b border-black/10 px-5 py-10 last:border-b-0 sm:px-16 sm:py-12"
+              >
+                <h2 className="mb-8 text-center font-serif text-3xl font-semibold">
+                  {chapter.title}
+                </h2>
+                {chapter.scenes.map((scene) => (
+                  <LazySharedScene
+                    key={scene.id}
+                    sceneId={scene.id}
+                    title={scene.title}
+                    content={scene.content}
+                    comments={commentsByScene.get(scene.id) ?? []}
+                    activeCommentId={activeCommentId}
+                    canComment={canComment}
+                    onSelection={onSelection}
+                    onCommentClick={onCommentClick}
+                  />
+                ))}
+              </section>
+            ))}
+          </div>
+        ))}
+      </section>
+    </main>
+  )
+}
+
+function groupCommentsByScene(comments: readonly ReaderComment[]) {
+  const grouped = new Map<string, ReaderComment[]>()
+  for (const comment of comments) {
+    const current = grouped.get(comment.snapshotSceneId)
+    if (current) current.push(comment)
+    else grouped.set(comment.snapshotSceneId, [comment])
+  }
+  return grouped
+}
+
+function getReaderGridClassName(canOpenDiscussion: boolean) {
+  return canOpenDiscussion
+    ? "max-w-[1500px] lg:grid-cols-[240px_minmax(0,760px)_320px]"
+    : "max-w-[1320px] lg:grid-cols-[minmax(180px,240px)_minmax(0,760px)_minmax(180px,240px)]"
+}
+
+type ReaderSessionStatus = "loading" | "signin" | "error" | "ready"
+
+function getSessionStatus({
+  authLoading,
+  userId,
+  loading,
+  loadedUserId,
+  hasFailed,
+}: Readonly<{
+  authLoading: boolean
+  userId: string | undefined
+  loading: boolean
+  loadedUserId: string | null
+  hasFailed: boolean
+}>): ReaderSessionStatus {
+  if (authLoading) return "loading"
+  if (!userId) return "signin"
+  if (loading || loadedUserId !== userId) return "loading"
+  return hasFailed ? "error" : "ready"
+}
+
+/** Sesión de Google + carga de la versión compartida, antes de mostrar el manuscrito. */
+function useSharedReaderSession(
+  slug: string,
+  initialToken: string | undefined,
+) {
+  const {
+    firebaseUser,
+    loading: authLoading,
+    loginWithGoogle,
+    logout,
+  } = useAuth()
+  const [view, setView] = useState<SharedManuscriptView | null>(null)
+  const [initialComments, setInitialComments] = useState<ReaderComment[]>([])
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [signingIn, setSigningIn] = useState(false)
+  const [loadedUserId, setLoadedUserId] = useState<string | null>(null)
+  const userId = firebaseUser?.uid
+
+  useLoadSharedReader({
+    slug,
+    initialToken,
+    userId: authLoading ? undefined : userId,
+    setView,
+    setComments: setInitialComments,
+    setError,
+    setLoadedUserId,
+    setLoading,
+  })
+
+  const signIn = async () => {
+    setSigningIn(true)
+    setLoading(true)
+    setLoadedUserId(null)
+    setView(null)
+    setInitialComments([])
+    setError(null)
+    try {
+      if (firebaseUser) await logout()
+      await loginWithGoogle()
+    } catch (signInError) {
+      setLoading(false)
+      setLoadedUserId(null)
+      setError(getGoogleSignInErrorMessage(signInError))
+    } finally {
+      setSigningIn(false)
+    }
+  }
+
+  return {
+    status: getSessionStatus({
+      authLoading,
+      userId,
+      loading,
+      loadedUserId,
+      hasFailed: Boolean(error) || !view,
+    }),
+    view,
+    initialComments,
+    error,
+    email: firebaseUser?.email ?? null,
+    signingIn,
+    signIn,
+  }
+}
+
+function SelectionCommentDialog({
+  selection,
+  body,
+  submitting,
+  onBodyChange,
+  onClose,
+  onSubmit,
+}: Readonly<{
+  selection: TextSelectionAnchor | null
+  body: string
+  submitting: boolean
+  onBodyChange: (body: string) => void
+  onClose: () => void
+  onSubmit: () => Promise<void>
+}>) {
+  return (
+    <FormDialog
+      open={selection !== null}
+      onOpenChange={(open) => {
+        if (!open) onClose()
+      }}
+      title="Comentar selección"
+      description="El subrayado quedará anclado a esta versión congelada."
+      submitLabel="Comentar"
+      submitDisabled={!body.trim()}
+      loading={submitting}
+      onSubmit={onSubmit}
+    >
+      <blockquote className="max-h-28 overflow-y-auto rounded-lg border-l-2 border-warning bg-warning-muted p-3 text-sm italic text-foreground">
+        “{selection?.selectedText}”
+      </blockquote>
+      <Textarea
+        value={body}
+        onChange={(event) => onBodyChange(event.target.value)}
+        placeholder="Escribí tu comentario…"
+        aria-label="Comentario"
+        autoFocus
+      />
+    </FormDialog>
+  )
+}
+
+function getMobileHeaderActions({
+  isMobile,
+  isOwner,
+  showDiscussion,
+  openCommentCount,
+  onBack,
+  onOpenComments,
+}: Readonly<{
+  isMobile: boolean
+  isOwner: boolean
+  showDiscussion: boolean
+  openCommentCount: number
+  onBack: () => void
+  onOpenComments: () => void
+}>) {
+  return {
+    onBack: isMobile && isOwner ? onBack : undefined,
+    commentCount: showDiscussion ? openCommentCount : undefined,
+    onOpenComments: showDiscussion ? onOpenComments : undefined,
+  }
+}
+
+type ReaderDiscussionPanelProps = React.ComponentProps<typeof ReaderDiscussion>
+
+function DiscussionColumn({
+  canOpenDiscussion,
+  isMobile,
+  discussionProps,
+}: Readonly<{
+  canOpenDiscussion: boolean
+  isMobile: boolean
+  discussionProps: ReaderDiscussionPanelProps
+}>) {
+  const placeholder = <div aria-hidden="true" className="hidden lg:block" />
+  if (!canOpenDiscussion) {
+    return (
+      <>
+        {placeholder}
+        {placeholder}
+      </>
+    )
+  }
+  return isMobile ? placeholder : <ReaderDiscussion {...discussionProps} />
+}
+
+function MobileDiscussionOverlay({
+  open,
+  onOpenChange,
+  pendingSelection,
+  hasSelection,
+  onConfirmSelection,
+  onDismissSelection,
+  discussionProps,
+}: Readonly<{
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  pendingSelection: TextSelectionAnchor | null
+  hasSelection: boolean
+  onConfirmSelection: (selection: TextSelectionAnchor) => void
+  onDismissSelection: () => void
+  discussionProps: ReaderDiscussionPanelProps
+}>) {
+  return (
+    <>
+      <CommentsSheet open={open} onOpenChange={onOpenChange}>
+        <ReaderDiscussion layout="sheet" {...discussionProps} />
+      </CommentsSheet>
+      {pendingSelection && !hasSelection && (
+        <SelectionCommentBar
+          selectedText={pendingSelection.selectedText}
+          onComment={() => onConfirmSelection(pendingSelection)}
+          onDismiss={onDismissSelection}
+        />
+      )}
+    </>
+  )
+}
+
+function SharedReaderContent({
+  slug,
+  initialToken,
+  view,
+  initialComments,
+}: Readonly<{
+  slug: string
+  initialToken: string | undefined
+  view: SharedManuscriptView
+  initialComments: ReaderComment[]
+}>) {
+  const { resolvedTheme, setTheme } = useTheme()
+  const router = useRouter()
+  const isMobile = useViewportKind() === "mobile"
+  const [activeChapterId, setActiveChapterId] = useState<string | null>(
+    view.manuscript.books[0]?.chapters[0]?.id ?? null,
+  )
+  const reader = useReaderComments({
+    slug,
+    initialToken,
+    initialComments,
+    isMobile,
+  })
+  const canOpenDiscussion = view.viewer.canComment
+  const showMobileDiscussion = isMobile && canOpenDiscussion
+
+  const chapters = useMemo(
+    () =>
+      view.manuscript.books.flatMap((book) =>
+        book.chapters.map((chapter) => ({ ...chapter, bookTitle: book.title })),
+      ),
+    [view],
+  )
+  const commentsByScene = useMemo(
+    () => groupCommentsByScene(reader.comments),
+    [reader.comments],
+  )
+
+  useActiveChapterObserver(chapters, setActiveChapterId)
 
   const scrollToChapter = (chapterId: string) => {
     document
@@ -349,192 +826,7 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
       ?.scrollIntoView({ behavior: "smooth", block: "start" })
   }
 
-  const openComment = useCallback((commentId: string) => {
-    setActiveCommentId(commentId)
-    window.requestAnimationFrame(() => {
-      const focusCard = () => {
-        const card = document.getElementById(`reader-comment-${commentId}`)
-        card?.scrollIntoView({ behavior: "smooth", block: "center" })
-        card?.focus({ preventScroll: true })
-        return Boolean(card)
-      }
-
-      if (!focusCard()) {
-        setShowResolvedComments(true)
-        window.requestAnimationFrame(focusCard)
-      }
-    })
-  }, [])
-
-  const scrollToCommentAnchor = useCallback((commentId: string) => {
-    setActiveCommentId(commentId)
-    window.requestAnimationFrame(() => {
-      const anchor = Array.from(
-        document.querySelectorAll<HTMLElement>("[data-comment-id]"),
-      ).find((element) => element.dataset.commentId === commentId)
-      anchor?.scrollIntoView({ behavior: "smooth", block: "center" })
-    })
-  }, [])
-
-  const submitComment = async () => {
-    if (!selection || !commentBody.trim()) return
-    setSubmittingComment(true)
-    try {
-      const created = await createReaderComment(
-        slug,
-        initialToken,
-        {
-          ...selection,
-          body: commentBody.trim(),
-        },
-      )
-      setComments((current) => [...current, created])
-      setSelection(null)
-      setCommentBody("")
-      setActiveCommentId(created.id)
-      setDiscussionError(null)
-    } catch (submitError) {
-      setDiscussionError(
-        messageForApiError(submitError, "No se pudo guardar el comentario."),
-      )
-    } finally {
-      setSubmittingComment(false)
-    }
-  }
-
-  const toggleResolved = async (comment: ReaderComment) => {
-    try {
-      const updated = await updateReaderComment(
-        slug,
-        comment.id,
-        comment.status === "OPEN" ? "RESOLVED" : "OPEN",
-      )
-      setComments((current) =>
-        current.map((item) => (item.id === updated.id ? updated : item)),
-      )
-      if (updated.status === "RESOLVED") {
-        setActiveCommentId((current) =>
-          current === updated.id ? null : current,
-        )
-        setReplyingToCommentId((current) =>
-          current === updated.id ? null : current,
-        )
-      }
-      setDiscussionError(null)
-    } catch (updateError) {
-      setDiscussionError(
-        messageForApiError(
-          updateError,
-          "No se pudo actualizar el estado del comentario.",
-        ),
-      )
-    }
-  }
-
-  const submitReply = async (comment: ReaderComment) => {
-    const body = replyDrafts[comment.id]?.trim()
-    if (!body) return
-    setSubmittingReplyFor(comment.id)
-    try {
-      const updated = await createReaderCommentReply(
-        slug,
-        initialToken,
-        comment.id,
-        body,
-      )
-      setComments((current) =>
-        current.map((item) => (item.id === updated.id ? updated : item)),
-      )
-      setReplyDrafts((current) => ({ ...current, [comment.id]: "" }))
-      setReplyingToCommentId(null)
-      setDiscussionError(null)
-    } catch (replyError) {
-      setDiscussionError(
-        messageForApiError(replyError, "No se pudo guardar la respuesta."),
-      )
-    } finally {
-      setSubmittingReplyFor(null)
-    }
-  }
-
-  const canOpenDiscussion = Boolean(view?.viewer.canComment)
-  const openComments = comments.filter((comment) => comment.status === "OPEN")
-  const resolvedComments = comments.filter(
-    (comment) => comment.status === "RESOLVED",
-  )
-  const visibleComments = showResolvedComments
-    ? [...openComments, ...resolvedComments]
-    : openComments
-
-  if (
-    authLoading ||
-    (firebaseUser && (loading || loadedUserId !== firebaseUser.uid))
-  ) {
-    return (
-      <div className="flex min-h-screen items-center justify-center gap-3 bg-[#f4f0e8] text-muted-foreground dark:bg-[#18131d]">
-        <Spinner className="size-5" /> Abriendo versión compartida…
-      </div>
-    )
-  }
-
-  if (!firebaseUser) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-[#f4f0e8] p-6 dark:bg-[#18131d]">
-        <div className="max-w-md rounded-2xl bg-card p-8 text-center shadow-xl">
-          <BookOpen className="mx-auto mb-4 size-10 text-primary" />
-          <h1 className="text-xl font-semibold">Verificá tu invitación</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Ingresá con la cuenta de Google que recibió este enlace. No se
-            creará una cuenta de PlumIA.
-          </p>
-          {error && (
-            <p className="mt-4 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
-              {error}
-            </p>
-          )}
-          <Button
-            className="mt-5 w-full"
-            disabled={signingIn}
-            onClick={() => void handleGoogleSignIn()}
-          >
-            {signingIn ? <Spinner className="size-4" /> : <LogIn />}
-            Continuar con Google
-          </Button>
-        </div>
-      </main>
-    )
-  }
-
-  if (error || !view) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-[#f4f0e8] p-6 dark:bg-[#18131d]">
-        <div className="max-w-md rounded-2xl bg-card p-8 text-center shadow-xl">
-          <BookOpen className="mx-auto mb-4 size-10 text-primary" />
-          <h1 className="text-xl font-semibold">No pudimos abrir esta versión</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            {error ?? "La invitación no está disponible."}
-          </p>
-          {!initialToken && (
-            <p className="mt-4 text-xs text-muted-foreground">
-              Abrí el enlace completo que recibiste por correo.
-            </p>
-          )}
-          <p className="mt-4 text-xs text-muted-foreground">
-            Sesión actual: {firebaseUser.email}
-          </p>
-          <Button
-            className="mt-4"
-            variant="outline"
-            disabled={signingIn}
-            onClick={() => void handleGoogleSignIn()}
-          >
-            {signingIn ? <Spinner className="size-4" /> : <LogIn />}
-            Usar otra cuenta de Google
-          </Button>
-        </div>
-      </main>
-    )
-  }
+  const discussionProps = { viewer: view.viewer, ...reader.discussionProps }
 
   return (
     <div className="min-h-screen bg-[#f4f0e8] text-foreground dark:bg-[#18131d]">
@@ -549,154 +841,101 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
         onToggleTheme={() =>
           setTheme(resolvedTheme === "dark" ? "light" : "dark")
         }
+        {...getMobileHeaderActions({
+          isMobile,
+          isOwner: view.viewer.isOwner,
+          showDiscussion: showMobileDiscussion,
+          openCommentCount: reader.openComments.length,
+          onBack: () => router.back(),
+          onOpenComments: () => reader.setCommentsOpen(true),
+        })}
       />
 
       <div
-        className={`mx-auto grid grid-cols-1 gap-6 px-4 py-6 ${
-          canOpenDiscussion
-            ? "max-w-[1500px] lg:grid-cols-[240px_minmax(0,760px)_320px]"
-            : "max-w-[1320px] lg:grid-cols-[minmax(180px,240px)_minmax(0,760px)_minmax(180px,240px)]"
-        }`}
+        className={`mx-auto grid grid-cols-1 gap-6 px-4 py-6 ${getReaderGridClassName(canOpenDiscussion)}`}
       >
-        <nav className="hidden lg:block">
-          <div className="sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto rounded-xl bg-[#fffdf8] p-4 shadow-sm dark:bg-[#211827]">
-            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Contenido
-            </p>
-            <div className="space-y-1">
-              {chapters.map((chapter) => (
-                <button
-                  key={chapter.id}
-                  type="button"
-                  onClick={() => scrollToChapter(chapter.id)}
-                  className={`w-full rounded-lg px-3 py-2 text-left text-sm transition-colors ${
-                    activeChapterId === chapter.id
-                      ? "bg-primary/10 font-medium text-primary"
-                      : "text-foreground/70 hover:bg-black/5"
-                  }`}
-                >
-                  <span className="block truncate text-[10px] uppercase text-muted-foreground">
-                    {chapter.bookTitle}
-                  </span>
-                  {chapter.title}
-                </button>
-              ))}
-            </div>
-          </div>
-        </nav>
+        <SharedChapterNav
+          chapters={chapters}
+          activeChapterId={activeChapterId}
+          onSelectChapter={scrollToChapter}
+        />
 
-        <main className="min-w-0">
-          <section className="overflow-hidden rounded-sm bg-[#fffdf8] shadow-[0_18px_60px_-35px_rgba(50,35,20,0.55)] ring-1 ring-black/5 dark:bg-[#211827] dark:ring-white/10">
-            <div className="border-b border-black/5 px-8 py-12 text-center sm:px-16">
-              <p className="mb-3 text-xs uppercase tracking-[0.35em] text-muted-foreground">
-                Manuscrito
-              </p>
-              <h2 className="font-serif text-4xl font-semibold">
-                {view.manuscript.title}
-              </h2>
-            </div>
+        <SharedManuscriptBody
+          manuscript={view.manuscript}
+          canComment={view.viewer.canComment}
+          commentsByScene={commentsByScene}
+          activeCommentId={reader.activeCommentId}
+          onSelection={
+            isMobile ? reader.setPendingSelection : reader.setSelection
+          }
+          onCommentClick={reader.openComment}
+        />
 
-            {view.manuscript.books.map((book) => (
-              <div key={book.id}>
-                {view.manuscript.books.length > 1 && (
-                  <div className="border-b border-black/5 px-8 py-12 text-center sm:px-16">
-                    <p className="text-xs uppercase tracking-[0.25em] text-muted-foreground">
-                      Libro
-                    </p>
-                    <h2 className="mt-2 font-serif text-3xl font-semibold">
-                      {book.title}
-                    </h2>
-                  </div>
-                )}
-                {book.chapters.map((chapter) => (
-                  <section
-                    key={chapter.id}
-                    id={`shared-chapter-${chapter.id}`}
-                    data-chapter-id={chapter.id}
-                    className="scroll-mt-20 border-b border-black/10 px-7 py-12 last:border-b-0 sm:px-16"
-                  >
-                    <h2 className="mb-8 text-center font-serif text-3xl font-semibold">
-                      {chapter.title}
-                    </h2>
-                    {chapter.scenes.map((scene) => (
-                      <LazySharedScene
-                        key={scene.id}
-                        sceneId={scene.id}
-                        title={scene.title}
-                        content={scene.content}
-                        comments={commentsByScene.get(scene.id) ?? []}
-                        activeCommentId={activeCommentId}
-                        canComment={view.viewer.canComment}
-                        onSelection={setSelection}
-                        onCommentClick={openComment}
-                      />
-                    ))}
-                  </section>
-                ))}
-              </div>
-            ))}
-          </section>
-        </main>
-
-        {!canOpenDiscussion && <div aria-hidden="true" className="hidden lg:block" />}
-
-        {canOpenDiscussion ? (
-          <ReaderDiscussion
-            viewer={view.viewer}
-            openComments={openComments}
-            resolvedComments={resolvedComments}
-            visibleComments={visibleComments}
-            discussionError={discussionError}
-            activeCommentId={activeCommentId}
-            replyingToCommentId={replyingToCommentId}
-            replyDrafts={replyDrafts}
-            submittingReplyFor={submittingReplyFor}
-            showResolvedComments={showResolvedComments}
-            onToggleResolvedComments={() =>
-              setShowResolvedComments((current) => !current)
-            }
-            onToggleResolved={toggleResolved}
-            onScrollToCommentAnchor={scrollToCommentAnchor}
-            onToggleReply={(commentId) =>
-              setReplyingToCommentId((current) =>
-                current === commentId ? null : commentId,
-              )
-            }
-            onReplyDraftChange={(commentId, body) =>
-              setReplyDrafts((current) => ({ ...current, [commentId]: body }))
-            }
-            onCancelReply={() => setReplyingToCommentId(null)}
-            onSubmitReply={submitReply}
-          />
-        ) : (
-          <div aria-hidden="true" className="hidden lg:block" />
-        )}
+        <DiscussionColumn
+          canOpenDiscussion={canOpenDiscussion}
+          isMobile={isMobile}
+          discussionProps={discussionProps}
+        />
       </div>
 
-      <FormDialog
-        open={selection !== null}
-        onOpenChange={(open) => {
-          if (!open) setSelection(null)
-        }}
-        title="Comentar selección"
-        description="El subrayado quedará anclado a esta versión congelada."
-        submitLabel="Comentar"
-        submitDisabled={!commentBody.trim()}
-        loading={submittingComment}
-        onSubmit={submitComment}
-      >
-        <blockquote className="max-h-28 overflow-y-auto rounded-lg border-l-2 border-warning bg-warning-muted p-3 text-sm italic text-foreground">
-          “{selection?.selectedText}”
-        </blockquote>
-        <Textarea
-          value={commentBody}
-          onChange={(event) => setCommentBody(event.target.value)}
-          placeholder="Escribí tu comentario…"
-          aria-label="Comentario"
-          autoFocus
+      {showMobileDiscussion && (
+        <MobileDiscussionOverlay
+          open={reader.commentsOpen}
+          onOpenChange={reader.setCommentsOpen}
+          pendingSelection={reader.pendingSelection}
+          hasSelection={reader.selection !== null}
+          onConfirmSelection={reader.setSelection}
+          onDismissSelection={() => reader.setPendingSelection(null)}
+          discussionProps={discussionProps}
         />
-      </FormDialog>
+      )}
+
+      <SelectionCommentDialog
+        selection={reader.selection}
+        body={reader.commentBody}
+        submitting={reader.submittingComment}
+        onBodyChange={reader.setCommentBody}
+        onClose={() => reader.setSelection(null)}
+        onSubmit={reader.submitComment}
+      />
     </div>
+  )
+}
+
+export function SharedReader({ slug, initialToken }: SharedReaderProps) {
+  const session = useSharedReaderSession(slug, initialToken)
+
+  if (session.status === "loading") return <SharedReaderLoading />
+
+  if (session.status === "signin") {
+    return (
+      <SharedReaderSignIn
+        error={session.error}
+        signingIn={session.signingIn}
+        onSignIn={() => void session.signIn()}
+      />
+    )
+  }
+
+  if (session.status === "error" || !session.view) {
+    return (
+      <SharedReaderOpenError
+        error={session.error}
+        hasToken={Boolean(initialToken)}
+        email={session.email}
+        signingIn={session.signingIn}
+        onSignIn={() => void session.signIn()}
+      />
+    )
+  }
+
+  return (
+    <SharedReaderContent
+      slug={slug}
+      initialToken={initialToken}
+      view={session.view}
+      initialComments={session.initialComments}
+    />
   )
 }
 
@@ -718,6 +957,8 @@ type ReaderDiscussionProps = Readonly<{
   onReplyDraftChange: (commentId: string, body: string) => void
   onCancelReply: () => void
   onSubmitReply: (comment: ReaderComment) => Promise<void>
+  /** `sheet`: dentro del panel inferior de mobile, sin barra lateral pegajosa. */
+  layout?: "sidebar" | "sheet"
 }>
 
 function ReaderDiscussion({
@@ -738,10 +979,18 @@ function ReaderDiscussion({
   onReplyDraftChange,
   onCancelReply,
   onSubmitReply,
+  layout = "sidebar",
 }: ReaderDiscussionProps) {
+  const Container = layout === "sheet" ? "div" : "aside"
   return (
-    <aside>
-      <div className="sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto rounded-xl bg-[#fffdf8] p-4 shadow-sm dark:bg-[#211827]">
+    <Container>
+      <div
+        className={
+          layout === "sheet"
+            ? ""
+            : "sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto rounded-xl bg-[#fffdf8] p-4 shadow-sm dark:bg-[#211827]"
+        }
+      >
         <div className="mb-1 flex items-center gap-2">
           <MessageSquare className="size-4 text-primary" />
           <h2 className="text-sm font-semibold">Comentarios</h2>
@@ -800,7 +1049,7 @@ function ReaderDiscussion({
           </div>
         )}
       </div>
-    </aside>
+    </Container>
   )
 }
 

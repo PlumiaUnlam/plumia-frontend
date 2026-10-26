@@ -17,6 +17,7 @@
     "test:editor-project-scene": "node --import tsx scripts/editor-project-scene.test.mts",
     "test:editor-paragraph": "node --import tsx scripts/editor-paragraph.test.mts",
     "test:scene-notes": "node --import tsx scripts/scene-notes.test.mts",
+    "test:mobile-project": "node --import tsx scripts/mobile-project.test.mts",
     "test:imports": "node --import tsx scripts/imports.test.mts",
     "pretest:e2e": "NEXT_PUBLIC_API_URL=http://127.0.0.1:3000 API_URL=http://127.0.0.1:3000 pnpm build",
     "test:e2e": "playwright test"

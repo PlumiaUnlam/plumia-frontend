@@ -648,20 +648,20 @@ export function StatisticsDashboard({ projectId }: Readonly<{ projectId: string 
   );
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background max-md:pb-14">
       <Header />
       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <div className="flex items-center gap-3">
-              <div className="rounded-xl bg-primary p-2.5 text-primary-foreground">
+              <div className="shrink-0 rounded-xl bg-primary p-2.5 text-primary-foreground">
                 <BarChart3 className="size-5" />
               </div>
-              <div>
-                <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+              <div className="min-w-0">
+                <h1 className="truncate text-2xl font-semibold tracking-tight max-sm:text-xl sm:text-3xl">
                   Estadísticas de escritura
                 </h1>
-                <p className="text-sm text-muted-foreground">
+                <p className="truncate text-sm text-muted-foreground">
                   {dashboard?.project.title ??
                     "Productividad y avance del proyecto"}
                 </p>
@@ -819,21 +819,21 @@ export function StatisticsDashboard({ projectId }: Readonly<{ projectId: string 
                         <TableRow>
                           <TableHead>Escena</TableHead>
                           <TableHead>Inicio</TableHead>
-                          <TableHead>Duración</TableHead>
+                          <TableHead className="max-md:hidden">Duración</TableHead>
                           <TableHead className="text-right">Palabras</TableHead>
-                          <TableHead className="text-right">PPM</TableHead>
+                          <TableHead className="text-right max-md:hidden">PPM</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {dashboard.recentSessions.map((session) => (
                           <TableRow key={session.id}>
-                            <TableCell className="max-w-44 truncate font-medium">
+                            <TableCell className="max-w-44 truncate font-medium max-md:max-w-28">
                               {session.sceneTitle}
                             </TableCell>
                             <TableCell className="text-muted-foreground">
                               {formatDateTime(session.startedAt)}
                             </TableCell>
-                            <TableCell>
+                            <TableCell className="max-md:hidden">
                               <span className="inline-flex items-center gap-1.5">
                                 <Clock3 className="size-3.5 text-muted-foreground" />
                                 {formatMinutes(session.durationSecs)}
@@ -845,7 +845,7 @@ export function StatisticsDashboard({ projectId }: Readonly<{ projectId: string 
                               {session.wordsNet > 0 ? "+" : ""}
                               {formatNumber(session.wordsNet)}
                             </TableCell>
-                            <TableCell className="text-right">
+                            <TableCell className="text-right max-md:hidden">
                               {Math.round(session.avgWpm)}
                             </TableCell>
                           </TableRow>

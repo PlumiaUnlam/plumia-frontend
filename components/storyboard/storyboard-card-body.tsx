@@ -30,7 +30,7 @@ export function StoryboardCardBody({
     <div className="flex items-start gap-2">
       {dragHandle}
       <div className="min-w-0 flex-1">
-        <h3 className="mb-1 line-clamp-2 text-sm font-semibold">
+        <h3 className="mb-1 line-clamp-2 text-sm font-semibold max-md:line-clamp-1">
           {card.title}
         </h3>
         <p className="mb-3 line-clamp-3 text-xs leading-relaxed text-muted-foreground">

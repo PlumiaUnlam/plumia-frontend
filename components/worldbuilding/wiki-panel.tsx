@@ -23,6 +23,7 @@ import {
   StarIcon,
   ArrowUpRight,
   CalendarDays,
+  ArrowLeft,
 } from "lucide-react";
 
 import type { Entity, EntityCategory } from "@/types/entity";
@@ -60,7 +61,7 @@ function SelectedEntityVisual({
         alt={entity.canonicalName}
         width={112}
         height={112}
-        className="size-28 shrink-0 rounded-lg border border-border bg-background object-cover"
+        className="size-28 shrink-0 rounded-lg border border-border bg-background object-cover max-md:size-16"
         category={category}
         iconClassName="h-10 w-10"
       />
@@ -70,7 +71,7 @@ function SelectedEntityVisual({
   return (
     <EntityIconTile
       category={category}
-      className="size-28 rounded-lg"
+      className="size-28 shrink-0 rounded-lg max-md:size-16"
       iconClassName="h-10 w-10"
     />
   );
@@ -417,7 +418,11 @@ export function WikiTab({
 
   return (
     <div className="flex h-full min-h-0 min-w-0 w-full flex-1 overflow-hidden">
-      <aside className="w-48 shrink-0 border-r border-border flex flex-col min-h-0 h-full bg-muted/30 overflow-hidden sm:w-60 lg:w-80">
+      <aside
+        className={`w-full shrink-0 border-r border-border flex flex-col min-h-0 h-full bg-muted/30 overflow-hidden md:w-60 lg:w-80 ${
+          selectedEntity ? "max-md:hidden" : ""
+        }`}
+      >
         <div className="p-4 border-b border-border bg-card/50">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -431,7 +436,7 @@ export function WikiTab({
         </div>
 
         <div className="p-3 space-y-3 border-b border-border bg-card/50">
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 max-md:hidden">
             <Funnel size={15} className="text-muted-foreground" />
             <p className="text-sm font-semibold text-muted-foreground">
               CATEGORÍAS
@@ -441,7 +446,7 @@ export function WikiTab({
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              className={`flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors ${
+              className={`flex shrink-0 items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors ${
                 selectedCategory.length === 0
                   ? "border-primary bg-primary/10 text-primary"
                   : "border-border bg-background text-foreground hover:border-primary/40 hover:bg-muted"
@@ -458,7 +463,7 @@ export function WikiTab({
                 <button
                   key={id}
                   type="button"
-                  className={`flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                  className={`flex shrink-0 items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors ${
                     isSelected
                       ? "border-primary bg-primary/10 text-primary"
                       : "border-border bg-background text-foreground hover:border-primary/40 hover:bg-muted"
@@ -496,9 +501,22 @@ export function WikiTab({
         </ScrollArea>
       </aside>
 
-      <main className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain p-4 bg-muted/30 sm:p-6 lg:p-10">
+      <main
+        className={`min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain p-4 bg-muted/30 sm:p-6 lg:p-10 ${
+          selectedEntity ? "" : "max-md:hidden"
+        }`}
+      >
         {selectedEntity ? (
           <>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="-ml-2 mb-3 md:hidden"
+              onClick={() => onSelectEntity(null)}
+            >
+              <ArrowLeft size={16} />
+              Entidades
+            </Button>
             <header className="mb-8 flex-shrink-0 flex flex-wrap items-start gap-4 justify-between">
               <div className="flex min-w-0 items-start gap-4">
                 {selectedEntityCategory && (
@@ -520,7 +538,7 @@ export function WikiTab({
                       {selectedEntityCategory}
                     </p>
                   )}
-                  <h2 className="truncate text-3xl font-semibold leading-tight">
+                  <h2 className="truncate text-2xl font-semibold leading-tight md:text-3xl">
                     {selectedEntity.canonicalName}
                   </h2>
                   {selectedEntity.aliases.length > 0 && (
