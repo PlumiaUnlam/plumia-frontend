@@ -13,11 +13,11 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core"
 import { Columns3, Grid3x3, Loader2 } from "lucide-react"
-import { toast } from "sonner"
 import useSWR from "swr"
 
 import { Header } from "@/components/header"
 import { StoryboardCardPreview } from "@/components/storyboard/storyboard-card-preview"
+import { useStoryboardSave } from "@/components/storyboard/use-storyboard-save"
 import { StoryboardColumn } from "@/components/storyboard/storyboard-column"
 import { STORYBOARD_COLUMNS } from "@/components/storyboard/storyboard-config"
 import type { CardDialogState } from "@/components/storyboard/storyboard-types"
@@ -27,21 +27,16 @@ import { VoiceNoteButton } from "@/components/mobile/voice-note-button"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/contexts/AuthContext"
 import { useViewportKind } from "@/hooks/use-viewport-kind"
-import type { VoiceRecording } from "@/hooks/use-voice-transcriber"
-import { voiceTitle } from "@/lib/voice-title"
 import {
-  createStoryboardCard,
   deleteStoryboardCard,
   getStoryboardCards,
   updateStoryboardCard,
 } from "@/services/storyboard.service"
-import { uploadStoryboardAudio } from "@/services/upload.service"
 import { getEntities } from "@/services/entities.service"
 import { getProject } from "@/services/project.service"
 import { getRelationships } from "@/services/relationships.service"
 import type { Entity } from "@/types/entity"
 import type {
-  CreateStoryboardCardInput,
   StoryboardCard,
   StoryboardCardStatus,
 } from "@/types/storyboard"
@@ -165,20 +160,6 @@ function getViewModeVariant(
   return currentMode === buttonMode ? "default" : "ghost"
 }
 
-async function tryUploadAudio(cardId: string, recording: VoiceRecording) {
-  try {
-    await uploadStoryboardAudio(
-      cardId,
-      recording.audio,
-      recording.filename,
-      recording.durationSeconds,
-    )
-    return null
-  } catch (error: unknown) {
-    return audioUploadErrorMessage(error)
-  }
-}
-
 function canFetchStoryboardData(
   projectId: string,
   authLoading: boolean,
@@ -297,7 +278,6 @@ export function Storyboard({ projectId }: Readonly<StoryboardProps>) {
     )
   }
   const [submitting, setSubmitting] = useState(false)
-  const [saveError, setSaveError] = useState<string | null>(null)
 
   const {
     data: cards,
@@ -416,60 +396,16 @@ export function Storyboard({ projectId }: Readonly<StoryboardProps>) {
     }
   }
 
-  const handleSave = async (
-    input: CreateStoryboardCardInput,
-    recording?: VoiceRecording,
-  ) => {
-    if (!dialogState || submitting) return
-
-    setSubmitting(true)
-    setSaveError(null)
-    try {
-      let savedCard: StoryboardCard
-      if (dialogState.card) {
-        savedCard = await updateStoryboardCard(dialogState.card.id, input)
-      } else {
-        savedCard = await createStoryboardCard(projectId, {
-          ...input,
-          status: dialogState.status,
-        })
-      }
-      if (recording) {
-        const audioError = await tryUploadAudio(savedCard.id, recording)
-        if (audioError) setSaveError(audioError)
-      }
-      await mutate()
-      setDialogState(null)
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  const handleVoiceNote = async (text: string, recording: VoiceRecording) => {
-    try {
-      const card = await createStoryboardCard(projectId, {
-        title: voiceTitle(text),
-        description: text,
-        tags: [],
-        entityIds: [],
-        status: "ideas",
-      })
-      const audioError = await tryUploadAudio(card.id, recording)
-      await mutate()
-      setMobileStatus("ideas")
-      if (audioError) toast.warning(audioError)
-      else {
-        toast.success("Nota guardada en Ideas", {
-          action: {
-            label: "Editar",
-            onClick: () => setDialogState({ card, status: card.status }),
-          },
-        })
-      }
-    } catch {
-      toast.error("No se pudo guardar la nota. Intentá de nuevo.")
-    }
-  }
+  const { saveError, closeDialog, handleSave, handleVoiceNote } =
+    useStoryboardSave({
+      projectId,
+      dialogState,
+      submitting,
+      setSubmitting,
+      setDialogState,
+      setMobileStatus,
+      mutate,
+    })
 
   const handleDelete = async () => {
     if (!cardToDelete || submitting) return
@@ -572,7 +508,7 @@ export function Storyboard({ projectId }: Readonly<StoryboardProps>) {
           state={dialogState}
           entities={entities ?? []}
           submitting={submitting}
-          onClose={() => setDialogState(null)}
+          onClose={closeDialog}
           onSave={handleSave}
         />
       ) : null}
@@ -589,11 +525,4 @@ export function Storyboard({ projectId }: Readonly<StoryboardProps>) {
       />
     </div>
   )
-}
-
-function audioUploadErrorMessage(error: unknown): string {
-  const detail = error instanceof Error ? error.message.trim() : ""
-  return detail
-    ? `La tarjeta se guardó, pero no se pudo guardar la nota de voz: ${detail}`
-    : "La tarjeta se guardó, pero no se pudo guardar la nota de voz."
 }

@@ -62,7 +62,7 @@ export function ProjectShares({ projectId }: Readonly<{ projectId: string }>) {
           </div>
         ) : null}
 
-        {!isLoading && !error && sharedBooks.length === 0 ? (
+        {data !== undefined && sharedBooks.length === 0 ? (
           <div className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
             <MessageSquare className="mx-auto mb-2 size-6" aria-hidden />
             <p className="font-medium text-foreground">
@@ -91,7 +91,7 @@ function ShareRow({ share }: Readonly<{ share: ShareSummary }>) {
   return (
     <Link
       href={`/shared/${share.slug}`}
-      aria-label={`${share.status === "REVOKED" ? "Ver historial" : "Abrir versión"} compartida con ${share.invitedEmail}`}
+      aria-label={`${share.status === "REVOKED" ? "Ver historial de la versión" : "Abrir versión"} compartida con ${share.invitedEmail}`}
       className="block rounded-xl focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
     >
       <Card className="flex-row items-center gap-3 p-4">

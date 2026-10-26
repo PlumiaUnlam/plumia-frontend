@@ -952,6 +952,7 @@ function WorldbuildingTabs({
           <TabsTrigger
             key={id}
             value={id}
+            aria-label={label}
             className="
               flex items-center gap-2 rounded-lg px-4 py-2.5 max-md:min-w-0 max-md:flex-1 max-md:justify-center max-md:gap-1.5 max-md:px-1
               data-[state=active]:border

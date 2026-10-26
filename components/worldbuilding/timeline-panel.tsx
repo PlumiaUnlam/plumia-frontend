@@ -257,6 +257,48 @@ function includeFocusedEvent(
   return focusedEvent ? [...filteredEvents, focusedEvent] : filteredEvents
 }
 
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback
+}
+
+function fromFilterValue(value: string) {
+  return value === allFilterValue ? null : value
+}
+
+function toggleSetItem(set: ReadonlySet<string>, item: string) {
+  const next = new Set(set)
+  if (!next.delete(item)) next.add(item)
+  return next
+}
+
+function ImpactFilter({
+  selectedImpacts,
+  onToggle,
+}: Readonly<{
+  selectedImpacts: readonly TimelineImpact[]
+  onToggle: (impact: TimelineImpact) => void
+}>) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {(Object.keys(impactLabels) as TimelineImpact[]).map((impact) => {
+        const isSelected = selectedImpacts.includes(impact)
+        return (
+          <button
+            key={impact}
+            type="button"
+            aria-pressed={isSelected}
+            className={`flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors ${isSelected ? "border-primary bg-primary/10 text-primary" : "border-border bg-background text-foreground hover:border-primary/40 hover:bg-muted"}`}
+            onClick={() => onToggle(impact)}
+          >
+            <span className={`size-2 rounded-full ${impactDotStyles[impact]}`} />
+            {impactLabels[impact]}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 function toggleListItem<T>(list: readonly T[], item: T) {
   return list.includes(item)
     ? list.filter((current) => current !== item)
@@ -555,9 +597,7 @@ export function TimelinePanel({
       setPendingMove(null)
     } catch (moveRequestError) {
       setMoveError(
-        moveRequestError instanceof Error
-          ? moveRequestError.message
-          : "No se pudo reorganizar el evento",
+        getErrorMessage(moveRequestError, "No se pudo reorganizar el evento"),
       )
     } finally {
       setIsMoving(false)
@@ -575,10 +615,10 @@ export function TimelinePanel({
       await mutateEvents()
       setDeleteConfirmEvent(null)
     } catch (deleteError) {
-      const message =
-        deleteError instanceof Error
-          ? deleteError.message
-          : "No se pudo eliminar el evento"
+      const message = getErrorMessage(
+        deleteError,
+        "No se pudo eliminar el evento",
+      )
       setDeleteError(message)
       setActionError(message)
     } finally {
@@ -594,12 +634,7 @@ export function TimelinePanel({
   }
 
   const toggleEventDetail = (eventId: string) => {
-    setExpandedEventIds((current) => {
-      const next = new Set(current)
-      if (next.has(eventId)) next.delete(eventId)
-      else next.add(eventId)
-      return next
-    })
+    setExpandedEventIds((current) => toggleSetItem(current, eventId))
   }
 
   const loading = isLoadingEvents || isLoadingArcs
@@ -650,7 +685,7 @@ export function TimelinePanel({
           />
         </button>
         <div
-          className={`md:contents ${filtersOpen ? "max-md:flex max-md:min-h-0 max-md:flex-col max-md:overflow-y-auto" : "max-md:hidden"}`}
+          className={`md:contents ${filtersOpen ? "max-md:flex max-md:max-h-[50dvh] max-md:min-h-0 max-md:flex-col max-md:overflow-y-auto" : "max-md:hidden"}`}
         >
         <div className="space-y-4 border-b border-border bg-card/50 p-3">
           <div className="flex items-center justify-between gap-3">
@@ -676,9 +711,7 @@ export function TimelinePanel({
             </Label>
             <Select
               value={selectedEntityId ?? allFilterValue}
-              onValueChange={(value) =>
-                setSelectedEntityId(value === allFilterValue ? null : value)
-              }
+              onValueChange={(value) => setSelectedEntityId(fromFilterValue(value))}
             >
               <SelectTrigger id="timeline-character-filter" className="w-full bg-background">
                 <SelectValue />
@@ -700,9 +733,7 @@ export function TimelinePanel({
             </Label>
             <Select
               value={selectedArcId ?? allFilterValue}
-              onValueChange={(value) =>
-                setSelectedArcId(value === allFilterValue ? null : value)
-              }
+              onValueChange={(value) => setSelectedArcId(fromFilterValue(value))}
             >
               <SelectTrigger id="timeline-arc-filter" className="w-full bg-background">
                 <SelectValue />
@@ -729,23 +760,10 @@ export function TimelinePanel({
               IMPACTO
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {(Object.keys(impactLabels) as TimelineImpact[]).map((impact) => {
-              const isSelected = selectedImpacts.includes(impact)
-              return (
-                <button
-                  key={impact}
-                  type="button"
-                  aria-pressed={isSelected}
-                  className={`flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors ${isSelected ? "border-primary bg-primary/10 text-primary" : "border-border bg-background text-foreground hover:border-primary/40 hover:bg-muted"}`}
-                  onClick={() => toggleImpact(impact)}
-                >
-                  <span className={`size-2 rounded-full ${impactDotStyles[impact]}`} />
-                  {impactLabels[impact]}
-                </button>
-              )
-            })}
-          </div>
+          <ImpactFilter
+            selectedImpacts={selectedImpacts}
+            onToggle={toggleImpact}
+          />
         </div>
 
         <div className="min-h-0 flex-1 p-3">

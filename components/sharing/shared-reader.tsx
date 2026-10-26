@@ -1,12 +1,6 @@
 "use client"
 
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useTheme } from "next-themes"
 import dynamic from "next/dynamic"
 import { useRouter } from "next/navigation"
@@ -26,6 +20,7 @@ import {
 } from "lucide-react"
 
 import type { SharedSceneProps } from "@/components/sharing/shared-scene"
+import { useReaderComments } from "@/components/sharing/use-reader-comments"
 import { CommentsSheet } from "@/components/mobile/comments-sheet"
 import { SelectionCommentBar } from "@/components/mobile/selection-comment-bar"
 import { FormDialog } from "@/components/modal/form-dialog"
@@ -44,12 +39,9 @@ import { useViewportKind } from "@/hooks/use-viewport-kind"
 import { messageForApiError } from "@/helpers/api-errors"
 import {
   acceptShareInvitation,
-  createReaderComment,
-  createReaderCommentReply,
   getReaderComments,
   getSharedManuscript,
   getSharedStorageUrl,
-  updateReaderComment,
 } from "@/services/sharing.service"
 import type { ProseMirrorJSON } from "@/types/scene"
 import type {
@@ -292,9 +284,7 @@ function useLoadSharedReader({
   userId,
   setView,
   setComments,
-  setActiveChapterId,
   setError,
-  setDiscussionError,
   setLoadedUserId,
   setLoading,
 }: Readonly<{
@@ -304,9 +294,7 @@ function useLoadSharedReader({
   userId: string | undefined
   setView: (view: SharedManuscriptView) => void
   setComments: (comments: ReaderComment[]) => void
-  setActiveChapterId: (chapterId: string | null) => void
   setError: (error: string | null) => void
-  setDiscussionError: (error: string | null) => void
   setLoadedUserId: (userId: string) => void
   setLoading: (loading: boolean) => void
 }>) {
@@ -321,11 +309,7 @@ function useLoadSharedReader({
       } else {
         setView(result.resolvedView)
         setComments(result.loadedComments)
-        setActiveChapterId(
-          result.resolvedView.manuscript.books[0]?.chapters[0]?.id ?? null,
-        )
         setError(null)
-        setDiscussionError(null)
       }
       setLoadedUserId(userId)
       setLoading(false)
@@ -339,9 +323,7 @@ function useLoadSharedReader({
     initialToken,
     setView,
     setComments,
-    setActiveChapterId,
     setError,
-    setDiscussionError,
     setLoadedUserId,
     setLoading,
   ])
@@ -371,14 +353,6 @@ function useActiveChapterObserver(
     }
     return () => observer.disconnect()
   }, [chapters, onActiveChapter])
-}
-
-/** Enfoca la tarjeta del comentario; devuelve false si todavía no está en el DOM. */
-function focusReaderCommentCard(commentId: string) {
-  const card = document.getElementById(`reader-comment-${commentId}`)
-  card?.scrollIntoView({ behavior: "smooth", block: "center" })
-  card?.focus({ preventScroll: true })
-  return Boolean(card)
 }
 
 function SharedReaderLoading() {
@@ -583,17 +557,48 @@ function SharedManuscriptBody({
   )
 }
 
-/** Devuelve null si el id ya no coincide con el seleccionado; si no, lo conserva. */
-function clearIfSame(current: string | null, id: string) {
-  return current === id ? null : current
+function groupCommentsByScene(comments: readonly ReaderComment[]) {
+  const grouped = new Map<string, ReaderComment[]>()
+  for (const comment of comments) {
+    const current = grouped.get(comment.snapshotSceneId)
+    if (current) current.push(comment)
+    else grouped.set(comment.snapshotSceneId, [comment])
+  }
+  return grouped
 }
 
-function toggleSameId(current: string | null, id: string) {
-  return current === id ? null : id
+function getReaderGridClassName(canOpenDiscussion: boolean) {
+  return canOpenDiscussion
+    ? "max-w-[1500px] lg:grid-cols-[240px_minmax(0,760px)_320px]"
+    : "max-w-[1320px] lg:grid-cols-[minmax(180px,240px)_minmax(0,760px)_minmax(180px,240px)]"
 }
 
-export function SharedReader({ slug, initialToken }: SharedReaderProps) {
-  const { resolvedTheme, setTheme } = useTheme()
+type ReaderSessionStatus = "loading" | "signin" | "error" | "ready"
+
+function getSessionStatus({
+  authLoading,
+  userId,
+  loading,
+  loadedUserId,
+  hasFailed,
+}: Readonly<{
+  authLoading: boolean
+  userId: string | undefined
+  loading: boolean
+  loadedUserId: string | null
+  hasFailed: boolean
+}>): ReaderSessionStatus {
+  if (authLoading) return "loading"
+  if (!userId) return "signin"
+  if (loading || loadedUserId !== userId) return "loading"
+  return hasFailed ? "error" : "ready"
+}
+
+/** Sesión de Google + carga de la versión compartida, antes de mostrar el manuscrito. */
+function useSharedReaderSession(
+  slug: string,
+  initialToken: string | undefined,
+) {
   const {
     firebaseUser,
     loading: authLoading,
@@ -601,55 +606,33 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
     logout,
   } = useAuth()
   const [view, setView] = useState<SharedManuscriptView | null>(null)
-  const [comments, setComments] = useState<ReaderComment[]>([])
-  const [activeChapterId, setActiveChapterId] = useState<string | null>(null)
-  const [activeCommentId, setActiveCommentId] = useState<string | null>(null)
-  const [selection, setSelection] = useState<TextSelectionAnchor | null>(null)
-  // Mobile: la selección espera a que se toque «Comentar».
-  const [pendingSelection, setPendingSelection] =
-    useState<TextSelectionAnchor | null>(null)
-  const [commentsOpen, setCommentsOpen] = useState(false)
-  const isMobile = useViewportKind() === "mobile"
-  const router = useRouter()
-  const [commentBody, setCommentBody] = useState("")
-  const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({})
-  const [replyingToCommentId, setReplyingToCommentId] = useState<string | null>(
-    null,
-  )
-  const [showResolvedComments, setShowResolvedComments] = useState(false)
-  const [submittingReplyFor, setSubmittingReplyFor] = useState<string | null>(null)
-  const [submittingComment, setSubmittingComment] = useState(false)
+  const [initialComments, setInitialComments] = useState<ReaderComment[]>([])
   const [error, setError] = useState<string | null>(null)
-  const [discussionError, setDiscussionError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [signingIn, setSigningIn] = useState(false)
   const [loadedUserId, setLoadedUserId] = useState<string | null>(null)
+  const userId = firebaseUser?.uid
 
   useLoadSharedReader({
     slug,
     initialToken,
-    userId: authLoading ? undefined : firebaseUser?.uid,
+    userId: authLoading ? undefined : userId,
     setView,
-    setComments,
-    setActiveChapterId,
+    setComments: setInitialComments,
     setError,
-    setDiscussionError,
     setLoadedUserId,
     setLoading,
   })
 
-  const handleGoogleSignIn = async () => {
+  const signIn = async () => {
     setSigningIn(true)
     setLoading(true)
     setLoadedUserId(null)
     setView(null)
-    setComments([])
+    setInitialComments([])
     setError(null)
-    setDiscussionError(null)
     try {
-      if (firebaseUser) {
-        await logout()
-      }
+      if (firebaseUser) await logout()
       await loginWithGoogle()
     } catch (signInError) {
       setLoading(false)
@@ -660,22 +643,102 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
     }
   }
 
+  return {
+    status: getSessionStatus({
+      authLoading,
+      userId,
+      loading,
+      loadedUserId,
+      hasFailed: Boolean(error) || !view,
+    }),
+    view,
+    initialComments,
+    error,
+    email: firebaseUser?.email ?? null,
+    signingIn,
+    signIn,
+  }
+}
+
+function SelectionCommentDialog({
+  selection,
+  body,
+  submitting,
+  onBodyChange,
+  onClose,
+  onSubmit,
+}: Readonly<{
+  selection: TextSelectionAnchor | null
+  body: string
+  submitting: boolean
+  onBodyChange: (body: string) => void
+  onClose: () => void
+  onSubmit: () => Promise<void>
+}>) {
+  return (
+    <FormDialog
+      open={selection !== null}
+      onOpenChange={(open) => {
+        if (!open) onClose()
+      }}
+      title="Comentar selección"
+      description="El subrayado quedará anclado a esta versión congelada."
+      submitLabel="Comentar"
+      submitDisabled={!body.trim()}
+      loading={submitting}
+      onSubmit={onSubmit}
+    >
+      <blockquote className="max-h-28 overflow-y-auto rounded-lg border-l-2 border-warning bg-warning-muted p-3 text-sm italic text-foreground">
+        “{selection?.selectedText}”
+      </blockquote>
+      <Textarea
+        value={body}
+        onChange={(event) => onBodyChange(event.target.value)}
+        placeholder="Escribí tu comentario…"
+        aria-label="Comentario"
+        autoFocus
+      />
+    </FormDialog>
+  )
+}
+
+function SharedReaderContent({
+  slug,
+  initialToken,
+  view,
+  initialComments,
+}: Readonly<{
+  slug: string
+  initialToken: string | undefined
+  view: SharedManuscriptView
+  initialComments: ReaderComment[]
+}>) {
+  const { resolvedTheme, setTheme } = useTheme()
+  const router = useRouter()
+  const isMobile = useViewportKind() === "mobile"
+  const [activeChapterId, setActiveChapterId] = useState<string | null>(
+    view.manuscript.books[0]?.chapters[0]?.id ?? null,
+  )
+  const reader = useReaderComments({
+    slug,
+    initialToken,
+    initialComments,
+    isMobile,
+  })
+  const canOpenDiscussion = view.viewer.canComment
+  const showMobileDiscussion = isMobile && canOpenDiscussion
+
   const chapters = useMemo(
     () =>
-      view?.manuscript.books.flatMap((book) =>
+      view.manuscript.books.flatMap((book) =>
         book.chapters.map((chapter) => ({ ...chapter, bookTitle: book.title })),
-      ) ?? [],
+      ),
     [view],
   )
-  const commentsByScene = useMemo(() => {
-    const grouped = new Map<string, ReaderComment[]>()
-    for (const comment of comments) {
-      const current = grouped.get(comment.snapshotSceneId)
-      if (current) current.push(comment)
-      else grouped.set(comment.snapshotSceneId, [comment])
-    }
-    return grouped
-  }, [comments])
+  const commentsByScene = useMemo(
+    () => groupCommentsByScene(reader.comments),
+    [reader.comments],
+  )
 
   useActiveChapterObserver(chapters, setActiveChapterId)
 
@@ -685,173 +748,7 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
       ?.scrollIntoView({ behavior: "smooth", block: "start" })
   }
 
-  const openComment = useCallback(
-    (commentId: string) => {
-    setActiveCommentId(commentId)
-    if (isMobile) {
-      setCommentsOpen(true)
-      return
-    }
-    window.requestAnimationFrame(() => {
-      if (focusReaderCommentCard(commentId)) return
-      setShowResolvedComments(true)
-      window.requestAnimationFrame(() => focusReaderCommentCard(commentId))
-    })
-    },
-    [isMobile],
-  )
-
-  const scrollToCommentAnchor = useCallback(
-    (commentId: string) => {
-    setActiveCommentId(commentId)
-    setCommentsOpen(false)
-    window.requestAnimationFrame(() => {
-      const anchor = Array.from(
-        document.querySelectorAll<HTMLElement>("[data-comment-id]"),
-      ).find((element) => element.dataset.commentId === commentId)
-      anchor?.scrollIntoView({ behavior: "smooth", block: "center" })
-    })
-    },
-    [],
-  )
-
-  const submitComment = async () => {
-    if (!selection || !commentBody.trim()) return
-    setSubmittingComment(true)
-    try {
-      const created = await createReaderComment(
-        slug,
-        initialToken,
-        {
-          ...selection,
-          body: commentBody.trim(),
-        },
-      )
-      setComments((current) => [...current, created])
-      setSelection(null)
-      setPendingSelection(null)
-      setCommentBody("")
-      setActiveCommentId(created.id)
-      setDiscussionError(null)
-    } catch (submitError) {
-      setDiscussionError(
-        messageForApiError(submitError, "No se pudo guardar el comentario."),
-      )
-    } finally {
-      setSubmittingComment(false)
-    }
-  }
-
-  const toggleResolved = async (comment: ReaderComment) => {
-    try {
-      const updated = await updateReaderComment(
-        slug,
-        comment.id,
-        comment.status === "OPEN" ? "RESOLVED" : "OPEN",
-      )
-      setComments((current) =>
-        current.map((item) => (item.id === updated.id ? updated : item)),
-      )
-      if (updated.status === "RESOLVED") {
-        setActiveCommentId((current) => clearIfSame(current, updated.id))
-        setReplyingToCommentId((current) => clearIfSame(current, updated.id))
-      }
-      setDiscussionError(null)
-    } catch (updateError) {
-      setDiscussionError(
-        messageForApiError(
-          updateError,
-          "No se pudo actualizar el estado del comentario.",
-        ),
-      )
-    }
-  }
-
-  const submitReply = async (comment: ReaderComment) => {
-    const body = replyDrafts[comment.id]?.trim()
-    if (!body) return
-    setSubmittingReplyFor(comment.id)
-    try {
-      const updated = await createReaderCommentReply(
-        slug,
-        initialToken,
-        comment.id,
-        body,
-      )
-      setComments((current) =>
-        current.map((item) => (item.id === updated.id ? updated : item)),
-      )
-      setReplyDrafts((current) => ({ ...current, [comment.id]: "" }))
-      setReplyingToCommentId(null)
-      setDiscussionError(null)
-    } catch (replyError) {
-      setDiscussionError(
-        messageForApiError(replyError, "No se pudo guardar la respuesta."),
-      )
-    } finally {
-      setSubmittingReplyFor(null)
-    }
-  }
-
-  const canOpenDiscussion = Boolean(view?.viewer.canComment)
-  const openComments = comments.filter((comment) => comment.status === "OPEN")
-  const resolvedComments = comments.filter(
-    (comment) => comment.status === "RESOLVED",
-  )
-  const visibleComments = showResolvedComments
-    ? [...openComments, ...resolvedComments]
-    : openComments
-
-  if (
-    authLoading ||
-    (firebaseUser && (loading || loadedUserId !== firebaseUser.uid))
-  ) {
-    return <SharedReaderLoading />
-  }
-
-  if (!firebaseUser) {
-    return (
-      <SharedReaderSignIn
-        error={error}
-        signingIn={signingIn}
-        onSignIn={() => void handleGoogleSignIn()}
-      />
-    )
-  }
-
-  if (error || !view) {
-    return (
-      <SharedReaderOpenError
-        error={error}
-        hasToken={Boolean(initialToken)}
-        email={firebaseUser.email}
-        signingIn={signingIn}
-        onSignIn={() => void handleGoogleSignIn()}
-      />
-    )
-  }
-
-  const discussionProps = {
-    viewer: view.viewer,
-    openComments,
-    resolvedComments,
-    visibleComments,
-    discussionError,
-    activeCommentId,
-    replyingToCommentId,
-    replyDrafts,
-    submittingReplyFor,
-    showResolvedComments,
-    onToggleResolvedComments: () => setShowResolvedComments((current) => !current),
-    onToggleResolved: toggleResolved,
-    onScrollToCommentAnchor: scrollToCommentAnchor,
-    onToggleReply: (commentId: string) =>
-      setReplyingToCommentId((current) => toggleSameId(current, commentId)),
-    onReplyDraftChange: (commentId: string, body: string) =>
-      setReplyDrafts((current) => ({ ...current, [commentId]: body })),
-    onCancelReply: () => setReplyingToCommentId(null),
-    onSubmitReply: submitReply,
-  }
+  const discussionProps = { viewer: view.viewer, ...reader.discussionProps }
 
   return (
     <div className="min-h-screen bg-[#f4f0e8] text-foreground dark:bg-[#18131d]">
@@ -867,18 +764,14 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
           setTheme(resolvedTheme === "dark" ? "light" : "dark")
         }
         onBack={isMobile && view.viewer.isOwner ? () => router.back() : undefined}
-        commentCount={isMobile && canOpenDiscussion ? openComments.length : undefined}
+        commentCount={showMobileDiscussion ? reader.openComments.length : undefined}
         onOpenComments={
-          isMobile && canOpenDiscussion ? () => setCommentsOpen(true) : undefined
+          showMobileDiscussion ? () => reader.setCommentsOpen(true) : undefined
         }
       />
 
       <div
-        className={`mx-auto grid grid-cols-1 gap-6 px-4 py-6 ${
-          canOpenDiscussion
-            ? "max-w-[1500px] lg:grid-cols-[240px_minmax(0,760px)_320px]"
-            : "max-w-[1320px] lg:grid-cols-[minmax(180px,240px)_minmax(0,760px)_minmax(180px,240px)]"
-        }`}
+        className={`mx-auto grid grid-cols-1 gap-6 px-4 py-6 ${getReaderGridClassName(canOpenDiscussion)}`}
       >
         <SharedChapterNav
           chapters={chapters}
@@ -890,9 +783,11 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
           manuscript={view.manuscript}
           canComment={view.viewer.canComment}
           commentsByScene={commentsByScene}
-          activeCommentId={activeCommentId}
-          onSelection={isMobile ? setPendingSelection : setSelection}
-          onCommentClick={openComment}
+          activeCommentId={reader.activeCommentId}
+          onSelection={
+            isMobile ? reader.setPendingSelection : reader.setSelection
+          }
+          onCommentClick={reader.openComment}
         />
 
         {!canOpenDiscussion && <div aria-hidden="true" className="hidden lg:block" />}
@@ -904,44 +799,69 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
         )}
       </div>
 
-      {canOpenDiscussion && isMobile ? (
-        <CommentsSheet open={commentsOpen} onOpenChange={setCommentsOpen}>
+      {showMobileDiscussion ? (
+        <CommentsSheet
+          open={reader.commentsOpen}
+          onOpenChange={reader.setCommentsOpen}
+        >
           <ReaderDiscussion layout="sheet" {...discussionProps} />
         </CommentsSheet>
       ) : null}
 
-      {isMobile && canOpenDiscussion && pendingSelection && !selection ? (
+      {showMobileDiscussion && reader.pendingSelection && !reader.selection ? (
         <SelectionCommentBar
-          selectedText={pendingSelection.selectedText}
-          onComment={() => setSelection(pendingSelection)}
-          onDismiss={() => setPendingSelection(null)}
+          selectedText={reader.pendingSelection.selectedText}
+          onComment={() => reader.setSelection(reader.pendingSelection)}
+          onDismiss={() => reader.setPendingSelection(null)}
         />
       ) : null}
 
-      <FormDialog
-        open={selection !== null}
-        onOpenChange={(open) => {
-          if (!open) setSelection(null)
-        }}
-        title="Comentar selección"
-        description="El subrayado quedará anclado a esta versión congelada."
-        submitLabel="Comentar"
-        submitDisabled={!commentBody.trim()}
-        loading={submittingComment}
-        onSubmit={submitComment}
-      >
-        <blockquote className="max-h-28 overflow-y-auto rounded-lg border-l-2 border-warning bg-warning-muted p-3 text-sm italic text-foreground">
-          “{selection?.selectedText}”
-        </blockquote>
-        <Textarea
-          value={commentBody}
-          onChange={(event) => setCommentBody(event.target.value)}
-          placeholder="Escribí tu comentario…"
-          aria-label="Comentario"
-          autoFocus
-        />
-      </FormDialog>
+      <SelectionCommentDialog
+        selection={reader.selection}
+        body={reader.commentBody}
+        submitting={reader.submittingComment}
+        onBodyChange={reader.setCommentBody}
+        onClose={() => reader.setSelection(null)}
+        onSubmit={reader.submitComment}
+      />
     </div>
+  )
+}
+
+export function SharedReader({ slug, initialToken }: SharedReaderProps) {
+  const session = useSharedReaderSession(slug, initialToken)
+
+  if (session.status === "loading") return <SharedReaderLoading />
+
+  if (session.status === "signin") {
+    return (
+      <SharedReaderSignIn
+        error={session.error}
+        signingIn={session.signingIn}
+        onSignIn={() => void session.signIn()}
+      />
+    )
+  }
+
+  if (session.status === "error" || !session.view) {
+    return (
+      <SharedReaderOpenError
+        error={session.error}
+        hasToken={Boolean(initialToken)}
+        email={session.email}
+        signingIn={session.signingIn}
+        onSignIn={() => void session.signIn()}
+      />
+    )
+  }
+
+  return (
+    <SharedReaderContent
+      slug={slug}
+      initialToken={initialToken}
+      view={session.view}
+      initialComments={session.initialComments}
+    />
   )
 }
 

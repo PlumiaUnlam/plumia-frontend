@@ -106,6 +106,46 @@ test.describe("Notas por voz en mobile", () => {
     })
   })
 
+  test("si falla la carga del audio la nota queda guardada y se reintenta sin duplicarla", async ({ page }) => {
+    const backend = await installModalBackend(page)
+    await stubVoiceBackend(page, "La emboscada en el bosque. Cae la noche.")
+    let uploadAttempts = 0
+    await page.route("**/api/storage/upload-url", (route) => {
+      uploadAttempts += 1
+      if (uploadAttempts === 1) {
+        return route.fulfill({
+          status: 500,
+          contentType: "application/json",
+          body: JSON.stringify({ message: "Almacenamiento no disponible" }),
+        })
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          presignedUrl: "http://127.0.0.1:3101/e2e-audio-upload",
+          publicUrl: "http://127.0.0.1:3101/e2e-audio-upload",
+          storageKey: "storyboard-audio/e2e.webm",
+        }),
+      })
+    })
+    await page.route("**/e2e-audio-upload", (route) => route.fulfill({ status: 200 }))
+    await page.route("**/storyboard-cards/*/audio", (route) =>
+      route.fulfill({ status: 200, contentType: "application/json", body: "{}" }),
+    )
+    await page.goto(`${home}/storyboard`)
+
+    await page.getByRole("button", { name: "Grabar nota por voz" }).click()
+    await page.getByRole("button", { name: "Detener y guardar la nota" }).click()
+
+    await expect(page.getByText(/no se pudo guardar la nota de voz/)).toBeVisible()
+    await page.getByRole("button", { name: "Reintentar" }).click()
+
+    await expect(page.getByText("Nota guardada en Ideas")).toBeVisible()
+    expect(uploadAttempts).toBe(2)
+    expect(backend.callsTo("POST", /storyboard-cards$/)).toHaveLength(1)
+  })
+
   test("si la transcripción falla no se crea ninguna tarjeta", async ({ page }) => {
     const backend = await installModalBackend(page)
     await page.route("**/speech-to-text/transcribe", (route) =>
