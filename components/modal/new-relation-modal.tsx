@@ -52,6 +52,7 @@ type NewRelationModalProps = {
     description: string | null;
     validFromSceneId?: string | null;
     validToSceneId?: string | null;
+    proposalKind?: "CREATE" | "UPDATE" | "END";
   };
 };
 
@@ -144,7 +145,8 @@ export function NewRelationModal({
     !!sourceEntityId &&
     !!targetEntityId &&
     sourceEntityId !== targetEntityId &&
-    availableRelationTypes.length > 0;
+    availableRelationTypes.length > 0 &&
+    (!isProposal || scenes.length === 0 || !!validFromSceneId);
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
@@ -160,7 +162,7 @@ export function NewRelationModal({
         intensity,
         description: description.trim() || (isEditing ? null : undefined),
         ...(isProposal
-          ? {}
+          ? { validFromSceneId: validFromSceneId || undefined }
           : {
               validFromSceneId: validFromSceneId || null,
               validToSceneId: validToSceneId || null,
@@ -263,6 +265,33 @@ export function NewRelationModal({
           </div>
         </FieldContent>
       </Field>
+
+      {isProposal && scenes.length > 0 && (
+        <Field>
+          <FieldLabel htmlFor="proposal-effective-scene">
+            {initialValues?.proposalKind === "END"
+              ? "Escena donde finaliza la relación"
+              : "Escena desde la que aplica el cambio"}
+          </FieldLabel>
+          <FieldContent>
+            <select
+              id="proposal-effective-scene"
+              value={validFromSceneId}
+              onChange={(event) => setValidFromSceneId(event.target.value)}
+              className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm dark:bg-input/30"
+            >
+              {scenes.map((scene) => (
+                <option key={scene.id} value={scene.id}>
+                  {scene.title}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-muted-foreground">
+              El cambio no modificará la relación en escenas anteriores.
+            </p>
+          </FieldContent>
+        </Field>
+      )}
 
       {!isProposal && scenes.length > 0 && (
         <FieldGroup className="grid grid-cols-1 gap-4 sm:grid-cols-2">

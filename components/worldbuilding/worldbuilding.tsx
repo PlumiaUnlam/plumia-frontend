@@ -45,6 +45,7 @@ import {
   updateRelationship,
 } from "@/services/relationships.service";
 import { getTimelineEvents } from "@/services/timeline.service";
+import { getProjectEntityStateHistory } from "@/services/entity-states.service";
 import {
   getWorldbuildingEntityHref,
   getWorldbuildingTimelineEventHref,
@@ -78,6 +79,7 @@ import type {
   UpdateRelationshipInput,
 } from "@/types/relationship";
 import type { TimelineEvent } from "@/types/timeline";
+import type { EntityStateHistoryEntry } from "@/types/entity-state";
 
 type WorldbuildingTab = "wiki" | "relationships" | "timeline" | "summaries";
 
@@ -887,6 +889,9 @@ type WorldbuildingTabsProps = {
   timelineEventsError: Error | undefined;
   timelineEvents: TimelineEvent[];
   isLoadingTimelineEvents: boolean;
+  stateHistory: EntityStateHistoryEntry[];
+  stateHistoryError: Error | undefined;
+  isLoadingStateHistory: boolean;
   onEditRelationship: (relationship: Relationship) => void;
   onDeleteRelationship: (relationship: Relationship) => void;
   chapters: WorldbuildingChapter[];
@@ -930,6 +935,9 @@ function WorldbuildingTabs({
   timelineEventsError,
   timelineEvents,
   isLoadingTimelineEvents,
+  stateHistory,
+  stateHistoryError,
+  isLoadingStateHistory,
   onEditRelationship,
   onDeleteRelationship,
   chapters,
@@ -988,6 +996,9 @@ function WorldbuildingTabs({
           relationships={relationships}
           timelineEvents={timelineEvents}
           linksLoading={isLoadingRelationships || isLoadingTimelineEvents}
+          stateHistory={stateHistory}
+          stateHistoryError={stateHistoryError}
+          stateHistoryLoading={isLoadingStateHistory}
           relationshipError={relationshipError}
           timelineEventsError={timelineEventsError}
           onOpenEntity={onOpenEntity}
@@ -1278,6 +1289,17 @@ function useWorldbuildingData({
     () => getTimelineEvents(projectId),
   );
 
+  const {
+    data: projectStateHistory,
+    error: stateHistoryError,
+    isLoading: isLoadingStateHistory,
+  } = useSWR(
+    shouldFetch && activeTab === "wiki" && selectedEntityId
+      ? `/knowledge/projects/${projectId}/state-history`
+      : null,
+    () => getProjectEntityStateHistory(projectId),
+  );
+
   const { trigger: triggerDelete } = useSWRMutation(
     getDeleteMutationKey(projectId),
     async (_key: string, { arg }: { arg: string }) => {
@@ -1291,6 +1313,13 @@ function useWorldbuildingData({
       worldbuildingEntities.find((entity) => entity.id === selectedEntityId) ??
       null,
     [selectedEntityId, worldbuildingEntities],
+  );
+  const stateHistory = useMemo(
+    () =>
+      (projectStateHistory ?? []).filter(
+        (entry) => entry.entityId === selectedEntityId,
+      ),
+    [projectStateHistory, selectedEntityId],
   );
 
   const {
@@ -1376,6 +1405,9 @@ function useWorldbuildingData({
     isLoadingRelationships,
     timelineEvents: timelineEvents ?? [],
     isLoadingTimelineEvents,
+    stateHistory,
+    stateHistoryError,
+    isLoadingStateHistory,
     mutateRelationships,
     triggerDelete,
     worldbuildingEntities,
@@ -1483,6 +1515,9 @@ export function Worldbuilding({ projectId }: Readonly<WorldbuildingProps>) {
     isLoadingRelationships,
     timelineEvents,
     isLoadingTimelineEvents,
+    stateHistory,
+    stateHistoryError,
+    isLoadingStateHistory,
     mutateRelationships,
     triggerDelete,
     worldbuildingEntities,
@@ -1654,6 +1689,9 @@ export function Worldbuilding({ projectId }: Readonly<WorldbuildingProps>) {
           timelineEventsError={timelineEventsError}
           timelineEvents={timelineEvents}
           isLoadingTimelineEvents={isLoadingTimelineEvents}
+          stateHistory={stateHistory}
+          stateHistoryError={stateHistoryError}
+          isLoadingStateHistory={isLoadingStateHistory}
           onEditRelationship={(relationship) => {
             setEditingRelationship(relationship);
             setShowNewRelationModal(true);

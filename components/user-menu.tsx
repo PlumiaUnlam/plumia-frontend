@@ -56,6 +56,12 @@ import {
   type RejectedEntityRecognitionProposal,
 } from "@/services/entity-recognition-settings.service"
 import {
+  DEFAULT_KNOWLEDGE_REVIEW_SETTINGS,
+  getKnowledgeReviewSettings,
+  updateKnowledgeReviewSettings,
+  type KnowledgeReviewSettings,
+} from "@/services/knowledge-review-settings.service"
+import {
   getDashboardProjects,
   updateProject,
   type ProjectResponse,
@@ -218,6 +224,12 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
   const [worldRulesSaving, setWorldRulesSaving] = useState(false)
   const [worldRulesError, setWorldRulesError] = useState<string | null>(null)
   const [worldRulesNotice, setWorldRulesNotice] = useState<string | null>(null)
+  const [knowledgeReviewSettings, setKnowledgeReviewSettings] =
+    useState<KnowledgeReviewSettings>(DEFAULT_KNOWLEDGE_REVIEW_SETTINGS)
+  const [knowledgeReviewLoading, setKnowledgeReviewLoading] = useState(false)
+  const [knowledgeReviewSaving, setKnowledgeReviewSaving] = useState(false)
+  const [knowledgeReviewError, setKnowledgeReviewError] = useState<string | null>(null)
+  const [knowledgeReviewNotice, setKnowledgeReviewNotice] = useState<string | null>(null)
   const [projects, setProjects] = useState<ProjectResponse[]>([])
   const [projectsLoading, setProjectsLoading] = useState(false)
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
@@ -240,6 +252,19 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
     projectId: null as string | null,
     importantEntityNames: [] as string[],
     ignoredEntityNames: [] as string[],
+  })
+  const knowledgeReviewBaselineRef = useRef<{
+    projectId: string | null
+    stateReviewMode: KnowledgeReviewSettings["stateReviewMode"]
+    stateConfidenceThreshold: number
+    relationshipReviewMode: KnowledgeReviewSettings["relationshipReviewMode"]
+    relationshipConfidenceThreshold: number
+  }>({
+    projectId: null,
+    stateReviewMode: "MANUAL",
+    stateConfidenceThreshold: 0.9,
+    relationshipReviewMode: "MANUAL",
+    relationshipConfidenceThreshold: 0.9,
   })
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -306,6 +331,7 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
       )
       if (nextProjectId) {
         void loadProjectEntityNames(nextProjectId)
+        void loadReviewSettings(nextProjectId)
       }
     } catch {
       setEntityRecognitionError("No pudimos cargar tus proyectos.")
@@ -329,6 +355,8 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
     setEntityRecognitionNotice(null)
     setWorldRulesError(null)
     setWorldRulesNotice(null)
+    setKnowledgeReviewError(null)
+    setKnowledgeReviewNotice(null)
     setNewWorldRule("")
     setWorldRulesSearch("")
     setProjectNamesError(null)
@@ -541,24 +569,48 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
         : {}
 
     setWorldRulesSaving(true)
+    setKnowledgeReviewSaving(true)
     setWorldRulesError(null)
     setWorldRulesNotice(null)
+    setKnowledgeReviewError(null)
+    setKnowledgeReviewNotice(null)
     try {
-      const savedProject = await updateProject(selectedProjectId, {
-        genreRules: {
-          ...currentGenreRules,
-          rules: worldRules,
-        },
-      })
+      const [savedProject, savedReviewSettings] = await Promise.all([
+        updateProject(selectedProjectId, {
+          genreRules: {
+            ...currentGenreRules,
+            rules: worldRules,
+          },
+        }),
+        updateKnowledgeReviewSettings(selectedProjectId, {
+          stateReviewMode: knowledgeReviewSettings.stateReviewMode,
+          stateConfidenceThreshold: knowledgeReviewSettings.stateConfidenceThreshold,
+          relationshipReviewMode: knowledgeReviewSettings.relationshipReviewMode,
+          relationshipConfidenceThreshold:
+            knowledgeReviewSettings.relationshipConfidenceThreshold,
+        }),
+      ])
       setProjects((current) =>
         current.map((project) => (project.id === savedProject.id ? savedProject : project)),
       )
       setWorldRules(getProjectWorldRules(savedProject))
       setWorldRulesNotice("Las reglas del mundo fueron guardadas.")
+      setKnowledgeReviewSettings(savedReviewSettings)
+      knowledgeReviewBaselineRef.current = {
+        projectId: selectedProjectId,
+        stateReviewMode: savedReviewSettings.stateReviewMode,
+        stateConfidenceThreshold: savedReviewSettings.stateConfidenceThreshold,
+        relationshipReviewMode: savedReviewSettings.relationshipReviewMode,
+        relationshipConfidenceThreshold:
+          savedReviewSettings.relationshipConfidenceThreshold,
+      }
+      setKnowledgeReviewNotice("La revisión automática quedó configurada.")
     } catch {
       setWorldRulesError("No pudimos guardar las reglas del mundo.")
+      setKnowledgeReviewError("No pudimos guardar el modo de revisión.")
     } finally {
       setWorldRulesSaving(false)
+      setKnowledgeReviewSaving(false)
     }
   }
 
@@ -587,6 +639,34 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
       }
     } finally {
       setProjectNamesLoading(false)
+    }
+  }
+
+  const loadReviewSettings = async (projectId: string) => {
+    setKnowledgeReviewLoading(true)
+    setKnowledgeReviewError(null)
+    try {
+      const settings = await getKnowledgeReviewSettings(projectId)
+      setKnowledgeReviewSettings(settings)
+      knowledgeReviewBaselineRef.current = {
+        projectId,
+        stateReviewMode: settings.stateReviewMode,
+        stateConfidenceThreshold: settings.stateConfidenceThreshold,
+        relationshipReviewMode: settings.relationshipReviewMode,
+        relationshipConfidenceThreshold: settings.relationshipConfidenceThreshold,
+      }
+    } catch {
+      setKnowledgeReviewSettings(DEFAULT_KNOWLEDGE_REVIEW_SETTINGS)
+      knowledgeReviewBaselineRef.current = {
+        projectId,
+        stateReviewMode: "MANUAL",
+        stateConfidenceThreshold: 0.9,
+        relationshipReviewMode: "MANUAL",
+        relationshipConfidenceThreshold: 0.9,
+      }
+      setKnowledgeReviewError("No pudimos cargar la configuración de revisión.")
+    } finally {
+      setKnowledgeReviewLoading(false)
     }
   }
 
@@ -687,6 +767,16 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
     )
     const worldRulesChanged =
       selectedProjectId !== null && !areStringArraysEqual(worldRules, savedWorldRules)
+    const reviewBaseline = knowledgeReviewBaselineRef.current
+    const reviewSettingsChanged =
+      reviewBaseline.projectId === selectedProjectId &&
+      (knowledgeReviewSettings.stateReviewMode !== reviewBaseline.stateReviewMode ||
+        knowledgeReviewSettings.stateConfidenceThreshold !==
+          reviewBaseline.stateConfidenceThreshold ||
+        knowledgeReviewSettings.relationshipReviewMode !==
+          reviewBaseline.relationshipReviewMode ||
+        knowledgeReviewSettings.relationshipConfidenceThreshold !==
+          reviewBaseline.relationshipConfidenceThreshold)
 
     return (
       displayName.trim() !== currentDisplayName.trim() ||
@@ -699,6 +789,7 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
       newImportantEntityName.trim().length > 0 ||
       newIgnoredEntityName.trim().length > 0 ||
       worldRulesChanged ||
+      reviewSettingsChanged ||
       newWorldRule.trim().length > 0
     )
   }
@@ -825,7 +916,7 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
               ? "Guardar API Key"
               : profileSection === "entityRecognition"
                 ? "Guardar configuración"
-                : "Guardar reglas"
+                : "Guardar configuración"
         }
         submitDisabled={
           (profileSection === "ai" && !aiKey.trim()) ||
@@ -838,7 +929,7 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
               ? aiSaving || autoAnalysisSaving
               : profileSection === "entityRecognition"
                 ? entityRecognitionSaving
-                : worldRulesSaving
+                : worldRulesSaving || knowledgeReviewSaving
         }
         onSubmit={
           profileSection === "account"
@@ -1148,14 +1239,6 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
         </TabsContent>
 
         <TabsContent value="inconsistencies" className="mt-0 space-y-4">
-          <div className="rounded-lg border bg-muted/30 p-3 text-sm">
-            <p className="font-medium">Reglas del mundo</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Agrega reglas narrativas concretas para que el analisis pueda advertir cuando una
-              escena contradice la logica de tu obra.
-            </p>
-          </div>
-
           <Field>
             <FieldLabel htmlFor="world-rules-project">Proyecto</FieldLabel>
             <select
@@ -1172,6 +1255,7 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
                 setWorldRulesNotice(null)
                 if (projectId) {
                   void loadProjectEntityNames(projectId)
+                  void loadReviewSettings(projectId)
                 }
               }}
               disabled={projectsLoading || worldRulesSaving || projects.length === 0}
@@ -1187,7 +1271,116 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
           </Field>
 
           {selectedProjectId && (
+            <div className="space-y-4 rounded-lg border border-primary/15 bg-primary/[0.025] p-4">
+              <div>
+                <p className="font-medium">Revisión temporal de estados y relaciones</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  En modo manual, cada cambio requiere tu aprobación. El modo automático solo
+                  acepta evidencia vigente que supere el umbral y no tenga conflictos.
+                </p>
+              </div>
+              {knowledgeReviewLoading ? (
+                <p className="text-xs text-muted-foreground">Cargando preferencias del proyecto...</p>
+              ) : (
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <section className="space-y-3 rounded-lg border bg-card p-3">
+                    <p className="text-sm font-medium">Estados y cambios narrativos</p>
+                    <Field>
+                      <FieldLabel htmlFor="state-review-mode">Modo de revisión</FieldLabel>
+                      <select
+                        id="state-review-mode"
+                        value={knowledgeReviewSettings.stateReviewMode}
+                        onChange={(event) =>
+                          setKnowledgeReviewSettings((current) => ({
+                            ...current,
+                            stateReviewMode: event.target.value as KnowledgeReviewSettings["stateReviewMode"],
+                          }))
+                        }
+                        className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+                      >
+                        <option value="MANUAL">Siempre pedir aprobación</option>
+                        <option value="AUTO_THRESHOLD">Aprobar sobre el umbral</option>
+                      </select>
+                    </Field>
+                    <Field>
+                      <FieldLabel htmlFor="state-review-threshold">
+                        Confianza mínima ({knowledgeReviewSettings.stateConfidenceThreshold.toFixed(2)})
+                      </FieldLabel>
+                      <Input
+                        id="state-review-threshold"
+                        type="number"
+                        min="0"
+                        max="1"
+                        step="0.05"
+                        value={knowledgeReviewSettings.stateConfidenceThreshold}
+                        onChange={(event) =>
+                          setKnowledgeReviewSettings((current) => ({
+                            ...current,
+                            stateConfidenceThreshold: Math.min(1, Math.max(0, Number(event.target.value))),
+                          }))
+                        }
+                      />
+                    </Field>
+                  </section>
+
+                  <section className="space-y-3 rounded-lg border bg-card p-3">
+                    <p className="text-sm font-medium">Relaciones</p>
+                    <Field>
+                      <FieldLabel htmlFor="relationship-review-mode">Modo de revisión</FieldLabel>
+                      <select
+                        id="relationship-review-mode"
+                        value={knowledgeReviewSettings.relationshipReviewMode}
+                        onChange={(event) =>
+                          setKnowledgeReviewSettings((current) => ({
+                            ...current,
+                            relationshipReviewMode: event.target.value as KnowledgeReviewSettings["relationshipReviewMode"],
+                          }))
+                        }
+                        className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+                      >
+                        <option value="MANUAL">Siempre pedir aprobación</option>
+                        <option value="AUTO_THRESHOLD">Aprobar sobre el umbral</option>
+                      </select>
+                    </Field>
+                    <Field>
+                      <FieldLabel htmlFor="relationship-review-threshold">
+                        Confianza mínima ({knowledgeReviewSettings.relationshipConfidenceThreshold.toFixed(2)})
+                      </FieldLabel>
+                      <Input
+                        id="relationship-review-threshold"
+                        type="number"
+                        min="0"
+                        max="1"
+                        step="0.05"
+                        value={knowledgeReviewSettings.relationshipConfidenceThreshold}
+                        onChange={(event) =>
+                          setKnowledgeReviewSettings((current) => ({
+                            ...current,
+                            relationshipConfidenceThreshold: Math.min(1, Math.max(0, Number(event.target.value))),
+                          }))
+                        }
+                      />
+                    </Field>
+                  </section>
+                </div>
+              )}
+              {knowledgeReviewError && <FieldError>{knowledgeReviewError}</FieldError>}
+              {knowledgeReviewNotice && (
+                <Alert><AlertDescription>{knowledgeReviewNotice}</AlertDescription></Alert>
+              )}
+            </div>
+          )}
+
+          {selectedProjectId && (
             <div className="space-y-4 rounded-lg border p-3">
+              <div className="rounded-lg border bg-muted/30 p-3 text-sm">
+                <p className="font-medium">Reglas del mundo</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Agrega reglas narrativas concretas para que el analisis pueda advertir cuando una
+                  escena contradice la logica de tu obra.
+                </p>
+              </div>
+
               <div className="rounded-xl border border-dashed bg-muted/20 p-4">
                 <div className="mb-3">
                   <p className="font-medium">Agregar regla al universo</p>

@@ -42,7 +42,9 @@ import { EditorToolbar } from "./toolbar"
 import { EditorParagraphFormatDialog } from "./paragraph-format-dialog"
 import { RichTextEditor } from "./RichTextEditor"
 import { AnalysisToast } from "./analysis/analysis-toast"
+import { ProjectAnalysisDialog } from "./analysis/project-analysis-dialog"
 import { EditorZoomProvider } from "./editor-zoom"
+import { useProjectAnalysis } from "@/hooks/use-project-analysis"
 import type {
   EditorPaneId,
   EditorSectionOption,
@@ -61,6 +63,7 @@ type SceneEditorProps = {
   onOpenSearch?: () => void
   onOpenSpellcheckSettings?: () => void
   onExportClick?: () => void
+  onAnalyzeProject?: () => void
   paneId: EditorPaneId
   showToolbar: boolean
   onEditorFocus?: () => void
@@ -93,6 +96,7 @@ function SceneEditor({
   onOpenSearch,
   onOpenSpellcheckSettings,
   onExportClick,
+  onAnalyzeProject,
   paneId,
   showToolbar,
   onEditorFocus,
@@ -230,6 +234,7 @@ function SceneEditor({
         onAnalyzeChanges={
           selectedVersionId === null ? handleAnalyzeChanges : undefined
         }
+        onAnalyzeProject={onAnalyzeProject}
         isAnalysisSaving={saveStatus === "saving" || analysisInFlight}
         isZenMode={isZenMode}
         onToggleZenMode={onToggleZenMode}
@@ -261,6 +266,7 @@ function SceneDocumentLoader({
   onOpenSearch,
   onOpenSpellcheckSettings,
   onExportClick,
+  onAnalyzeProject,
   showToolbar,
   onEditorFocus,
   onToolbarActionsChange,
@@ -279,6 +285,7 @@ function SceneDocumentLoader({
   onOpenSearch?: () => void
   onOpenSpellcheckSettings?: () => void
   onExportClick?: () => void
+  onAnalyzeProject?: () => void
   showToolbar: boolean
   onEditorFocus?: () => void
   onToolbarActionsChange?: (
@@ -359,6 +366,7 @@ function SceneDocumentLoader({
       onOpenSearch={onOpenSearch}
       onOpenSpellcheckSettings={onOpenSpellcheckSettings}
       onExportClick={onExportClick}
+      onAnalyzeProject={onAnalyzeProject}
       paneId={paneId}
       showToolbar={showToolbar}
       onEditorFocus={onEditorFocus}
@@ -519,6 +527,7 @@ function EditorPanel({
   onOpenSearch,
   onOpenSpellcheckSettings,
   onExportClick,
+  onAnalyzeProject,
   showToolbar,
   onEditorFocus,
   onToolbarActionsChange,
@@ -536,6 +545,7 @@ function EditorPanel({
   onOpenSearch?: () => void
   onOpenSpellcheckSettings?: () => void
   onExportClick?: () => void
+  onAnalyzeProject?: () => void
   showToolbar: boolean
   onEditorFocus?: () => void
   onToolbarActionsChange?: (
@@ -558,6 +568,7 @@ function EditorPanel({
       onOpenSearch={onOpenSearch}
       onOpenSpellcheckSettings={onOpenSpellcheckSettings}
       onExportClick={onExportClick}
+      onAnalyzeProject={onAnalyzeProject}
       showToolbar={showToolbar}
       onEditorFocus={onEditorFocus}
       onToolbarActionsChange={onToolbarActionsChange}
@@ -733,6 +744,8 @@ function EditorWorkspace({
     useState<EditorToolbarActions | null>(null)
   const [isSavingBeforeChange, setIsSavingBeforeChange] = useState(false)
   const [saveChangeError, setSaveChangeError] = useState<string | null>(null)
+  const projectAnalysis = useProjectAnalysis(projectId)
+  const openProjectAnalysisDialog = projectAnalysis.openDialog
 
   const primaryVersionList = useSceneVersionList(
     sceneId,
@@ -797,6 +810,24 @@ function EditorWorkspace({
       ...(effectiveIsSplit && secondaryActions ? [requireSuccessfulSave(secondaryActions.saveNow)] : []),
     ])
   }, [effectiveIsSplit, primaryActions, secondaryActions])
+
+  const handleOpenProjectAnalysis = useCallback(async () => {
+    if (isSavingBeforeChange) return
+    setIsSavingBeforeChange(true)
+    setSaveChangeError(null)
+    try {
+      await saveBeforeExport()
+      await openProjectAnalysisDialog()
+    } catch (error) {
+      setSaveChangeError(
+        error instanceof Error
+          ? error.message
+          : "No se pudieron guardar los cambios antes del análisis.",
+      )
+    } finally {
+      setIsSavingBeforeChange(false)
+    }
+  }, [isSavingBeforeChange, openProjectAnalysisDialog, saveBeforeExport])
 
   useEffect(() => {
     onBeforeExportChange?.(saveBeforeExport)
@@ -1014,6 +1045,7 @@ function EditorWorkspace({
           onExportClick={onExportClick}
           onInsertImage={focusedActions.onInsertImage}
           onAnalyzeChanges={focusedActions.onAnalyzeChanges}
+          onAnalyzeProject={() => void handleOpenProjectAnalysis()}
           isAnalysisSaving={focusedActions.isAnalysisSaving}
           onToggleZenMode={onToggleZenMode}
           onOpenSearch={onOpenSearch}
@@ -1071,6 +1103,8 @@ function EditorWorkspace({
         />
       )}
 
+      <ProjectAnalysisDialog analysis={projectAnalysis} />
+
       <div
         className={
           effectiveIsSplit
@@ -1112,6 +1146,7 @@ function EditorWorkspace({
               onOpenSearch={onOpenSearch}
               onOpenSpellcheckSettings={onOpenSpellcheckSettings}
               onExportClick={onExportClick}
+              onAnalyzeProject={() => void handleOpenProjectAnalysis()}
               showToolbar={!effectiveIsSplit}
               onEditorFocus={() => setFocusedPane("primary")}
               onToolbarActionsChange={registerPrimaryActions}

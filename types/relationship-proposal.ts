@@ -27,6 +27,7 @@ export interface RelationshipProposal {
   relationType: RelationType
   description: string | null
   intensity: number
+  confidenceScore: number
   evidence: string[]
   status: RelationshipProposalStatus
   canAccept: boolean

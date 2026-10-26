@@ -29,10 +29,8 @@ import {
   updateAuditAlert,
 } from "@/services/audit-alerts.service";
 import {
-  acceptEntityStateProposal,
-  createEntityState,
+  acceptEntityStateProposalSequence,
   getEntityStateProposals,
-  getTemporalKnowledgeView,
   rejectEntityStateProposal,
 } from "@/services/entity-states.service";
 import { useAuditAlerts } from "@/hooks/use-audit-alerts";
@@ -42,12 +40,8 @@ import type { CreateEntityInput, Entity, UpdateEntityInput } from "@/types/entit
 import type { EntityProposal } from "@/types/entity-proposal";
 import type { UpdateRelationshipInput } from "@/types/relationship";
 import type { AuditAlert, AuditAlertResolution } from "@/types/audit-alert";
-import type {
-  CreateEntityStateInput,
-  EntityStateProposal,
-  EntityStateProposalOverride,
-} from "@/types/entity-state";
 import type { WritingMode } from "@/types/writing-mode";
+import type { EditorSectionOption } from "@/components/editor/editor-types";
 
 const ChatPanel = dynamic(() =>
   import("@/components/chat-panel").then((module) => module.ChatPanel),
@@ -66,6 +60,7 @@ type RightTab = "wiki" | "chat" | "stats";
 type EditorRightPanelProps = {
   readonly projectId: string;
   readonly mode: Exclude<WritingMode, "zen">;
+  readonly sceneOptions: readonly EditorSectionOption[];
 };
 
 type EntityActionFeedback = {
@@ -82,8 +77,8 @@ const tabs = [
 export function EditorRightPanel({
   projectId,
   mode,
+  sceneOptions,
 }: EditorRightPanelProps) {
-  const activeSceneId = useEditorStore((state) => state.activeSceneId);
   const setActiveScene = useEditorStore((state) => state.setActiveScene);
   const focusCitation = useEditorStore((state) => state.focusCitation);
   const clearCitationFocus = useEditorStore(
@@ -111,10 +106,6 @@ export function EditorRightPanel({
   const [rejectingStateProposalId, setRejectingStateProposalId] = useState<
     string | null
   >(null);
-  const [creatingStateForEntityId, setCreatingStateForEntityId] = useState<
-    string | null
-  >(null);
-  const [temporalSceneId, setTemporalSceneId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [entityActionFeedback, setEntityActionFeedback] =
     useState<EntityActionFeedback | null>(null);
@@ -182,19 +173,6 @@ export function EditorRightPanel({
       : null,
     () => getEntityStateProposals(projectId),
   );
-  const selectedTemporalSceneId = temporalSceneId ?? activeSceneId;
-  const {
-    data: temporalKnowledgeView,
-    error: temporalKnowledgeViewError,
-    isLoading: isLoadingTemporalKnowledgeView,
-    mutate: mutateTemporalKnowledgeView,
-  } = useSWR(
-    projectId && shouldLoadWikiData && selectedTemporalSceneId
-      ? `/knowledge/projects/${projectId}/temporal-view?sceneId=${selectedTemporalSceneId}`
-      : null,
-    () => getTemporalKnowledgeView(projectId, selectedTemporalSceneId!),
-  );
-
   const refreshKnowledge = useCallback(() => {
     void Promise.all([
       mutateEntities(),
@@ -202,7 +180,6 @@ export function EditorRightPanel({
       mutateRelationshipProposals(),
       mutateAuditAlerts(),
       mutateStateProposals(),
-      mutateTemporalKnowledgeView(),
     ]).catch(() => undefined);
   }, [
     mutateAuditAlerts,
@@ -210,7 +187,6 @@ export function EditorRightPanel({
     mutateProposals,
     mutateRelationshipProposals,
     mutateStateProposals,
-    mutateTemporalKnowledgeView,
   ]);
 
   const scheduleKnowledgeRefresh = useCallback(() => {
@@ -378,8 +354,16 @@ export function EditorRightPanel({
   };
 
   const handleFocusAuditAlert = useCallback(
-    (alert: AuditAlert) => {
-      const evidence = alert.conflict?.evidence[0];
+    (alert: AuditAlert, evidenceIndex = 0) => {
+      const supportingSide = evidenceIndex === 1 ? "second" : "first";
+      const evidence =
+        (alert.ruleCode === "INTRA_SCENE_CONTRADICTION"
+          ? alert.conflict?.supportingEvidence?.find(
+              (entry) => entry.side === supportingSide,
+            )?.quote
+          : alert.conflict?.supportingEvidence?.[evidenceIndex]?.quote) ??
+        alert.conflict?.evidence[evidenceIndex] ??
+        alert.conflict?.evidence[0];
       setActiveScene(alert.sceneId);
       if (evidence) {
         focusCitation({ sceneId: alert.sceneId, textQuote: evidence });
@@ -395,11 +379,7 @@ export function EditorRightPanel({
     setActionError(null);
     try {
       await applyAuditAlertKnowledgeUpdate(alertId);
-      await Promise.all([
-        mutateAuditAlerts(),
-        mutateStateProposals(),
-        mutateTemporalKnowledgeView(),
-      ]);
+      await Promise.all([mutateAuditAlerts(), mutateStateProposals()]);
       scheduleKnowledgeRefresh();
     } catch (error) {
       setActionError(
@@ -412,15 +392,34 @@ export function EditorRightPanel({
     }
   };
 
-  const handleAcceptStateProposal = async (
-    proposal: EntityStateProposal,
-    override?: EntityStateProposalOverride,
+  const handleAcceptStateProposalSequence = async (
+    acceptedProposalIds: string[],
+    rejectedProposalIds: string[],
   ) => {
-    setAcceptingStateProposalId(proposal.id);
+    setAcceptingStateProposalId("__sequence__");
     setActionError(null);
     try {
-      await acceptEntityStateProposal(proposal.id, override);
-      await Promise.all([mutateStateProposals(), mutateTemporalKnowledgeView()]);
+      const acceptedStates = await acceptEntityStateProposalSequence(
+        projectId,
+        acceptedProposalIds,
+        rejectedProposalIds,
+      );
+      if (acceptedStates.length !== acceptedProposalIds.length) {
+        throw new Error(
+          "El servidor no confirmó todos los cambios del recorrido.",
+        );
+      }
+      const processedProposalIds = new Set([
+        ...acceptedProposalIds,
+        ...rejectedProposalIds,
+      ]);
+      await mutateStateProposals(
+        (current) =>
+          (current ?? []).filter(
+            (proposal) => !processedProposalIds.has(proposal.id),
+          ),
+        { revalidate: false },
+      );
       scheduleKnowledgeRefresh();
     } catch (error) {
       setActionError(
@@ -428,7 +427,6 @@ export function EditorRightPanel({
           ? error.message
           : "No se pudo aceptar el cambio de estado.",
       );
-      throw error;
     } finally {
       setAcceptingStateProposalId(null);
     }
@@ -448,26 +446,6 @@ export function EditorRightPanel({
       );
     } finally {
       setRejectingStateProposalId(null);
-    }
-  };
-
-  const handleCreateEntityState = async (
-    entityId: string,
-    input: CreateEntityStateInput,
-  ) => {
-    setCreatingStateForEntityId(entityId);
-    setActionError(null);
-    try {
-      await createEntityState(entityId, input);
-      await mutateTemporalKnowledgeView();
-      scheduleKnowledgeRefresh();
-    } catch (error) {
-      setActionError(
-        error instanceof Error ? error.message : "No se pudo guardar el estado.",
-      );
-      throw error;
-    } finally {
-      setCreatingStateForEntityId(null);
     }
   };
 
@@ -509,6 +487,8 @@ export function EditorRightPanel({
         <div className="min-h-0 flex-1 overflow-hidden bg-card">
           {activeTab === "wiki" && (
             <WikiPanel
+              projectId={projectId}
+              sceneOptions={sceneOptions}
               entities={entities ?? []}
               proposals={proposals ?? []}
               relationshipProposals={relationshipProposals ?? []}
@@ -535,15 +515,8 @@ export function EditorRightPanel({
               onRejectRelationshipProposal={handleRejectRelationshipProposal}
               acceptingStateProposalId={acceptingStateProposalId}
               rejectingStateProposalId={rejectingStateProposalId}
-              onAcceptStateProposal={handleAcceptStateProposal}
+              onAcceptStateProposalSequence={handleAcceptStateProposalSequence}
               onRejectStateProposal={handleRejectStateProposal}
-              creatingStateForEntityId={creatingStateForEntityId}
-              onCreateEntityState={handleCreateEntityState}
-              temporalKnowledgeView={temporalKnowledgeView ?? null}
-              temporalKnowledgeViewError={temporalKnowledgeViewError}
-              temporalKnowledgeViewLoading={isLoadingTemporalKnowledgeView}
-              selectedTemporalSceneId={selectedTemporalSceneId}
-              onSelectTemporalScene={setTemporalSceneId}
               updatingAuditAlertId={updatingAuditAlertId}
               onUpdateAuditAlert={handleUpdateAuditAlert}
               onFocusAuditAlert={handleFocusAuditAlert}

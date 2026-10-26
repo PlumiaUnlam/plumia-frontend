@@ -406,6 +406,7 @@ export function EditorLayout({ projectId }: Readonly<EditorLayoutProps>) {
             <EditorRightPanel
               projectId={projectId}
               mode={writingMode}
+              sceneOptions={sections}
             />
           )}
         </div>
