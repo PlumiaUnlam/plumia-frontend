@@ -508,6 +508,129 @@ test.describe("Diálogos de texto del editor", () => {
 })
 
 test.describe("Chat con IA", () => {
+  test("Carga inicial: los paneles laterales están desde el inicio mientras llega el proyecto", async ({
+    page,
+  }) => {
+    await installModalBackend(page)
+    await page.route(/\/projects\/e2e-project(\?.*)?$/, async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 1500))
+      await route.fallback()
+    })
+    await page.goto("/projects/e2e-project/editor")
+
+    await expect(
+      page.getByRole("status", { name: "Cargando estructura del proyecto" }),
+    ).toBeVisible()
+    await expect(page.getByRole("button", { name: "Colapsar panel derecho" })).toBeVisible()
+    await expect(page.getByRole("button", { name: /Chat IA/ })).toBeVisible()
+
+    await expect(
+      page.getByRole("button", { name: "El umbral 10 palabras" }),
+    ).toBeVisible({ timeout: 10000 })
+    await expect(
+      page.getByRole("status", { name: "Cargando estructura del proyecto" }),
+    ).toHaveCount(0)
+  })
+
+  test("Panel derecho: cambiar de pestaña por primera vez no oculta el panel mientras carga", async ({
+    page,
+  }) => {
+    await installModalBackend(page)
+    await openEditor(page)
+
+    // Los chunks de las pestañas se piden recién al abrirlas; se demoran para ver el estado de carga.
+    let releaseChunks!: () => void
+    const chunksReleased = new Promise<void>((resolve) => {
+      releaseChunks = resolve
+    })
+    await page.route(/\/_next\/static\/.*\.js/, async (route) => {
+      await chunksReleased
+      await route.continue()
+    })
+
+    const collapse = page.getByRole("button", { name: "Colapsar panel derecho" })
+    await expect(collapse).toBeVisible()
+    await page.getByRole("button", { name: /Chat IA/ }).click()
+
+    // Mientras llega el chunk, las pestañas siguen a la vista.
+    for (let i = 0; i < 10; i++) {
+      await expect(collapse).toBeVisible({ timeout: 100 })
+      await page.waitForTimeout(100)
+    }
+    releaseChunks()
+    await expect(collapse).toBeVisible()
+    await expect(page.getByText("Mensaje número 30", { exact: true })).toBeVisible({ timeout: 10000 })
+  })
+
+  test("Fuentes del chat: «Ver todas» abre el diálogo con citadas y revisadas, y se cierra", async ({
+    page,
+  }) => {
+    await installModalBackend(page)
+    await openEditor(page)
+    await page.getByRole("button", { name: /Chat IA/ }).click()
+
+    const viewAll = page.getByRole("button", { name: /\+2 fuentes revisadas · Ver todas/ })
+    await viewAll.scrollIntoViewIfNeeded()
+    await viewAll.click()
+
+    const dialog = dialogNamed(page, "Fuentes revisadas")
+    await expect(dialog).toBeVisible()
+    await expect(dialog.getByRole("button", { name: /\[1\] Fuente 1/ })).toBeVisible()
+    await expect(dialog.getByRole("button", { name: /\[2\] Fuente 2/ })).toBeVisible()
+    await expect(dialog.getByRole("button", { name: /Revisada Fuente 3/ })).toBeVisible()
+    await expect(dialog.getByRole("button", { name: /Revisada Fuente 5/ })).toBeVisible()
+
+    await page.keyboard.press("Escape")
+    await expect(dialog).toBeHidden()
+  })
+
+  test("Conversación larga: se puede scrollear hasta el primer mensaje", async ({
+    page,
+  }) => {
+    await installModalBackend(page)
+    await openEditor(page)
+
+    await page.getByRole("button", { name: /Chat IA/ }).click()
+    const first = page.getByText("Mensaje número 1", { exact: true })
+    const last = page.getByText("Mensaje número 30", { exact: true })
+    await expect(last).toBeInViewport()
+    await expect(first).not.toBeInViewport()
+
+    await first.scrollIntoViewIfNeeded()
+    await expect(first).toBeInViewport()
+  })
+
+  test("Historial: se ubica bajo el reloj y se cierra con clic afuera, Escape o el reloj", async ({
+    page,
+  }) => {
+    await installModalBackend(page)
+    await openEditor(page)
+
+    await page.getByRole("button", { name: /Chat IA/ }).click()
+    const toggle = page.getByRole("button", { name: "Abrir historial de conversaciones" })
+    const menu = page.getByRole("dialog", { name: "Historial de conversaciones" })
+
+    await toggle.click()
+    await expect(menu).toBeVisible()
+    const toggleBox = (await toggle.boundingBox())!
+    const menuBox = (await menu.boundingBox())!
+    expect(menuBox.y).toBeGreaterThanOrEqual(toggleBox.y + toggleBox.height)
+    expect(menuBox.x + menuBox.width).toBeGreaterThanOrEqual(toggleBox.x + toggleBox.width - 1)
+
+    await page.getByPlaceholder("Preguntá sobre tu obra o PlumIA...").click()
+    await expect(menu).toBeHidden()
+
+    await toggle.click()
+    await expect(menu).toBeVisible()
+    await page.keyboard.press("Escape")
+    await expect(menu).toBeHidden()
+
+    await toggle.click()
+    await expect(menu).toBeVisible()
+    await toggle.click()
+    await expect(menu).toBeHidden()
+  })
+
   test("Eliminar conversación: cancelar la conserva y confirmar la borra", async ({
     page,
   }) => {

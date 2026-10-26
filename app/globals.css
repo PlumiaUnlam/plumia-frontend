@@ -250,6 +250,28 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in oklch, var(--primary) 45%, transparent) transparent;
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background-color: color-mix(in oklch, var(--primary) 45%, transparent);
+    border: 2px solid transparent;
+    border-radius: 9999px;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--primary);
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-button {
+    display: none;
   }
   button:not(:disabled),
   [role="button"]:not([aria-disabled="true"]) {
@@ -648,4 +670,24 @@ p[data-drop-cap="true"]::first-letter {
 
 .note-editor-content p {
   margin: 0;
+}
+
+.chat-panel .chat-source-title,
+.chat-panel .chat-source-description {
+  font-size: 0.75rem;
+}
+
+.chat-panel[data-expanded="true"] .chat-source-title,
+.chat-panel[data-expanded="true"] .chat-source-description {
+  font-size: 0.875rem;
+}
+
+.chat-panel[data-expanded="true"] .chat-empty-title {
+  font-size: 1rem;
+}
+
+.chat-panel[data-expanded="true"] .chat-empty-description,
+.chat-panel[data-expanded="true"] .chat-suggestion,
+.chat-panel[data-expanded="true"] .chat-thinking-status {
+  font-size: 0.875rem;
 }
