@@ -1476,8 +1476,8 @@ function EditorWikiProposalCard({
 }>) {
   const category = TYPE_TO_CATEGORY[proposal.proposedData.type];
   const categoryStyle = getEntityCategoryStyle(category);
-  const aliases = proposal.proposedData.aliases.slice(0, 2);
   const isUpdate = proposal.proposedData.proposalKind === "ENTITY_UPDATE";
+  const aliases = isUpdate ? [] : proposal.proposedData.aliases.slice(0, 2);
 
   return (
     <article className="flex w-full min-w-0 max-w-full items-start gap-3 overflow-hidden rounded-lg border border-amber-500/20 bg-amber-500/5 p-2.5 transition-colors hover:border-amber-500/30 hover:bg-amber-500/10">
@@ -1524,35 +1524,10 @@ function EditorWikiProposalCard({
         </div>
 
         <p className="line-clamp-2 break-words text-[10px] leading-relaxed text-muted-foreground">
-          {proposal.proposedData.description ||
-            (isUpdate
-              ? "Se detectaron detalles nuevos para esta entidad."
-              : "Sin descripcion")}
+          {isUpdate
+            ? "Se detectaron detalles nuevos para esta entidad."
+            : proposal.proposedData.description || "Sin descripcion"}
         </p>
-
-        {isUpdate && proposal.targetEntity && (
-          <div className="mt-2 grid min-w-0 gap-1 rounded-md border border-amber-500/20 bg-background/50 p-2 text-[10px]">
-            <p className="font-semibold text-amber-700 dark:text-amber-400">
-              Informacion actual y nueva
-            </p>
-            <p className="break-words text-muted-foreground">
-              Descripcion actual:{" "}
-              {proposal.targetEntity.description || "Sin descripcion"}
-            </p>
-            <p className="whitespace-pre-wrap break-words text-muted-foreground">
-              Informacion nueva:{" "}
-              {proposal.proposedData.description || "Sin descripcion nueva"}
-            </p>
-            <p className="break-words text-muted-foreground">
-              Alias actuales:{" "}
-              {proposal.targetEntity.aliases.join(", ") || "Sin alias"}
-            </p>
-            <p className="break-words text-muted-foreground">
-              Alias nuevos:{" "}
-              {proposal.proposedData.aliases.join(", ") || "Sin alias nuevos"}
-            </p>
-          </div>
-        )}
 
         {proposal.conflictsWithLocked && (
           <p className="mt-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[10px] text-amber-800 dark:text-amber-300">
