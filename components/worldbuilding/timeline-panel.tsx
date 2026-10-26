@@ -245,6 +245,7 @@ export function TimelinePanel({
   const [creationPlacement, setCreationPlacement] =
     useState<TimelinePlacement | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [filtersOpen, setFiltersOpen] = useState(false)
   const [isCompact, setIsCompact] = useState(false)
   const [isReordering, setIsReordering] = useState(false)
   const [isInsertMode, setIsInsertMode] = useState(false)
@@ -580,8 +581,27 @@ export function TimelinePanel({
   }
 
   return (
-    <div className="flex h-full min-h-0 w-full min-w-0 overflow-hidden">
-      <aside className="flex h-full min-h-0 w-80 shrink-0 flex-col overflow-hidden border-r border-border bg-muted/30">
+    <div className="flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden md:flex-row">
+      <aside className="flex min-h-0 w-full shrink-0 flex-col overflow-hidden border-b border-border bg-muted/30 md:h-full md:w-80 md:border-b-0 md:border-r">
+        <button
+          type="button"
+          aria-expanded={filtersOpen}
+          onClick={() => setFiltersOpen((open) => !open)}
+          className="flex items-center justify-between gap-2 bg-card/50 px-4 py-3 text-sm font-semibold text-muted-foreground md:hidden"
+        >
+          <span className="flex min-w-0 items-center gap-2">
+            <Funnel className="size-4 shrink-0" />
+            <span className="truncate">
+              Filtros · {displayedEvents.length} de {events?.length ?? 0}
+            </span>
+          </span>
+          <ChevronDown
+            className={`size-4 shrink-0 transition-transform ${filtersOpen ? "rotate-180" : ""}`}
+          />
+        </button>
+        <div
+          className={`md:contents ${filtersOpen ? "max-md:flex max-md:min-h-0 max-md:flex-col max-md:overflow-y-auto" : "max-md:hidden"}`}
+        >
         <div className="space-y-4 border-b border-border bg-card/50 p-3">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-1">
@@ -683,16 +703,17 @@ export function TimelinePanel({
             Mostrando {displayedEvents.length} de {events?.length ?? 0} eventos.
           </div>
         </div>
+        </div>
       </aside>
 
-      <main className="flex min-w-0 flex-1 flex-col bg-muted/30">
-        <div className="flex shrink-0 flex-wrap items-center justify-between gap-4 border-b border-border bg-card/30 px-8 py-4">
+      <main className="flex min-h-0 min-w-0 flex-1 flex-col bg-muted/30">
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-4 border-b border-border bg-card/30 px-8 py-4 max-md:gap-2 max-md:px-4 max-md:py-3">
           <div>
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-primary/70">
               <CalendarDays className="size-3.5" />
               Cronología
             </div>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <p className="mt-1 text-sm text-muted-foreground max-md:hidden">
               Ordená y conectá los momentos clave de la obra.
             </p>
           </div>
@@ -700,7 +721,7 @@ export function TimelinePanel({
             <Button
               variant={isInsertMode ? "default" : "outline"}
               size="sm"
-              className="h-9"
+              className="h-9 max-md:hidden"
               disabled={isReordering}
               onClick={() => setIsInsertMode((current) => !current)}
             >
@@ -710,7 +731,7 @@ export function TimelinePanel({
             <Button
               variant={isReordering ? "default" : "outline"}
               size="sm"
-              className="h-9"
+              className="h-9 max-md:hidden"
               onClick={() => {
                 setIsReordering((current) => !current)
                 setIsInsertMode(false)
@@ -724,7 +745,7 @@ export function TimelinePanel({
             <Button
               variant="outline"
               size="sm"
-              className="h-9 w-44"
+              className="h-9 w-44 max-md:w-auto"
               onClick={toggleGlobalView}
             >
               {isCompact ? <Maximize2 /> : <Minimize2 />}

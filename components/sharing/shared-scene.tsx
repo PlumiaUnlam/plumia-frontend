@@ -361,11 +361,25 @@ export function SharedScene({
       captureSelection()
     }
 
+    // En pantallas táctiles la selección se ajusta con los tiradores después
+    // del toque, así que se lee cuando deja de cambiar.
+    const isTouchScreen = window.matchMedia("(pointer: coarse)").matches
+    let selectionTimer: number | undefined
+    const handleSelectionChange = () => {
+      window.clearTimeout(selectionTimer)
+      selectionTimer = window.setTimeout(captureSelection, 500)
+    }
+    if (isTouchScreen) {
+      document.addEventListener("selectionchange", handleSelectionChange)
+    }
+
     document.addEventListener("pointerdown", handlePointerDown)
     document.addEventListener("pointerup", handlePointerUp)
     document.addEventListener("pointercancel", handlePointerCancel)
     document.addEventListener("keyup", handleKeyUp)
     return () => {
+      window.clearTimeout(selectionTimer)
+      document.removeEventListener("selectionchange", handleSelectionChange)
       document.removeEventListener("pointerdown", handlePointerDown)
       document.removeEventListener("pointerup", handlePointerUp)
       document.removeEventListener("pointercancel", handlePointerCancel)

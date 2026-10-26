@@ -178,7 +178,7 @@ function ProjectNavigation({
   return (
     <nav
       aria-label="Secciones del proyecto"
-      className="absolute left-1/2 flex h-8 -translate-x-1/2 items-center gap-0.5 rounded-lg bg-black/10 p-0.5"
+      className="absolute left-1/2 hidden h-8 -translate-x-1/2 items-center gap-0.5 rounded-lg bg-black/10 p-0.5 md:flex"
     >
       {projectSections.map(({ segment, label, icon: Icon }) => {
         const href = `/projects/${encodeURIComponent(projectId)}/${segment}`;

@@ -9,7 +9,9 @@ import {
 } from "react"
 import { useTheme } from "next-themes"
 import dynamic from "next/dynamic"
+import { useRouter } from "next/navigation"
 import {
+  ArrowLeft,
   BookOpen,
   Check,
   ChevronDown,
@@ -24,6 +26,8 @@ import {
 } from "lucide-react"
 
 import type { SharedSceneProps } from "@/components/sharing/shared-scene"
+import { CommentsSheet } from "@/components/mobile/comments-sheet"
+import { SelectionCommentBar } from "@/components/mobile/selection-comment-bar"
 import { FormDialog } from "@/components/modal/form-dialog"
 import { Button } from "@/components/ui/button"
 import {
@@ -36,6 +40,7 @@ import {
 import { Spinner } from "@/components/ui/spinner"
 import { Textarea } from "@/components/ui/textarea"
 import { useAuth } from "@/contexts/AuthContext"
+import { useViewportKind } from "@/hooks/use-viewport-kind"
 import { messageForApiError } from "@/helpers/api-errors"
 import {
   acceptShareInvitation,
@@ -77,6 +82,9 @@ function SharedReaderHeader({
   resolvedTheme,
   onSelectChapter,
   onToggleTheme,
+  commentCount,
+  onOpenComments,
+  onBack,
 }: Readonly<{
   manuscriptTitle: string;
   frozenAt: string;
@@ -86,13 +94,30 @@ function SharedReaderHeader({
   resolvedTheme: string | undefined;
   onSelectChapter: (chapterId: string) => void;
   onToggleTheme: () => void;
+  /** Solo en mobile: abre el panel de comentarios. */
+  commentCount?: number;
+  onOpenComments?: () => void;
+  /** Solo para la autora en mobile: vuelve a su lista de versiones compartidas. */
+  onBack?: () => void;
 }>) {
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center border-b border-black/10 bg-[#fffdf8]/95 px-4 backdrop-blur dark:border-white/10 dark:bg-[#211827]/95">
-      <BookOpen className="mr-2 size-5 text-primary" />
+      {onBack ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          className="-ml-2 mr-1 shrink-0"
+          aria-label="Volver"
+          onClick={onBack}
+        >
+          <ArrowLeft className="size-4" aria-hidden />
+        </Button>
+      ) : null}
+      <BookOpen className="mr-2 size-5 shrink-0 text-primary" />
       <div className="min-w-0">
         <h1 className="truncate text-sm font-semibold">{manuscriptTitle}</h1>
-        <p className="text-[11px] text-muted-foreground">
+        <p className="truncate text-[11px] text-muted-foreground">
           Versión congelada · {new Date(frozenAt).toLocaleString("es-UY")}
         </p>
       </div>
@@ -100,7 +125,7 @@ function SharedReaderHeader({
         <SelectTrigger
           aria-label="Ir a capítulo"
           size="sm"
-          className="ml-auto max-w-40 text-xs lg:hidden"
+          className="ml-auto max-w-40 text-xs max-md:max-w-32 lg:hidden"
         >
           <SelectValue placeholder="Ir a capítulo" />
         </SelectTrigger>
@@ -112,6 +137,23 @@ function SharedReaderHeader({
           ))}
         </SelectContent>
       </Select>
+      {onOpenComments ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          className="relative ml-1 shrink-0"
+          aria-label={`Comentarios (${commentCount ?? 0})`}
+          onClick={onOpenComments}
+        >
+          <MessageSquare className="size-4" aria-hidden />
+          {commentCount ? (
+            <span className="absolute -right-0.5 -top-0.5 flex min-w-4 items-center justify-center rounded-full bg-primary px-1 text-2xs font-medium text-primary-foreground">
+              {commentCount}
+            </span>
+          ) : null}
+        </Button>
+      ) : null}
       <div className="ml-2 hidden items-center gap-2 text-xs text-muted-foreground sm:flex lg:ml-auto">
         {viewer.canComment ? (
           <MessageSquare className="size-4" />
@@ -224,6 +266,12 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
   const [activeChapterId, setActiveChapterId] = useState<string | null>(null)
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null)
   const [selection, setSelection] = useState<TextSelectionAnchor | null>(null)
+  // Mobile: la selección espera a que se toque «Comentar».
+  const [pendingSelection, setPendingSelection] =
+    useState<TextSelectionAnchor | null>(null)
+  const [commentsOpen, setCommentsOpen] = useState(false)
+  const isMobile = useViewportKind() === "mobile"
+  const router = useRouter()
   const [commentBody, setCommentBody] = useState("")
   const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({})
   const [replyingToCommentId, setReplyingToCommentId] = useState<string | null>(
@@ -349,8 +397,13 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
       ?.scrollIntoView({ behavior: "smooth", block: "start" })
   }
 
-  const openComment = useCallback((commentId: string) => {
+  const openComment = useCallback(
+    (commentId: string) => {
     setActiveCommentId(commentId)
+    if (isMobile) {
+      setCommentsOpen(true)
+      return
+    }
     window.requestAnimationFrame(() => {
       const focusCard = () => {
         const card = document.getElementById(`reader-comment-${commentId}`)
@@ -364,17 +417,23 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
         window.requestAnimationFrame(focusCard)
       }
     })
-  }, [])
+    },
+    [isMobile],
+  )
 
-  const scrollToCommentAnchor = useCallback((commentId: string) => {
+  const scrollToCommentAnchor = useCallback(
+    (commentId: string) => {
     setActiveCommentId(commentId)
+    setCommentsOpen(false)
     window.requestAnimationFrame(() => {
       const anchor = Array.from(
         document.querySelectorAll<HTMLElement>("[data-comment-id]"),
       ).find((element) => element.dataset.commentId === commentId)
       anchor?.scrollIntoView({ behavior: "smooth", block: "center" })
     })
-  }, [])
+    },
+    [],
+  )
 
   const submitComment = async () => {
     if (!selection || !commentBody.trim()) return
@@ -390,6 +449,7 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
       )
       setComments((current) => [...current, created])
       setSelection(null)
+      setPendingSelection(null)
       setCommentBody("")
       setActiveCommentId(created.id)
       setDiscussionError(null)
@@ -549,6 +609,11 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
         onToggleTheme={() =>
           setTheme(resolvedTheme === "dark" ? "light" : "dark")
         }
+        onBack={isMobile && view.viewer.isOwner ? () => router.back() : undefined}
+        commentCount={isMobile && canOpenDiscussion ? openComments.length : undefined}
+        onOpenComments={
+          isMobile && canOpenDiscussion ? () => setCommentsOpen(true) : undefined
+        }
       />
 
       <div
@@ -587,11 +652,11 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
 
         <main className="min-w-0">
           <section className="overflow-hidden rounded-sm bg-[#fffdf8] shadow-[0_18px_60px_-35px_rgba(50,35,20,0.55)] ring-1 ring-black/5 dark:bg-[#211827] dark:ring-white/10">
-            <div className="border-b border-black/5 px-8 py-12 text-center sm:px-16">
+            <div className="border-b border-black/5 px-5 py-10 text-center sm:px-16 sm:py-12">
               <p className="mb-3 text-xs uppercase tracking-[0.35em] text-muted-foreground">
                 Manuscrito
               </p>
-              <h2 className="font-serif text-4xl font-semibold">
+              <h2 className="break-words font-serif text-4xl font-semibold max-sm:text-3xl">
                 {view.manuscript.title}
               </h2>
             </div>
@@ -599,7 +664,7 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
             {view.manuscript.books.map((book) => (
               <div key={book.id}>
                 {view.manuscript.books.length > 1 && (
-                  <div className="border-b border-black/5 px-8 py-12 text-center sm:px-16">
+                  <div className="border-b border-black/5 px-5 py-10 text-center sm:px-16 sm:py-12">
                     <p className="text-xs uppercase tracking-[0.25em] text-muted-foreground">
                       Libro
                     </p>
@@ -613,7 +678,7 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
                     key={chapter.id}
                     id={`shared-chapter-${chapter.id}`}
                     data-chapter-id={chapter.id}
-                    className="scroll-mt-20 border-b border-black/10 px-7 py-12 last:border-b-0 sm:px-16"
+                    className="scroll-mt-20 border-b border-black/10 px-5 py-10 last:border-b-0 sm:px-16 sm:py-12"
                   >
                     <h2 className="mb-8 text-center font-serif text-3xl font-semibold">
                       {chapter.title}
@@ -627,7 +692,7 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
                         comments={commentsByScene.get(scene.id) ?? []}
                         activeCommentId={activeCommentId}
                         canComment={view.viewer.canComment}
-                        onSelection={setSelection}
+                        onSelection={isMobile ? setPendingSelection : setSelection}
                         onCommentClick={openComment}
                       />
                     ))}
@@ -640,7 +705,7 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
 
         {!canOpenDiscussion && <div aria-hidden="true" className="hidden lg:block" />}
 
-        {canOpenDiscussion ? (
+        {canOpenDiscussion && !isMobile ? (
           <ReaderDiscussion
             viewer={view.viewer}
             openComments={openComments}
@@ -672,6 +737,47 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
           <div aria-hidden="true" className="hidden lg:block" />
         )}
       </div>
+
+      {canOpenDiscussion && isMobile ? (
+        <CommentsSheet open={commentsOpen} onOpenChange={setCommentsOpen}>
+          <ReaderDiscussion
+            layout="sheet"
+            viewer={view.viewer}
+            openComments={openComments}
+            resolvedComments={resolvedComments}
+            visibleComments={visibleComments}
+            discussionError={discussionError}
+            activeCommentId={activeCommentId}
+            replyingToCommentId={replyingToCommentId}
+            replyDrafts={replyDrafts}
+            submittingReplyFor={submittingReplyFor}
+            showResolvedComments={showResolvedComments}
+            onToggleResolvedComments={() =>
+              setShowResolvedComments((current) => !current)
+            }
+            onToggleResolved={toggleResolved}
+            onScrollToCommentAnchor={scrollToCommentAnchor}
+            onToggleReply={(commentId) =>
+              setReplyingToCommentId((current) =>
+                current === commentId ? null : commentId,
+              )
+            }
+            onReplyDraftChange={(commentId, body) =>
+              setReplyDrafts((current) => ({ ...current, [commentId]: body }))
+            }
+            onCancelReply={() => setReplyingToCommentId(null)}
+            onSubmitReply={submitReply}
+          />
+        </CommentsSheet>
+      ) : null}
+
+      {isMobile && canOpenDiscussion && pendingSelection && !selection ? (
+        <SelectionCommentBar
+          selectedText={pendingSelection.selectedText}
+          onComment={() => setSelection(pendingSelection)}
+          onDismiss={() => setPendingSelection(null)}
+        />
+      ) : null}
 
       <FormDialog
         open={selection !== null}
@@ -718,6 +824,8 @@ type ReaderDiscussionProps = Readonly<{
   onReplyDraftChange: (commentId: string, body: string) => void
   onCancelReply: () => void
   onSubmitReply: (comment: ReaderComment) => Promise<void>
+  /** `sheet`: dentro del panel inferior de mobile, sin barra lateral pegajosa. */
+  layout?: "sidebar" | "sheet"
 }>
 
 function ReaderDiscussion({
@@ -738,10 +846,18 @@ function ReaderDiscussion({
   onReplyDraftChange,
   onCancelReply,
   onSubmitReply,
+  layout = "sidebar",
 }: ReaderDiscussionProps) {
+  const Container = layout === "sheet" ? "div" : "aside"
   return (
-    <aside>
-      <div className="sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto rounded-xl bg-[#fffdf8] p-4 shadow-sm dark:bg-[#211827]">
+    <Container>
+      <div
+        className={
+          layout === "sheet"
+            ? ""
+            : "sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto rounded-xl bg-[#fffdf8] p-4 shadow-sm dark:bg-[#211827]"
+        }
+      >
         <div className="mb-1 flex items-center gap-2">
           <MessageSquare className="size-4 text-primary" />
           <h2 className="text-sm font-semibold">Comentarios</h2>
@@ -800,7 +916,7 @@ function ReaderDiscussion({
           </div>
         )}
       </div>
-    </aside>
+    </Container>
   )
 }
 

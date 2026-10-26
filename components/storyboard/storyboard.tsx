@@ -13,6 +13,7 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core"
 import { Columns3, Grid3x3, Loader2 } from "lucide-react"
+import { toast } from "sonner"
 import useSWR from "swr"
 
 import { Header } from "@/components/header"
@@ -21,9 +22,13 @@ import { StoryboardColumn } from "@/components/storyboard/storyboard-column"
 import { STORYBOARD_COLUMNS } from "@/components/storyboard/storyboard-config"
 import type { CardDialogState } from "@/components/storyboard/storyboard-types"
 import { ConfirmDialog } from "@/components/modal/confirm-dialog"
+import { StatusTabs } from "@/components/mobile/status-tabs"
+import { VoiceNoteButton } from "@/components/mobile/voice-note-button"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/contexts/AuthContext"
+import { useViewportKind } from "@/hooks/use-viewport-kind"
 import type { VoiceRecording } from "@/hooks/use-voice-transcriber"
+import { voiceTitle } from "@/lib/voice-title"
 import {
   createStoryboardCard,
   deleteStoryboardCard,
@@ -160,6 +165,20 @@ function getViewModeVariant(
   return currentMode === buttonMode ? "default" : "ghost"
 }
 
+async function tryUploadAudio(cardId: string, recording: VoiceRecording) {
+  try {
+    await uploadStoryboardAudio(
+      cardId,
+      recording.audio,
+      recording.filename,
+      recording.durationSeconds,
+    )
+    return null
+  } catch (error: unknown) {
+    return audioUploadErrorMessage(error)
+  }
+}
+
 function canFetchStoryboardData(
   projectId: string,
   authLoading: boolean,
@@ -178,15 +197,22 @@ export function Storyboard({ projectId }: Readonly<StoryboardProps>) {
     loading,
     Boolean(firebaseUser),
   )
-  const sensors = useSensors(
+  const isMobile = useViewportKind() === "mobile"
+  const desktopSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
   )
+  // En mobile no se arrastra: se scrollea y se toca.
+  const noSensors = useSensors()
+  const sensors = isMobile ? noSensors : desktopSensors
 
   const [dialogState, setDialogState] = useState<CardDialogState>(null)
   const [cardToDelete, setCardToDelete] = useState<StoryboardCard | null>(null)
   const [activeCardId, setActiveCardId] = useState<string | null>(null)
+  const [mobileStatus, setMobileStatus] =
+    useState<StoryboardCardStatus>("ideas")
+  // La matriz solo existe en escritorio.
   const viewMode: StoryboardViewMode =
-    requestedView === "matrix" ? "matrix" : "kanban"
+    requestedView === "matrix" && !isMobile ? "matrix" : "kanban"
 
   const handleViewModeChange = (nextView: StoryboardViewMode) => {
     router.replace(
@@ -272,21 +298,49 @@ export function Storyboard({ projectId }: Readonly<StoryboardProps>) {
       </div>
     )
   } else {
-    kanbanContent = (
-      <div className="flex h-full min-w-[1040px] gap-4">
-        {STORYBOARD_COLUMNS.map((column) => (
-          <StoryboardColumn
-            key={column.id}
-            column={column}
-            cards={cardsByStatus[column.id]}
-            entitiesById={entitiesById}
-            onAddCard={(status) => setDialogState({ card: null, status })}
-            onEditCard={(card) => setDialogState({ card, status: card.status })}
-            onDeleteCard={setCardToDelete}
-          />
-        ))}
-      </div>
+    const columnProps = {
+      entitiesById,
+      onAddCard: (status: StoryboardCardStatus) =>
+        setDialogState({ card: null, status }),
+      onEditCard: (card: StoryboardCard) =>
+        setDialogState({ card, status: card.status }),
+      onDeleteCard: setCardToDelete,
+    }
+    const mobileColumn = STORYBOARD_COLUMNS.find(
+      (column) => column.id === mobileStatus,
     )
+
+    kanbanContent =
+      isMobile && mobileColumn ? (
+        <div className="flex h-full flex-col gap-3">
+          <StatusTabs
+            label="Estado de las tarjetas"
+            items={STORYBOARD_COLUMNS.map((column) => ({
+              id: column.id,
+              label: column.shortTitle ?? column.title,
+              count: cardsByStatus[column.id].length,
+            }))}
+            value={mobileStatus}
+            onChange={setMobileStatus}
+          />
+          <StoryboardColumn
+            column={mobileColumn}
+            cards={cardsByStatus[mobileColumn.id]}
+            {...columnProps}
+          />
+        </div>
+      ) : (
+        <div className="flex h-full min-w-[1040px] gap-4">
+          {STORYBOARD_COLUMNS.map((column) => (
+            <StoryboardColumn
+              key={column.id}
+              column={column}
+              cards={cardsByStatus[column.id]}
+              {...columnProps}
+            />
+          ))}
+        </div>
+      )
   }
 
   const handleDragStart = (event: DragStartEvent) => {
@@ -344,21 +398,39 @@ export function Storyboard({ projectId }: Readonly<StoryboardProps>) {
         })
       }
       if (recording) {
-        try {
-          await uploadStoryboardAudio(
-            savedCard.id,
-            recording.audio,
-            recording.filename,
-            recording.durationSeconds,
-          )
-        } catch (error: unknown) {
-          setSaveError(audioUploadErrorMessage(error))
-        }
+        const audioError = await tryUploadAudio(savedCard.id, recording)
+        if (audioError) setSaveError(audioError)
       }
       await mutate()
       setDialogState(null)
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  const handleVoiceNote = async (text: string, recording: VoiceRecording) => {
+    try {
+      const card = await createStoryboardCard(projectId, {
+        title: voiceTitle(text),
+        description: text,
+        tags: [],
+        entityIds: [],
+        status: "ideas",
+      })
+      const audioError = await tryUploadAudio(card.id, recording)
+      await mutate()
+      setMobileStatus("ideas")
+      if (audioError) toast.warning(audioError)
+      else {
+        toast.success("Nota guardada en Ideas", {
+          action: {
+            label: "Editar",
+            onClick: () => setDialogState({ card, status: card.status }),
+          },
+        })
+      }
+    } catch {
+      toast.error("No se pudo guardar la nota. Intentá de nuevo.")
     }
   }
 
@@ -376,26 +448,27 @@ export function Storyboard({ projectId }: Readonly<StoryboardProps>) {
   }
 
   return (
-    <div className="flex h-screen max-h-screen flex-col overflow-hidden bg-background text-foreground">
+    <div className="flex h-screen max-h-screen flex-col overflow-hidden bg-background text-foreground max-md:h-[calc(100dvh-3.5rem)]">
       <Header />
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden border-b border-border bg-card">
-        <div className="flex shrink-0 flex-col gap-3 border-b px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex shrink-0 flex-col gap-3 border-b px-4 py-4 max-md:py-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-xl font-semibold text-foreground">
-              Storyboarding Visual
+            <h1 className="truncate text-xl font-semibold text-foreground">
+              <span className="md:hidden">Notas e ideas</span>
+              <span className="max-md:hidden">Storyboarding Visual</span>
             </h1>
-            <p className="mt-0.5 text-sm text-muted-foreground">
+            <p className="mt-0.5 text-sm text-muted-foreground max-md:hidden">
               Organiza visualmente ideas, escenas y eventos narrativos
             </p>
           </div>
-          <div className="flex items-center gap-3 text-sm text-muted-foreground">
+          <div className="flex items-center gap-3 text-sm text-muted-foreground max-md:hidden">
             {viewMode === "kanban" ? (
               <span>
                 {getStoryboardCountLabel(cardCount)}
               </span>
             ) : null}
-            <div className="flex items-center gap-1 rounded-lg bg-muted p-1">
+            <div className="flex items-center gap-1 rounded-lg bg-muted p-1 max-md:hidden">
               <Button
                 size="xs"
                 variant={getViewModeVariant(viewMode, "kanban")}
@@ -454,6 +527,8 @@ export function Storyboard({ projectId }: Readonly<StoryboardProps>) {
           />
         )}
       </div>
+
+      {isMobile ? <VoiceNoteButton onNote={handleVoiceNote} /> : null}
 
       {dialogState ? (
         <CardDialog

@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PlumIA mobile</title>
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Poppins, system-ui, sans-serif; background: #ece6f4; color: #1c0f33; line-height: 1.5; }
+  @media (prefers-color-scheme: dark) { body { background: #140c1e; color: #f1eaf9; } }
+  main { max-width: 1180px; margin: 0 auto; padding: 32px 20px 80px; }
+  h1 { font-size: 28px; margin: 0 0 4px; font-weight: 600; }
+  h2 { font-size: 20px; margin: 48px 0 4px; font-weight: 600; }
+  .lead, .note { color: #6b5e80; font-size: 14px; margin: 0 0 20px; max-width: 720px; }
+  @media (prefers-color-scheme: dark) { .lead, .note { color: #b8aacd; } }
+  .flow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 20px 0 8px; font-size: 13px; }
+  .flow span { background: #fff; border: 1px solid #d8cce9; border-radius: 999px; padding: 6px 12px; }
+  .flow span.lock { border-style: dashed; color: #6b5e80; }
+  .flow i { font-style: normal; color: #7b3fa0; }
+  @media (prefers-color-scheme: dark) { .flow span { background: #2c1e3b; border-color: #54476e; } .flow span.lock { color: #b8aacd; } }
+  .screen { margin-top: 28px; }
+  .screen h3 { font-size: 15px; margin: 0 0 2px; font-weight: 600; }
+  .screen p { font-size: 13px; color: #6b5e80; margin: 0 0 12px; max-width: 640px; }
+  @media (prefers-color-scheme: dark) { .screen p { color: #b8aacd; } }
+  .pair { display: flex; flex-wrap: wrap; gap: 24px; }
+  .tag { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #6b5e80; margin-bottom: 6px; }
+
+  /* ---------- teléfono ---------- */
+  .phone { width: 300px; height: 620px; border-radius: 30px; border: 8px solid #1b1b1f; overflow: hidden; position: relative; display: flex; flex-direction: column;
+    background: var(--background); color: var(--foreground); font-size: 12px; box-shadow: 0 14px 40px -18px rgba(30,10,60,.5); }
+  .phone[data-theme="light"] { --background:#f5f1fb; --foreground:#1c0f33; --card:#fff; --primary:#7b3fa0; --primary-foreground:#faf5ff; --primary-text:#7b3fa0;
+    --muted:#f2eaf8; --muted-fg:#564b66; --border:#e2d8f1; --destructive:#c62828; --success:#047857; --success-muted:#e3f5ec; --warning:#b45309; --popover:#fff; }
+  .phone[data-theme="dark"] { --background:#20142e; --foreground:#f8f2ff; --card:#2c1e3b; --primary:#8352a8; --primary-foreground:#fff; --primary-text:#b48ad6;
+    --muted:#2a2140; --muted-fg:#b8aacd; --border:#54476e; --destructive:#ff8f8f; --success:#34d399; --success-muted:#16342c; --warning:#fbbf24; --popover:#2c1e3b; }
+  .bar { height: 44px; flex: none; background: var(--primary); color: var(--primary-foreground); display: flex; align-items: center; gap: 8px; padding: 0 12px; font-weight: 600; font-size: 14px; }
+  .bar .sp { flex: 1; }
+  .avatar { width: 26px; height: 26px; border-radius: 50%; background: rgba(255,255,255,.25); display: grid; place-items: center; font-size: 11px; }
+  .body { flex: 1; overflow: hidden; padding: 14px; display: flex; flex-direction: column; gap: 12px; position: relative; }
+  .body.flush { padding: 0; gap: 0; }
+  .nav { height: 52px; flex: none; border-top: 1px solid var(--border); background: var(--background); display: flex; }
+  .nav div { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; font-size: 10px; font-weight: 500; color: var(--muted-fg); }
+  .nav div.on { color: var(--primary-text); }
+  svg.i { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+  .eyebrow { font-size: 11px; color: var(--muted-fg); margin: 0; }
+  .title { font-size: 20px; font-weight: 600; margin: 0; letter-spacing: -.01em; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px; display: flex; align-items: center; gap: 12px; }
+  .ico { width: 38px; height: 38px; border-radius: 10px; background: color-mix(in srgb, var(--primary) 14%, transparent); color: var(--primary-text); display: grid; place-items: center; flex: none; }
+  .card b, .card small.one { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tabs.full div { flex: 1; justify-content: center; padding: 9px 4px; min-width: 0; }
+  .chips.wrap { flex-wrap: wrap; }
+  .seg.stack div { white-space: nowrap; display: flex; flex-direction: column; padding: 6px 2px; min-width: 0; line-height: 1.25; }
+  .seg.stack small { margin: 0; }
+  .card b { display: block; font-size: 13px; font-weight: 600; } .card small { display: block; color: var(--muted-fg); font-size: 11px; line-height: 1.35; }
+  .grow { flex: 1; min-width: 0; }
+  .lockrow { border: 1px dashed var(--border); border-radius: 12px; padding: 10px 12px; display: flex; align-items: center; gap: 10px; color: var(--muted-fg); }
+  .lockrow b { color: var(--foreground); font-size: 12px; font-weight: 600; display: block; }
+  .lockrow small { font-size: 10.5px; display: block; }
+  .section-h { font-size: 10px; text-transform: uppercase; letter-spacing: .08em; font-weight: 600; color: var(--muted-fg); margin: 4px 0 -4px; }
+  .btn { background: var(--primary); color: var(--primary-foreground); border-radius: 9px; padding: 8px 12px; font-weight: 600; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; justify-content: center; }
+  .btn.out { background: transparent; color: var(--foreground); border: 1px solid var(--border); }
+  .btn.ghost { background: transparent; color: var(--foreground); padding: 6px 4px; }
+  .btn.block { width: 100%; padding: 11px; }
+  .btn.danger { background: var(--destructive); color: #fff; }
+  .scrim { position: absolute; inset: 0; background: rgba(10,4,20,.45); }
+  .sheet { position: absolute; left: 0; right: 0; bottom: 0; background: var(--popover); border-top: 1px solid var(--border); border-radius: 18px 18px 0 0; padding: 10px 18px 18px; text-align: center; display: flex; flex-direction: column; gap: 8px; align-items: center; }
+  .grab { width: 36px; height: 4px; border-radius: 4px; background: var(--border); }
+  .sheet .ico { width: 46px; height: 46px; border-radius: 50%; }
+  .sheet h4 { margin: 4px 0 0; font-size: 15px; font-weight: 600; } .sheet p { margin: 0 0 6px; color: var(--muted-fg); font-size: 11.5px; }
+  .search { border: 1px solid var(--border); background: var(--card); border-radius: 9px; padding: 8px 10px; color: var(--muted-fg); display: flex; gap: 8px; align-items: center; }
+  .chips { display: flex; gap: 6px; overflow: hidden; }
+  .chip { flex: none; border: 1px solid var(--border); background: var(--card); border-radius: 9px; padding: 5px 10px; font-size: 11px; font-weight: 500; }
+  .chip.on { border-color: var(--primary); color: var(--primary-text); background: color-mix(in srgb, var(--primary) 12%, transparent); }
+  .tabs { display: flex; gap: 4px; padding: 0 10px; border-bottom: 1px solid var(--border); background: var(--card); overflow: hidden; }
+  .tabs div { flex: none; padding: 9px 10px; font-weight: 500; color: var(--muted-fg); display: flex; gap: 6px; align-items: center; font-size: 11.5px; }
+  .tabs div.on { color: var(--primary-text); border-bottom: 2px solid var(--primary); }
+  .seg { display: flex; gap: 2px; background: var(--muted); border-radius: 9px; padding: 3px; }
+  .seg div { flex: 1; text-align: center; padding: 7px 4px; border-radius: 7px; font-size: 11px; font-weight: 500; color: var(--muted-fg); }
+  .seg div.on { background: var(--card); color: var(--foreground); box-shadow: 0 1px 2px rgba(0,0,0,.15); }
+  .seg small { opacity: .7; margin-left: 3px; font-size: 9.5px; }
+  .item { display: flex; gap: 10px; align-items: center; padding: 10px 12px; border-bottom: 1px solid var(--border); background: var(--card); }
+  .item .av { width: 36px; height: 36px; border-radius: 8px; background: var(--muted); display: grid; place-items: center; color: var(--primary-text); flex: none; }
+  .item b { font-size: 12.5px; font-weight: 600; display: block; } .item small { color: var(--muted-fg); font-size: 10.5px; }
+  .badge { font-size: 10px; padding: 2px 7px; border-radius: 999px; background: var(--muted); color: var(--muted-fg); }
+  .fab { position: absolute; right: 12px; bottom: 12px; height: 42px; padding: 0 16px; border-radius: 999px; background: var(--primary); color: var(--primary-foreground); font-weight: 600; font-size: 12px; display: flex; align-items: center; gap: 8px; box-shadow: 0 8px 20px -6px rgba(0,0,0,.5); }
+  .fab.rec { background: var(--destructive); color: #1a0a0a; }
+  .fab.rec .dot { width: 9px; height: 9px; background: currentColor; border-radius: 2px; }
+  .note-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
+  .note-card b { font-size: 12.5px; font-weight: 600; display: block; } .note-card p { margin: 3px 0 6px; color: var(--muted-fg); font-size: 11px; }
+  .note-card .row { display: flex; gap: 12px; color: var(--muted-fg); font-size: 10.5px; }
+  .toast { position: absolute; left: 12px; right: 12px; bottom: 66px; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; display: flex; align-items: center; gap: 8px; font-weight: 500; box-shadow: 0 10px 24px -10px rgba(0,0,0,.5); }
+  .toast .ok { color: var(--success); } .toast u { margin-left: auto; color: var(--primary-text); text-decoration: none; font-weight: 600; }
+  .hero { background: linear-gradient(135deg, #32134a, #8146a3); color: #fff; border-radius: 14px; padding: 14px; }
+  .hero small { opacity: .7; font-size: 10.5px; } .hero b { font-size: 26px; display: block; letter-spacing: -.02em; font-weight: 600; }
+  .bar-track { height: 6px; border-radius: 6px; background: rgba(255,255,255,.2); margin-top: 8px; } .bar-track i { display: block; height: 100%; width: 42%; background: #fff; border-radius: 6px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .kpi { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 10px; } .kpi small { color: var(--muted-fg); font-size: 10.5px; display: block; } .kpi b { font-size: 17px; font-weight: 600; }
+  .spark { display: flex; align-items: flex-end; gap: 5px; height: 70px; padding-top: 6px; } .spark i { flex: 1; background: var(--primary); border-radius: 3px 3px 0 0; opacity: .85; }
+  .reader { flex: 1; background: var(--card); margin: 10px; border-radius: 6px; padding: 18px 16px; overflow: hidden; border: 1px solid var(--border); }
+  .reader h5 { font-family: Georgia, serif; font-size: 20px; margin: 0 0 4px; text-align: center; font-weight: 600; }
+  .reader .ey { text-align: center; font-size: 9px; letter-spacing: .3em; color: var(--muted-fg); text-transform: uppercase; margin-bottom: 14px; }
+  .reader p { font-family: Georgia, serif; font-size: 13.5px; line-height: 1.7; margin: 0 0 10px; }
+  .reader-bar { height: 44px; flex: none; border-bottom: 1px solid var(--border); background: var(--card); display: flex; align-items: center; gap: 8px; padding: 0 12px; }
+  .reader-bar .sel { margin-left: auto; border: 1px solid var(--border); border-radius: 8px; padding: 4px 8px; font-size: 10.5px; display: flex; gap: 4px; align-items: center; }
+  .proj { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px; } .proj b { font-size: 13.5px; font-weight: 600; } .proj small { display: block; color: var(--muted-fg); font-size: 11px; margin: 2px 0 8px; }
+  .legend { margin-top: 28px; padding: 16px 18px; border-radius: 12px; background: #fff; border: 1px solid #d8cce9; font-size: 13px; }
+  @media (prefers-color-scheme: dark) { .legend { background: #2c1e3b; border-color: #54476e; } }
+  .legend ul { margin: 6px 0 0; padding-left: 18px; } .legend li { margin: 3px 0; }
+</style>
+</head>
+<body>
+<main>
+  <h1>PlumIA en mobile</h1>
+  <p class="lead">Maqueta de la experiencia mobile (menos de 768&nbsp;px) en modo claro y oscuro. Son ilustraciones con los colores reales del design system, no capturas de pantalla. Tablet y escritorio no cambian.</p>
+
+  <h2>Flujo</h2>
+  <div class="flow">
+    <span>Dashboard</span><i>→</i><span>Hub del proyecto</span><i>→</i>
+    <span>Worldbuilding</span><span>Notas e ideas</span><span>Estadísticas</span>
+    <i>·</i><span class="lock">Editor / Versiones → aviso «usá una PC»</span>
+  </div>
+  <p class="note">Barra inferior fija con Inicio · Mundo · Notas · Stats. Si alguien abre el editor por un enlace directo desde el celular, vuelve al hub con el aviso ya abierto.</p>
+
+  <div id="screens"></div>
+
+  <div class="legend">
+    <strong>Qué incluye y qué no</strong>
+    <ul>
+      <li><b>Incluye:</b> hub, aviso «solo en PC», lectores y comentarios de la autora, Worldbuilding (Wiki, Línea temporal, Resúmenes), tablero de notas con una columna por vez, nota por voz, estadísticas y lector compartido con comentarios (para quienes tienen permiso de comentar).</li>
+      <li><b>Queda afuera en mobile:</b> Editor, control de versiones, Chat IA, exportar y compartir, Relaciones (el grafo) y la Matriz del tablero.</li>
+      <li><b>Sin scroll horizontal:</b> títulos y menús en un solo renglón (con «…» si no entran) y tablas reducidas a las columnas que caben.</li>
+      <li><b>Sin arrastrar:</b> en mobile las tarjetas no se reordenan ni se mueven de columna; se scrollea y se toca.</li>
+    </ul>
+  </div>
+</main>
+
+<template id="t-dashboard">
+  <div class="bar"><b>Plum<span style="opacity:.75">IA</span></b><span class="sp"></span><div class="avatar">E</div></div>
+  <div class="body">
+    <div><p class="title">Mis proyectos</p><p class="eyebrow">Elegí uno para continuar</p></div>
+    <div class="search">{{search}} Buscar por título o género</div>
+    <div class="btn block">{{plus}} Crear proyecto</div>
+    <div class="proj"><b>Crónicas del viento</b><small>Fantasía · 12.480 palabras</small><span class="badge">En progreso</span></div>
+    <div class="proj"><b>La ciudad sumergida</b><small>Misterio · 3.120 palabras</small><span class="badge">Borrador</span></div>
+  </div>
+</template>
+
+<template id="t-hub">
+  <div class="bar">{{back}}<b>Plum<span style="opacity:.75">IA</span></b><span class="sp"></span><div class="avatar">E</div></div>
+  <div class="body">
+    <div><p class="eyebrow">Proyecto</p><p class="title">Crónicas del viento</p></div>
+    <div class="card"><div class="ico">{{earth}}</div><div class="grow"><b>Worldbuilding</b><small class="one">Tu universo narrativo</small></div>{{chev}}</div>
+    <div class="card"><div class="ico">{{layers}}</div><div class="grow"><b>Notas e ideas</b><small class="one">Ideas y notas por voz</small></div>{{chev}}</div>
+    <div class="card"><div class="ico">{{msg}}</div><div class="grow"><b>Lectores y comentarios</b><small class="one">Lo que comentaron tus lectores</small></div>{{chev}}</div>
+    <div class="card"><div class="ico">{{chart}}</div><div class="grow"><b>Estadísticas</b><small class="one">Palabras, metas y ritmo</small></div>{{chev}}</div>
+    <p class="section-h">Solo en computadora</p>
+    <div class="lockrow">{{pen}}<div class="grow"><b>Editor</b><small>Escribí tu manuscrito</small></div>{{lock}}</div>
+    <div class="lockrow">{{branch}}<div class="grow"><b>Control de versiones</b><small>Compará y restaurá escenas</small></div>{{lock}}</div>
+  </div>
+  <div class="nav"><div class="on">{{home}}Inicio</div><div>{{earth}}Mundo</div><div>{{layers}}Notas</div><div>{{msg}}Lectores</div><div>{{chart}}Stats</div></div>
+</template>
+
+<template id="t-notice">
+  <div class="bar">{{back}}<b>Plum<span style="opacity:.75">IA</span></b><span class="sp"></span><div class="avatar">E</div></div>
+  <div class="body">
+    <div><p class="eyebrow">Proyecto</p><p class="title">Crónicas del viento</p></div>
+    <div class="card"><div class="ico">{{earth}}</div><div class="grow"><b>Worldbuilding</b><small class="one">Tu universo narrativo</small></div></div>
+    <div class="card"><div class="ico">{{layers}}</div><div class="grow"><b>Notas e ideas</b><small class="one">Ideas y notas por voz</small></div></div>
+    <div class="scrim"></div>
+    <div class="sheet"><div class="grab"></div><div class="ico">{{monitor}}</div>
+      <h4>Disponible en computadora</h4>
+      <p>Editor se usa desde una PC. Entrá desde ahí para tener todas las funcionalidades de PlumIA: editor, control de versiones, chat con IA y más.</p>
+      <div class="btn block">Entendido</div></div>
+  </div>
+</template>
+
+<template id="t-wiki-list">
+  <div class="bar">{{back}}<b>Plum<span style="opacity:.75">IA</span></b><span class="sp"></span><div class="avatar">E</div></div>
+  <div style="padding:12px 14px 8px;display:flex;justify-content:space-between;align-items:center;background:var(--card)"><p class="title" style="font-size:17px">Worldbuilding</p><div class="btn">{{star}} Nueva</div></div>
+  <div class="tabs full"><div class="on">{{star}} Wiki</div><div>{{cal}} Línea</div><div>{{doc}} Resúmenes</div></div>
+  <div class="body flush" style="background:var(--muted)">
+    <div style="padding:10px 12px;display:flex;flex-direction:column;gap:8px;background:var(--card);border-bottom:1px solid var(--border)">
+      <div class="search">{{search}} Buscar entidades...</div>
+      <div class="chips wrap"><span class="chip on">Todas</span><span class="chip">Personaje</span><span class="chip">Lugar</span><span class="chip">Objeto</span><span class="chip">Facción</span><span class="chip">Evento</span><span class="chip">Concepto</span></div>
+    </div>
+    <div class="item"><div class="av">{{user}}</div><div class="grow"><b>Tomás Reyes</b><small>Personaje · Capitán de la guardia</small></div>{{chev}}</div>
+    <div class="item"><div class="av">{{user}}</div><div class="grow"><b>Maren Valdés</b><small>Personaje · Archivista</small></div>{{chev}}</div>
+    <div class="item"><div class="av">{{map}}</div><div class="grow"><b>Puerto Calma</b><small>Lugar · Ciudad costera</small></div>{{chev}}</div>
+    <div class="item"><div class="av">{{shield}}</div><div class="grow"><b>Orden del Códice</b><small>Facción</small></div>{{chev}}</div>
+  </div>
+  <div class="nav"><div>{{home}}Inicio</div><div class="on">{{earth}}Mundo</div><div>{{layers}}Notas</div><div>{{msg}}Lectores</div><div>{{chart}}Stats</div></div>
+</template>
+
+<template id="t-wiki-detail">
+  <div class="bar">{{back}}<b>Plum<span style="opacity:.75">IA</span></b><span class="sp"></span><div class="avatar">E</div></div>
+  <div class="body" style="background:var(--muted)">
+    <div class="btn ghost" style="align-self:flex-start;margin-left:-4px">{{back}} Entidades</div>
+    <div style="display:flex;gap:12px;align-items:center"><div class="ico" style="width:56px;height:56px">{{user}}</div><div><p class="eyebrow" style="text-transform:uppercase;font-weight:600">Personaje</p><p class="title">Tomás Reyes</p></div></div>
+    <div style="display:flex;gap:8px"><div class="btn">Editar</div><div class="btn out">Eliminar</div></div>
+    <div class="grow"><p class="section-h" style="margin:0 0 6px">Descripción</p>
+      <div class="note-card"><p style="margin:0;color:var(--foreground);font-size:11.5px;line-height:1.55">Capitán de la guardia de Puerto Calma. Desconfía de los archivistas y guarda una carta que nunca entregó.</p></div></div>
+    <p class="section-h">Baúl de imágenes</p>
+  </div>
+  <div class="nav"><div>{{home}}Inicio</div><div class="on">{{earth}}Mundo</div><div>{{layers}}Notas</div><div>{{msg}}Lectores</div><div>{{chart}}Stats</div></div>
+</template>
+
+<template id="t-notes">
+  <div class="bar">{{back}}<b>Plum<span style="opacity:.75">IA</span></b><span class="sp"></span><div class="avatar">E</div></div>
+  <div style="padding:12px 14px 4px;background:var(--card)"><p class="title" style="font-size:17px">Notas e ideas</p></div>
+  <div class="body" style="background:var(--card);padding-top:8px">
+    <div class="seg stack"><div class="on">Ideas<small>3</small></div><div>Planificado<small>1</small></div><div>En curso<small>0</small></div><div>Finalizado<small>2</small></div></div>
+    <div class="btn out block" style="border-style:dashed;color:var(--muted-fg)">{{plus}} Nueva tarjeta</div>
+    <div class="note-card"><b style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">La emboscada en el bosque</b><p>Cae la noche y Tomás oye pasos detrás…</p><div class="row"><span>{{mic}} Nota de voz</span><span>Editar</span><span>Eliminar</span></div></div>
+    <div class="note-card"><b>La carta bajo la puerta</b><p>Maren la encuentra al amanecer.</p><div class="row"><span>Editar</span><span>Eliminar</span></div></div>
+    <div class="fab">{{mic}} Nota por voz</div>
+  </div>
+  <div class="nav"><div>{{home}}Inicio</div><div>{{earth}}Mundo</div><div class="on">{{layers}}Notas</div><div>{{msg}}Lectores</div><div>{{chart}}Stats</div></div>
+</template>
+
+<template id="t-recording">
+  <div class="bar">{{back}}<b>Plum<span style="opacity:.75">IA</span></b><span class="sp"></span><div class="avatar">E</div></div>
+  <div style="padding:12px 14px 4px;background:var(--card)"><p class="title" style="font-size:17px">Notas e ideas</p></div>
+  <div class="body" style="background:var(--card);padding-top:8px">
+    <div class="seg stack"><div class="on">Ideas<small>3</small></div><div>Planificado<small>1</small></div><div>En curso<small>0</small></div><div>Finalizado<small>2</small></div></div>
+    <div class="note-card"><b style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">La emboscada en el bosque</b><p>Cae la noche y Tomás oye pasos detrás…</p></div>
+    <div class="fab rec"><span class="dot"></span> Grabando 0:07</div>
+  </div>
+  <div class="nav"><div>{{home}}Inicio</div><div>{{earth}}Mundo</div><div class="on">{{layers}}Notas</div><div>{{msg}}Lectores</div><div>{{chart}}Stats</div></div>
+</template>
+
+<template id="t-saved">
+  <div class="bar">{{back}}<b>Plum<span style="opacity:.75">IA</span></b><span class="sp"></span><div class="avatar">E</div></div>
+  <div style="padding:12px 14px 4px;background:var(--card)"><p class="title" style="font-size:17px">Notas e ideas</p></div>
+  <div class="body" style="background:var(--card);padding-top:8px">
+    <div class="seg stack"><div class="on">Ideas<small>4</small></div><div>Planificado<small>1</small></div><div>En curso<small>0</small></div><div>Finalizado<small>2</small></div></div>
+    <div class="note-card" style="border-color:var(--primary)"><b>El faro apagado</b><p>El faro de Puerto Calma lleva tres noches sin luz y nadie sabe por qué.</p><div class="row"><span>{{mic}} Nota de voz</span><span>Editar</span><span>Eliminar</span></div></div>
+    <div class="note-card"><b style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">La emboscada en el bosque</b><p>Cae la noche y Tomás oye pasos detrás…</p></div>
+    <div class="toast"><span class="ok">{{check}}</span> Nota guardada en Ideas <u>Editar</u></div>
+    <div class="fab">{{mic}} Nota por voz</div>
+  </div>
+  <div class="nav"><div>{{home}}Inicio</div><div>{{earth}}Mundo</div><div class="on">{{layers}}Notas</div><div>{{msg}}Lectores</div><div>{{chart}}Stats</div></div>
+</template>
+
+<template id="t-timeline">
+  <div class="bar">{{back}}<b>Plum<span style="opacity:.75">IA</span></b><span class="sp"></span><div class="avatar">E</div></div>
+  <div style="padding:12px 14px 8px;display:flex;justify-content:space-between;align-items:center;background:var(--card);gap:8px"><p class="title" style="font-size:17px">Worldbuilding</p><div class="btn">{{cal}} Nuevo</div></div>
+  <div class="tabs full"><div>{{star}} Wiki</div><div class="on">{{cal}} Línea</div><div>{{doc}} Resúmenes</div></div>
+  <div class="item" style="justify-content:space-between"><span style="display:flex;gap:8px;align-items:center;font-weight:600;color:var(--muted-fg)">{{search}} Filtros · 4 de 4</span>{{chev}}</div>
+  <div class="body" style="background:var(--muted);gap:14px">
+    <div style="border-left:2px solid color-mix(in srgb,var(--primary) 30%,transparent);margin-left:6px;padding-left:16px;display:flex;flex-direction:column;gap:12px">
+      <div class="note-card"><b style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Desaparece el librero</b><p>Año 412 · Alto impacto</p></div>
+      <div class="note-card"><b style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Maren encuentra el códice</b><p>Año 413 · Medio impacto</p></div>
+    </div>
+  </div>
+  <div class="nav"><div>{{home}}Inicio</div><div class="on">{{earth}}Mundo</div><div>{{layers}}Notas</div><div>{{msg}}Lectores</div><div>{{chart}}Stats</div></div>
+</template>
+
+<template id="t-summaries">
+  <div class="bar">{{back}}<b>Plum<span style="opacity:.75">IA</span></b><span class="sp"></span><div class="avatar">E</div></div>
+  <div style="padding:12px 14px 8px;background:var(--card)"><p class="title" style="font-size:17px">Worldbuilding</p></div>
+  <div class="tabs full"><div>{{star}} Wiki</div><div>{{cal}} Línea</div><div class="on">{{doc}} Resúmenes</div></div>
+  <div class="body" style="background:var(--muted)">
+    <div style="display:flex;justify-content:space-between;font-size:10.5px;font-weight:600;color:var(--muted-fg)"><span>CAPÍTULOS</span><span>1 / 3 con resumen</span></div>
+    <div class="btn out block">Generar 2 pendientes</div>
+    <div class="note-card"><span class="badge">Cap. 1</span> <span class="badge" style="color:var(--success)">Generado</span><b style="margin-top:4px">El umbral</b><p>1.240 palabras</p></div>
+    <div class="note-card"><span class="badge">Cap. 2</span><b style="margin-top:4px">La carta bajo la puerta</b><p>980 palabras</p></div>
+  </div>
+  <div class="nav"><div>{{home}}Inicio</div><div class="on">{{earth}}Mundo</div><div>{{layers}}Notas</div><div>{{msg}}Lectores</div><div>{{chart}}Stats</div></div>
+</template>
+
+<template id="t-shares">
+  <div class="bar">{{back}}<b>Plum<span style="opacity:.75">IA</span></b><span class="sp"></span><div class="avatar">E</div></div>
+  <div class="body">
+    <div><p class="title" style="font-size:18px">Lectores y comentarios</p><p class="eyebrow">Abrí una versión compartida para leer lo que comentaron.</p></div>
+    <p class="section-h">Libro I</p>
+    <div class="card"><div class="grow"><b style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">lectora@example.com</b><small>Puede comentar · <span class="badge">Aceptada</span></small></div><span style="display:flex;gap:4px;align-items:center;color:var(--primary-text);font-weight:600">{{msg}}2</span>{{chev}}</div>
+    <div class="card"><div class="grow"><b style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">martin@example.com</b><small>Solo lectura · <span class="badge">Pendiente</span></small></div>{{chev}}</div>
+  </div>
+  <div class="nav"><div>{{home}}Inicio</div><div>{{earth}}Mundo</div><div>{{layers}}Notas</div><div class="on">{{msg}}Lectores</div><div>{{chart}}Stats</div></div>
+</template>
+
+<template id="t-stats">
+  <div class="bar">{{back}}<b>Plum<span style="opacity:.75">IA</span></b><span class="sp"></span><div class="avatar">E</div></div>
+  <div class="body">
+    <div><p class="title" style="font-size:18px">Estadísticas de escritura</p><p class="eyebrow">Crónicas del viento</p></div>
+    <div class="hero"><small>Avance total del manuscrito</small><b>12.480</b><small>de 30.000 palabras</small><div class="bar-track"><i></i></div></div>
+    <div class="grid2"><div class="kpi"><small>Hoy</small><b>640</b></div><div class="kpi"><small>Esta semana</small><b>3.210</b></div><div class="kpi"><small>Racha</small><b>5 días</b></div><div class="kpi"><small>Ritmo medio</small><b>520/día</b></div></div>
+    <div class="kpi"><small>Últimos 7 días</small><div class="spark"><i style="height:35%"></i><i style="height:60%"></i><i style="height:45%"></i><i style="height:80%"></i><i style="height:30%"></i><i style="height:95%"></i><i style="height:55%"></i></div></div>
+  </div>
+  <div class="nav"><div>{{home}}Inicio</div><div>{{earth}}Mundo</div><div>{{layers}}Notas</div><div>{{msg}}Lectores</div><div class="on">{{chart}}Stats</div></div>
+</template>
+
+<template id="t-reader">
+  <div class="reader-bar">{{book}}<div class="grow"><b style="font-size:12px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Crónicas del viento</b><small style="display:block;color:var(--muted-fg);font-size:9.5px">Versión congelada</small></div><div class="sel">Cap. 1 {{chev}}</div><div style="position:relative;display:grid;place-items:center;width:28px">{{msg}}<span style="position:absolute;top:-4px;right:-2px;background:var(--primary);color:var(--primary-foreground);font-size:9px;border-radius:99px;padding:0 4px">2</span></div>{{moon}}</div>
+  <div class="reader"><div class="ey">Manuscrito</div><h5>Crónicas del viento</h5><div style="height:10px"></div>
+    <p>La <mark style="background:color-mix(in srgb,var(--warning) 35%,transparent);color:inherit;border-radius:2px">noche cubría</mark> la ciudad como una promesa que nadie quería cumplir. Tomás cruzó el puerto sin mirar atrás.</p>
+    <p>En la torre del faro, una luz débil insistía en no apagarse, y él supo que alguien lo esperaba.</p>
+    <p>Maren dejó la carta bajo la puerta y contó hasta diez antes de irse.</p></div>
+</template>
+
+<template id="t-reader-select">
+  <div class="reader-bar">{{book}}<div class="grow"><b style="font-size:12px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Crónicas del viento</b><small style="display:block;color:var(--muted-fg);font-size:9.5px">Versión congelada</small></div><div class="sel">Cap. 1 {{chev}}</div>{{msg}}{{moon}}</div>
+  <div class="reader"><div class="ey">Manuscrito</div><h5>Crónicas del viento</h5><div style="height:10px"></div>
+    <p>La <span style="background:color-mix(in srgb,var(--primary) 30%,transparent);border-radius:2px">noche cubría la ciudad</span> como una promesa que nadie quería cumplir. Tomás cruzó el puerto sin mirar atrás.</p>
+    <p>En la torre del faro, una luz débil insistía en no apagarse, y él supo que alguien lo esperaba.</p></div>
+  <div style="border-top:1px solid var(--border);background:var(--background);padding:8px 10px;display:flex;gap:8px;align-items:center"><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-style:italic;color:var(--muted-fg);font-size:11px">“noche cubría la ciudad”</span><div class="btn">{{msgplus}} Comentar</div>{{x}}</div>
+</template>
+
+<template id="t-reader-comments">
+  <div class="reader-bar">{{book}}<div class="grow"><b style="font-size:12px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Crónicas del viento</b></div>{{msg}}{{moon}}</div>
+  <div class="reader" style="opacity:.6"><div class="ey">Manuscrito</div><h5>Crónicas del viento</h5></div>
+  <div class="scrim"></div>
+  <div class="sheet" style="text-align:left;align-items:stretch;max-height:75%;overflow:hidden"><div class="grab" style="align-self:center"></div>
+    <div style="display:flex;align-items:center;gap:6px;font-weight:600;font-size:13px">{{msg}} Comentarios <span style="margin-left:auto;font-size:11px;color:var(--muted-fg);font-weight:500">2</span></div>
+    <p style="margin:0;text-align:left;font-size:10.5px">Seleccioná una parte del texto para dejar un comentario.</p>
+    <div class="note-card" style="border-color:var(--primary)"><span style="font-size:10px;color:var(--muted-fg)">Lucía · hoy 10:42</span><p style="margin:4px 0;border-left:2px solid var(--warning);padding-left:6px;font-style:italic">“noche cubría”</p><b style="font-weight:500">¿Y si la noche llegara antes?</b><div class="row" style="margin-top:6px">{{reply}} Responder</div></div>
+    <div class="note-card"><span style="font-size:10px;color:var(--muted-fg)">Martín · ayer</span><p style="margin:4px 0">Me encanta este cierre.</p></div>
+  </div>
+</template>
+
+<script>
+const P = (d) => `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
+const ICONS = {
+  search: P('<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>'),
+  plus: P('<path d="M12 5v14M5 12h14"/>'),
+  back: P('<path d="M19 12H5M12 19l-7-7 7-7"/>'),
+  chev: P('<path d="m9 6 6 6-6 6"/>'),
+  earth: P('<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/>'),
+  layers: P('<path d="m12 3 9 5-9 5-9-5z"/><path d="m3 13 9 5 9-5"/>'),
+  chart: P('<path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/>'),
+  home: P('<path d="M3 11 12 3l9 8M5 10v10h14V10"/>'),
+  pen: P('<path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>'),
+  branch: P('<circle cx="6" cy="5" r="2"/><circle cx="6" cy="19" r="2"/><circle cx="18" cy="9" r="2"/><path d="M6 7v10M18 11c0 4-6 3-12 6"/>'),
+  lock: P('<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>'),
+  monitor: P('<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>'),
+  star: P('<path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/>'),
+  cal: P('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/>'),
+  doc: P('<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/>'),
+  user: P('<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>'),
+  map: P('<path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2z"/><path d="M9 4v14M15 6v14"/>'),
+  shield: P('<path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/>'),
+  mic: P('<rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>'),
+  check: P('<circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/>'),
+  book: P('<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M19 19v2H6"/>'),
+  msg: P('<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>'),
+  msgplus: P('<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M12 8v6M9 11h6"/>'),
+  reply: P('<path d="m9 17-5-5 5-5"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/>'),
+  x: P('<path d="M18 6 6 18M6 6l12 12"/>'),
+  moon: P('<path d="M21 13A9 9 0 1 1 11 3a7 7 0 0 0 10 10z"/>'),
+};
+const SCREENS = [
+  ['t-dashboard', 'Dashboard de proyectos', 'Lista de proyectos. Al tocar uno entra al hub (en PC sigue yendo directo al editor).'],
+  ['t-hub', 'Hub del proyecto', 'Reemplaza al editor como entrada. Tres secciones disponibles y, debajo, lo que solo existe en PC.'],
+  ['t-notice', 'Aviso «solo en computadora»', 'Se abre al tocar Editor o Control de versiones, o al llegar por un enlace directo al editor. Es un panel inferior con un solo botón.'],
+  ['t-wiki-list', 'Worldbuilding · Wiki (lista)', 'Pestañas que entran en el ancho (Wiki · Línea · Resúmenes), categorías que bajan de renglón y la lista a ancho completo. Sin la pestaña Relaciones.'],
+  ['t-wiki-detail', 'Worldbuilding · Wiki (detalle)', 'Al tocar una entidad la lista se reemplaza por el detalle, con «Entidades» para volver.'],
+  ['t-timeline', 'Worldbuilding · Línea temporal', 'Los filtros quedan plegados en una barra; los eventos van en una sola columna.'],
+  ['t-summaries', 'Worldbuilding · Resúmenes', 'Lista de capítulos a ancho completo; al tocar uno se abre su resumen con «Capítulos» para volver.'],
+  ['t-notes', 'Notas e ideas', 'Una columna por vez con selector de estado y contador, todo dentro del ancho. Botón flotante para grabar por voz.'],
+  ['t-recording', 'Nota por voz · grabando', 'Un toque graba, otro toque detiene. El botón pasa a rojo y muestra el tiempo.'],
+  ['t-saved', 'Nota por voz · guardada', 'Se transcribe y crea la tarjeta en Ideas con su audio. El aviso ofrece «Editar» por si hay que corregir la transcripción.'],
+  ['t-shares', 'Lectores y comentarios (autora)', 'La autora ve sus versiones compartidas con el contador de comentarios pendientes. Al abrir una entra al lector, donde puede leer, responder y marcar como resuelto; la flecha vuelve a la lista.'],
+  ['t-stats', 'Estadísticas', 'Progreso arriba, métricas en grilla de 2 columnas y gráfico a ancho completo.'],
+  ['t-reader', 'Lector compartido (modo lectura)', 'Selector de capítulo, ícono de comentarios con contador y texto con márgenes cómodos. Los pasajes comentados aparecen resaltados.'],
+  ['t-reader-select', 'Lector · dejar un comentario', 'Al seleccionar texto aparece una barra inferior con la cita y «Comentar»; recién ahí se abre el formulario.'],
+  ['t-reader-comments', 'Lector · panel de comentarios', 'El ícono de la barra abre un panel inferior con los comentarios y sus respuestas. Tocar un pasaje resaltado lo abre también.'],
+];
+const root = document.getElementById('screens');
+for (const [id, title, desc] of SCREENS) {
+  const html = document.getElementById(id).innerHTML.replace(/\{\{(\w+)\}\}/g, (_, k) => ICONS[k] ?? '');
+  const sec = document.createElement('section');
+  sec.className = 'screen';
+  sec.innerHTML = `<h3>${title}</h3><p>${desc}</p><div class="pair">${['light', 'dark'].map((t) =>
+    `<div><span class="tag">${t === 'light' ? 'Modo claro' : 'Modo oscuro'}</span><div class="phone" data-theme="${t}">${html}</div></div>`).join('')}</div>`;
+  root.appendChild(sec);
+}
+</script>
+</body>
+</html>
