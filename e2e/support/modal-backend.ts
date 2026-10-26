@@ -623,7 +623,16 @@ export async function installModalBackend(
             threadId: threadMatch[1],
             role: index % 2 === 0 ? "user" : "assistant",
             content: `Mensaje número ${index + 1}`,
-            sources: [],
+            sources:
+              index === 29
+                ? Array.from({ length: 5 }, (_, n) => ({
+                    id: `source-${n + 1}`,
+                    kind: "application_help",
+                    label: `Fuente ${n + 1}`,
+                    excerpt: `Extracto ${n + 1}`,
+                    cited: n < 2,
+                  }))
+                : [],
             actions: [],
             inputTokens: null,
             outputTokens: null,

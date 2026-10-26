@@ -539,8 +539,12 @@ test.describe("Chat con IA", () => {
     await openEditor(page)
 
     // Los chunks de las pestañas se piden recién al abrirlas; se demoran para ver el estado de carga.
+    let releaseChunks!: () => void
+    const chunksReleased = new Promise<void>((resolve) => {
+      releaseChunks = resolve
+    })
     await page.route(/\/_next\/static\/.*\.js/, async (route) => {
-      await new Promise((resolve) => setTimeout(resolve, 1500))
+      await chunksReleased
       await route.continue()
     })
 
@@ -553,7 +557,31 @@ test.describe("Chat con IA", () => {
       await expect(collapse).toBeVisible({ timeout: 100 })
       await page.waitForTimeout(100)
     }
+    releaseChunks()
+    await expect(collapse).toBeVisible()
     await expect(page.getByText("Mensaje número 30", { exact: true })).toBeVisible({ timeout: 10000 })
+  })
+
+  test("Fuentes del chat: «Ver todas» abre el diálogo con citadas y revisadas, y se cierra", async ({
+    page,
+  }) => {
+    await installModalBackend(page)
+    await openEditor(page)
+    await page.getByRole("button", { name: /Chat IA/ }).click()
+
+    const viewAll = page.getByRole("button", { name: /\+2 fuentes revisadas · Ver todas/ })
+    await viewAll.scrollIntoViewIfNeeded()
+    await viewAll.click()
+
+    const dialog = dialogNamed(page, "Fuentes revisadas")
+    await expect(dialog).toBeVisible()
+    await expect(dialog.getByRole("button", { name: /\[1\] Fuente 1/ })).toBeVisible()
+    await expect(dialog.getByRole("button", { name: /\[2\] Fuente 2/ })).toBeVisible()
+    await expect(dialog.getByRole("button", { name: /Revisada Fuente 3/ })).toBeVisible()
+    await expect(dialog.getByRole("button", { name: /Revisada Fuente 5/ })).toBeVisible()
+
+    await page.keyboard.press("Escape")
+    await expect(dialog).toBeHidden()
   })
 
   test("Conversación larga: se puede scrollear hasta el primer mensaje", async ({

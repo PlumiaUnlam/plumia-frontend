@@ -85,9 +85,8 @@ function nextOrder(items: Array<{ order?: number }>) {
 
 function LeftSidebarSkeleton() {
   return (
-    <div
+    <output
       className="flex flex-1 flex-col gap-2 p-3 group-data-[collapsible=icon]:hidden"
-      role="status"
       aria-label="Cargando estructura del proyecto"
     >
       <Skeleton className="h-5 w-2/3" />
@@ -96,7 +95,7 @@ function LeftSidebarSkeleton() {
       <Skeleton className="ml-6 h-4 w-2/3" />
       <Skeleton className="ml-3 h-4 w-3/5" />
       <Skeleton className="ml-6 h-4 w-1/2" />
-    </div>
+    </output>
   );
 }
 
@@ -358,6 +357,7 @@ export function LeftSidebar({
                 })
               }
               aria-label="Agregar libro"
+              disabled={isLoading}
             >
               <Plus className="size-4" />
             </Button>
