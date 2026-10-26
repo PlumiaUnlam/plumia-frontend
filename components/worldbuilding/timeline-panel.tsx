@@ -263,6 +263,88 @@ function toggleListItem<T>(list: readonly T[], item: T) {
     : [...list, item]
 }
 
+function useTimelineEventFocus({
+  focusEventId,
+  isReady,
+  displayedEvents,
+  onExpandEvent,
+}: Readonly<{
+  focusEventId: string | null
+  isReady: boolean
+  displayedEvents: readonly TimelineEvent[]
+  onExpandEvent: (eventId: string) => void
+}>) {
+  const focusedEventIdRef = useRef<string | null>(null)
+  const onExpandEventRef = useRef(onExpandEvent)
+  useEffect(() => {
+    onExpandEventRef.current = onExpandEvent
+  })
+
+  useEffect(() => {
+    if (!focusEventId) {
+      focusedEventIdRef.current = null
+      return
+    }
+
+    if (
+      !isReady ||
+      focusedEventIdRef.current === focusEventId ||
+      !displayedEvents.some((event) => event.id === focusEventId)
+    ) {
+      return
+    }
+
+    onExpandEventRef.current(focusEventId)
+
+    let settleFrameId: number | null = null
+    const frameId = window.requestAnimationFrame(() => {
+      settleFrameId = window.requestAnimationFrame(() => {
+        const element = document.getElementById(
+          `timeline-event-${focusEventId}`,
+        )
+        if (!element) return
+
+        focusedEventIdRef.current = focusEventId
+        element.scrollIntoView({ behavior: "smooth", block: "center" })
+      })
+    })
+
+    return () => {
+      window.cancelAnimationFrame(frameId)
+      if (settleFrameId !== null) window.cancelAnimationFrame(settleFrameId)
+    }
+  }, [displayedEvents, focusEventId, isReady])
+}
+
+function getStepPlacement(
+  events: readonly TimelineEvent[],
+  index: number,
+  direction: "up" | "down",
+) {
+  if (direction === "up") {
+    return {
+      beforeEventId: events[index - 1]?.id,
+      afterEventId: events[index - 2]?.id,
+    }
+  }
+  return {
+    beforeEventId: events[index + 2]?.id,
+    afterEventId: events[index + 1]?.id,
+  }
+}
+
+function getDragPlacement(
+  events: readonly TimelineEvent[],
+  activeIndex: number,
+  overIndex: number,
+) {
+  const overId = events[overIndex].id
+  if (activeIndex < overIndex) {
+    return { afterEventId: overId, beforeEventId: events[overIndex + 1]?.id }
+  }
+  return { beforeEventId: overId, afterEventId: events[overIndex - 1]?.id }
+}
+
 export function TimelinePanel({
   projectId,
   enabled,
@@ -300,7 +382,6 @@ export function TimelinePanel({
   const [expandedEventIds, setExpandedEventIds] = useState<Set<string>>(
     new Set(),
   )
-  const focusedEventIdRef = useRef<string | null>(null)
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
   )
@@ -352,55 +433,16 @@ export function TimelinePanel({
     [events, focusEventId, isReordering, visibleEvents],
   )
 
-  useEffect(() => {
-    if (!focusEventId) {
-      focusedEventIdRef.current = null
-      return
-    }
-
-    if (
-      isLoadingEvents ||
-      isLoadingArcs ||
-      eventsError ||
-      arcsError ||
-      focusedEventIdRef.current === focusEventId ||
-      !displayedEvents.some((event) => event.id === focusEventId)
-    ) {
-      return
-    }
-
-    setExpandedEventIds((current) => {
-      if (current.has(focusEventId)) return current
-      const next = new Set(current)
-      next.add(focusEventId)
-      return next
-    })
-
-    let settleFrameId: number | null = null
-    const frameId = window.requestAnimationFrame(() => {
-      settleFrameId = window.requestAnimationFrame(() => {
-        const element = document.getElementById(
-          `timeline-event-${focusEventId}`,
-        )
-        if (!element) return
-
-        focusedEventIdRef.current = focusEventId
-        element.scrollIntoView({ behavior: "smooth", block: "center" })
-      })
-    })
-
-    return () => {
-      window.cancelAnimationFrame(frameId)
-      if (settleFrameId !== null) window.cancelAnimationFrame(settleFrameId)
-    }
-  }, [
-    arcsError,
-    displayedEvents,
-    eventsError,
+  useTimelineEventFocus({
     focusEventId,
-    isLoadingArcs,
-    isLoadingEvents,
-  ])
+    isReady: !isLoadingEvents && !isLoadingArcs && !eventsError && !arcsError,
+    displayedEvents,
+    onExpandEvent: (eventId) =>
+      setExpandedEventIds((current) => {
+        if (current.has(eventId)) return current
+        return new Set(current).add(eventId)
+      }),
+  })
   const activeDragEvent = useMemo(
     () => displayedEvents.find((event) => event.id === activeDragEventId) ?? null,
     [activeDragEventId, displayedEvents],
@@ -456,16 +498,7 @@ export function TimelinePanel({
     const event = displayedEvents[eventIndex]
     if (!event) return
 
-    const placement =
-      direction === "up"
-        ? {
-            beforeEventId: displayedEvents[eventIndex - 1]?.id,
-            afterEventId: displayedEvents[eventIndex - 2]?.id,
-          }
-        : {
-            beforeEventId: displayedEvents[eventIndex + 2]?.id,
-            afterEventId: displayedEvents[eventIndex + 1]?.id,
-          }
+    const placement = getStepPlacement(displayedEvents, eventIndex, direction)
 
     if (!placement.beforeEventId && !placement.afterEventId) return
     setMoveError(null)
@@ -487,16 +520,7 @@ export function TimelinePanel({
     const event = displayedEvents[activeIndex]
     if (!event || activeIndex === -1 || overIndex === -1) return
 
-    const placement =
-      activeIndex < overIndex
-        ? {
-            afterEventId: overId,
-            beforeEventId: displayedEvents[overIndex + 1]?.id,
-          }
-        : {
-            beforeEventId: overId,
-            afterEventId: displayedEvents[overIndex - 1]?.id,
-          }
+    const placement = getDragPlacement(displayedEvents, activeIndex, overIndex)
 
     setMoveError(null)
     setPendingMove({

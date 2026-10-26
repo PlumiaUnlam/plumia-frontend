@@ -266,6 +266,87 @@ async function loadSharedReaderData(slug: string, token: string | undefined) {
   return { resolvedView, loadedComments }
 }
 
+type LoadSharedReaderResult =
+  | Awaited<ReturnType<typeof loadSharedReaderData>>
+  | { error: string }
+
+async function tryLoadSharedReader(
+  slug: string,
+  token: string | undefined,
+): Promise<LoadSharedReaderResult> {
+  try {
+    return await loadSharedReaderData(slug, token)
+  } catch (loadError) {
+    return {
+      error: messageForApiError(
+        loadError,
+        "No se pudo abrir la versión compartida.",
+      ),
+    }
+  }
+}
+
+function useLoadSharedReader({
+  slug,
+  initialToken,
+  userId,
+  setView,
+  setComments,
+  setActiveChapterId,
+  setError,
+  setDiscussionError,
+  setLoadedUserId,
+  setLoading,
+}: Readonly<{
+  slug: string
+  initialToken: string | undefined
+  /** `undefined` mientras la sesión carga o si no hay usuario: no se pide nada. */
+  userId: string | undefined
+  setView: (view: SharedManuscriptView) => void
+  setComments: (comments: ReaderComment[]) => void
+  setActiveChapterId: (chapterId: string | null) => void
+  setError: (error: string | null) => void
+  setDiscussionError: (error: string | null) => void
+  setLoadedUserId: (userId: string) => void
+  setLoading: (loading: boolean) => void
+}>) {
+  useEffect(() => {
+    if (!userId) return
+
+    let cancelled = false
+    void tryLoadSharedReader(slug, initialToken).then((result) => {
+      if (cancelled) return
+      if ("error" in result) {
+        setError(result.error)
+      } else {
+        setView(result.resolvedView)
+        setComments(result.loadedComments)
+        setActiveChapterId(
+          result.resolvedView.manuscript.books[0]?.chapters[0]?.id ?? null,
+        )
+        setError(null)
+        setDiscussionError(null)
+      }
+      setLoadedUserId(userId)
+      setLoading(false)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [
+    userId,
+    slug,
+    initialToken,
+    setView,
+    setComments,
+    setActiveChapterId,
+    setError,
+    setDiscussionError,
+    setLoadedUserId,
+    setLoading,
+  ])
+}
+
 function useActiveChapterObserver(
   chapters: readonly { id: string }[],
   onActiveChapter: (chapterId: string) => void,
@@ -390,6 +471,127 @@ function SharedReaderOpenError({
   )
 }
 
+type ChapterNavItem = { id: string; title: string; bookTitle: string }
+
+function SharedChapterNav({
+  chapters,
+  activeChapterId,
+  onSelectChapter,
+}: Readonly<{
+  chapters: readonly ChapterNavItem[]
+  activeChapterId: string | null
+  onSelectChapter: (chapterId: string) => void
+}>) {
+  return (
+    <nav className="hidden lg:block">
+      <div className="sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto rounded-xl bg-[#fffdf8] p-4 shadow-sm dark:bg-[#211827]">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          Contenido
+        </p>
+        <div className="space-y-1">
+          {chapters.map((chapter) => (
+            <button
+              key={chapter.id}
+              type="button"
+              onClick={() => onSelectChapter(chapter.id)}
+              className={`w-full rounded-lg px-3 py-2 text-left text-sm transition-colors ${
+                activeChapterId === chapter.id
+                  ? "bg-primary/10 font-medium text-primary"
+                  : "text-foreground/70 hover:bg-black/5"
+              }`}
+            >
+              <span className="block truncate text-[10px] uppercase text-muted-foreground">
+                {chapter.bookTitle}
+              </span>
+              {chapter.title}
+            </button>
+          ))}
+        </div>
+      </div>
+    </nav>
+  )
+}
+
+function SharedManuscriptBody({
+  manuscript,
+  canComment,
+  commentsByScene,
+  activeCommentId,
+  onSelection,
+  onCommentClick,
+}: Readonly<{
+  manuscript: SharedManuscriptView["manuscript"]
+  canComment: boolean
+  commentsByScene: ReadonlyMap<string, ReaderComment[]>
+  activeCommentId: string | null
+  onSelection: SharedSceneProps["onSelection"]
+  onCommentClick: (commentId: string) => void
+}>) {
+  return (
+    <main className="min-w-0">
+      <section className="overflow-hidden rounded-sm bg-[#fffdf8] shadow-[0_18px_60px_-35px_rgba(50,35,20,0.55)] ring-1 ring-black/5 dark:bg-[#211827] dark:ring-white/10">
+        <div className="border-b border-black/5 px-5 py-10 text-center sm:px-16 sm:py-12">
+          <p className="mb-3 text-xs uppercase tracking-[0.35em] text-muted-foreground">
+            Manuscrito
+          </p>
+          <h2 className="break-words font-serif text-4xl font-semibold max-sm:text-3xl">
+            {manuscript.title}
+          </h2>
+        </div>
+
+        {manuscript.books.map((book) => (
+          <div key={book.id}>
+            {manuscript.books.length > 1 && (
+              <div className="border-b border-black/5 px-5 py-10 text-center sm:px-16 sm:py-12">
+                <p className="text-xs uppercase tracking-[0.25em] text-muted-foreground">
+                  Libro
+                </p>
+                <h2 className="mt-2 font-serif text-3xl font-semibold">
+                  {book.title}
+                </h2>
+              </div>
+            )}
+            {book.chapters.map((chapter) => (
+              <section
+                key={chapter.id}
+                id={`shared-chapter-${chapter.id}`}
+                data-chapter-id={chapter.id}
+                className="scroll-mt-20 border-b border-black/10 px-5 py-10 last:border-b-0 sm:px-16 sm:py-12"
+              >
+                <h2 className="mb-8 text-center font-serif text-3xl font-semibold">
+                  {chapter.title}
+                </h2>
+                {chapter.scenes.map((scene) => (
+                  <LazySharedScene
+                    key={scene.id}
+                    sceneId={scene.id}
+                    title={scene.title}
+                    content={scene.content}
+                    comments={commentsByScene.get(scene.id) ?? []}
+                    activeCommentId={activeCommentId}
+                    canComment={canComment}
+                    onSelection={onSelection}
+                    onCommentClick={onCommentClick}
+                  />
+                ))}
+              </section>
+            ))}
+          </div>
+        ))}
+      </section>
+    </main>
+  )
+}
+
+/** Devuelve null si el id ya no coincide con el seleccionado; si no, lo conserva. */
+function clearIfSame(current: string | null, id: string) {
+  return current === id ? null : current
+}
+
+function toggleSameId(current: string | null, id: string) {
+  return current === id ? null : id
+}
+
 export function SharedReader({ slug, initialToken }: SharedReaderProps) {
   const { resolvedTheme, setTheme } = useTheme()
   const {
@@ -423,45 +625,18 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
   const [signingIn, setSigningIn] = useState(false)
   const [loadedUserId, setLoadedUserId] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (authLoading) return
-    if (!firebaseUser) return
-
-    let cancelled = false
-    void (async () => {
-      try {
-        const { resolvedView, loadedComments } = await loadSharedReaderData(
-          slug,
-          initialToken,
-        )
-        if (cancelled) return
-        setView(resolvedView)
-        setComments(loadedComments)
-        setActiveChapterId(
-          resolvedView.manuscript.books[0]?.chapters[0]?.id ?? null,
-        )
-        setError(null)
-        setDiscussionError(null)
-      } catch (loadError) {
-        if (!cancelled) {
-          setError(
-            messageForApiError(
-              loadError,
-              "No se pudo abrir la versión compartida.",
-            ),
-          )
-        }
-      } finally {
-        if (!cancelled) {
-          setLoadedUserId(firebaseUser.uid)
-          setLoading(false)
-        }
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [authLoading, firebaseUser, initialToken, slug])
+  useLoadSharedReader({
+    slug,
+    initialToken,
+    userId: authLoading ? undefined : firebaseUser?.uid,
+    setView,
+    setComments,
+    setActiveChapterId,
+    setError,
+    setDiscussionError,
+    setLoadedUserId,
+    setLoading,
+  })
 
   const handleGoogleSignIn = async () => {
     setSigningIn(true)
@@ -578,12 +753,8 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
         current.map((item) => (item.id === updated.id ? updated : item)),
       )
       if (updated.status === "RESOLVED") {
-        setActiveCommentId((current) =>
-          current === updated.id ? null : current,
-        )
-        setReplyingToCommentId((current) =>
-          current === updated.id ? null : current,
-        )
+        setActiveCommentId((current) => clearIfSame(current, updated.id))
+        setReplyingToCommentId((current) => clearIfSame(current, updated.id))
       }
       setDiscussionError(null)
     } catch (updateError) {
@@ -660,6 +831,28 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
     )
   }
 
+  const discussionProps = {
+    viewer: view.viewer,
+    openComments,
+    resolvedComments,
+    visibleComments,
+    discussionError,
+    activeCommentId,
+    replyingToCommentId,
+    replyDrafts,
+    submittingReplyFor,
+    showResolvedComments,
+    onToggleResolvedComments: () => setShowResolvedComments((current) => !current),
+    onToggleResolved: toggleResolved,
+    onScrollToCommentAnchor: scrollToCommentAnchor,
+    onToggleReply: (commentId: string) =>
+      setReplyingToCommentId((current) => toggleSameId(current, commentId)),
+    onReplyDraftChange: (commentId: string, body: string) =>
+      setReplyDrafts((current) => ({ ...current, [commentId]: body })),
+    onCancelReply: () => setReplyingToCommentId(null),
+    onSubmitReply: submitReply,
+  }
+
   return (
     <div className="min-h-screen bg-[#f4f0e8] text-foreground dark:bg-[#18131d]">
       <SharedReaderHeader
@@ -687,116 +880,25 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
             : "max-w-[1320px] lg:grid-cols-[minmax(180px,240px)_minmax(0,760px)_minmax(180px,240px)]"
         }`}
       >
-        <nav className="hidden lg:block">
-          <div className="sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto rounded-xl bg-[#fffdf8] p-4 shadow-sm dark:bg-[#211827]">
-            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Contenido
-            </p>
-            <div className="space-y-1">
-              {chapters.map((chapter) => (
-                <button
-                  key={chapter.id}
-                  type="button"
-                  onClick={() => scrollToChapter(chapter.id)}
-                  className={`w-full rounded-lg px-3 py-2 text-left text-sm transition-colors ${
-                    activeChapterId === chapter.id
-                      ? "bg-primary/10 font-medium text-primary"
-                      : "text-foreground/70 hover:bg-black/5"
-                  }`}
-                >
-                  <span className="block truncate text-[10px] uppercase text-muted-foreground">
-                    {chapter.bookTitle}
-                  </span>
-                  {chapter.title}
-                </button>
-              ))}
-            </div>
-          </div>
-        </nav>
+        <SharedChapterNav
+          chapters={chapters}
+          activeChapterId={activeChapterId}
+          onSelectChapter={scrollToChapter}
+        />
 
-        <main className="min-w-0">
-          <section className="overflow-hidden rounded-sm bg-[#fffdf8] shadow-[0_18px_60px_-35px_rgba(50,35,20,0.55)] ring-1 ring-black/5 dark:bg-[#211827] dark:ring-white/10">
-            <div className="border-b border-black/5 px-5 py-10 text-center sm:px-16 sm:py-12">
-              <p className="mb-3 text-xs uppercase tracking-[0.35em] text-muted-foreground">
-                Manuscrito
-              </p>
-              <h2 className="break-words font-serif text-4xl font-semibold max-sm:text-3xl">
-                {view.manuscript.title}
-              </h2>
-            </div>
-
-            {view.manuscript.books.map((book) => (
-              <div key={book.id}>
-                {view.manuscript.books.length > 1 && (
-                  <div className="border-b border-black/5 px-5 py-10 text-center sm:px-16 sm:py-12">
-                    <p className="text-xs uppercase tracking-[0.25em] text-muted-foreground">
-                      Libro
-                    </p>
-                    <h2 className="mt-2 font-serif text-3xl font-semibold">
-                      {book.title}
-                    </h2>
-                  </div>
-                )}
-                {book.chapters.map((chapter) => (
-                  <section
-                    key={chapter.id}
-                    id={`shared-chapter-${chapter.id}`}
-                    data-chapter-id={chapter.id}
-                    className="scroll-mt-20 border-b border-black/10 px-5 py-10 last:border-b-0 sm:px-16 sm:py-12"
-                  >
-                    <h2 className="mb-8 text-center font-serif text-3xl font-semibold">
-                      {chapter.title}
-                    </h2>
-                    {chapter.scenes.map((scene) => (
-                      <LazySharedScene
-                        key={scene.id}
-                        sceneId={scene.id}
-                        title={scene.title}
-                        content={scene.content}
-                        comments={commentsByScene.get(scene.id) ?? []}
-                        activeCommentId={activeCommentId}
-                        canComment={view.viewer.canComment}
-                        onSelection={isMobile ? setPendingSelection : setSelection}
-                        onCommentClick={openComment}
-                      />
-                    ))}
-                  </section>
-                ))}
-              </div>
-            ))}
-          </section>
-        </main>
+        <SharedManuscriptBody
+          manuscript={view.manuscript}
+          canComment={view.viewer.canComment}
+          commentsByScene={commentsByScene}
+          activeCommentId={activeCommentId}
+          onSelection={isMobile ? setPendingSelection : setSelection}
+          onCommentClick={openComment}
+        />
 
         {!canOpenDiscussion && <div aria-hidden="true" className="hidden lg:block" />}
 
         {canOpenDiscussion && !isMobile ? (
-          <ReaderDiscussion
-            viewer={view.viewer}
-            openComments={openComments}
-            resolvedComments={resolvedComments}
-            visibleComments={visibleComments}
-            discussionError={discussionError}
-            activeCommentId={activeCommentId}
-            replyingToCommentId={replyingToCommentId}
-            replyDrafts={replyDrafts}
-            submittingReplyFor={submittingReplyFor}
-            showResolvedComments={showResolvedComments}
-            onToggleResolvedComments={() =>
-              setShowResolvedComments((current) => !current)
-            }
-            onToggleResolved={toggleResolved}
-            onScrollToCommentAnchor={scrollToCommentAnchor}
-            onToggleReply={(commentId) =>
-              setReplyingToCommentId((current) =>
-                current === commentId ? null : commentId,
-              )
-            }
-            onReplyDraftChange={(commentId, body) =>
-              setReplyDrafts((current) => ({ ...current, [commentId]: body }))
-            }
-            onCancelReply={() => setReplyingToCommentId(null)}
-            onSubmitReply={submitReply}
-          />
+          <ReaderDiscussion {...discussionProps} />
         ) : (
           <div aria-hidden="true" className="hidden lg:block" />
         )}
@@ -804,34 +906,7 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
 
       {canOpenDiscussion && isMobile ? (
         <CommentsSheet open={commentsOpen} onOpenChange={setCommentsOpen}>
-          <ReaderDiscussion
-            layout="sheet"
-            viewer={view.viewer}
-            openComments={openComments}
-            resolvedComments={resolvedComments}
-            visibleComments={visibleComments}
-            discussionError={discussionError}
-            activeCommentId={activeCommentId}
-            replyingToCommentId={replyingToCommentId}
-            replyDrafts={replyDrafts}
-            submittingReplyFor={submittingReplyFor}
-            showResolvedComments={showResolvedComments}
-            onToggleResolvedComments={() =>
-              setShowResolvedComments((current) => !current)
-            }
-            onToggleResolved={toggleResolved}
-            onScrollToCommentAnchor={scrollToCommentAnchor}
-            onToggleReply={(commentId) =>
-              setReplyingToCommentId((current) =>
-                current === commentId ? null : commentId,
-              )
-            }
-            onReplyDraftChange={(commentId, body) =>
-              setReplyDrafts((current) => ({ ...current, [commentId]: body }))
-            }
-            onCancelReply={() => setReplyingToCommentId(null)}
-            onSubmitReply={submitReply}
-          />
+          <ReaderDiscussion layout="sheet" {...discussionProps} />
         </CommentsSheet>
       ) : null}
 
