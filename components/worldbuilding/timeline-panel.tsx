@@ -271,6 +271,55 @@ function toggleSetItem(set: ReadonlySet<string>, item: string) {
   return next
 }
 
+function TimelineToolbar({
+  isInsertMode,
+  isReordering,
+  isCompact,
+  onToggleInsertMode,
+  onToggleReordering,
+  onToggleCompact,
+}: Readonly<{
+  isInsertMode: boolean
+  isReordering: boolean
+  isCompact: boolean
+  onToggleInsertMode: () => void
+  onToggleReordering: () => void
+  onToggleCompact: () => void
+}>) {
+  return (
+    <div className="flex flex-wrap justify-end gap-2">
+      <Button
+        variant={isInsertMode ? "default" : "outline"}
+        size="sm"
+        className="h-9 max-md:hidden"
+        disabled={isReordering}
+        onClick={onToggleInsertMode}
+      >
+        <Plus />
+        {isInsertMode ? "Terminar de insertar" : "Insertar eventos"}
+      </Button>
+      <Button
+        variant={isReordering ? "default" : "outline"}
+        size="sm"
+        className="h-9 max-md:hidden"
+        onClick={onToggleReordering}
+      >
+        <ListOrdered />
+        {isReordering ? "Terminar de reordenar" : "Reordenar cronología"}
+      </Button>
+      <Button
+        variant="outline"
+        size="sm"
+        className="h-9 w-44 max-md:w-auto"
+        onClick={onToggleCompact}
+      >
+        {isCompact ? <Maximize2 /> : <Minimize2 />}
+        {isCompact ? "Mostrar detalle" : "Vista global"}
+      </Button>
+    </div>
+  )
+}
+
 function ImpactFilter({
   selectedImpacts,
   onToggle,
@@ -626,6 +675,13 @@ export function TimelinePanel({
     }
   }
 
+  const toggleReordering = () => {
+    setIsReordering((current) => !current)
+    setIsInsertMode(false)
+    setPendingMove(null)
+    setMoveError(null)
+  }
+
   const toggleGlobalView = () => {
     setIsCompact((current) => {
       if (!current) setExpandedEventIds(new Set())
@@ -655,7 +711,7 @@ export function TimelinePanel({
         <div>
           <h2 className="font-semibold">No se pudo cargar la línea temporal</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            {error instanceof Error ? error.message : "Intentá nuevamente."}
+            {getErrorMessage(error, "Intentá nuevamente.")}
           </p>
           <Button className="mt-4" variant="outline" onClick={() => { void mutateEvents(); void mutateArcs() }}>
             Reintentar
@@ -785,41 +841,14 @@ export function TimelinePanel({
               Ordená y conectá los momentos clave de la obra.
             </p>
           </div>
-          <div className="flex flex-wrap justify-end gap-2">
-            <Button
-              variant={isInsertMode ? "default" : "outline"}
-              size="sm"
-              className="h-9 max-md:hidden"
-              disabled={isReordering}
-              onClick={() => setIsInsertMode((current) => !current)}
-            >
-              <Plus />
-              {isInsertMode ? "Terminar de insertar" : "Insertar eventos"}
-            </Button>
-            <Button
-              variant={isReordering ? "default" : "outline"}
-              size="sm"
-              className="h-9 max-md:hidden"
-              onClick={() => {
-                setIsReordering((current) => !current)
-                setIsInsertMode(false)
-                setPendingMove(null)
-                setMoveError(null)
-              }}
-            >
-              <ListOrdered />
-              {isReordering ? "Terminar de reordenar" : "Reordenar cronología"}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-9 w-44 max-md:w-auto"
-              onClick={toggleGlobalView}
-            >
-              {isCompact ? <Maximize2 /> : <Minimize2 />}
-              {isCompact ? "Mostrar detalle" : "Vista global"}
-            </Button>
-          </div>
+          <TimelineToolbar
+            isInsertMode={isInsertMode}
+            isReordering={isReordering}
+            isCompact={isCompact}
+            onToggleInsertMode={() => setIsInsertMode((current) => !current)}
+            onToggleReordering={toggleReordering}
+            onToggleCompact={toggleGlobalView}
+          />
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-scroll [scrollbar-gutter:stable] px-5 py-8 sm:px-10 lg:px-16">

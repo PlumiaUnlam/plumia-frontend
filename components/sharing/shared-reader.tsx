@@ -702,6 +702,84 @@ function SelectionCommentDialog({
   )
 }
 
+function getMobileHeaderActions({
+  isMobile,
+  isOwner,
+  showDiscussion,
+  openCommentCount,
+  onBack,
+  onOpenComments,
+}: Readonly<{
+  isMobile: boolean
+  isOwner: boolean
+  showDiscussion: boolean
+  openCommentCount: number
+  onBack: () => void
+  onOpenComments: () => void
+}>) {
+  return {
+    onBack: isMobile && isOwner ? onBack : undefined,
+    commentCount: showDiscussion ? openCommentCount : undefined,
+    onOpenComments: showDiscussion ? onOpenComments : undefined,
+  }
+}
+
+type ReaderDiscussionPanelProps = React.ComponentProps<typeof ReaderDiscussion>
+
+function DiscussionColumn({
+  canOpenDiscussion,
+  isMobile,
+  discussionProps,
+}: Readonly<{
+  canOpenDiscussion: boolean
+  isMobile: boolean
+  discussionProps: ReaderDiscussionPanelProps
+}>) {
+  const placeholder = <div aria-hidden="true" className="hidden lg:block" />
+  if (!canOpenDiscussion) {
+    return (
+      <>
+        {placeholder}
+        {placeholder}
+      </>
+    )
+  }
+  return isMobile ? placeholder : <ReaderDiscussion {...discussionProps} />
+}
+
+function MobileDiscussionOverlay({
+  open,
+  onOpenChange,
+  pendingSelection,
+  hasSelection,
+  onConfirmSelection,
+  onDismissSelection,
+  discussionProps,
+}: Readonly<{
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  pendingSelection: TextSelectionAnchor | null
+  hasSelection: boolean
+  onConfirmSelection: (selection: TextSelectionAnchor) => void
+  onDismissSelection: () => void
+  discussionProps: ReaderDiscussionPanelProps
+}>) {
+  return (
+    <>
+      <CommentsSheet open={open} onOpenChange={onOpenChange}>
+        <ReaderDiscussion layout="sheet" {...discussionProps} />
+      </CommentsSheet>
+      {pendingSelection && !hasSelection && (
+        <SelectionCommentBar
+          selectedText={pendingSelection.selectedText}
+          onComment={() => onConfirmSelection(pendingSelection)}
+          onDismiss={onDismissSelection}
+        />
+      )}
+    </>
+  )
+}
+
 function SharedReaderContent({
   slug,
   initialToken,
@@ -763,11 +841,14 @@ function SharedReaderContent({
         onToggleTheme={() =>
           setTheme(resolvedTheme === "dark" ? "light" : "dark")
         }
-        onBack={isMobile && view.viewer.isOwner ? () => router.back() : undefined}
-        commentCount={showMobileDiscussion ? reader.openComments.length : undefined}
-        onOpenComments={
-          showMobileDiscussion ? () => reader.setCommentsOpen(true) : undefined
-        }
+        {...getMobileHeaderActions({
+          isMobile,
+          isOwner: view.viewer.isOwner,
+          showDiscussion: showMobileDiscussion,
+          openCommentCount: reader.openComments.length,
+          onBack: () => router.back(),
+          onOpenComments: () => reader.setCommentsOpen(true),
+        })}
       />
 
       <div
@@ -790,31 +871,24 @@ function SharedReaderContent({
           onCommentClick={reader.openComment}
         />
 
-        {!canOpenDiscussion && <div aria-hidden="true" className="hidden lg:block" />}
-
-        {canOpenDiscussion && !isMobile ? (
-          <ReaderDiscussion {...discussionProps} />
-        ) : (
-          <div aria-hidden="true" className="hidden lg:block" />
-        )}
+        <DiscussionColumn
+          canOpenDiscussion={canOpenDiscussion}
+          isMobile={isMobile}
+          discussionProps={discussionProps}
+        />
       </div>
 
-      {showMobileDiscussion ? (
-        <CommentsSheet
+      {showMobileDiscussion && (
+        <MobileDiscussionOverlay
           open={reader.commentsOpen}
           onOpenChange={reader.setCommentsOpen}
-        >
-          <ReaderDiscussion layout="sheet" {...discussionProps} />
-        </CommentsSheet>
-      ) : null}
-
-      {showMobileDiscussion && reader.pendingSelection && !reader.selection ? (
-        <SelectionCommentBar
-          selectedText={reader.pendingSelection.selectedText}
-          onComment={() => reader.setSelection(reader.pendingSelection)}
-          onDismiss={() => reader.setPendingSelection(null)}
+          pendingSelection={reader.pendingSelection}
+          hasSelection={reader.selection !== null}
+          onConfirmSelection={reader.setSelection}
+          onDismissSelection={() => reader.setPendingSelection(null)}
+          discussionProps={discussionProps}
         />
-      ) : null}
+      )}
 
       <SelectionCommentDialog
         selection={reader.selection}
