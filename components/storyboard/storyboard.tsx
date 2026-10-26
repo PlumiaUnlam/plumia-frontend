@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo, useState, type ComponentProps } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import dynamic from "next/dynamic"
 import {
@@ -187,6 +187,83 @@ function canFetchStoryboardData(
   return Boolean(projectId && !authLoading && hasUser)
 }
 
+type StoryboardColumnActions = Pick<
+  ComponentProps<typeof StoryboardColumn>,
+  "entitiesById" | "onAddCard" | "onEditCard" | "onDeleteCard"
+>
+
+function StoryboardKanbanContent({
+  isLoading,
+  hasError,
+  isMobile,
+  mobileStatus,
+  onMobileStatusChange,
+  cardsByStatus,
+  columnProps,
+}: Readonly<{
+  isLoading: boolean
+  hasError: boolean
+  isMobile: boolean
+  mobileStatus: StoryboardCardStatus
+  onMobileStatusChange: (status: StoryboardCardStatus) => void
+  cardsByStatus: Record<StoryboardCardStatus, StoryboardCard[]>
+  columnProps: StoryboardColumnActions
+}>) {
+  if (isLoading) {
+    return (
+      <div className="flex h-full items-center justify-center text-muted-foreground">
+        <Loader2 className="mr-2 size-4 animate-spin" />
+        Cargando tablero
+      </div>
+    )
+  }
+  if (hasError) {
+    return (
+      <div className="flex h-full items-center justify-center text-sm text-destructive">
+        No se pudo cargar el storyboard.
+      </div>
+    )
+  }
+
+  const mobileColumn = STORYBOARD_COLUMNS.find(
+    (column) => column.id === mobileStatus,
+  )
+  if (isMobile && mobileColumn) {
+    return (
+      <div className="flex h-full flex-col gap-3">
+        <StatusTabs
+          label="Estado de las tarjetas"
+          items={STORYBOARD_COLUMNS.map((column) => ({
+            id: column.id,
+            label: column.shortTitle ?? column.title,
+            count: cardsByStatus[column.id].length,
+          }))}
+          value={mobileStatus}
+          onChange={onMobileStatusChange}
+        />
+        <StoryboardColumn
+          column={mobileColumn}
+          cards={cardsByStatus[mobileColumn.id]}
+          {...columnProps}
+        />
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex h-full min-w-[1040px] gap-4">
+      {STORYBOARD_COLUMNS.map((column) => (
+        <StoryboardColumn
+          key={column.id}
+          column={column}
+          cards={cardsByStatus[column.id]}
+          {...columnProps}
+        />
+      ))}
+    </div>
+  )
+}
+
 export function Storyboard({ projectId }: Readonly<StoryboardProps>) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -283,65 +360,25 @@ export function Storyboard({ projectId }: Readonly<StoryboardProps>) {
   }, [project])
   const cardCount = cards?.length ?? 0
 
-  let kanbanContent
-  if (isLoading) {
-    kanbanContent = (
-      <div className="flex h-full items-center justify-center text-muted-foreground">
-        <Loader2 className="mr-2 size-4 animate-spin" />
-        Cargando tablero
-      </div>
-    )
-  } else if (error) {
-    kanbanContent = (
-      <div className="flex h-full items-center justify-center text-sm text-destructive">
-        No se pudo cargar el storyboard.
-      </div>
-    )
-  } else {
-    const columnProps = {
-      entitiesById,
-      onAddCard: (status: StoryboardCardStatus) =>
-        setDialogState({ card: null, status }),
-      onEditCard: (card: StoryboardCard) =>
-        setDialogState({ card, status: card.status }),
-      onDeleteCard: setCardToDelete,
-    }
-    const mobileColumn = STORYBOARD_COLUMNS.find(
-      (column) => column.id === mobileStatus,
-    )
-
-    kanbanContent =
-      isMobile && mobileColumn ? (
-        <div className="flex h-full flex-col gap-3">
-          <StatusTabs
-            label="Estado de las tarjetas"
-            items={STORYBOARD_COLUMNS.map((column) => ({
-              id: column.id,
-              label: column.shortTitle ?? column.title,
-              count: cardsByStatus[column.id].length,
-            }))}
-            value={mobileStatus}
-            onChange={setMobileStatus}
-          />
-          <StoryboardColumn
-            column={mobileColumn}
-            cards={cardsByStatus[mobileColumn.id]}
-            {...columnProps}
-          />
-        </div>
-      ) : (
-        <div className="flex h-full min-w-[1040px] gap-4">
-          {STORYBOARD_COLUMNS.map((column) => (
-            <StoryboardColumn
-              key={column.id}
-              column={column}
-              cards={cardsByStatus[column.id]}
-              {...columnProps}
-            />
-          ))}
-        </div>
-      )
+  const columnProps = {
+    entitiesById,
+    onAddCard: (status: StoryboardCardStatus) =>
+      setDialogState({ card: null, status }),
+    onEditCard: (card: StoryboardCard) =>
+      setDialogState({ card, status: card.status }),
+    onDeleteCard: setCardToDelete,
   }
+  const kanbanContent = (
+    <StoryboardKanbanContent
+      isLoading={isLoading}
+      hasError={Boolean(error)}
+      isMobile={isMobile}
+      mobileStatus={mobileStatus}
+      onMobileStatusChange={setMobileStatus}
+      cardsByStatus={cardsByStatus}
+      columnProps={columnProps}
+    />
+  )
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveCardId(String(event.active.id))

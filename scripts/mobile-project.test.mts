@@ -3,9 +3,9 @@ import test from "node:test"
 import {
   DESKTOP_ONLY_FEATURES,
   MOBILE_PROJECT_SECTIONS,
-  filterWorldbuildingTabsForViewport,
   findDesktopOnlyFeature,
   getDesktopOnlyHref,
+  getMobileWorldbuildingTabs,
   getProjectSectionHref,
 } from "../lib/mobile-project"
 import { voiceTitle } from "../lib/voice-title"
@@ -33,13 +33,12 @@ test("solo reconoce funciones de escritorio conocidas", () => {
   assert.equal(findDesktopOnlyFeature(null), null)
 })
 
-test("en mobile se oculta Relaciones y en escritorio se conservan todas las pestañas", () => {
+test("en mobile se oculta la pestaña Relaciones", () => {
   const tabs = [{ id: "wiki" }, { id: "relationships" }, { id: "timeline" }]
   assert.deepEqual(
-    filterWorldbuildingTabsForViewport(tabs, true).map((tab) => tab.id),
+    getMobileWorldbuildingTabs(tabs).map((tab) => tab.id),
     ["wiki", "timeline"],
   )
-  assert.deepEqual(filterWorldbuildingTabsForViewport(tabs, false), tabs)
 })
 
 test("el título de una nota por voz es su primera frase, acotada", () => {

@@ -32,7 +32,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 import { useAuth } from "@/contexts/AuthContext";
 import { useViewportKind } from "@/hooks/use-viewport-kind";
-import { filterWorldbuildingTabsForViewport } from "@/lib/mobile-project";
+import { getMobileWorldbuildingTabs } from "@/lib/mobile-project";
 import {
   getEntities,
   createEntity,
@@ -1415,10 +1415,9 @@ export function Worldbuilding({ projectId }: Readonly<WorldbuildingProps>) {
     setSelectedEntityId,
   } = useWorldbuildingSelection(entityIdParam, tabParam);
   const isMobile = useViewportKind() === "mobile";
-  const visibleTabs = filterWorldbuildingTabsForViewport(
-    WORLD_BUILDING_TABS,
-    isMobile,
-  );
+  const visibleTabs = isMobile
+    ? getMobileWorldbuildingTabs(WORLD_BUILDING_TABS)
+    : WORLD_BUILDING_TABS;
   // En mobile no hay Relaciones: un enlace a esa pestaña cae en la wiki.
   const activeTab = visibleTabs.some((tab) => tab.id === selectedTab)
     ? selectedTab

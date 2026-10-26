@@ -224,6 +224,45 @@ function toInput(draft: TimelineDraft): TimelineEventInput {
   }
 }
 
+function matchesArcFilter(event: TimelineEvent, arcId: string | null) {
+  if (!arcId) return true
+  if (arcId === generalArcFilter) return event.storyboardArcId === null
+  return event.storyboardArcId === arcId
+}
+
+function filterTimelineEvents(
+  events: readonly TimelineEvent[],
+  impacts: readonly TimelineImpact[],
+  entityId: string | null,
+  arcId: string | null,
+) {
+  return events.filter(
+    (event) =>
+      impacts.includes(event.impact) &&
+      (!entityId || event.entityIds.includes(entityId)) &&
+      matchesArcFilter(event, arcId),
+  )
+}
+
+/** Mantiene a la vista el evento enfocado aunque los filtros lo oculten. */
+function includeFocusedEvent(
+  filteredEvents: TimelineEvent[],
+  allEvents: readonly TimelineEvent[] | undefined,
+  focusEventId: string | null,
+) {
+  if (!focusEventId || filteredEvents.some((event) => event.id === focusEventId)) {
+    return filteredEvents
+  }
+  const focusedEvent = allEvents?.find((event) => event.id === focusEventId)
+  return focusedEvent ? [...filteredEvents, focusedEvent] : filteredEvents
+}
+
+function toggleListItem<T>(list: readonly T[], item: T) {
+  return list.includes(item)
+    ? list.filter((current) => current !== item)
+    : [...list, item]
+}
+
 export function TimelinePanel({
   projectId,
   enabled,
@@ -295,30 +334,21 @@ export function TimelinePanel({
   )
   const visibleEvents = useMemo(
     () =>
-      (events ?? []).filter(
-        (event) =>
-          selectedImpacts.includes(event.impact) &&
-          (!selectedEntityId || event.entityIds.includes(selectedEntityId)) &&
-          (!selectedArcId ||
-            (selectedArcId === generalArcFilter
-              ? event.storyboardArcId === null
-              : event.storyboardArcId === selectedArcId)),
+      filterTimelineEvents(
+        events ?? [],
+        selectedImpacts,
+        selectedEntityId,
+        selectedArcId,
       ),
     [events, selectedArcId, selectedEntityId, selectedImpacts],
   )
   const displayedEvents = useMemo(
-    () => {
-      const filteredEvents = isReordering ? (events ?? []) : visibleEvents
-      if (
-        !focusEventId ||
-        filteredEvents.some((event) => event.id === focusEventId)
-      ) {
-        return filteredEvents
-      }
-
-      const focusedEvent = events?.find((event) => event.id === focusEventId)
-      return focusedEvent ? [...filteredEvents, focusedEvent] : filteredEvents
-    },
+    () =>
+      includeFocusedEvent(
+        isReordering ? (events ?? []) : visibleEvents,
+        events,
+        focusEventId,
+      ),
     [events, focusEventId, isReordering, visibleEvents],
   )
 
@@ -394,11 +424,7 @@ export function TimelinePanel({
   }, [newEventRequest, onNewEventRequestHandled])
 
   const toggleImpact = (impact: TimelineImpact) => {
-    setSelectedImpacts((current) =>
-      current.includes(impact)
-        ? current.filter((currentImpact) => currentImpact !== impact)
-        : [...current, impact],
-    )
+    setSelectedImpacts((current) => toggleListItem(current, impact))
   }
 
   const resetFilters = () => {

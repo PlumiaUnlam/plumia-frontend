@@ -253,6 +253,143 @@ function LazySharedScene(props: Readonly<SharedSceneProps>) {
   )
 }
 
+async function loadSharedReaderData(slug: string, token: string | undefined) {
+  const loadedView = token
+    ? await acceptShareInvitation(slug, token)
+    : await getSharedManuscript(slug, token)
+  const [resolvedView, loadedComments] = await Promise.all([
+    resolveSnapshotImages(loadedView, slug, token),
+    loadedView.viewer.canComment
+      ? getReaderComments(slug, token)
+      : Promise.resolve([]),
+  ])
+  return { resolvedView, loadedComments }
+}
+
+function useActiveChapterObserver(
+  chapters: readonly { id: string }[],
+  onActiveChapter: (chapterId: string) => void,
+) {
+  useEffect(() => {
+    if (chapters.length === 0) return
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((left, right) => right.intersectionRatio - left.intersectionRatio)[0]
+        const chapterId = visible?.target instanceof HTMLElement
+          ? visible.target.dataset.chapterId
+          : undefined
+        if (chapterId) onActiveChapter(chapterId)
+      },
+      { rootMargin: "-15% 0px -70%", threshold: [0, 0.2, 0.6] },
+    )
+    for (const chapter of chapters) {
+      const element = document.getElementById(`shared-chapter-${chapter.id}`)
+      if (element) observer.observe(element)
+    }
+    return () => observer.disconnect()
+  }, [chapters, onActiveChapter])
+}
+
+/** Enfoca la tarjeta del comentario; devuelve false si todavía no está en el DOM. */
+function focusReaderCommentCard(commentId: string) {
+  const card = document.getElementById(`reader-comment-${commentId}`)
+  card?.scrollIntoView({ behavior: "smooth", block: "center" })
+  card?.focus({ preventScroll: true })
+  return Boolean(card)
+}
+
+function SharedReaderLoading() {
+  return (
+    <div className="flex min-h-screen items-center justify-center gap-3 bg-[#f4f0e8] text-muted-foreground dark:bg-[#18131d]">
+      <Spinner className="size-5" /> Abriendo versión compartida…
+    </div>
+  )
+}
+
+function SharedReaderGateCard({
+  title,
+  children,
+}: Readonly<{ title: string; children: React.ReactNode }>) {
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-[#f4f0e8] p-6 dark:bg-[#18131d]">
+      <div className="max-w-md rounded-2xl bg-card p-8 text-center shadow-xl">
+        <BookOpen className="mx-auto mb-4 size-10 text-primary" />
+        <h1 className="text-xl font-semibold">{title}</h1>
+        {children}
+      </div>
+    </main>
+  )
+}
+
+function SharedReaderSignIn({
+  error,
+  signingIn,
+  onSignIn,
+}: Readonly<{
+  error: string | null
+  signingIn: boolean
+  onSignIn: () => void
+}>) {
+  return (
+    <SharedReaderGateCard title="Verificá tu invitación">
+      <p className="mt-2 text-sm text-muted-foreground">
+        Ingresá con la cuenta de Google que recibió este enlace. No se creará
+        una cuenta de PlumIA.
+      </p>
+      {error && (
+        <p className="mt-4 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          {error}
+        </p>
+      )}
+      <Button className="mt-5 w-full" disabled={signingIn} onClick={onSignIn}>
+        {signingIn ? <Spinner className="size-4" /> : <LogIn />}
+        Continuar con Google
+      </Button>
+    </SharedReaderGateCard>
+  )
+}
+
+function SharedReaderOpenError({
+  error,
+  hasToken,
+  email,
+  signingIn,
+  onSignIn,
+}: Readonly<{
+  error: string | null
+  hasToken: boolean
+  email: string | null
+  signingIn: boolean
+  onSignIn: () => void
+}>) {
+  return (
+    <SharedReaderGateCard title="No pudimos abrir esta versión">
+      <p className="mt-2 text-sm text-muted-foreground">
+        {error ?? "La invitación no está disponible."}
+      </p>
+      {!hasToken && (
+        <p className="mt-4 text-xs text-muted-foreground">
+          Abrí el enlace completo que recibiste por correo.
+        </p>
+      )}
+      <p className="mt-4 text-xs text-muted-foreground">
+        Sesión actual: {email}
+      </p>
+      <Button
+        className="mt-4"
+        variant="outline"
+        disabled={signingIn}
+        onClick={onSignIn}
+      >
+        {signingIn ? <Spinner className="size-4" /> : <LogIn />}
+        Usar otra cuenta de Google
+      </Button>
+    </SharedReaderGateCard>
+  )
+}
+
 export function SharedReader({ slug, initialToken }: SharedReaderProps) {
   const { resolvedTheme, setTheme } = useTheme()
   const {
@@ -293,15 +430,10 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
     let cancelled = false
     void (async () => {
       try {
-        const loadedView = initialToken
-          ? await acceptShareInvitation(slug, initialToken)
-          : await getSharedManuscript(slug, initialToken)
-        const [resolvedView, loadedComments] = await Promise.all([
-          resolveSnapshotImages(loadedView, slug, initialToken),
-          loadedView.viewer.canComment
-            ? getReaderComments(slug, initialToken)
-            : Promise.resolve([]),
-        ])
+        const { resolvedView, loadedComments } = await loadSharedReaderData(
+          slug,
+          initialToken,
+        )
         if (cancelled) return
         setView(resolvedView)
         setComments(loadedComments)
@@ -370,26 +502,7 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
     return grouped
   }, [comments])
 
-  useEffect(() => {
-    if (chapters.length === 0) return
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort((left, right) => right.intersectionRatio - left.intersectionRatio)[0]
-        const chapterId = visible?.target instanceof HTMLElement
-          ? visible.target.dataset.chapterId
-          : undefined
-        if (chapterId) setActiveChapterId(chapterId)
-      },
-      { rootMargin: "-15% 0px -70%", threshold: [0, 0.2, 0.6] },
-    )
-    for (const chapter of chapters) {
-      const element = document.getElementById(`shared-chapter-${chapter.id}`)
-      if (element) observer.observe(element)
-    }
-    return () => observer.disconnect()
-  }, [chapters])
+  useActiveChapterObserver(chapters, setActiveChapterId)
 
   const scrollToChapter = (chapterId: string) => {
     document
@@ -405,17 +518,9 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
       return
     }
     window.requestAnimationFrame(() => {
-      const focusCard = () => {
-        const card = document.getElementById(`reader-comment-${commentId}`)
-        card?.scrollIntoView({ behavior: "smooth", block: "center" })
-        card?.focus({ preventScroll: true })
-        return Boolean(card)
-      }
-
-      if (!focusCard()) {
-        setShowResolvedComments(true)
-        window.requestAnimationFrame(focusCard)
-      }
+      if (focusReaderCommentCard(commentId)) return
+      setShowResolvedComments(true)
+      window.requestAnimationFrame(() => focusReaderCommentCard(commentId))
     })
     },
     [isMobile],
@@ -530,69 +635,28 @@ export function SharedReader({ slug, initialToken }: SharedReaderProps) {
     authLoading ||
     (firebaseUser && (loading || loadedUserId !== firebaseUser.uid))
   ) {
-    return (
-      <div className="flex min-h-screen items-center justify-center gap-3 bg-[#f4f0e8] text-muted-foreground dark:bg-[#18131d]">
-        <Spinner className="size-5" /> Abriendo versión compartida…
-      </div>
-    )
+    return <SharedReaderLoading />
   }
 
   if (!firebaseUser) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#f4f0e8] p-6 dark:bg-[#18131d]">
-        <div className="max-w-md rounded-2xl bg-card p-8 text-center shadow-xl">
-          <BookOpen className="mx-auto mb-4 size-10 text-primary" />
-          <h1 className="text-xl font-semibold">Verificá tu invitación</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Ingresá con la cuenta de Google que recibió este enlace. No se
-            creará una cuenta de PlumIA.
-          </p>
-          {error && (
-            <p className="mt-4 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
-              {error}
-            </p>
-          )}
-          <Button
-            className="mt-5 w-full"
-            disabled={signingIn}
-            onClick={() => void handleGoogleSignIn()}
-          >
-            {signingIn ? <Spinner className="size-4" /> : <LogIn />}
-            Continuar con Google
-          </Button>
-        </div>
-      </main>
+      <SharedReaderSignIn
+        error={error}
+        signingIn={signingIn}
+        onSignIn={() => void handleGoogleSignIn()}
+      />
     )
   }
 
   if (error || !view) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#f4f0e8] p-6 dark:bg-[#18131d]">
-        <div className="max-w-md rounded-2xl bg-card p-8 text-center shadow-xl">
-          <BookOpen className="mx-auto mb-4 size-10 text-primary" />
-          <h1 className="text-xl font-semibold">No pudimos abrir esta versión</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            {error ?? "La invitación no está disponible."}
-          </p>
-          {!initialToken && (
-            <p className="mt-4 text-xs text-muted-foreground">
-              Abrí el enlace completo que recibiste por correo.
-            </p>
-          )}
-          <p className="mt-4 text-xs text-muted-foreground">
-            Sesión actual: {firebaseUser.email}
-          </p>
-          <Button
-            className="mt-4"
-            variant="outline"
-            disabled={signingIn}
-            onClick={() => void handleGoogleSignIn()}
-          >
-            {signingIn ? <Spinner className="size-4" /> : <LogIn />}
-            Usar otra cuenta de Google
-          </Button>
-        </div>
-      </main>
+      <SharedReaderOpenError
+        error={error}
+        hasToken={Boolean(initialToken)}
+        email={firebaseUser.email}
+        signingIn={signingIn}
+        onSignIn={() => void handleGoogleSignIn()}
+      />
     )
   }
 

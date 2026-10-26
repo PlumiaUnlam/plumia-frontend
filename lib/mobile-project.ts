@@ -100,11 +100,8 @@ export function findDesktopOnlyFeature(featureId: string | null | undefined) {
 /** Tabs de worldbuilding que no se ofrecen en mobile (el grafo no es usable con el dedo). */
 export const MOBILE_HIDDEN_WORLDBUILDING_TABS: readonly string[] = ["relationships"]
 
-export function filterWorldbuildingTabsForViewport<T extends { id: string }>(
+export function getMobileWorldbuildingTabs<T extends { id: string }>(
   tabs: readonly T[],
-  isMobile: boolean,
 ): T[] {
-  return isMobile
-    ? tabs.filter((tab) => !MOBILE_HIDDEN_WORLDBUILDING_TABS.includes(tab.id))
-    : [...tabs]
+  return tabs.filter((tab) => !MOBILE_HIDDEN_WORLDBUILDING_TABS.includes(tab.id))
 }
