@@ -40,6 +40,7 @@ export function AuditAlertCard({
   return (
     <article
       id={`audit-alert-${alert.id}`}
+      tabIndex={-1}
       className={`w-full min-w-0 max-w-full overflow-hidden rounded-xl border border-amber-500/25 bg-amber-500/5 p-3 ${focused ? "ring-2 ring-primary/50" : ""}`}
     >
       <div className="flex w-full min-w-0 items-start gap-2">

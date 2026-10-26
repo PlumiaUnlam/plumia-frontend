@@ -100,7 +100,6 @@ export function EditorRightPanel(props: EditorRightPanelProps) {
   const focusedAlertId = useSearchParams().get("alertId");
   return (
     <EditorRightPanelContent
-      key={focusedAlertId ?? "default"}
       {...props}
       focusedAlertId={focusedAlertId}
     />
@@ -120,6 +119,11 @@ function EditorRightPanelContent({
   );
   const refreshTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [activeTab, setActiveTab] = useState<RightTab>("wiki");
+  const [trackedAlertId, setTrackedAlertId] = useState(focusedAlertId);
+  if (trackedAlertId !== focusedAlertId) {
+    setTrackedAlertId(focusedAlertId);
+    setActiveTab("wiki");
+  }
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   const [acceptingProposalId, setAcceptingProposalId] = useState<string | null>(
@@ -539,7 +543,6 @@ function EditorRightPanelContent({
         <div className="min-h-0 flex-1 overflow-hidden bg-card">
           {activeTab === "wiki" && (
             <WikiPanel
-              key={focusedAlertId ?? "default"}
               entities={entities ?? []}
               proposals={proposals ?? []}
               relationshipProposals={relationshipProposals ?? []}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ComponentType } from "react";
+import { useEffect, useMemo, useRef, useState, type ComponentType } from "react";
 import {
   AlertTriangle,
   Check,
@@ -190,6 +190,8 @@ export function WikiPanel({
     }));
   };
 
+  const focusedAlertDoneRef = useRef<string | null>(null);
+
   useEffect(() => {
     if (
       !focusedAlertId ||
@@ -199,10 +201,12 @@ export function WikiPanel({
       !auditAlerts.some((alert) => alert.id === focusedAlertId)
     ) return;
     const frame = requestAnimationFrame(() => {
-      document.getElementById(`audit-alert-${focusedAlertId}`)?.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-      });
+      const target = document.getElementById(`audit-alert-${focusedAlertId}`);
+      target?.scrollIntoView({ behavior: "smooth", block: "center" });
+      if (target && focusedAlertDoneRef.current !== focusedAlertId) {
+        focusedAlertDoneRef.current = focusedAlertId;
+        target.focus({ preventScroll: true });
+      }
     });
     return () => cancelAnimationFrame(frame);
   }, [
