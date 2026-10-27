@@ -16,11 +16,21 @@ export type ProjectAnalysisScene = {
   pendingChunks: number
 }
 
+export type ProjectAnalysisCrossChunkMode =
+  | "ADJACENT_CHUNKS"
+  | "SCENE_GROUPED"
+  | "PROJECT_SUMMARY"
+  | "DISABLED"
+
 export type ProjectAnalysisPreview = {
   projectId: string
   sceneCount: number
   chunkCount: number
+  crossChunkAuditMode: ProjectAnalysisCrossChunkMode
   affectedAdjacentPairs: number
+  continuityGroupsToAnalyze: number
+  continuityScenesToRecalculate: number
+  continuityCheckpointsToRecalculate: number
   scenes: ProjectAnalysisScene[]
 }
 

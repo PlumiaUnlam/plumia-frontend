@@ -55,7 +55,9 @@ export type CreateEntityStateInput = {
 }
 
 export type UpdateEntityStateInput = {
+  attributeKey?: string
   toValue?: string
+  validFromSceneId?: string
   validToSceneId?: string | null
 }
 

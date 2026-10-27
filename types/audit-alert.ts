@@ -16,6 +16,7 @@ export type AuditAlertConflict = {
   supportingEvidence?: Array<{
     side: "first" | "second";
     quote: string;
+    sceneId?: string;
   }>;
   relationship?: {
     relationshipId: string | null;

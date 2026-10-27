@@ -5,6 +5,7 @@ import { Camera, CircleAlert, KeyRound, LogOut, Monitor, Moon, Search, Settings,
 import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { useTheme } from "next-themes"
+import { useSWRConfig } from "swr"
 
 import { useAuth } from "@/contexts/AuthContext"
 import { deleteAccountErrorMessage } from "@/helpers/api-errors"
@@ -188,6 +189,7 @@ function getInitials(name: string | null | undefined, email: string | null | und
 export function UserMenu({ inverted = false }: UserMenuProps) {
   const router = useRouter()
   const { setTheme, theme } = useTheme()
+  const { mutate } = useSWRConfig()
   const { firebaseUser, user, logout, deleteAccount, updateUserProfile } = useAuth()
   const [profileOpen, setProfileOpen] = useState(false)
   const [profileSection, setProfileSection] = useState<ProfileSection>("account")
@@ -248,23 +250,27 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
   const [projectNamesError, setProjectNamesError] = useState<string | null>(null)
   const [profileCloseWarningOpen, setProfileCloseWarningOpen] = useState(false)
   const entityCatalogOpenRef = useRef(false)
-  const entityRecognitionBaselineRef = useRef({
+  const [entityRecognitionBaseline, setEntityRecognitionBaseline] = useState({
     projectId: null as string | null,
     importantEntityNames: [] as string[],
     ignoredEntityNames: [] as string[],
   })
-  const knowledgeReviewBaselineRef = useRef<{
+  const [knowledgeReviewBaseline, setKnowledgeReviewBaseline] = useState<{
     projectId: string | null
+    stateTrackingEnabled: boolean
     stateReviewMode: KnowledgeReviewSettings["stateReviewMode"]
     stateConfidenceThreshold: number
     relationshipReviewMode: KnowledgeReviewSettings["relationshipReviewMode"]
     relationshipConfidenceThreshold: number
+    crossChunkAuditMode: KnowledgeReviewSettings["crossChunkAuditMode"]
   }>({
     projectId: null,
+    stateTrackingEnabled: false,
     stateReviewMode: "MANUAL",
     stateConfidenceThreshold: 0.9,
     relationshipReviewMode: "MANUAL",
     relationshipConfidenceThreshold: 0.9,
+    crossChunkAuditMode: "ADJACENT_CHUNKS",
   })
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -530,11 +536,11 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
         setImportantEntityNames(nextProjectSettings.importantEntityNames)
         setIgnoredEntityNames(nextProjectSettings.ignoredEntityNames)
         setRejectedEntityProposals(nextProjectSettings.rejectedEntities)
-        entityRecognitionBaselineRef.current = {
+        setEntityRecognitionBaseline({
           projectId: selectedProjectId,
           importantEntityNames: [...nextProjectSettings.importantEntityNames],
           ignoredEntityNames: [...nextProjectSettings.ignoredEntityNames],
-        }
+        })
       }
       setEntityRecognitionNotice("La precisión de reconocimiento fue guardada.")
     } catch {
@@ -583,11 +589,13 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
           },
         }),
         updateKnowledgeReviewSettings(selectedProjectId, {
+          stateTrackingEnabled: knowledgeReviewSettings.stateTrackingEnabled,
           stateReviewMode: knowledgeReviewSettings.stateReviewMode,
           stateConfidenceThreshold: knowledgeReviewSettings.stateConfidenceThreshold,
           relationshipReviewMode: knowledgeReviewSettings.relationshipReviewMode,
           relationshipConfidenceThreshold:
             knowledgeReviewSettings.relationshipConfidenceThreshold,
+          crossChunkAuditMode: knowledgeReviewSettings.crossChunkAuditMode,
         }),
       ])
       setProjects((current) =>
@@ -596,14 +604,27 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
       setWorldRules(getProjectWorldRules(savedProject))
       setWorldRulesNotice("Las reglas del mundo fueron guardadas.")
       setKnowledgeReviewSettings(savedReviewSettings)
-      knowledgeReviewBaselineRef.current = {
+      void mutate(
+        `/projects/${encodeURIComponent(selectedProjectId)}/knowledge-review-settings`,
+        savedReviewSettings,
+        { revalidate: false },
+      )
+      const stateProposalsKey = `/v1/projects/${encodeURIComponent(selectedProjectId)}/state-proposals`
+      if (savedReviewSettings.stateTrackingEnabled) {
+        void mutate(stateProposalsKey)
+      } else {
+        void mutate(stateProposalsKey, [], { revalidate: false })
+      }
+      setKnowledgeReviewBaseline({
         projectId: selectedProjectId,
+        stateTrackingEnabled: savedReviewSettings.stateTrackingEnabled,
         stateReviewMode: savedReviewSettings.stateReviewMode,
         stateConfidenceThreshold: savedReviewSettings.stateConfidenceThreshold,
         relationshipReviewMode: savedReviewSettings.relationshipReviewMode,
         relationshipConfidenceThreshold:
           savedReviewSettings.relationshipConfidenceThreshold,
-      }
+        crossChunkAuditMode: savedReviewSettings.crossChunkAuditMode,
+      })
       setKnowledgeReviewNotice("La revisión automática quedó configurada.")
     } catch {
       setWorldRulesError("No pudimos guardar las reglas del mundo.")
@@ -622,21 +643,21 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
       setImportantEntityNames(settings.importantEntityNames)
       setIgnoredEntityNames(settings.ignoredEntityNames)
       setRejectedEntityProposals(settings.rejectedEntities)
-      entityRecognitionBaselineRef.current = {
+      setEntityRecognitionBaseline({
         projectId,
         importantEntityNames: [...settings.importantEntityNames],
         ignoredEntityNames: [...settings.ignoredEntityNames],
-      }
+      })
     } catch {
       setProjectNamesError("No pudimos cargar la lista de entidades importantes.")
       setImportantEntityNames([])
       setIgnoredEntityNames([])
       setRejectedEntityProposals([])
-      entityRecognitionBaselineRef.current = {
+      setEntityRecognitionBaseline({
         projectId,
         importantEntityNames: [],
         ignoredEntityNames: [],
-      }
+      })
     } finally {
       setProjectNamesLoading(false)
     }
@@ -648,22 +669,26 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
     try {
       const settings = await getKnowledgeReviewSettings(projectId)
       setKnowledgeReviewSettings(settings)
-      knowledgeReviewBaselineRef.current = {
+      setKnowledgeReviewBaseline({
         projectId,
+        stateTrackingEnabled: settings.stateTrackingEnabled,
         stateReviewMode: settings.stateReviewMode,
         stateConfidenceThreshold: settings.stateConfidenceThreshold,
         relationshipReviewMode: settings.relationshipReviewMode,
         relationshipConfidenceThreshold: settings.relationshipConfidenceThreshold,
-      }
+        crossChunkAuditMode: settings.crossChunkAuditMode,
+      })
     } catch {
       setKnowledgeReviewSettings(DEFAULT_KNOWLEDGE_REVIEW_SETTINGS)
-      knowledgeReviewBaselineRef.current = {
+      setKnowledgeReviewBaseline({
         projectId,
+        stateTrackingEnabled: DEFAULT_KNOWLEDGE_REVIEW_SETTINGS.stateTrackingEnabled,
         stateReviewMode: "MANUAL",
         stateConfidenceThreshold: 0.9,
         relationshipReviewMode: "MANUAL",
         relationshipConfidenceThreshold: 0.9,
-      }
+        crossChunkAuditMode: "ADJACENT_CHUNKS",
+      })
       setKnowledgeReviewError("No pudimos cargar la configuración de revisión.")
     } finally {
       setKnowledgeReviewLoading(false)
@@ -751,48 +776,95 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
       normalizeEntityName(rule).includes(normalizedWorldRulesSearch),
   )
 
-  const hasUnsavedProfileChanges = () => {
+  const hasUnsavedAccountChanges = () =>
+    displayName.trim() !== currentDisplayName.trim() ||
+    avatarFile !== null ||
+    avatarPreview !== null ||
+    removeAvatar
+
+  const hasUnsavedEntityRecognitionChanges = () => {
     const savedThresholds =
       aiSettings?.entityExtractionThresholds ?? DEFAULT_ENTITY_RECOGNITION_THRESHOLDS
     const thresholdsChanged = Object.entries(entityThresholds).some(
       ([type, value]) => savedThresholds[type as keyof EntityRecognitionThresholds] !== value,
     )
-    const entityBaseline = entityRecognitionBaselineRef.current
+    const entityBaseline = entityRecognitionBaseline
     const entityListsChanged =
       entityBaseline.projectId === selectedProjectId &&
       (!areStringArraysEqual(importantEntityNames, entityBaseline.importantEntityNames) ||
         !areStringArraysEqual(ignoredEntityNames, entityBaseline.ignoredEntityNames))
+    return thresholdsChanged || entityListsChanged
+  }
+
+  const hasUnsavedInconsistencyChanges = () => {
     const savedWorldRules = getProjectWorldRules(
       projects.find((project) => project.id === selectedProjectId),
     )
-    const worldRulesChanged =
-      selectedProjectId !== null && !areStringArraysEqual(worldRules, savedWorldRules)
-    const reviewBaseline = knowledgeReviewBaselineRef.current
+    const reviewBaseline = knowledgeReviewBaseline
     const reviewSettingsChanged =
       reviewBaseline.projectId === selectedProjectId &&
       (knowledgeReviewSettings.stateReviewMode !== reviewBaseline.stateReviewMode ||
+        knowledgeReviewSettings.stateTrackingEnabled !== reviewBaseline.stateTrackingEnabled ||
         knowledgeReviewSettings.stateConfidenceThreshold !==
           reviewBaseline.stateConfidenceThreshold ||
         knowledgeReviewSettings.relationshipReviewMode !==
           reviewBaseline.relationshipReviewMode ||
         knowledgeReviewSettings.relationshipConfidenceThreshold !==
-          reviewBaseline.relationshipConfidenceThreshold)
-
+          reviewBaseline.relationshipConfidenceThreshold ||
+        knowledgeReviewSettings.crossChunkAuditMode !==
+          reviewBaseline.crossChunkAuditMode)
     return (
-      displayName.trim() !== currentDisplayName.trim() ||
-      avatarFile !== null ||
-      avatarPreview !== null ||
-      removeAvatar ||
-      aiKey.trim().length > 0 ||
-      thresholdsChanged ||
-      entityListsChanged ||
-      newImportantEntityName.trim().length > 0 ||
-      newIgnoredEntityName.trim().length > 0 ||
-      worldRulesChanged ||
-      reviewSettingsChanged ||
-      newWorldRule.trim().length > 0
+      (selectedProjectId !== null &&
+        !areStringArraysEqual(worldRules, savedWorldRules)) ||
+      reviewSettingsChanged
     )
   }
+
+  const hasUnsavedProfileChanges = () =>
+    hasUnsavedAccountChanges() ||
+    aiKey.trim().length > 0 ||
+    hasUnsavedEntityRecognitionChanges() ||
+    hasUnsavedInconsistencyChanges() ||
+    newImportantEntityName.trim().length > 0 ||
+    newIgnoredEntityName.trim().length > 0 ||
+    newWorldRule.trim().length > 0
+
+  const hasUnsavedCurrentSectionChanges = () => {
+    if (profileSection === "account") return hasUnsavedAccountChanges()
+    if (profileSection === "ai") return aiKey.trim().length > 0
+    if (profileSection === "entityRecognition") {
+      return hasUnsavedEntityRecognitionChanges()
+    }
+    return hasUnsavedInconsistencyChanges()
+  }
+
+  const currentSectionHasUnsavedChanges = hasUnsavedCurrentSectionChanges()
+
+  const isCurrentSectionSettingsUnavailable =
+    (profileSection === "entityRecognition" &&
+      (aiLoading || projectNamesLoading)) ||
+    (profileSection === "inconsistencies" &&
+      (projectsLoading || knowledgeReviewLoading))
+
+  const profileSubmitDisabled =
+    profileSection === "ai"
+      ? !aiKey.trim()
+      : !currentSectionHasUnsavedChanges ||
+        isCurrentSectionSettingsUnavailable ||
+        (profileSection === "inconsistencies" && !selectedProjectId)
+
+  const profileSubmitLabel =
+    profileSection === "ai"
+      ? "Guardar API Key"
+      : currentSectionHasUnsavedChanges
+        ? profileSection === "account"
+          ? "Guardar cambios"
+          : "Guardar configuración"
+        : "Sin cambios pendientes"
+
+  const profileSubmitButtonClassName = currentSectionHasUnsavedChanges
+    ? undefined
+    : "bg-muted text-muted-foreground shadow-none hover:bg-muted hover:text-muted-foreground"
 
   const requestProfileClose = (open: boolean) => {
     if (open) {
@@ -909,19 +981,9 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
         description="Administrá tus datos y la configuración de IA de tu cuenta."
         size="lg"
         contentClassName="md:h-[min(88dvh,800px)]"
-        submitLabel={
-          profileSection === "account"
-            ? "Guardar cambios"
-            : profileSection === "ai"
-              ? "Guardar API Key"
-              : profileSection === "entityRecognition"
-                ? "Guardar configuración"
-                : "Guardar configuración"
-        }
-        submitDisabled={
-          (profileSection === "ai" && !aiKey.trim()) ||
-          (profileSection === "inconsistencies" && !selectedProjectId)
-        }
+        submitLabel={profileSubmitLabel}
+        submitDisabled={profileSubmitDisabled}
+        submitButtonClassName={profileSubmitButtonClassName}
         loading={
           profileSection === "account"
             ? saving
@@ -931,6 +993,7 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
                 ? entityRecognitionSaving
                 : worldRulesSaving || knowledgeReviewSaving
         }
+        showLoadingIndicator={false}
         onSubmit={
           profileSection === "account"
             ? handleProfileSubmit
@@ -1282,8 +1345,60 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
               {knowledgeReviewLoading ? (
                 <p className="text-xs text-muted-foreground">Cargando preferencias del proyecto...</p>
               ) : (
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-4">
+                  <label className="flex cursor-pointer items-start gap-3 rounded-lg border bg-card p-3">
+                    <input
+                      type="checkbox"
+                      checked={knowledgeReviewSettings.stateTrackingEnabled}
+                      onChange={(event) =>
+                        setKnowledgeReviewSettings((current) => ({
+                          ...current,
+                          stateTrackingEnabled: event.target.checked,
+                        }))
+                      }
+                      className="mt-1 size-4 accent-primary"
+                    />
+                    <span>
+                      <span className="block text-sm font-medium">
+                        Activar seguimiento de estados
+                      </span>
+                      <span className="mt-1 block text-xs text-muted-foreground">
+                        Permite registrar cambios de ubicación, estado vital y salud, ver su historial y revisar propuestas.
+                        Al desactivarlo, los datos existentes se conservan, pero no se muestran ni se usan en el análisis.
+                      </span>
+                    </span>
+                  </label>
+
                   <section className="space-y-3 rounded-lg border bg-card p-3">
+                    <Field>
+                      <FieldLabel htmlFor="cross-chunk-audit-mode">
+                        Comparación entre fragmentos
+                      </FieldLabel>
+                      <select
+                        id="cross-chunk-audit-mode"
+                        value={knowledgeReviewSettings.crossChunkAuditMode}
+                        onChange={(event) =>
+                          setKnowledgeReviewSettings((current) => ({
+                            ...current,
+                            crossChunkAuditMode: event.target.value as KnowledgeReviewSettings["crossChunkAuditMode"],
+                          }))
+                        }
+                        className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+                      >
+                        <option value="ADJACENT_CHUNKS">Comparar fragmentos consecutivos</option>
+                        <option value="SCENE_GROUPED">Analizar toda la escena</option>
+                        <option value="PROJECT_SUMMARY">Usar resumen de escenas anteriores</option>
+                        <option value="DISABLED">Desactivar comparación entre fragmentos</option>
+                      </select>
+                      <p className="text-xs text-muted-foreground">
+                        La revisión de cada fragmento contra la ficha y las reglas del mundo permanece activa.
+                      </p>
+                    </Field>
+                  </section>
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    {knowledgeReviewSettings.stateTrackingEnabled && (
+                      <section className="space-y-3 rounded-lg border bg-card p-3">
                     <p className="text-sm font-medium">Estados y cambios narrativos</p>
                     <Field>
                       <FieldLabel htmlFor="state-review-mode">Modo de revisión</FieldLabel>
@@ -1321,9 +1436,10 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
                         }
                       />
                     </Field>
-                  </section>
+                      </section>
+                    )}
 
-                  <section className="space-y-3 rounded-lg border bg-card p-3">
+                    <section className="space-y-3 rounded-lg border bg-card p-3">
                     <p className="text-sm font-medium">Relaciones</p>
                     <Field>
                       <FieldLabel htmlFor="relationship-review-mode">Modo de revisión</FieldLabel>
@@ -1361,7 +1477,8 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
                         }
                       />
                     </Field>
-                  </section>
+                    </section>
+                  </div>
                 </div>
               )}
               {knowledgeReviewError && <FieldError>{knowledgeReviewError}</FieldError>}

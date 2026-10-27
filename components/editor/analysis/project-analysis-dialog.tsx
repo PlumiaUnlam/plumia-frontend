@@ -107,8 +107,33 @@ export function ProjectAnalysisDialog({
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                 <SummaryCard label="Escenas" value={preview.sceneCount} />
                 <SummaryCard label="Fragmentos" value={preview.chunkCount} />
-                <SummaryCard label="Pares entre fragmentos" value={preview.affectedAdjacentPairs} />
+                {preview.crossChunkAuditMode === "ADJACENT_CHUNKS" && (
+                  <SummaryCard label="Pares vecinos" value={preview.affectedAdjacentPairs} />
+                )}
+                {preview.crossChunkAuditMode === "SCENE_GROUPED" && (
+                  <SummaryCard
+                    label="Grupos de escena"
+                    value={preview.continuityGroupsToAnalyze}
+                  />
+                )}
+                {preview.crossChunkAuditMode === "PROJECT_SUMMARY" && (
+                  <SummaryCard
+                    label="Escenas de continuidad"
+                    value={preview.continuityScenesToRecalculate}
+                  />
+                )}
+                {preview.continuityCheckpointsToRecalculate > 0 && (
+                  <SummaryCard
+                    label="Resúmenes a recalcular"
+                    value={preview.continuityCheckpointsToRecalculate}
+                  />
+                )}
               </div>
+              {preview.crossChunkAuditMode === "DISABLED" && (
+                <p className="text-xs text-muted-foreground">
+                  La comparación entre fragmentos está desactivada. Se mantiene la revisión de cada fragmento contra la Wiki y las reglas del mundo.
+                </p>
+              )}
               <section className="space-y-2">
                 <div className="flex items-center justify-between gap-2">
                   <h3 className="text-sm font-semibold">Escenas incluidas</h3>

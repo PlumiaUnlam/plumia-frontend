@@ -19,6 +19,7 @@ import {
   Search,
   PenLine,
   Trash2,
+  Plus,
   Funnel,
   StarIcon,
   ArrowUpRight,
@@ -103,8 +104,12 @@ interface WikiTabProps {
   readonly timelineEventsError: Error | undefined;
   readonly linksLoading: boolean;
   readonly stateHistory: readonly EntityStateHistoryEntry[];
+  readonly stateTrackingEnabled: boolean;
   readonly stateHistoryLoading: boolean;
   readonly stateHistoryError: Error | undefined;
+  readonly onCreateEntityState: () => void;
+  readonly onEditEntityState: (entry: EntityStateHistoryEntry) => void;
+  readonly onDeleteEntityState: (entry: EntityStateHistoryEntry) => void;
   readonly onOpenEntity: (entityId: string) => void;
   readonly onOpenTimelineEvent: (eventId: string) => void;
 }
@@ -278,10 +283,14 @@ function EntityStateHistoryContent({
   entries,
   loading,
   error,
+  onEdit,
+  onDelete,
 }: Readonly<{
   entries: readonly EntityStateHistoryEntry[];
   loading: boolean;
   error: Error | undefined;
+  onEdit: (entry: EntityStateHistoryEntry) => void;
+  onDelete: (entry: EntityStateHistoryEntry) => void;
 }>) {
   if (error) {
     return (
@@ -307,18 +316,28 @@ function EntityStateHistoryContent({
     <ol className="space-y-4">
       {entries.map((entry, index) => (
         <li key={entry.id} className="border-l-2 border-primary/30 pl-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge
-              variant="outline"
-              className="border-primary/25 bg-primary/5 text-primary"
-            >
-              {getEntityStateLabel(entry.attributeKey)}
-            </Badge>
-            {entries.length > 1 && (
-              <span className="text-xs text-muted-foreground">
-                Cambio {index + 1}
-              </span>
-            )}
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge
+                variant="outline"
+                className="border-primary/25 bg-primary/5 text-primary"
+              >
+                {getEntityStateLabel(entry.attributeKey)}
+              </Badge>
+              {entries.length > 1 && (
+                <span className="text-xs text-muted-foreground">
+                  Cambio {index + 1}
+                </span>
+              )}
+            </div>
+            <div className="flex shrink-0 gap-1">
+              <Button type="button" variant="ghost" size="sm" onClick={() => onEdit(entry)}>
+                <PenLine className="mr-1 size-3.5" />Editar
+              </Button>
+              <Button type="button" variant="ghost" size="sm" onClick={() => onDelete(entry)}>
+                <Trash2 className="mr-1 size-3.5" />Eliminar
+              </Button>
+            </div>
           </div>
           <p className="mt-2 break-words text-sm leading-relaxed">
             <span className="text-muted-foreground">
@@ -464,8 +483,12 @@ export function WikiTab({
   timelineEventsError,
   linksLoading,
   stateHistory,
+  stateTrackingEnabled,
   stateHistoryLoading,
   stateHistoryError,
+  onCreateEntityState,
+  onEditEntityState,
+  onDeleteEntityState,
   onOpenEntity,
   onOpenTimelineEvent,
 }: WikiTabProps) {
@@ -724,7 +747,7 @@ export function WikiTab({
                 </Card>
               </section>
 
-              <section
+              {stateTrackingEnabled && <section
                 id="entity-state-history"
                 className="scroll-mt-5 space-y-3"
               >
@@ -749,16 +772,21 @@ export function WikiTab({
                 </button>
                 {stateHistoryExpanded && (
                   <Card id="entity-state-history-content" className="min-w-0 w-full bg-muted/30">
-                    <CardContent>
+                    <CardContent className="space-y-4">
+                      <Button type="button" size="sm" onClick={onCreateEntityState}>
+                        <Plus className="mr-2 size-4" />Agregar estado
+                      </Button>
                       <EntityStateHistoryContent
                         entries={stateHistory}
                         loading={stateHistoryLoading}
                         error={stateHistoryError}
+                        onEdit={onEditEntityState}
+                        onDelete={onDeleteEntityState}
                       />
                     </CardContent>
                   </Card>
                 )}
-              </section>
+              </section>}
 
               <section className="space-y-3">
                 <h3 className="text-lg font-semibold">Baúl de imágenes</h3>

@@ -47,7 +47,10 @@ export function AuditAlertCard({
   const [detailsOpen, setDetailsOpen] = useState(false);
   const conflict = alert.conflict;
   const isCrossChunkContradiction =
-    alert.ruleCode === "INTRA_SCENE_CONTRADICTION";
+    alert.ruleCode === "INTRA_SCENE_CONTRADICTION" ||
+    alert.ruleCode === "CROSS_SCENE_CONTRADICTION";
+  const isCrossSceneContradiction =
+    alert.ruleCode === "CROSS_SCENE_CONTRADICTION";
   const firstEvidence =
     conflict?.supportingEvidence?.find((evidence) => evidence.side === "first")
       ?.quote ?? conflict?.evidence[0];
@@ -96,7 +99,9 @@ export function AuditAlertCard({
 
             {isCrossChunkContradiction && (
               <p className="mt-1 text-[10px] font-medium text-amber-800">
-                Dos datos incompatibles dentro de esta escena
+                {isCrossSceneContradiction
+                  ? "Datos incompatibles entre escenas"
+                  : "Dos datos incompatibles dentro de esta escena"}
               </p>
             )}
 

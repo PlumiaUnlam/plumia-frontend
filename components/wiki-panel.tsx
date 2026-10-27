@@ -42,6 +42,7 @@ import { getWorldbuildingEntityHref } from "@/lib/worldbuilding-links";
 
 type WikiPanelProps = {
   readonly projectId: string;
+  readonly stateTrackingEnabled: boolean;
   readonly sceneOptions: readonly EditorSectionOption[];
   readonly entities: readonly Entity[];
   readonly proposals: readonly EntityProposal[];
@@ -104,6 +105,7 @@ type WikiSectionKey =
 
 export function WikiPanel({
   projectId,
+  stateTrackingEnabled,
   sceneOptions,
   entities,
   proposals,
@@ -356,7 +358,7 @@ export function WikiPanel({
               onReviewProposal={handleEntityProposalEdit}
             />
           )}
-          {showReviewSections && (
+          {showReviewSections && stateTrackingEnabled && (
             <>
               <WikiSectionTitle
                 icon={RefreshCw}

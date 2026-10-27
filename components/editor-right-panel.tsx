@@ -33,6 +33,7 @@ import {
   getEntityStateProposals,
   rejectEntityStateProposal,
 } from "@/services/entity-states.service";
+import { getKnowledgeReviewSettings } from "@/services/knowledge-review-settings.service";
 import { useAuditAlerts } from "@/hooks/use-audit-alerts";
 import { useKnowledgeRefresh } from "@/hooks/use-knowledge-refresh";
 import { useEditorStore } from "@/stores/editor.store";
@@ -111,6 +112,14 @@ export function EditorRightPanel({
     useState<EntityActionFeedback | null>(null);
   const shouldLoadEntityData = activeTab === "wiki" || activeTab === "chat";
   const shouldLoadWikiData = activeTab === "wiki";
+  const { data: knowledgeReviewSettings } = useSWR(
+    projectId && shouldLoadWikiData
+      ? `/projects/${projectId}/knowledge-review-settings`
+      : null,
+    () => getKnowledgeReviewSettings(projectId),
+  );
+  const stateTrackingEnabled =
+    knowledgeReviewSettings?.stateTrackingEnabled ?? false;
 
   const {
     data: entities,
@@ -168,7 +177,7 @@ export function EditorRightPanel({
     isLoading: isLoadingStateProposals,
     mutate: mutateStateProposals,
   } = useSWR(
-    projectId && shouldLoadWikiData
+    projectId && shouldLoadWikiData && stateTrackingEnabled
       ? `/v1/projects/${projectId}/state-proposals`
       : null,
     () => getEntityStateProposals(projectId),
@@ -356,17 +365,21 @@ export function EditorRightPanel({
   const handleFocusAuditAlert = useCallback(
     (alert: AuditAlert, evidenceIndex = 0) => {
       const supportingSide = evidenceIndex === 1 ? "second" : "first";
-      const evidence =
-        (alert.ruleCode === "INTRA_SCENE_CONTRADICTION"
+      const supportingSource =
+        alert.ruleCode === "INTRA_SCENE_CONTRADICTION" ||
+        alert.ruleCode === "CROSS_SCENE_CONTRADICTION"
           ? alert.conflict?.supportingEvidence?.find(
               (entry) => entry.side === supportingSide,
-            )?.quote
-          : alert.conflict?.supportingEvidence?.[evidenceIndex]?.quote) ??
+            )
+          : alert.conflict?.supportingEvidence?.[evidenceIndex];
+      const evidence =
+        supportingSource?.quote ??
         alert.conflict?.evidence[evidenceIndex] ??
         alert.conflict?.evidence[0];
-      setActiveScene(alert.sceneId);
+      const sourceSceneId = supportingSource?.sceneId ?? alert.sceneId;
+      setActiveScene(sourceSceneId);
       if (evidence) {
-        focusCitation({ sceneId: alert.sceneId, textQuote: evidence });
+        focusCitation({ sceneId: sourceSceneId, textQuote: evidence });
       } else {
         clearCitationFocus();
       }
@@ -488,6 +501,7 @@ export function EditorRightPanel({
           {activeTab === "wiki" && (
             <WikiPanel
               projectId={projectId}
+              stateTrackingEnabled={stateTrackingEnabled}
               sceneOptions={sceneOptions}
               entities={entities ?? []}
               proposals={proposals ?? []}

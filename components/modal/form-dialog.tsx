@@ -38,8 +38,11 @@ type FormDialogProps = {
   submitLabel?: string
   cancelLabel?: string
   submitDisabled?: boolean
-  /** Bloquea el cierre y muestra un spinner en el botón principal. */
+  submitButtonClassName?: string
+  /** Bloquea el cierre y el envío mientras hay una operación en curso. */
   loading?: boolean
+  /** Permite bloquear el envío sin mostrar el spinner de carga. */
+  showLoadingIndicator?: boolean
   error?: ReactNode
   /** Acción secundaria alineada a la izquierda del pie (ej. "Eliminar"). */
   footerStart?: ReactNode
@@ -69,7 +72,9 @@ export function FormDialog({
   submitLabel = "Guardar",
   cancelLabel = "Cancelar",
   submitDisabled = false,
+  submitButtonClassName,
   loading = false,
+  showLoadingIndicator = true,
   error,
   footerStart,
   footer,
@@ -104,9 +109,10 @@ export function FormDialog({
           <Button
             type={enterToSubmit ? "submit" : "button"}
             disabled={submitDisabled || loading}
+            className={submitButtonClassName}
             onClick={enterToSubmit ? undefined : () => void onSubmit()}
           >
-            {loading ? <Spinner /> : null}
+            {loading && showLoadingIndicator ? <Spinner /> : null}
             {submitLabel}
           </Button>
         ) : null}
