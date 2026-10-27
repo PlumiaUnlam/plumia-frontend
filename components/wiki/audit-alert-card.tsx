@@ -116,21 +116,11 @@ export function AuditAlertCard({
                 {severityLabel[alert.severity]}
               </Badge>
             </div>
-            {isCrossChunkContradiction && (
-              <p className="mt-1 text-[10px] font-medium text-amber-800">
-                {isCrossSceneContradiction
-                  ? "Datos incompatibles entre escenas"
-                  : "Dos datos incompatibles dentro de esta escena"}
-              </p>
-            )}
-
-            {conflict && !isCrossChunkContradiction && (
-              <p className="mt-1 break-words text-[10px] text-muted-foreground">
-                {conflict.relationship
-                  ? `${conflict.relationship.sourceEntityName} · ${conflict.relationship.targetEntityName}`
-                  : conflict.entityName}
-              </p>
-            )}
+            <AuditAlertContext
+              conflict={conflict}
+              isCrossChunkContradiction={isCrossChunkContradiction}
+              isCrossSceneContradiction={isCrossSceneContradiction}
+            />
 
             <div className="mt-2 rounded-lg border border-primary/10 bg-background/75 px-3 py-2.5">
               <p className="mb-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-primary">
@@ -248,6 +238,35 @@ export function AuditAlertCard({
         secondEvidence={secondEvidence}
         focusEvidence={focusEvidence}
       />
+    </>
+  );
+}
+
+function AuditAlertContext({
+  conflict,
+  isCrossChunkContradiction,
+  isCrossSceneContradiction,
+}: Readonly<{
+  conflict: AuditAlert["conflict"];
+  isCrossChunkContradiction: boolean;
+  isCrossSceneContradiction: boolean;
+}>) {
+  return (
+    <>
+      {isCrossChunkContradiction && (
+        <p className="mt-1 text-[10px] font-medium text-amber-800">
+          {isCrossSceneContradiction
+            ? "Datos incompatibles entre escenas"
+            : "Dos datos incompatibles dentro de esta escena"}
+        </p>
+      )}
+      {conflict && !isCrossChunkContradiction && (
+        <p className="mt-1 break-words text-[10px] text-muted-foreground">
+          {conflict.relationship
+            ? `${conflict.relationship.sourceEntityName} · ${conflict.relationship.targetEntityName}`
+            : conflict.entityName}
+        </p>
+      )}
     </>
   );
 }

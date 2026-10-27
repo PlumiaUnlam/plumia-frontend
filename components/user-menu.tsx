@@ -1394,13 +1394,12 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
                 <p className="text-xs text-muted-foreground">Cargando preferencias del proyecto...</p>
               ) : (
                 <div className="space-y-4">
-                  <label
-                    htmlFor="state-tracking-enabled"
-                    className="flex cursor-pointer items-start gap-3 rounded-lg border bg-card p-3"
-                  >
+                  <div className="flex items-start gap-3 rounded-lg border bg-card p-3">
                     <input
                       id="state-tracking-enabled"
                       type="checkbox"
+                      aria-labelledby="state-tracking-enabled-label"
+                      aria-describedby="state-tracking-enabled-description"
                       checked={knowledgeReviewSettings.stateTrackingEnabled}
                       onChange={(event) =>
                         setKnowledgeReviewSettings((current) => ({
@@ -1410,16 +1409,23 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
                       }
                       className="mt-1 size-4 accent-primary"
                     />
-                    <span>
-                      <span className="block text-sm font-medium">
+                    <div>
+                      <label
+                        id="state-tracking-enabled-label"
+                        htmlFor="state-tracking-enabled"
+                        className="cursor-pointer text-sm font-medium"
+                      >
                         Activar seguimiento de estados
-                      </span>
-                      <span className="mt-1 block text-xs text-muted-foreground">
+                      </label>
+                      <p
+                        id="state-tracking-enabled-description"
+                        className="mt-1 text-xs text-muted-foreground"
+                      >
                         Permite registrar cambios de ubicación, estado vital y salud, ver su historial y revisar propuestas.
                         Al desactivarlo, los datos existentes se conservan, pero no se muestran ni se usan en el análisis.
-                      </span>
-                    </span>
-                  </label>
+                      </p>
+                    </div>
+                  </div>
 
                   <section className="space-y-3 rounded-lg border bg-card p-3">
                     <Field>
