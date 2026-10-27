@@ -51,7 +51,7 @@ export function StoryboardCardItem({
         entitiesById={entitiesById}
         dragHandle={
           <button
-            className="mt-0.5 cursor-grab text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
+            className="mt-0.5 cursor-grab text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 max-md:hidden"
             aria-label={`Arrastrar ${card.title}`}
             {...attributes}
             {...listeners}

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
+import { useSearchParams } from "next/navigation";
 import {
   BarChart2,
   GitBranch,
@@ -10,6 +11,8 @@ import {
   PanelRightOpen,
 } from "lucide-react";
 import useSWR from "swr";
+
+import { Spinner } from "@/components/ui/spinner";
 
 import { getEntities } from "@/services/entities.service";
 import {
@@ -44,16 +47,30 @@ import type { AuditAlert, AuditAlertUpdateStatus } from "@/types/audit-alert";
 import type { WritingMode } from "@/types/writing-mode";
 import type { EditorSectionOption } from "@/components/editor/editor-types";
 
-const ChatPanel = dynamic(() =>
-  import("@/components/chat-panel").then((module) => module.ChatPanel),
+// Sin `loading`, next/dynamic no crea su propio Suspense: al cargar el chunk por
+// primera vez suspendería hasta el límite del editor y haría desaparecer todo el panel.
+function PanelLoading() {
+  return (
+    <div className="flex h-full items-center justify-center">
+      <Spinner className="size-5 text-muted-foreground" />
+    </div>
+  );
+}
+
+const ChatPanel = dynamic(
+  () => import("@/components/chat-panel").then((module) => module.ChatPanel),
+  { loading: PanelLoading },
 );
-const WikiPanel = dynamic(() =>
-  import("@/components/wiki-panel").then((module) => module.WikiPanel),
+const WikiPanel = dynamic(
+  () => import("@/components/wiki-panel").then((module) => module.WikiPanel),
+  { loading: PanelLoading },
 );
-const StatsSidebarPanel = dynamic(() =>
-  import("@/components/statistics/stats-sidebar-panel").then(
-    (module) => module.StatsSidebarPanel,
-  ),
+const StatsSidebarPanel = dynamic(
+  () =>
+    import("@/components/statistics/stats-sidebar-panel").then(
+      (module) => module.StatsSidebarPanel,
+    ),
+  { loading: PanelLoading },
 );
 
 type RightTab = "wiki" | "chat" | "stats";
@@ -75,11 +92,33 @@ const tabs = [
   { id: "stats" as const, label: "Stats", icon: BarChart2 },
 ];
 
-export function EditorRightPanel({
+export function EditorRightPanel(props: EditorRightPanelProps) {
+  const focusedAlertId = useSearchParams().get("alertId");
+  return (
+    <EditorRightPanelContent
+      {...props}
+      focusedAlertId={focusedAlertId}
+    />
+  );
+}
+
+function useShowWikiOnAlertChange(
+  focusedAlertId: string | null,
+  setActiveTab: (tab: RightTab) => void,
+) {
+  const [trackedAlertId, setTrackedAlertId] = useState(focusedAlertId);
+  if (trackedAlertId !== focusedAlertId) {
+    setTrackedAlertId(focusedAlertId);
+    setActiveTab("wiki");
+  }
+}
+
+function EditorRightPanelContent({
   projectId,
   mode,
   sceneOptions,
-}: EditorRightPanelProps) {
+  focusedAlertId,
+}: EditorRightPanelProps & { focusedAlertId: string | null }) {
   const setActiveScene = useEditorStore((state) => state.setActiveScene);
   const focusCitation = useEditorStore((state) => state.focusCitation);
   const clearCitationFocus = useEditorStore(
@@ -87,7 +126,9 @@ export function EditorRightPanel({
   );
   const refreshTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [activeTab, setActiveTab] = useState<RightTab>("wiki");
+  useShowWikiOnAlertChange(focusedAlertId, setActiveTab);
   const [isCollapsed, setIsCollapsed] = useState(false);
+
   const [acceptingProposalId, setAcceptingProposalId] = useState<string | null>(
     null,
   );
@@ -544,7 +585,8 @@ export function EditorRightPanel({
               onApplyAuditKnowledgeUpdate={handleApplyAuditKnowledgeUpdate}
               actionError={actionError}
               entityActionFeedback={entityActionFeedback}
-              showReviewSections={mode === "review"}
+              showReviewSections={mode === "review" || Boolean(focusedAlertId)}
+              focusedAlertId={focusedAlertId}
             />
           )}
 

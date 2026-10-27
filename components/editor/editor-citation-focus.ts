@@ -96,6 +96,8 @@ export function findCitationRange(
   if (!needle) return null
   const startIndex = haystack.indexOf(needle)
   if (startIndex < 0) return null
+  // A repeated quote cannot identify one passage reliably.
+  if (haystack.includes(needle, startIndex + 1)) return null
   const from = documentPositions[startIndex]
   const lastPosition = documentPositions[startIndex + needle.length - 1]
   if (from === undefined || lastPosition === undefined) return null

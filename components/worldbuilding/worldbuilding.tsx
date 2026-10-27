@@ -31,6 +31,8 @@ import { ConfirmDialog } from "@/components/modal/confirm-dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 import { useAuth } from "@/contexts/AuthContext";
+import { useViewportKind } from "@/hooks/use-viewport-kind";
+import { getMobileWorldbuildingTabs } from "@/lib/mobile-project";
 import {
   getEntities,
   createEntity,
@@ -94,10 +96,10 @@ import { EntityStateModal } from "@/components/wiki/entity-state-modal";
 type WorldbuildingTab = "wiki" | "relationships" | "timeline" | "summaries";
 
 const WORLD_BUILDING_TABS = [
-  { id: "wiki" as const, label: "Wiki del Universo", icon: Star },
-  { id: "relationships" as const, label: "Relaciones", icon: GitBranch },
-  { id: "timeline" as const, label: "Línea Temporal", icon: Calendar },
-  { id: "summaries" as const, label: "Resúmenes", icon: FileText },
+  { id: "wiki" as const, label: "Wiki del Universo", shortLabel: "Wiki", icon: Star },
+  { id: "relationships" as const, label: "Relaciones", shortLabel: "Relaciones", icon: GitBranch },
+  { id: "timeline" as const, label: "Línea Temporal", shortLabel: "Línea", icon: Calendar },
+  { id: "summaries" as const, label: "Resúmenes", shortLabel: "Resúmenes", icon: FileText },
 ];
 
 type WorldbuildingChapter = {
@@ -834,17 +836,17 @@ function WorldbuildingHeader({
   onCreateTimelineEvent: () => void;
 }>) {
   return (
-    <div className="flex shrink-0 items-center justify-between px-4 py-4">
-      <div>
-        <h1 className="text-xl font-semibold text-foreground">Worldbuilding</h1>
-        <p className="mt-0.5 text-sm text-muted-foreground">
+    <div className="flex shrink-0 items-center justify-between gap-3 px-4 py-4 max-md:py-3">
+      <div className="min-w-0">
+        <h1 className="truncate text-xl font-semibold text-foreground">Worldbuilding</h1>
+        <p className="mt-0.5 text-sm text-muted-foreground max-md:hidden">
           Explora y gestiona el universo narrativo de tu obra
         </p>
       </div>
       {activeTab === "wiki" && (
-        <Button onClick={onCreateEntity}>
+        <Button onClick={onCreateEntity} className="shrink-0 whitespace-nowrap">
           <Star size={16} />
-          Nueva Entidad
+          Nueva<span className="max-md:hidden"> Entidad</span>
         </Button>
       )}
       {activeTab === "relationships" && (
@@ -857,9 +859,9 @@ function WorldbuildingHeader({
         </Button>
       )}
       {activeTab === "timeline" && (
-        <Button onClick={onCreateTimelineEvent}>
+        <Button onClick={onCreateTimelineEvent} className="shrink-0 whitespace-nowrap">
           <Calendar size={16} />
-          Nuevo Evento
+          Nuevo<span className="max-md:hidden"> Evento</span>
         </Button>
       )}
     </div>
@@ -971,21 +973,23 @@ function WorldbuildingTabs({
       onValueChange={onTabChange}
       className="flex min-h-0 flex-1 flex-col overflow-hidden"
     >
-      <TabsList className="sticky top-0 z-10 flex h-auto gap-1 bg-card px-4 py-0">
-        {tabs.map(({ id, label, icon: Icon }) => (
+      <TabsList className="sticky top-0 z-10 flex h-auto gap-1 bg-card px-4 py-0 max-md:gap-0 max-md:px-2">
+        {tabs.map(({ id, label, shortLabel, icon: Icon }) => (
           <TabsTrigger
             key={id}
             value={id}
+            aria-label={label}
             className="
-              flex items-center gap-2 rounded-lg px-4 py-2.5
+              flex items-center gap-2 rounded-lg px-4 py-2.5 max-md:min-w-0 max-md:flex-1 max-md:justify-center max-md:gap-1.5 max-md:px-1
               data-[state=active]:border
               data-[state=active]:border-primary/20
               data-[state=active]:bg-primary/10
               data-[state=active]:text-primary
             "
           >
-            <Icon size={16} />
-            {label}
+            <Icon size={16} className="shrink-0" />
+            <span className="truncate max-md:hidden">{label}</span>
+            <span className="truncate md:hidden">{shortLabel}</span>
           </TabsTrigger>
         ))}
       </TabsList>
@@ -1474,11 +1478,19 @@ export function Worldbuilding({ projectId }: Readonly<WorldbuildingProps>) {
   const timelineEventIdParam = searchParams.get("eventId");
 
   const {
-    activeTab,
+    activeTab: selectedTab,
     setActiveTab,
     selectedEntityId,
     setSelectedEntityId,
   } = useWorldbuildingSelection(entityIdParam, tabParam);
+  const isMobile = useViewportKind() === "mobile";
+  const visibleTabs = isMobile
+    ? getMobileWorldbuildingTabs(WORLD_BUILDING_TABS)
+    : WORLD_BUILDING_TABS;
+  // En mobile no hay Relaciones: un enlace a esa pestaña cae en la wiki.
+  const activeTab = visibleTabs.some((tab) => tab.id === selectedTab)
+    ? selectedTab
+    : visibleTabs[0].id;
   const [showNewEntityModal, setShowNewEntityModal] = useState(false);
   const [showNewRelationModal, setShowNewRelationModal] = useState(false);
   const [editingRelationship, setEditingRelationship] =
@@ -1692,7 +1704,7 @@ export function Worldbuilding({ projectId }: Readonly<WorldbuildingProps>) {
   } = actions;
 
   return (
-    <div className="fixed inset-0 flex flex-col overflow-hidden bg-background text-foreground">
+    <div className="fixed inset-0 flex flex-col overflow-hidden bg-background text-foreground max-md:bottom-14">
       <Header />
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden border-b border-border bg-card">
@@ -1743,7 +1755,7 @@ export function Worldbuilding({ projectId }: Readonly<WorldbuildingProps>) {
         />
 
         <WorldbuildingTabs
-          tabs={WORLD_BUILDING_TABS}
+          tabs={visibleTabs}
           activeTab={activeTab}
           onTabChange={(value) => handleTabChange(value as WorldbuildingTab)}
           projectId={projectId}

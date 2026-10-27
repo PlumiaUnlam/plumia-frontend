@@ -224,6 +224,218 @@ function toInput(draft: TimelineDraft): TimelineEventInput {
   }
 }
 
+function matchesArcFilter(event: TimelineEvent, arcId: string | null) {
+  if (!arcId) return true
+  if (arcId === generalArcFilter) return event.storyboardArcId === null
+  return event.storyboardArcId === arcId
+}
+
+function filterTimelineEvents(
+  events: readonly TimelineEvent[],
+  impacts: readonly TimelineImpact[],
+  entityId: string | null,
+  arcId: string | null,
+) {
+  return events.filter(
+    (event) =>
+      impacts.includes(event.impact) &&
+      (!entityId || event.entityIds.includes(entityId)) &&
+      matchesArcFilter(event, arcId),
+  )
+}
+
+/** Mantiene a la vista el evento enfocado aunque los filtros lo oculten. */
+function includeFocusedEvent(
+  filteredEvents: TimelineEvent[],
+  allEvents: readonly TimelineEvent[] | undefined,
+  focusEventId: string | null,
+) {
+  if (!focusEventId || filteredEvents.some((event) => event.id === focusEventId)) {
+    return filteredEvents
+  }
+  const focusedEvent = allEvents?.find((event) => event.id === focusEventId)
+  return focusedEvent ? [...filteredEvents, focusedEvent] : filteredEvents
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback
+}
+
+function fromFilterValue(value: string) {
+  return value === allFilterValue ? null : value
+}
+
+function toggleSetItem(set: ReadonlySet<string>, item: string) {
+  const next = new Set(set)
+  if (!next.delete(item)) next.add(item)
+  return next
+}
+
+function TimelineToolbar({
+  isInsertMode,
+  isReordering,
+  isCompact,
+  onToggleInsertMode,
+  onToggleReordering,
+  onToggleCompact,
+}: Readonly<{
+  isInsertMode: boolean
+  isReordering: boolean
+  isCompact: boolean
+  onToggleInsertMode: () => void
+  onToggleReordering: () => void
+  onToggleCompact: () => void
+}>) {
+  return (
+    <div className="flex flex-wrap justify-end gap-2">
+      <Button
+        variant={isInsertMode ? "default" : "outline"}
+        size="sm"
+        className="h-9 max-md:hidden"
+        disabled={isReordering}
+        onClick={onToggleInsertMode}
+      >
+        <Plus />
+        {isInsertMode ? "Terminar de insertar" : "Insertar eventos"}
+      </Button>
+      <Button
+        variant={isReordering ? "default" : "outline"}
+        size="sm"
+        className="h-9 max-md:hidden"
+        onClick={onToggleReordering}
+      >
+        <ListOrdered />
+        {isReordering ? "Terminar de reordenar" : "Reordenar cronología"}
+      </Button>
+      <Button
+        variant="outline"
+        size="sm"
+        className="h-9 w-44 max-md:w-auto"
+        onClick={onToggleCompact}
+      >
+        {isCompact ? <Maximize2 /> : <Minimize2 />}
+        {isCompact ? "Mostrar detalle" : "Vista global"}
+      </Button>
+    </div>
+  )
+}
+
+function ImpactFilter({
+  selectedImpacts,
+  onToggle,
+}: Readonly<{
+  selectedImpacts: readonly TimelineImpact[]
+  onToggle: (impact: TimelineImpact) => void
+}>) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {(Object.keys(impactLabels) as TimelineImpact[]).map((impact) => {
+        const isSelected = selectedImpacts.includes(impact)
+        return (
+          <button
+            key={impact}
+            type="button"
+            aria-pressed={isSelected}
+            className={`flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors ${isSelected ? "border-primary bg-primary/10 text-primary" : "border-border bg-background text-foreground hover:border-primary/40 hover:bg-muted"}`}
+            onClick={() => onToggle(impact)}
+          >
+            <span className={`size-2 rounded-full ${impactDotStyles[impact]}`} />
+            {impactLabels[impact]}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+function toggleListItem<T>(list: readonly T[], item: T) {
+  return list.includes(item)
+    ? list.filter((current) => current !== item)
+    : [...list, item]
+}
+
+function useTimelineEventFocus({
+  focusEventId,
+  isReady,
+  displayedEvents,
+  onExpandEvent,
+}: Readonly<{
+  focusEventId: string | null
+  isReady: boolean
+  displayedEvents: readonly TimelineEvent[]
+  onExpandEvent: (eventId: string) => void
+}>) {
+  const focusedEventIdRef = useRef<string | null>(null)
+  const onExpandEventRef = useRef(onExpandEvent)
+  useEffect(() => {
+    onExpandEventRef.current = onExpandEvent
+  })
+
+  useEffect(() => {
+    if (!focusEventId) {
+      focusedEventIdRef.current = null
+      return
+    }
+
+    if (
+      !isReady ||
+      focusedEventIdRef.current === focusEventId ||
+      !displayedEvents.some((event) => event.id === focusEventId)
+    ) {
+      return
+    }
+
+    onExpandEventRef.current(focusEventId)
+
+    let settleFrameId: number | null = null
+    const frameId = window.requestAnimationFrame(() => {
+      settleFrameId = window.requestAnimationFrame(() => {
+        const element = document.getElementById(
+          `timeline-event-${focusEventId}`,
+        )
+        if (!element) return
+
+        focusedEventIdRef.current = focusEventId
+        element.scrollIntoView({ behavior: "smooth", block: "center" })
+      })
+    })
+
+    return () => {
+      window.cancelAnimationFrame(frameId)
+      if (settleFrameId !== null) window.cancelAnimationFrame(settleFrameId)
+    }
+  }, [displayedEvents, focusEventId, isReady])
+}
+
+function getStepPlacement(
+  events: readonly TimelineEvent[],
+  index: number,
+  direction: "up" | "down",
+) {
+  if (direction === "up") {
+    return {
+      beforeEventId: events[index - 1]?.id,
+      afterEventId: events[index - 2]?.id,
+    }
+  }
+  return {
+    beforeEventId: events[index + 2]?.id,
+    afterEventId: events[index + 1]?.id,
+  }
+}
+
+function getDragPlacement(
+  events: readonly TimelineEvent[],
+  activeIndex: number,
+  overIndex: number,
+) {
+  const overId = events[overIndex].id
+  if (activeIndex < overIndex) {
+    return { afterEventId: overId, beforeEventId: events[overIndex + 1]?.id }
+  }
+  return { beforeEventId: overId, afterEventId: events[overIndex - 1]?.id }
+}
+
 export function TimelinePanel({
   projectId,
   enabled,
@@ -245,6 +457,7 @@ export function TimelinePanel({
   const [creationPlacement, setCreationPlacement] =
     useState<TimelinePlacement | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [filtersOpen, setFiltersOpen] = useState(false)
   const [isCompact, setIsCompact] = useState(false)
   const [isReordering, setIsReordering] = useState(false)
   const [isInsertMode, setIsInsertMode] = useState(false)
@@ -260,7 +473,6 @@ export function TimelinePanel({
   const [expandedEventIds, setExpandedEventIds] = useState<Set<string>>(
     new Set(),
   )
-  const focusedEventIdRef = useRef<string | null>(null)
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
   )
@@ -294,82 +506,34 @@ export function TimelinePanel({
   )
   const visibleEvents = useMemo(
     () =>
-      (events ?? []).filter(
-        (event) =>
-          selectedImpacts.includes(event.impact) &&
-          (!selectedEntityId || event.entityIds.includes(selectedEntityId)) &&
-          (!selectedArcId ||
-            (selectedArcId === generalArcFilter
-              ? event.storyboardArcId === null
-              : event.storyboardArcId === selectedArcId)),
+      filterTimelineEvents(
+        events ?? [],
+        selectedImpacts,
+        selectedEntityId,
+        selectedArcId,
       ),
     [events, selectedArcId, selectedEntityId, selectedImpacts],
   )
   const displayedEvents = useMemo(
-    () => {
-      const filteredEvents = isReordering ? (events ?? []) : visibleEvents
-      if (
-        !focusEventId ||
-        filteredEvents.some((event) => event.id === focusEventId)
-      ) {
-        return filteredEvents
-      }
-
-      const focusedEvent = events?.find((event) => event.id === focusEventId)
-      return focusedEvent ? [...filteredEvents, focusedEvent] : filteredEvents
-    },
+    () =>
+      includeFocusedEvent(
+        isReordering ? (events ?? []) : visibleEvents,
+        events,
+        focusEventId,
+      ),
     [events, focusEventId, isReordering, visibleEvents],
   )
 
-  useEffect(() => {
-    if (!focusEventId) {
-      focusedEventIdRef.current = null
-      return
-    }
-
-    if (
-      isLoadingEvents ||
-      isLoadingArcs ||
-      eventsError ||
-      arcsError ||
-      focusedEventIdRef.current === focusEventId ||
-      !displayedEvents.some((event) => event.id === focusEventId)
-    ) {
-      return
-    }
-
-    setExpandedEventIds((current) => {
-      if (current.has(focusEventId)) return current
-      const next = new Set(current)
-      next.add(focusEventId)
-      return next
-    })
-
-    let settleFrameId: number | null = null
-    const frameId = window.requestAnimationFrame(() => {
-      settleFrameId = window.requestAnimationFrame(() => {
-        const element = document.getElementById(
-          `timeline-event-${focusEventId}`,
-        )
-        if (!element) return
-
-        focusedEventIdRef.current = focusEventId
-        element.scrollIntoView({ behavior: "smooth", block: "center" })
-      })
-    })
-
-    return () => {
-      window.cancelAnimationFrame(frameId)
-      if (settleFrameId !== null) window.cancelAnimationFrame(settleFrameId)
-    }
-  }, [
-    arcsError,
-    displayedEvents,
-    eventsError,
+  useTimelineEventFocus({
     focusEventId,
-    isLoadingArcs,
-    isLoadingEvents,
-  ])
+    isReady: !isLoadingEvents && !isLoadingArcs && !eventsError && !arcsError,
+    displayedEvents,
+    onExpandEvent: (eventId) =>
+      setExpandedEventIds((current) => {
+        if (current.has(eventId)) return current
+        return new Set(current).add(eventId)
+      }),
+  })
   const activeDragEvent = useMemo(
     () => displayedEvents.find((event) => event.id === activeDragEventId) ?? null,
     [activeDragEventId, displayedEvents],
@@ -393,11 +557,7 @@ export function TimelinePanel({
   }, [newEventRequest, onNewEventRequestHandled])
 
   const toggleImpact = (impact: TimelineImpact) => {
-    setSelectedImpacts((current) =>
-      current.includes(impact)
-        ? current.filter((currentImpact) => currentImpact !== impact)
-        : [...current, impact],
-    )
+    setSelectedImpacts((current) => toggleListItem(current, impact))
   }
 
   const resetFilters = () => {
@@ -429,16 +589,7 @@ export function TimelinePanel({
     const event = displayedEvents[eventIndex]
     if (!event) return
 
-    const placement =
-      direction === "up"
-        ? {
-            beforeEventId: displayedEvents[eventIndex - 1]?.id,
-            afterEventId: displayedEvents[eventIndex - 2]?.id,
-          }
-        : {
-            beforeEventId: displayedEvents[eventIndex + 2]?.id,
-            afterEventId: displayedEvents[eventIndex + 1]?.id,
-          }
+    const placement = getStepPlacement(displayedEvents, eventIndex, direction)
 
     if (!placement.beforeEventId && !placement.afterEventId) return
     setMoveError(null)
@@ -460,16 +611,7 @@ export function TimelinePanel({
     const event = displayedEvents[activeIndex]
     if (!event || activeIndex === -1 || overIndex === -1) return
 
-    const placement =
-      activeIndex < overIndex
-        ? {
-            afterEventId: overId,
-            beforeEventId: displayedEvents[overIndex + 1]?.id,
-          }
-        : {
-            beforeEventId: overId,
-            afterEventId: displayedEvents[overIndex - 1]?.id,
-          }
+    const placement = getDragPlacement(displayedEvents, activeIndex, overIndex)
 
     setMoveError(null)
     setPendingMove({
@@ -504,9 +646,7 @@ export function TimelinePanel({
       setPendingMove(null)
     } catch (moveRequestError) {
       setMoveError(
-        moveRequestError instanceof Error
-          ? moveRequestError.message
-          : "No se pudo reorganizar el evento",
+        getErrorMessage(moveRequestError, "No se pudo reorganizar el evento"),
       )
     } finally {
       setIsMoving(false)
@@ -524,15 +664,22 @@ export function TimelinePanel({
       await mutateEvents()
       setDeleteConfirmEvent(null)
     } catch (deleteError) {
-      const message =
-        deleteError instanceof Error
-          ? deleteError.message
-          : "No se pudo eliminar el evento"
+      const message = getErrorMessage(
+        deleteError,
+        "No se pudo eliminar el evento",
+      )
       setDeleteError(message)
       setActionError(message)
     } finally {
       setIsDeleting(false)
     }
+  }
+
+  const toggleReordering = () => {
+    setIsReordering((current) => !current)
+    setIsInsertMode(false)
+    setPendingMove(null)
+    setMoveError(null)
   }
 
   const toggleGlobalView = () => {
@@ -543,12 +690,7 @@ export function TimelinePanel({
   }
 
   const toggleEventDetail = (eventId: string) => {
-    setExpandedEventIds((current) => {
-      const next = new Set(current)
-      if (next.has(eventId)) next.delete(eventId)
-      else next.add(eventId)
-      return next
-    })
+    setExpandedEventIds((current) => toggleSetItem(current, eventId))
   }
 
   const loading = isLoadingEvents || isLoadingArcs
@@ -569,7 +711,7 @@ export function TimelinePanel({
         <div>
           <h2 className="font-semibold">No se pudo cargar la línea temporal</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            {error instanceof Error ? error.message : "Intentá nuevamente."}
+            {getErrorMessage(error, "Intentá nuevamente.")}
           </p>
           <Button className="mt-4" variant="outline" onClick={() => { void mutateEvents(); void mutateArcs() }}>
             Reintentar
@@ -580,8 +722,27 @@ export function TimelinePanel({
   }
 
   return (
-    <div className="flex h-full min-h-0 w-full min-w-0 overflow-hidden">
-      <aside className="flex h-full min-h-0 w-80 shrink-0 flex-col overflow-hidden border-r border-border bg-muted/30">
+    <div className="flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden md:flex-row">
+      <aside className="flex min-h-0 w-full shrink-0 flex-col overflow-hidden border-b border-border bg-muted/30 md:h-full md:w-80 md:border-b-0 md:border-r">
+        <button
+          type="button"
+          aria-expanded={filtersOpen}
+          onClick={() => setFiltersOpen((open) => !open)}
+          className="flex items-center justify-between gap-2 bg-card/50 px-4 py-3 text-sm font-semibold text-muted-foreground md:hidden"
+        >
+          <span className="flex min-w-0 items-center gap-2">
+            <Funnel className="size-4 shrink-0" />
+            <span className="truncate">
+              Filtros · {displayedEvents.length} de {events?.length ?? 0}
+            </span>
+          </span>
+          <ChevronDown
+            className={`size-4 shrink-0 transition-transform ${filtersOpen ? "rotate-180" : ""}`}
+          />
+        </button>
+        <div
+          className={`md:contents ${filtersOpen ? "max-md:flex max-md:max-h-[50dvh] max-md:min-h-0 max-md:flex-col max-md:overflow-y-auto" : "max-md:hidden"}`}
+        >
         <div className="space-y-4 border-b border-border bg-card/50 p-3">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-1">
@@ -606,9 +767,7 @@ export function TimelinePanel({
             </Label>
             <Select
               value={selectedEntityId ?? allFilterValue}
-              onValueChange={(value) =>
-                setSelectedEntityId(value === allFilterValue ? null : value)
-              }
+              onValueChange={(value) => setSelectedEntityId(fromFilterValue(value))}
             >
               <SelectTrigger id="timeline-character-filter" className="w-full bg-background">
                 <SelectValue />
@@ -630,9 +789,7 @@ export function TimelinePanel({
             </Label>
             <Select
               value={selectedArcId ?? allFilterValue}
-              onValueChange={(value) =>
-                setSelectedArcId(value === allFilterValue ? null : value)
-              }
+              onValueChange={(value) => setSelectedArcId(fromFilterValue(value))}
             >
               <SelectTrigger id="timeline-arc-filter" className="w-full bg-background">
                 <SelectValue />
@@ -659,23 +816,10 @@ export function TimelinePanel({
               IMPACTO
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {(Object.keys(impactLabels) as TimelineImpact[]).map((impact) => {
-              const isSelected = selectedImpacts.includes(impact)
-              return (
-                <button
-                  key={impact}
-                  type="button"
-                  aria-pressed={isSelected}
-                  className={`flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors ${isSelected ? "border-primary bg-primary/10 text-primary" : "border-border bg-background text-foreground hover:border-primary/40 hover:bg-muted"}`}
-                  onClick={() => toggleImpact(impact)}
-                >
-                  <span className={`size-2 rounded-full ${impactDotStyles[impact]}`} />
-                  {impactLabels[impact]}
-                </button>
-              )
-            })}
-          </div>
+          <ImpactFilter
+            selectedImpacts={selectedImpacts}
+            onToggle={toggleImpact}
+          />
         </div>
 
         <div className="min-h-0 flex-1 p-3">
@@ -683,54 +827,28 @@ export function TimelinePanel({
             Mostrando {displayedEvents.length} de {events?.length ?? 0} eventos.
           </div>
         </div>
+        </div>
       </aside>
 
-      <main className="flex min-w-0 flex-1 flex-col bg-muted/30">
-        <div className="flex shrink-0 flex-wrap items-center justify-between gap-4 border-b border-border bg-card/30 px-8 py-4">
+      <main className="flex min-h-0 min-w-0 flex-1 flex-col bg-muted/30">
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-4 border-b border-border bg-card/30 px-8 py-4 max-md:gap-2 max-md:px-4 max-md:py-3">
           <div>
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-primary/70">
               <CalendarDays className="size-3.5" />
               Cronología
             </div>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <p className="mt-1 text-sm text-muted-foreground max-md:hidden">
               Ordená y conectá los momentos clave de la obra.
             </p>
           </div>
-          <div className="flex flex-wrap justify-end gap-2">
-            <Button
-              variant={isInsertMode ? "default" : "outline"}
-              size="sm"
-              className="h-9"
-              disabled={isReordering}
-              onClick={() => setIsInsertMode((current) => !current)}
-            >
-              <Plus />
-              {isInsertMode ? "Terminar de insertar" : "Insertar eventos"}
-            </Button>
-            <Button
-              variant={isReordering ? "default" : "outline"}
-              size="sm"
-              className="h-9"
-              onClick={() => {
-                setIsReordering((current) => !current)
-                setIsInsertMode(false)
-                setPendingMove(null)
-                setMoveError(null)
-              }}
-            >
-              <ListOrdered />
-              {isReordering ? "Terminar de reordenar" : "Reordenar cronología"}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-9 w-44"
-              onClick={toggleGlobalView}
-            >
-              {isCompact ? <Maximize2 /> : <Minimize2 />}
-              {isCompact ? "Mostrar detalle" : "Vista global"}
-            </Button>
-          </div>
+          <TimelineToolbar
+            isInsertMode={isInsertMode}
+            isReordering={isReordering}
+            isCompact={isCompact}
+            onToggleInsertMode={() => setIsInsertMode((current) => !current)}
+            onToggleReordering={toggleReordering}
+            onToggleCompact={toggleGlobalView}
+          />
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-scroll [scrollbar-gutter:stable] px-5 py-8 sm:px-10 lg:px-16">

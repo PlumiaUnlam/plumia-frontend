@@ -43,6 +43,8 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useViewportKind } from "@/hooks/use-viewport-kind"
+import { getProjectHomeHref } from "@/lib/mobile-project"
 import { EmailNotVerifiedError } from "@/services/api.service"
 import {
   deleteProject,
@@ -320,6 +322,8 @@ function DashboardProjectContent({
   onEditProject: (project: ProjectResponse) => void
   onDeleteProject: (project: ProjectResponse) => void
 }>) {
+  const isMobile = useViewportKind() === "mobile"
+
   if (isLoading) {
     return (
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
@@ -382,7 +386,11 @@ function DashboardProjectContent({
           className="relative flex h-full flex-col transition-[transform,box-shadow] hover:-translate-y-0.5 hover:shadow-lg hover:shadow-primary/10"
         >
           <Link
-            href={`/projects/${encodeURIComponent(project.id)}/editor`}
+            href={
+              isMobile
+                ? getProjectHomeHref(project.id)
+                : `/projects/${encodeURIComponent(project.id)}/editor`
+            }
             aria-label={`Abrir ${project.title}`}
             className="absolute inset-0 z-10 rounded-xl focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
           />

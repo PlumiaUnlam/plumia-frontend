@@ -40,6 +40,7 @@ import {
 import { Spinner } from "@/components/ui/spinner"
 import { messageForApiError } from "@/helpers/api-errors"
 import { isEmail } from "@/helpers/validation"
+import { getShareStatusLabel, permissionLabels } from "@/lib/share-labels"
 import {
   createFrozenShare,
   getBookShares,
@@ -53,22 +54,6 @@ type ShareDialogProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
   onBeforeShare: () => Promise<void>
-}
-
-const permissionLabels: Record<SharePermission, string> = {
-  READ_ONLY: "Solo lectura",
-  COMMENT: "Puede comentar",
-}
-
-function getShareStatusLabel(status: ShareSummary["status"]) {
-  switch (status) {
-    case "PENDING":
-      return "Pendiente"
-    case "ACCEPTED":
-      return "Aceptada"
-    case "REVOKED":
-      return "Revocada"
-  }
 }
 
 export function ShareDialog({

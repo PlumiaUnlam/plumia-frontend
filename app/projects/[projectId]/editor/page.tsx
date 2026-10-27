@@ -1,3 +1,4 @@
+import { DesktopOnlyGate } from "@/components/mobile/desktop-only-gate"
 import { EditorLayout } from "@/components/editor/editor-page"
 
 type ProjectEditorPageProps = {
@@ -9,5 +10,9 @@ type ProjectEditorPageProps = {
 export default async function ProjectEditorPage({ params }: Readonly<ProjectEditorPageProps>) {
   const { projectId } = await params
 
-  return <EditorLayout projectId={projectId} />
+  return (
+    <DesktopOnlyGate projectId={projectId} featureId="editor">
+      <EditorLayout projectId={projectId} />
+    </DesktopOnlyGate>
+  )
 }

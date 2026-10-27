@@ -32,6 +32,7 @@ const severityLabel = {
 
 export function AuditAlertCard({
   alert,
+  focused = false,
   updating,
   onFocusEvidence,
   onResolve,
@@ -42,6 +43,7 @@ export function AuditAlertCard({
   onRestore,
 }: {
   readonly alert: AuditAlert;
+  readonly focused?: boolean;
   readonly updating: boolean;
   readonly onFocusEvidence: (index?: number) => void;
   readonly onResolve?: () => void;
@@ -93,7 +95,11 @@ export function AuditAlertCard({
 
   return (
     <>
-      <article className="w-full min-w-0 max-w-full overflow-hidden rounded-xl border border-amber-500/25 bg-gradient-to-br from-amber-500/[0.08] via-background to-primary/[0.04] p-3 shadow-sm">
+      <article
+        id={`audit-alert-${alert.id}`}
+        tabIndex={-1}
+        className={`w-full min-w-0 max-w-full overflow-hidden rounded-xl border border-amber-500/25 bg-gradient-to-br from-amber-500/[0.08] via-background to-primary/[0.04] p-3 shadow-sm ${focused ? "ring-2 ring-primary/50" : ""}`}
+      >
         <div className="flex w-full min-w-0 items-start gap-2.5">
           <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-amber-500/10 text-amber-700">
             <AlertTriangle className="size-4" />
@@ -110,7 +116,6 @@ export function AuditAlertCard({
                 {severityLabel[alert.severity]}
               </Badge>
             </div>
-
             {isCrossChunkContradiction && (
               <p className="mt-1 text-[10px] font-medium text-amber-800">
                 {isCrossSceneContradiction

@@ -11,6 +11,8 @@ import type { StoryboardCardStatus } from "@/types/storyboard"
 export type StoryboardColumnConfig = {
   id: StoryboardCardStatus
   title: string
+  /** Etiqueta corta para espacios angostos (selector mobile). */
+  shortTitle?: string
   color: string
   icon: ElementType
 }
@@ -26,6 +28,7 @@ export const STORYBOARD_COLUMNS: StoryboardColumnConfig[] = [
   {
     id: "in-progress",
     title: "En Progreso",
+    shortTitle: "En curso",
     color: "text-amber-500",
     icon: Zap,
   },

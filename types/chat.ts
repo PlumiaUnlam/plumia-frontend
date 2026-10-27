@@ -2,6 +2,7 @@ export type ChatSourceKind =
   | "manuscript"
   | "wiki"
   | "timeline"
+  | "application_help"
 
 export type ChatSource = {
   id: string
@@ -17,6 +18,10 @@ export type ChatSource = {
   entityId?: string
   imageUrl?: string | null
   occurrenceCount?: number
+  cited?: boolean
+  primary?: boolean
+  chunkIndex?: number
+  contentHash?: string | null
   textQuote?: string
   route?: string
 }

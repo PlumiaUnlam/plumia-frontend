@@ -34,6 +34,13 @@ export default defineConfig({
     {
       name: "chromium",
       testMatch: "**/*.spec.ts",
+      testIgnore: "**/mobile-*.spec.ts",
+      dependencies: ["auth-setup"],
+    },
+    {
+      name: "mobile",
+      testMatch: "**/mobile-*.spec.ts",
+      use: { ...devices["Pixel 7"] },
       dependencies: ["auth-setup"],
     },
   ],
