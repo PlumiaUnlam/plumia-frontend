@@ -6,6 +6,7 @@ import {
   Check,
   Eye,
   FileText,
+  RotateCcw,
   RefreshCw,
   X,
 } from "lucide-react";
@@ -36,13 +37,19 @@ export function AuditAlertCard({
   onResolve,
   onDismiss,
   onApplyKnowledgeUpdate,
+  stateTrackingEnabled = false,
+  historyMode = false,
+  onRestore,
 }: {
   readonly alert: AuditAlert;
   readonly updating: boolean;
   readonly onFocusEvidence: (index?: number) => void;
-  readonly onResolve: () => void;
-  readonly onDismiss: () => void;
+  readonly onResolve?: () => void;
+  readonly onDismiss?: () => void;
   readonly onApplyKnowledgeUpdate?: () => void;
+  readonly stateTrackingEnabled?: boolean;
+  readonly historyMode?: boolean;
+  readonly onRestore?: () => void;
 }) {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const conflict = alert.conflict;
@@ -71,6 +78,13 @@ export function AuditAlertCard({
       conflict.entityId &&
       alert.sourceChunkId,
   );
+  const hasEvidence = Boolean(firstEvidence || secondEvidence || conflict?.evidence.length);
+  const archivedAt = alert.resolvedAt
+    ? new Intl.DateTimeFormat("es-AR", {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }).format(new Date(alert.resolvedAt))
+    : null;
 
   const focusEvidence = (index: number) => {
     setDetailsOpen(false);
@@ -133,47 +147,45 @@ export function AuditAlertCard({
               Ver detalles de la inconsistencia
             </Button>
 
-            <div
-              className={`mt-2 grid w-full min-w-0 gap-1.5 ${isCrossChunkContradiction ? "grid-cols-2" : "grid-cols-3"}`}
-            >
-              {isCrossChunkContradiction ? (
-                <>
-                  <Button
-                    type="button"
-                    size="xs"
-                    variant="outline"
-                    className="h-auto min-h-7 min-w-0 w-full whitespace-normal px-1 py-1 text-[10px] leading-tight"
-                    disabled={updating || !firstEvidence}
-                    onClick={() => onFocusEvidence(0)}
-                  >
-                    <FileText className="size-3.5" />
-                    Ver primer texto
-                  </Button>
-                  <Button
-                    type="button"
-                    size="xs"
-                    variant="outline"
-                    className="h-auto min-h-7 min-w-0 w-full whitespace-normal px-1 py-1 text-[10px] leading-tight"
-                    disabled={updating || !secondEvidence}
-                    onClick={() => onFocusEvidence(1)}
-                  >
-                    <FileText className="size-3.5" />
-                    Ver segundo texto
-                  </Button>
-                </>
-              ) : (
+            {historyMode ? (
+              <div className="mt-2 flex min-w-0 flex-wrap items-center gap-2 rounded-lg border border-border bg-background/80 p-2">
+                <Badge variant="outline" className="text-[9px]">
+                  {alert.status === "DISMISSED" ? "Rechazada" : "Resuelta"}
+                </Badge>
+                <span className="min-w-0 flex-1 text-[10px] text-muted-foreground">
+                  {archivedAt ? `Archivada el ${archivedAt}` : "Archivada"}
+                </span>
+                <Button
+                  type="button"
+                  size="xs"
+                  variant="outline"
+                  className="h-7 whitespace-normal text-[10px]"
+                  disabled={updating}
+                  onClick={onRestore}
+                >
+                  <RotateCcw className="size-3.5" />
+                  {updating ? "Restaurando..." : "Volver a pendientes"}
+                </Button>
+              </div>
+            ) : (
+              <div className="mt-2 grid w-full min-w-0 grid-cols-3 gap-1.5">
                 <Button
                   type="button"
                   size="xs"
                   variant="outline"
                   className="h-auto min-h-7 min-w-0 w-full whitespace-normal px-1 py-1 text-[10px] leading-tight"
                   disabled={updating}
-                  onClick={() => onFocusEvidence(0)}
+                  onClick={() => {
+                    if (isCrossChunkContradiction && hasEvidence) {
+                      setDetailsOpen(true);
+                    } else {
+                      onFocusEvidence(0);
+                    }
+                  }}
                 >
                   <FileText className="size-3.5" />
-                  {conflict?.evidence[0] ? "Ver evidencia" : "Abrir escena"}
+                  Ver evidencia
                 </Button>
-              )}
               <Button
                 type="button"
                 size="xs"
@@ -181,9 +193,10 @@ export function AuditAlertCard({
                 className="h-auto min-h-7 min-w-0 w-full whitespace-normal px-1 py-1 text-[10px] leading-tight"
                 disabled={updating}
                 onClick={onDismiss}
+                title="No volver a mostrar esta misma contradicción en esta escena"
               >
                 <X className="size-3.5" />
-                {updating ? "Actualizando..." : "Descartar"}
+                {updating ? "Actualizando..." : "Rechazar"}
               </Button>
               <Button
                 type="button"
@@ -192,12 +205,14 @@ export function AuditAlertCard({
                 className="h-auto min-h-7 min-w-0 w-full whitespace-normal px-1 py-1 text-[10px] leading-tight"
                 disabled={updating}
                 onClick={onResolve}
+                title="Archivar por ahora; un análisis posterior puede volver a mostrarla"
               >
                 <Check className="size-3.5" />
                 {updating ? "Actualizando..." : "Marcar resuelta"}
               </Button>
-            </div>
-            {canApplyKnowledgeUpdate && onApplyKnowledgeUpdate && (
+              </div>
+            )}
+            {!historyMode && stateTrackingEnabled && canApplyKnowledgeUpdate && onApplyKnowledgeUpdate && (
               <div className="mt-1.5 w-full min-w-0">
                 <Button
                   type="button"
@@ -235,6 +250,11 @@ export function AuditAlertCard({
               {isCrossChunkContradiction && (
                 <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary">
                   Dentro de la misma escena
+                </Badge>
+              )}
+              {historyMode && archivedAt && (
+                <Badge variant="outline" className="border-border bg-muted text-muted-foreground">
+                  Archivada {archivedAt}
                 </Badge>
               )}
             </div>

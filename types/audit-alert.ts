@@ -4,7 +4,8 @@ export type AuditAlertStatus =
   | "DISMISSED"
   | "OBSOLETE";
 
-export type AuditAlertResolution = "RESOLVED" | "DISMISSED";
+export type AuditAlertUpdateStatus = "ACTIVE" | "RESOLVED" | "DISMISSED";
+export type AuditAlertResolution = Exclude<AuditAlertUpdateStatus, "ACTIVE">;
 
 export type AuditAlertConflict = {
   entityId: string | null;
@@ -43,5 +44,6 @@ export type AuditAlert = {
   confidence: number;
   status: AuditAlertStatus;
   createdAt: string;
+  resolvedAt: string | null;
   conflict: AuditAlertConflict | null;
 };

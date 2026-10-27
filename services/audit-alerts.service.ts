@@ -14,9 +14,23 @@ export function getAuditAlerts(
   );
 }
 
+export async function getAuditAlertHistory(
+  projectId: string,
+): Promise<AuditAlert[]> {
+  const [dismissed, resolved] = await Promise.all([
+    getAuditAlerts(projectId, "DISMISSED"),
+    getAuditAlerts(projectId, "RESOLVED"),
+  ]);
+  return [...dismissed, ...resolved].sort(
+    (left, right) =>
+      new Date(right.resolvedAt ?? right.createdAt).getTime() -
+      new Date(left.resolvedAt ?? left.createdAt).getTime(),
+  );
+}
+
 export function updateAuditAlert(
   alertId: string,
-  status: AuditAlertResolution,
+  status: AuditAlertResolution | "ACTIVE",
 ): Promise<AuditAlert> {
   return api.patch<AuditAlert>(
     `/audit/alerts/${encodeURIComponent(alertId)}`,

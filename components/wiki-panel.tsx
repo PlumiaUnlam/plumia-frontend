@@ -9,6 +9,7 @@ import {
   ChevronDown,
   ChevronRight,
   FileText,
+  History,
   RefreshCw,
   Search,
   Sparkles,
@@ -35,7 +36,8 @@ import type { RelationshipProposal } from "@/types/relationship-proposal";
 import type { UpdateRelationshipInput } from "@/types/relationship";
 import { relationStyles } from "@/lib/relation-style";
 import { AuditAlertCard } from "@/components/wiki/audit-alert-card";
-import type { AuditAlert, AuditAlertResolution } from "@/types/audit-alert";
+import { AuditAlertHistoryDialog } from "@/components/wiki/audit-alert-history-dialog";
+import type { AuditAlert, AuditAlertUpdateStatus } from "@/types/audit-alert";
 import type { EntityStateProposal } from "@/types/entity-state";
 import type { EditorSectionOption } from "@/components/editor/editor-types";
 import { getWorldbuildingEntityHref } from "@/lib/worldbuilding-links";
@@ -84,8 +86,8 @@ type WikiPanelProps = {
   readonly updatingAuditAlertId: string | null;
   readonly onUpdateAuditAlert: (
     alertId: string,
-    status: AuditAlertResolution,
-  ) => Promise<void>;
+    status: AuditAlertUpdateStatus,
+  ) => Promise<boolean>;
   readonly onFocusAuditAlert: (alert: AuditAlert, evidenceIndex?: number) => void;
   readonly onApplyAuditKnowledgeUpdate: (alertId: string) => Promise<void>;
   readonly actionError: string | null;
@@ -144,6 +146,7 @@ export function WikiPanel({
   showReviewSections,
 }: Readonly<WikiPanelProps>) {
   const [searchQuery, setSearchQuery] = useState("");
+  const [auditHistoryOpen, setAuditHistoryOpen] = useState(false);
   const [reviewingProposalId, setReviewingProposalId] = useState<string | null>(
     null,
   );
@@ -315,6 +318,7 @@ export function WikiPanel({
             visible={showReviewSections}
             expanded={expandedSections.inconsistencies}
             alerts={filteredAuditAlerts}
+            stateTrackingEnabled={stateTrackingEnabled}
             loading={auditAlertsLoading}
             error={auditAlertsError}
             updatingAlertId={updatingAuditAlertId}
@@ -322,6 +326,7 @@ export function WikiPanel({
             onUpdate={onUpdateAuditAlert}
             onFocus={onFocusAuditAlert}
             onApplyKnowledgeUpdate={onApplyAuditKnowledgeUpdate}
+            onOpenHistory={() => setAuditHistoryOpen(true)}
           />
 
           <RelationshipProposalsSection
@@ -396,6 +401,15 @@ export function WikiPanel({
           />
         </div>
       </ScrollArea>
+
+      <AuditAlertHistoryDialog
+        projectId={projectId}
+        open={auditHistoryOpen}
+        onOpenChange={setAuditHistoryOpen}
+        updatingAlertId={updatingAuditAlertId}
+        onRestore={(alertId) => onUpdateAuditAlert(alertId, "ACTIVE")}
+        onFocusEvidence={onFocusAuditAlert}
+      />
 
       <WikiPanelDialogs
         sceneOptions={sceneOptions}
@@ -838,14 +852,16 @@ function AuditAlertList({
   onUpdate,
   onFocus,
   onApplyKnowledgeUpdate,
+  stateTrackingEnabled,
 }: Readonly<{
   loading: boolean;
   error: Error | undefined;
   alerts: readonly AuditAlert[];
   updatingAlertId: string | null;
-  onUpdate: (alertId: string, status: AuditAlertResolution) => Promise<void>;
+  onUpdate: (alertId: string, status: AuditAlertUpdateStatus) => Promise<boolean>;
   onFocus: (alert: AuditAlert, evidenceIndex?: number) => void;
   onApplyKnowledgeUpdate: (alertId: string) => Promise<void>;
+  stateTrackingEnabled: boolean;
 }>) {
   if (loading) {
     return (
@@ -875,6 +891,7 @@ function AuditAlertList({
       key={alert.id}
       alert={alert}
       updating={updatingAlertId === alert.id}
+      stateTrackingEnabled={stateTrackingEnabled}
       onFocusEvidence={(evidenceIndex) => onFocus(alert, evidenceIndex)}
       onResolve={() => void onUpdate(alert.id, "RESOLVED")}
       onDismiss={() => void onUpdate(alert.id, "DISMISSED")}
@@ -894,6 +911,8 @@ function AuditAlertsSection({
   onUpdate,
   onFocus,
   onApplyKnowledgeUpdate,
+  stateTrackingEnabled,
+  onOpenHistory,
 }: Readonly<{
   visible: boolean;
   expanded: boolean;
@@ -902,20 +921,36 @@ function AuditAlertsSection({
   error: Error | undefined;
   updatingAlertId: string | null;
   onToggle: () => void;
-  onUpdate: (alertId: string, status: AuditAlertResolution) => Promise<void>;
+  onUpdate: (alertId: string, status: AuditAlertUpdateStatus) => Promise<boolean>;
   onFocus: (alert: AuditAlert, evidenceIndex?: number) => void;
   onApplyKnowledgeUpdate: (alertId: string) => Promise<void>;
+  stateTrackingEnabled: boolean;
+  onOpenHistory: () => void;
 }>) {
   if (!visible) return null
   return (
     <>
-      <WikiSectionTitle
-        icon={AlertTriangle}
-        label="Inconsistencias detectadas"
-        count={alerts.length}
-        expanded={expanded}
-        onToggle={onToggle}
-      />
+      <div className="flex min-w-0 items-center gap-1">
+        <div className="min-w-0 flex-1">
+          <WikiSectionTitle
+            icon={AlertTriangle}
+            label="Inconsistencias detectadas"
+            count={alerts.length}
+            expanded={expanded}
+            onToggle={onToggle}
+          />
+        </div>
+        <Button
+          type="button"
+          size="xs"
+          variant="ghost"
+          className="h-7 shrink-0 px-2 text-[10px] text-muted-foreground"
+          onClick={onOpenHistory}
+        >
+          <History className="size-3.5" />
+          Historial
+        </Button>
+      </div>
       {expanded && (
         <AuditAlertList
           loading={loading}
@@ -925,6 +960,7 @@ function AuditAlertsSection({
           onUpdate={onUpdate}
           onFocus={onFocus}
           onApplyKnowledgeUpdate={onApplyKnowledgeUpdate}
+          stateTrackingEnabled={stateTrackingEnabled}
         />
       )}
     </>

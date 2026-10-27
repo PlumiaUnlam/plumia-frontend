@@ -40,7 +40,7 @@ import { useEditorStore } from "@/stores/editor.store";
 import type { CreateEntityInput, Entity, UpdateEntityInput } from "@/types/entity";
 import type { EntityProposal } from "@/types/entity-proposal";
 import type { UpdateRelationshipInput } from "@/types/relationship";
-import type { AuditAlert, AuditAlertResolution } from "@/types/audit-alert";
+import type { AuditAlert, AuditAlertUpdateStatus } from "@/types/audit-alert";
 import type { WritingMode } from "@/types/writing-mode";
 import type { EditorSectionOption } from "@/components/editor/editor-types";
 
@@ -337,26 +337,33 @@ export function EditorRightPanel({
 
   const handleUpdateAuditAlert = async (
     alertId: string,
-    status: AuditAlertResolution,
+    status: AuditAlertUpdateStatus,
   ) => {
     setUpdatingAuditAlertId(alertId);
     setActionError(null);
     try {
-      await updateAuditAlert(alertId, status);
+      const updated = await updateAuditAlert(alertId, status);
       if (status === "DISMISSED") {
         clearCitationFocus();
       }
       await mutateAuditAlerts(
-        (current) => (current ?? []).filter((alert) => alert.id !== alertId),
+        (current) => {
+          const remaining = (current ?? []).filter(
+            (alert) => alert.id !== alertId,
+          );
+          return status === "ACTIVE" ? [...remaining, updated] : remaining;
+        },
         { revalidate: false },
       );
       void mutateAuditAlerts().catch(() => undefined);
+      return true;
     } catch (error) {
       setActionError(
         error instanceof Error
           ? error.message
           : "No se pudo actualizar la advertencia.",
       );
+      return false;
     } finally {
       setUpdatingAuditAlertId(null);
     }
