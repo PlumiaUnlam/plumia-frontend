@@ -89,22 +89,49 @@ export function useProjectAnalysis(projectId: string) {
   useEffect(() => {
     if (!runId || !runStatus || !ACTIVE_STATUSES.has(runStatus)) return
     let active = true
-    const timer = window.setInterval(() => {
-      void getProjectAnalysisRun(projectId, runId)
-        .then((nextRun) => {
-          if (!active) return
-          setRun(nextRun)
-          if (!ACTIVE_STATUSES.has(nextRun.status)) {
-            requestKnowledgeRefresh(projectId)
-          }
-        })
-        .catch(() => undefined)
-    }, 2500)
+    let consecutiveErrors = 0
+    let timer: number | undefined
+
+    const poll = async () => {
+      try {
+        const nextRun = await getProjectAnalysisRun(projectId, runId)
+        if (!active) return
+        consecutiveErrors = 0
+        setError(null)
+        setRun(nextRun)
+        if (!ACTIVE_STATUSES.has(nextRun.status)) {
+          requestKnowledgeRefresh(projectId)
+          return
+        }
+      } catch {
+        if (!active) return
+        consecutiveErrors += 1
+        if (consecutiveErrors >= 3) {
+          setError(
+            "No se pudo consultar el progreso. El análisis puede seguir en segundo plano; revisá el estado del backend.",
+          )
+        }
+      }
+
+      if (active) timer = window.setTimeout(() => void poll(), 2500)
+    }
+
+    timer = window.setTimeout(() => void poll(), 2500)
     return () => {
       active = false
-      window.clearInterval(timer)
+      if (timer !== undefined) window.clearTimeout(timer)
     }
   }, [projectId, runId, runStatus])
+
+  useEffect(() => {
+    if (!runId || runStatus !== "QUEUED") return
+    const timer = window.setTimeout(() => {
+      setNotice(
+        "El análisis sigue en cola. Si no avanza, verificá que el worker del backend esté activo y conectado a Redis.",
+      )
+    }, 30000)
+    return () => window.clearTimeout(timer)
+  }, [runId, runStatus])
 
   return {
     open,

@@ -39,6 +39,11 @@ export type SceneAnalysisResult = {
   pendingChunks: number
 }
 
+export type SceneAnalysisExecution = {
+  status: "QUEUED" | "RUNNING" | "SUCCEEDED" | "FAILED" | "NO_CHANGES"
+  error: string | null
+}
+
 export type SceneVersionSummary = {
   id: string
   sceneId: string

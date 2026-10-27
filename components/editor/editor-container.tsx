@@ -26,6 +26,7 @@ import {
   type SavedSceneResult,
 } from "@/hooks/use-autosave"
 import { requestKnowledgeRefresh } from "@/hooks/use-knowledge-refresh"
+import { useSceneAnalysis } from "@/hooks/use-scene-analysis"
 import { requireSuccessfulSave } from "@/lib/editor-save-protection"
 import { registerEditorSaveShortcut } from "@/lib/editor-save-shortcut"
 import {
@@ -117,17 +118,50 @@ function SceneEditor({
   const latestEditorRef = useRef<Editor | null>(null)
   const [analysisFeedback, setAnalysisFeedback] = useState<{
     message: string
-    tone: "default" | "success"
+    tone: "default" | "success" | "error"
   } | null>(null)
   const [analysisInFlight, setAnalysisInFlight] = useState(false)
+  const { watch: watchSceneAnalysis } = useSceneAnalysis(projectId, sceneId)
+
+  const monitorSceneAnalysis = useCallback(() => {
+    void watchSceneAnalysis().then((result) => {
+      if (result.status === "CANCELLED") return
+      if (result.status === "SUCCEEDED") {
+        setAnalysisFeedback({
+          message: "Análisis completado; Wiki e inconsistencias actualizadas",
+          tone: "success",
+        })
+        return
+      }
+      if (result.status === "FAILED") {
+        setAnalysisFeedback({
+          message: result.error ?? "No se pudo completar el análisis.",
+          tone: "error",
+        })
+        return
+      }
+      if (result.status === "TIMEOUT" || result.status === "UNAVAILABLE") {
+        setAnalysisFeedback({
+          message: result.error ?? "No se pudo confirmar el estado del análisis.",
+          tone: "error",
+        })
+      }
+    })
+  }, [watchSceneAnalysis])
 
   const handleSaveComplete = useCallback(
     (result: SavedSceneResult) => {
       if (selectedVersionId === null && result.contentChanged) {
         requestKnowledgeRefresh(projectId)
+        if (
+          "analysisStatus" in result &&
+          result.analysisStatus === "QUEUED"
+        ) {
+          monitorSceneAnalysis()
+        }
       }
     },
-    [projectId, selectedVersionId],
+    [monitorSceneAnalysis, projectId, selectedVersionId],
   )
 
   const { queueSave, saveNow } = useAutosave({
@@ -160,22 +194,23 @@ function SceneEditor({
             })
             return
           }
+          monitorSceneAnalysis()
         }
 
         setAnalysisFeedback({
           message:
-            "Cambios guardados; el analisis se ejecutara en segundo plano",
+            "Cambios guardados; el análisis se ejecutará en segundo plano",
           tone: "success",
         })
       })
       .catch(() => {
         setAnalysisFeedback({
-          message: "No se pudo programar el analisis. Intenta nuevamente.",
-          tone: "default",
+          message: "No se pudo programar el análisis. Intenta nuevamente.",
+          tone: "error",
         })
       })
       .finally(() => setAnalysisInFlight(false))
-  }, [analysisInFlight, saveNow, sceneId])
+  }, [analysisInFlight, monitorSceneAnalysis, saveNow, sceneId])
 
   const handleContentChange = useCallback((nextEditor: Editor) => {
     latestEditorRef.current = nextEditor

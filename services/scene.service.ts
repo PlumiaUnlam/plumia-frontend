@@ -5,6 +5,7 @@ import type {
   ProseMirrorJSON,
   SaveSceneResult,
   SceneAnalysisResult,
+  SceneAnalysisExecution,
   SaveSceneVersionResult,
   SceneVersionDocument,
   SceneVersionSummary,
@@ -191,6 +192,14 @@ export async function saveScene(
 
 export function requestSceneAnalysis(sceneId: string): Promise<SceneAnalysisResult> {
   return api.post<SceneAnalysisResult>(`/scenes/${sceneId}/analyze`, {})
+}
+
+export function getSceneAnalysisStatus(
+  sceneId: string,
+): Promise<SceneAnalysisExecution> {
+  return api.get<SceneAnalysisExecution>(
+    `/scenes/${encodeURIComponent(sceneId)}/analysis-status`,
+  )
 }
 
 export async function getSceneVersions(
