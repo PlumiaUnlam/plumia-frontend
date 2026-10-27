@@ -11,6 +11,12 @@ type AnalysisToastProps = {
   onDismiss: () => void
 }
 
+const feedbackIcons = {
+  default: Info,
+  success: CheckCircle2,
+  error: AlertCircle,
+} as const
+
 export function AnalysisToast({ feedback, onDismiss }: Readonly<AnalysisToastProps>) {
   useEffect(() => {
     if (!feedback) return
@@ -21,25 +27,20 @@ export function AnalysisToast({ feedback, onDismiss }: Readonly<AnalysisToastPro
 
   if (!feedback) return null
 
-  const Icon =
-    feedback.tone === "success"
-      ? CheckCircle2
-      : feedback.tone === "error"
-        ? AlertCircle
-        : Info
+  const Icon = feedbackIcons[feedback.tone]
 
   return (
-    <div
+    <output
       className={cn(
         "fixed left-1/2 top-6 z-50 flex w-[calc(100%-2rem)] max-w-md -translate-x-1/2 items-center gap-3 rounded-lg border bg-background px-4 py-3 text-sm shadow-lg",
         feedback.tone === "success" && "border-emerald-200 text-emerald-800",
         feedback.tone === "error" && "border-destructive/30 text-destructive",
       )}
-      role={feedback.tone === "error" ? "alert" : "status"}
-      aria-live="polite"
+      aria-live={feedback.tone === "error" ? "assertive" : "polite"}
+      aria-atomic="true"
     >
       <Icon className="size-5 shrink-0" />
       <span>{feedback.message}</span>
-    </div>
+    </output>
   )
 }

@@ -128,6 +128,61 @@ type ProfileSection =
   | "ai"
   | "entityRecognition"
   | "inconsistencies"
+
+type ProfileSubmitHandlers = {
+  account: () => Promise<void>
+  ai: () => Promise<void>
+  entityRecognition: () => Promise<void>
+  inconsistencies: () => Promise<void>
+}
+
+function getProfileSubmitLabel(
+  section: ProfileSection,
+  hasUnsavedChanges: boolean,
+) {
+  if (section === "ai") return "Guardar API Key"
+  if (!hasUnsavedChanges) return "Sin cambios pendientes"
+  if (section === "account") return "Guardar cambios"
+  return "Guardar configuraci\u00f3n"
+}
+
+function getProfileLoadingState(
+  section: ProfileSection,
+  state: {
+    account: boolean
+    ai: boolean
+    entityRecognition: boolean
+    inconsistencies: boolean
+  },
+) {
+  switch (section) {
+    case "account":
+      return state.account
+    case "ai":
+      return state.ai
+    case "entityRecognition":
+      return state.entityRecognition
+    case "inconsistencies":
+      return state.inconsistencies
+  }
+}
+
+function getProfileSubmitHandler(
+  section: ProfileSection,
+  handlers: ProfileSubmitHandlers,
+) {
+  switch (section) {
+    case "account":
+      return handlers.account
+    case "ai":
+      return handlers.ai
+    case "entityRecognition":
+      return handlers.entityRecognition
+    case "inconsistencies":
+      return handlers.inconsistencies
+  }
+}
+
 type EntityCatalogSection = "important" | "ignored" | "rejected"
 
 type ProfileAvatarProps = {
@@ -853,14 +908,11 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
         isCurrentSectionSettingsUnavailable ||
         (profileSection === "inconsistencies" && !selectedProjectId)
 
-  const profileSubmitLabel =
-    profileSection === "ai"
-      ? "Guardar API Key"
-      : currentSectionHasUnsavedChanges
-        ? profileSection === "account"
-          ? "Guardar cambios"
-          : "Guardar configuración"
-        : "Sin cambios pendientes"
+  const profileSubmitLabel = getProfileSubmitLabel(
+    profileSection,
+    currentSectionHasUnsavedChanges,
+  )
+
 
   const profileSubmitButtonClassName = currentSectionHasUnsavedChanges
     ? undefined
@@ -984,25 +1036,21 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
         submitLabel={profileSubmitLabel}
         submitDisabled={profileSubmitDisabled}
         submitButtonClassName={profileSubmitButtonClassName}
-        loading={
-          profileSection === "account"
-            ? saving
-            : profileSection === "ai"
-              ? aiSaving || autoAnalysisSaving
-              : profileSection === "entityRecognition"
-                ? entityRecognitionSaving
-                : worldRulesSaving || knowledgeReviewSaving
-        }
+        loading={getProfileLoadingState(profileSection, {
+          account: saving,
+          ai: aiSaving || autoAnalysisSaving,
+          entityRecognition: entityRecognitionSaving,
+          inconsistencies: worldRulesSaving || knowledgeReviewSaving,
+        })}
+
         showLoadingIndicator={false}
-        onSubmit={
-          profileSection === "account"
-            ? handleProfileSubmit
-            : profileSection === "ai"
-              ? handleAiSubmit
-              : profileSection === "entityRecognition"
-                ? handleEntityRecognitionSubmit
-                : handleWorldRulesSubmit
-        }
+        onSubmit={getProfileSubmitHandler(profileSection, {
+          account: handleProfileSubmit,
+          ai: handleAiSubmit,
+          entityRecognition: handleEntityRecognitionSubmit,
+          inconsistencies: handleWorldRulesSubmit,
+        })}
+
         onInteractOutside={(event) => {
           if (
             entityCatalogOpenRef.current ||
@@ -1346,8 +1394,12 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
                 <p className="text-xs text-muted-foreground">Cargando preferencias del proyecto...</p>
               ) : (
                 <div className="space-y-4">
-                  <label className="flex cursor-pointer items-start gap-3 rounded-lg border bg-card p-3">
+                  <label
+                    htmlFor="state-tracking-enabled"
+                    className="flex cursor-pointer items-start gap-3 rounded-lg border bg-card p-3"
+                  >
                     <input
+                      id="state-tracking-enabled"
                       type="checkbox"
                       checked={knowledgeReviewSettings.stateTrackingEnabled}
                       onChange={(event) =>

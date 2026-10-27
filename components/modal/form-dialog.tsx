@@ -55,6 +55,60 @@ type FormDialogProps = {
   showCloseButton?: boolean
 }
 
+function DefaultFormDialogFooter({
+  onOpenChange,
+  onSubmit,
+  footerStart,
+  loading,
+  cancelLabel,
+  enterToSubmit,
+  submitDisabled,
+  submitButtonClassName,
+  showLoadingIndicator,
+  submitLabel,
+}: Readonly<
+  Pick<
+    FormDialogProps,
+    | "onOpenChange"
+    | "onSubmit"
+    | "footerStart"
+    | "loading"
+    | "cancelLabel"
+    | "enterToSubmit"
+    | "submitDisabled"
+    | "submitButtonClassName"
+    | "showLoadingIndicator"
+    | "submitLabel"
+  >
+>) {
+  return (
+    <>
+      {footerStart ? (
+        <div className="flex items-center sm:mr-auto">{footerStart}</div>
+      ) : null}
+      <Button
+        type="button"
+        variant="outline"
+        disabled={loading}
+        onClick={() => onOpenChange(false)}
+      >
+        {onSubmit ? cancelLabel : "Cerrar"}
+      </Button>
+      {onSubmit ? (
+        <Button
+          type={enterToSubmit ? "submit" : "button"}
+          disabled={submitDisabled || loading}
+          className={submitButtonClassName}
+          onClick={enterToSubmit ? undefined : () => void onSubmit()}
+        >
+          {loading && showLoadingIndicator ? <Spinner /> : null}
+          {submitLabel}
+        </Button>
+      ) : null}
+    </>
+  )
+}
+
 /**
  * Modal de formulario estándar: encabezado fijo, cuerpo con scroll y pie con
  * Cancelar / acción principal. Pantalla completa en mobile.
@@ -93,30 +147,18 @@ export function FormDialog({
 
   const footerContent =
     footer ?? (
-      <>
-        {footerStart ? (
-          <div className="flex items-center sm:mr-auto">{footerStart}</div>
-        ) : null}
-        <Button
-          type="button"
-          variant="outline"
-          disabled={loading}
-          onClick={() => onOpenChange(false)}
-        >
-          {onSubmit ? cancelLabel : "Cerrar"}
-        </Button>
-        {onSubmit ? (
-          <Button
-            type={enterToSubmit ? "submit" : "button"}
-            disabled={submitDisabled || loading}
-            className={submitButtonClassName}
-            onClick={enterToSubmit ? undefined : () => void onSubmit()}
-          >
-            {loading && showLoadingIndicator ? <Spinner /> : null}
-            {submitLabel}
-          </Button>
-        ) : null}
-      </>
+      <DefaultFormDialogFooter
+        onOpenChange={onOpenChange}
+        onSubmit={onSubmit}
+        footerStart={footerStart}
+        loading={loading}
+        cancelLabel={cancelLabel}
+        enterToSubmit={enterToSubmit}
+        submitDisabled={submitDisabled}
+        submitButtonClassName={submitButtonClassName}
+        showLoadingIndicator={showLoadingIndicator}
+        submitLabel={submitLabel}
+      />
     )
 
   const inner = (

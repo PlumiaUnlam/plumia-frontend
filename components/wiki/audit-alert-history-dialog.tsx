@@ -54,7 +54,10 @@ export function AuditAlertHistoryDialog({
   const [restoreError, setRestoreError] = useState<string | null>(null);
 
   const categories = useMemo(
-    () => [...new Set(alerts.map((alert) => alert.category))].sort(),
+    () =>
+      [...new Set(alerts.map((alert) => alert.category))].sort((left, right) =>
+        left.localeCompare(right),
+      ),
     [alerts],
   );
   const filteredAlerts = useMemo(() => {
@@ -87,6 +90,8 @@ export function AuditAlertHistoryDialog({
       );
     });
   }, [alerts, category, query, severity, status]);
+  const showEmptyState = !isLoading && !error && filteredAlerts.length === 0;
+  const showAlertList = !isLoading && !error && filteredAlerts.length > 0;
 
   const restoreAlert = async (alertId: string) => {
     if (await onRestore(alertId)) {
@@ -171,17 +176,18 @@ export function AuditAlertHistoryDialog({
                 {restoreError}
               </p>
             )}
-            {isLoading ? (
-              <HistoryMessage>Cargando historial...</HistoryMessage>
-            ) : error ? (
+            {isLoading && <HistoryMessage>Cargando historial...</HistoryMessage>}
+            {!isLoading && error && (
               <HistoryMessage>No se pudo cargar el historial.</HistoryMessage>
-            ) : filteredAlerts.length === 0 ? (
+            )}
+            {showEmptyState && (
               <HistoryMessage>
-                {alerts.length
+                {alerts.length > 0
                   ? "No hay alertas que coincidan con esos filtros."
                   : "Todavía no hay inconsistencias archivadas."}
               </HistoryMessage>
-            ) : (
+            )}
+            {showAlertList && (
               filteredAlerts.map((alert) => (
                 <AuditAlertCard
                   key={alert.id}

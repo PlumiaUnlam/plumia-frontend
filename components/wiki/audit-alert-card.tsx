@@ -236,7 +236,51 @@ export function AuditAlertCard({
         </div>
       </article>
 
-      <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
+      <AuditAlertDetailsDialog
+        alert={alert}
+        open={detailsOpen}
+        onOpenChange={setDetailsOpen}
+        isCrossChunkContradiction={isCrossChunkContradiction}
+        historyMode={historyMode}
+        archivedAt={archivedAt}
+        explanation={explanation}
+        firstEvidence={firstEvidence}
+        secondEvidence={secondEvidence}
+        focusEvidence={focusEvidence}
+      />
+    </>
+  );
+}
+
+type AuditAlertDetailsDialogProps = {
+  readonly alert: AuditAlert;
+  readonly open: boolean;
+  readonly onOpenChange: (open: boolean) => void;
+  readonly isCrossChunkContradiction: boolean;
+  readonly historyMode: boolean;
+  readonly archivedAt: string | null;
+  readonly explanation: string;
+  readonly firstEvidence: string | undefined;
+  readonly secondEvidence: string | undefined;
+  readonly focusEvidence: (index: number) => void;
+};
+
+function AuditAlertDetailsDialog({
+  alert,
+  open,
+  onOpenChange,
+  isCrossChunkContradiction,
+  historyMode,
+  archivedAt,
+  explanation,
+  firstEvidence,
+  secondEvidence,
+  focusEvidence,
+}: Readonly<AuditAlertDetailsDialogProps>) {
+  const conflict = alert.conflict;
+
+  return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent
           size="md"
           className="flex max-h-[min(88dvh,760px)] flex-col gap-0 overflow-hidden border-amber-500/30 bg-background p-0 shadow-2xl"
@@ -311,7 +355,7 @@ export function AuditAlertCard({
               </section>
             )}
 
-            {isCrossChunkContradiction ? (
+            {isCrossChunkContradiction && (
               <section className="space-y-2.5">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                   Evidencia en el texto
@@ -327,7 +371,10 @@ export function AuditAlertCard({
                   onOpen={() => focusEvidence(1)}
                 />
               </section>
-            ) : conflict?.evidence.length ? (
+            )}
+            {conflict &&
+              !isCrossChunkContradiction &&
+              conflict.evidence.length > 0 && (
               <section className="space-y-2.5">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                   Evidencia en el texto
@@ -341,7 +388,7 @@ export function AuditAlertCard({
                   />
                 ))}
               </section>
-            ) : null}
+            )}
           </div>
 
           <DialogFooter
@@ -354,9 +401,9 @@ export function AuditAlertCard({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </>
   );
 }
+
 
 function DetailValue({
   label,
