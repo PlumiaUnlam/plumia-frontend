@@ -6,14 +6,31 @@ export type EntityState = {
   toValue: string | null
   validFromSceneId: string
   validToSceneId: string | null
+  narrativeOrder: number | null
   source: string
   createdAt: string
+}
+
+export type EntityStateHistoryScene = {
+  id: string
+  title: string | null
+  chapterTitle: string
+  bookTitle: string
+}
+
+export type EntityStateHistoryEntry = EntityState & {
+  entityName: string
+  validFromScene: EntityStateHistoryScene
+  validToScene: EntityStateHistoryScene | null
 }
 
 export type EntityStateProposal = {
   id: string
   projectId: string
   sceneId: string
+  sceneTitle: string | null
+  chapterTitle: string | null
+  bookTitle: string | null
   sourceChunkId: string | null
   sourceChunkHash: string | null
   entityId: string
@@ -24,6 +41,8 @@ export type EntityStateProposal = {
   evidence: string[]
   confidenceScore: number
   conflictsWithLocked: boolean
+  narrativeOrder: number | null
+  sequenceKind: "TRANSITION" | "CONTRADICTION" | "UNCERTAIN" | null
   status: "PENDING" | "APPROVED" | "REJECTED" | "OBSOLETE"
   createdAt: string
 }
@@ -36,7 +55,9 @@ export type CreateEntityStateInput = {
 }
 
 export type UpdateEntityStateInput = {
+  attributeKey?: string
   toValue?: string
+  validFromSceneId?: string
   validToSceneId?: string | null
 }
 

@@ -32,25 +32,20 @@ import {
   updateAuditAlert,
 } from "@/services/audit-alerts.service";
 import {
-  acceptEntityStateProposal,
-  createEntityState,
+  acceptEntityStateProposalSequence,
   getEntityStateProposals,
-  getTemporalKnowledgeView,
   rejectEntityStateProposal,
 } from "@/services/entity-states.service";
+import { getKnowledgeReviewSettings } from "@/services/knowledge-review-settings.service";
 import { useAuditAlerts } from "@/hooks/use-audit-alerts";
 import { useKnowledgeRefresh } from "@/hooks/use-knowledge-refresh";
 import { useEditorStore } from "@/stores/editor.store";
 import type { CreateEntityInput, Entity, UpdateEntityInput } from "@/types/entity";
 import type { EntityProposal } from "@/types/entity-proposal";
 import type { UpdateRelationshipInput } from "@/types/relationship";
-import type { AuditAlert, AuditAlertResolution } from "@/types/audit-alert";
-import type {
-  CreateEntityStateInput,
-  EntityStateProposal,
-  EntityStateProposalOverride,
-} from "@/types/entity-state";
+import type { AuditAlert, AuditAlertUpdateStatus } from "@/types/audit-alert";
 import type { WritingMode } from "@/types/writing-mode";
+import type { EditorSectionOption } from "@/components/editor/editor-types";
 
 // Sin `loading`, next/dynamic no crea su propio Suspense: al cargar el chunk por
 // primera vez suspendería hasta el límite del editor y haría desaparecer todo el panel.
@@ -83,6 +78,7 @@ type RightTab = "wiki" | "chat" | "stats";
 type EditorRightPanelProps = {
   readonly projectId: string;
   readonly mode: Exclude<WritingMode, "zen">;
+  readonly sceneOptions: readonly EditorSectionOption[];
 };
 
 type EntityActionFeedback = {
@@ -120,9 +116,9 @@ function useShowWikiOnAlertChange(
 function EditorRightPanelContent({
   projectId,
   mode,
+  sceneOptions,
   focusedAlertId,
 }: EditorRightPanelProps & { focusedAlertId: string | null }) {
-  const activeSceneId = useEditorStore((state) => state.activeSceneId);
   const setActiveScene = useEditorStore((state) => state.setActiveScene);
   const focusCitation = useEditorStore((state) => state.focusCitation);
   const clearCitationFocus = useEditorStore(
@@ -152,15 +148,19 @@ function EditorRightPanelContent({
   const [rejectingStateProposalId, setRejectingStateProposalId] = useState<
     string | null
   >(null);
-  const [creatingStateForEntityId, setCreatingStateForEntityId] = useState<
-    string | null
-  >(null);
-  const [temporalSceneId, setTemporalSceneId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [entityActionFeedback, setEntityActionFeedback] =
     useState<EntityActionFeedback | null>(null);
   const shouldLoadEntityData = activeTab === "wiki" || activeTab === "chat";
   const shouldLoadWikiData = activeTab === "wiki";
+  const { data: knowledgeReviewSettings } = useSWR(
+    projectId && shouldLoadWikiData
+      ? `/projects/${projectId}/knowledge-review-settings`
+      : null,
+    () => getKnowledgeReviewSettings(projectId),
+  );
+  const stateTrackingEnabled =
+    knowledgeReviewSettings?.stateTrackingEnabled ?? false;
 
   const {
     data: entities,
@@ -218,24 +218,11 @@ function EditorRightPanelContent({
     isLoading: isLoadingStateProposals,
     mutate: mutateStateProposals,
   } = useSWR(
-    projectId && shouldLoadWikiData
+    projectId && shouldLoadWikiData && stateTrackingEnabled
       ? `/v1/projects/${projectId}/state-proposals`
       : null,
     () => getEntityStateProposals(projectId),
   );
-  const selectedTemporalSceneId = temporalSceneId ?? activeSceneId;
-  const {
-    data: temporalKnowledgeView,
-    error: temporalKnowledgeViewError,
-    isLoading: isLoadingTemporalKnowledgeView,
-    mutate: mutateTemporalKnowledgeView,
-  } = useSWR(
-    projectId && shouldLoadWikiData && selectedTemporalSceneId
-      ? `/knowledge/projects/${projectId}/temporal-view?sceneId=${selectedTemporalSceneId}`
-      : null,
-    () => getTemporalKnowledgeView(projectId, selectedTemporalSceneId!),
-  );
-
   const refreshKnowledge = useCallback(() => {
     void Promise.all([
       mutateEntities(),
@@ -243,7 +230,6 @@ function EditorRightPanelContent({
       mutateRelationshipProposals(),
       mutateAuditAlerts(),
       mutateStateProposals(),
-      mutateTemporalKnowledgeView(),
     ]).catch(() => undefined);
   }, [
     mutateAuditAlerts,
@@ -251,7 +237,6 @@ function EditorRightPanelContent({
     mutateProposals,
     mutateRelationshipProposals,
     mutateStateProposals,
-    mutateTemporalKnowledgeView,
   ]);
 
   const scheduleKnowledgeRefresh = useCallback(() => {
@@ -393,37 +378,56 @@ function EditorRightPanelContent({
 
   const handleUpdateAuditAlert = async (
     alertId: string,
-    status: AuditAlertResolution,
+    status: AuditAlertUpdateStatus,
   ) => {
     setUpdatingAuditAlertId(alertId);
     setActionError(null);
     try {
-      await updateAuditAlert(alertId, status);
+      const updated = await updateAuditAlert(alertId, status);
       if (status === "DISMISSED") {
         clearCitationFocus();
       }
       await mutateAuditAlerts(
-        (current) => (current ?? []).filter((alert) => alert.id !== alertId),
+        (current) => {
+          const remaining = (current ?? []).filter(
+            (alert) => alert.id !== alertId,
+          );
+          return status === "ACTIVE" ? [...remaining, updated] : remaining;
+        },
         { revalidate: false },
       );
       void mutateAuditAlerts().catch(() => undefined);
+      return true;
     } catch (error) {
       setActionError(
         error instanceof Error
           ? error.message
           : "No se pudo actualizar la advertencia.",
       );
+      return false;
     } finally {
       setUpdatingAuditAlertId(null);
     }
   };
 
   const handleFocusAuditAlert = useCallback(
-    (alert: AuditAlert) => {
-      const evidence = alert.conflict?.evidence[0];
-      setActiveScene(alert.sceneId);
+    (alert: AuditAlert, evidenceIndex = 0) => {
+      const supportingSide = evidenceIndex === 1 ? "second" : "first";
+      const supportingSource =
+        alert.ruleCode === "INTRA_SCENE_CONTRADICTION" ||
+        alert.ruleCode === "CROSS_SCENE_CONTRADICTION"
+          ? alert.conflict?.supportingEvidence?.find(
+              (entry) => entry.side === supportingSide,
+            )
+          : alert.conflict?.supportingEvidence?.[evidenceIndex];
+      const evidence =
+        supportingSource?.quote ??
+        alert.conflict?.evidence[evidenceIndex] ??
+        alert.conflict?.evidence[0];
+      const sourceSceneId = supportingSource?.sceneId ?? alert.sceneId;
+      setActiveScene(sourceSceneId);
       if (evidence) {
-        focusCitation({ sceneId: alert.sceneId, textQuote: evidence });
+        focusCitation({ sceneId: sourceSceneId, textQuote: evidence });
       } else {
         clearCitationFocus();
       }
@@ -436,11 +440,7 @@ function EditorRightPanelContent({
     setActionError(null);
     try {
       await applyAuditAlertKnowledgeUpdate(alertId);
-      await Promise.all([
-        mutateAuditAlerts(),
-        mutateStateProposals(),
-        mutateTemporalKnowledgeView(),
-      ]);
+      await Promise.all([mutateAuditAlerts(), mutateStateProposals()]);
       scheduleKnowledgeRefresh();
     } catch (error) {
       setActionError(
@@ -453,15 +453,34 @@ function EditorRightPanelContent({
     }
   };
 
-  const handleAcceptStateProposal = async (
-    proposal: EntityStateProposal,
-    override?: EntityStateProposalOverride,
+  const handleAcceptStateProposalSequence = async (
+    acceptedProposalIds: string[],
+    rejectedProposalIds: string[],
   ) => {
-    setAcceptingStateProposalId(proposal.id);
+    setAcceptingStateProposalId("__sequence__");
     setActionError(null);
     try {
-      await acceptEntityStateProposal(proposal.id, override);
-      await Promise.all([mutateStateProposals(), mutateTemporalKnowledgeView()]);
+      const acceptedStates = await acceptEntityStateProposalSequence(
+        projectId,
+        acceptedProposalIds,
+        rejectedProposalIds,
+      );
+      if (acceptedStates.length !== acceptedProposalIds.length) {
+        throw new Error(
+          "El servidor no confirmó todos los cambios del recorrido.",
+        );
+      }
+      const processedProposalIds = new Set([
+        ...acceptedProposalIds,
+        ...rejectedProposalIds,
+      ]);
+      await mutateStateProposals(
+        (current) =>
+          (current ?? []).filter(
+            (proposal) => !processedProposalIds.has(proposal.id),
+          ),
+        { revalidate: false },
+      );
       scheduleKnowledgeRefresh();
     } catch (error) {
       setActionError(
@@ -469,7 +488,6 @@ function EditorRightPanelContent({
           ? error.message
           : "No se pudo aceptar el cambio de estado.",
       );
-      throw error;
     } finally {
       setAcceptingStateProposalId(null);
     }
@@ -489,26 +507,6 @@ function EditorRightPanelContent({
       );
     } finally {
       setRejectingStateProposalId(null);
-    }
-  };
-
-  const handleCreateEntityState = async (
-    entityId: string,
-    input: CreateEntityStateInput,
-  ) => {
-    setCreatingStateForEntityId(entityId);
-    setActionError(null);
-    try {
-      await createEntityState(entityId, input);
-      await mutateTemporalKnowledgeView();
-      scheduleKnowledgeRefresh();
-    } catch (error) {
-      setActionError(
-        error instanceof Error ? error.message : "No se pudo guardar el estado.",
-      );
-      throw error;
-    } finally {
-      setCreatingStateForEntityId(null);
     }
   };
 
@@ -550,6 +548,9 @@ function EditorRightPanelContent({
         <div className="min-h-0 flex-1 overflow-hidden bg-card">
           {activeTab === "wiki" && (
             <WikiPanel
+              projectId={projectId}
+              stateTrackingEnabled={stateTrackingEnabled}
+              sceneOptions={sceneOptions}
               entities={entities ?? []}
               proposals={proposals ?? []}
               relationshipProposals={relationshipProposals ?? []}
@@ -576,15 +577,8 @@ function EditorRightPanelContent({
               onRejectRelationshipProposal={handleRejectRelationshipProposal}
               acceptingStateProposalId={acceptingStateProposalId}
               rejectingStateProposalId={rejectingStateProposalId}
-              onAcceptStateProposal={handleAcceptStateProposal}
+              onAcceptStateProposalSequence={handleAcceptStateProposalSequence}
               onRejectStateProposal={handleRejectStateProposal}
-              creatingStateForEntityId={creatingStateForEntityId}
-              onCreateEntityState={handleCreateEntityState}
-              temporalKnowledgeView={temporalKnowledgeView ?? null}
-              temporalKnowledgeViewError={temporalKnowledgeViewError}
-              temporalKnowledgeViewLoading={isLoadingTemporalKnowledgeView}
-              selectedTemporalSceneId={selectedTemporalSceneId}
-              onSelectTemporalScene={setTemporalSceneId}
               updatingAuditAlertId={updatingAuditAlertId}
               onUpdateAuditAlert={handleUpdateAuditAlert}
               onFocusAuditAlert={handleFocusAuditAlert}

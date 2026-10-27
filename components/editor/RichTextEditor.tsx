@@ -80,6 +80,7 @@ type RichTextEditorProps = {
   onChange?: (editor: Editor) => void
   onSave?: () => void
   onAnalyzeChanges?: () => void
+  onAnalyzeProject?: () => void
   isAnalysisSaving?: boolean
   isZenMode?: boolean
   onToggleZenMode?: () => void
@@ -107,6 +108,7 @@ export function RichTextEditor({
   onChange,
   onSave,
   onAnalyzeChanges,
+  onAnalyzeProject,
   isAnalysisSaving = false,
   isZenMode = false,
   onToggleZenMode,
@@ -534,6 +536,7 @@ export function RichTextEditor({
           onOpenParagraphFormat={() => setParagraphDialogOpen(true)}
           onInsertImage={openImagePicker}
           onAnalyzeChanges={onAnalyzeChanges}
+          onAnalyzeProject={onAnalyzeProject}
           isAnalysisSaving={isAnalysisSaving}
           onToggleAnnotations={allowAnnotations
             ? handleToggleAnnotations

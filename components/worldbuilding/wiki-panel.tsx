@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -19,10 +19,14 @@ import {
   Search,
   PenLine,
   Trash2,
+  Plus,
   Funnel,
   StarIcon,
   ArrowUpRight,
   CalendarDays,
+  History,
+  ChevronDown,
+  ChevronRight,
   ArrowLeft,
 } from "lucide-react";
 
@@ -38,6 +42,7 @@ import {
 } from "@/lib/entity-wiki";
 import type { Relationship } from "@/types/relationship";
 import type { TimelineEvent } from "@/types/timeline";
+import type { EntityStateHistoryEntry } from "@/types/entity-state";
 import type {
   ImageGenerationJob,
   ImageResponse,
@@ -99,6 +104,13 @@ interface WikiTabProps {
   readonly timelineEvents: readonly TimelineEvent[];
   readonly timelineEventsError: Error | undefined;
   readonly linksLoading: boolean;
+  readonly stateHistory: readonly EntityStateHistoryEntry[];
+  readonly stateTrackingEnabled: boolean;
+  readonly stateHistoryLoading: boolean;
+  readonly stateHistoryError: Error | undefined;
+  readonly onCreateEntityState: () => void;
+  readonly onEditEntityState: (entry: EntityStateHistoryEntry) => void;
+  readonly onDeleteEntityState: (entry: EntityStateHistoryEntry) => void;
   readonly onOpenEntity: (entityId: string) => void;
   readonly onOpenTimelineEvent: (eventId: string) => void;
 }
@@ -268,6 +280,119 @@ function EntityHistoryContent({
   );
 }
 
+function EntityStateHistoryContent({
+  entries,
+  loading,
+  error,
+  onEdit,
+  onDelete,
+}: Readonly<{
+  entries: readonly EntityStateHistoryEntry[];
+  loading: boolean;
+  error: Error | undefined;
+  onEdit: (entry: EntityStateHistoryEntry) => void;
+  onDelete: (entry: EntityStateHistoryEntry) => void;
+}>) {
+  if (error) {
+    return (
+      <p role="alert" className="text-sm text-destructive">
+        No se pudo cargar el historial de cambios.
+      </p>
+    );
+  }
+  if (loading) {
+    return (
+      <p className="text-sm text-muted-foreground">Cargando historial...</p>
+    );
+  }
+  if (entries.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        Todavía no hay cambios de estado aceptados para esta entidad.
+      </p>
+    );
+  }
+
+  return (
+    <ol className="space-y-4">
+      {entries.map((entry, index) => (
+        <li key={entry.id} className="border-l-2 border-primary/30 pl-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge
+                variant="outline"
+                className="border-primary/25 bg-primary/5 text-primary"
+              >
+                {getEntityStateLabel(entry.attributeKey)}
+              </Badge>
+              {entries.length > 1 && (
+                <span className="text-xs text-muted-foreground">
+                  Cambio {index + 1}
+                </span>
+              )}
+            </div>
+            <div className="flex shrink-0 gap-1">
+              <Button type="button" variant="ghost" size="sm" onClick={() => onEdit(entry)}>
+                <PenLine className="mr-1 size-3.5" />Editar
+              </Button>
+              <Button type="button" variant="ghost" size="sm" onClick={() => onDelete(entry)}>
+                <Trash2 className="mr-1 size-3.5" />Eliminar
+              </Button>
+            </div>
+          </div>
+          <p className="mt-2 break-words text-sm leading-relaxed">
+            <span className="text-muted-foreground">
+              {entry.fromValue || "Sin dato previo"}
+            </span>
+            <span className="px-2 text-primary" aria-hidden="true">
+              →
+            </span>
+            <span className="font-medium">{entry.toValue || "Sin valor"}</span>
+          </p>
+          <p className="mt-1 break-words text-xs text-muted-foreground">
+            {getEntityStateSceneLabel(entry.validFromScene)}
+          </p>
+          {entry.validToScene && (
+            <p className="mt-1 break-words text-xs text-muted-foreground">
+              Vigente hasta antes de {getEntityStateSceneLabel(entry.validToScene)}
+            </p>
+          )}
+          <p className="mt-1 text-xs text-muted-foreground">
+            {getEntityStateSourceLabel(entry.source)}
+          </p>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function getEntityStateLabel(attributeKey: string): string {
+  const normalized = attributeKey.trim().toLowerCase().replace(/[ -]/g, "_");
+  if (normalized === "location") return "Ubicación";
+  if (normalized === "status") return "Estado vital";
+  if (normalized === "health_status") return "Salud y condición";
+
+  return attributeKey
+    .trim()
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\p{L}/gu, (letter) => letter.toLocaleUpperCase("es"));
+}
+
+function getEntityStateSceneLabel(
+  scene: EntityStateHistoryEntry["validFromScene"],
+): string {
+  return [scene.bookTitle, scene.chapterTitle, scene.title || "Escena sin título"]
+    .filter(Boolean)
+    .join(" · ");
+}
+
+function getEntityStateSourceLabel(source: string): string {
+  const normalized = source.trim().toLowerCase();
+  if (normalized === "ai_proposed") return "Aprobado desde una propuesta de IA";
+  if (normalized === "author_manual") return "Establecido por el autor";
+  return "Cambio aceptado";
+}
+
 function EntityRelationshipsContent({
   error,
   loading,
@@ -358,6 +483,13 @@ export function WikiTab({
   timelineEvents,
   timelineEventsError,
   linksLoading,
+  stateHistory,
+  stateTrackingEnabled,
+  stateHistoryLoading,
+  stateHistoryError,
+  onCreateEntityState,
+  onEditEntityState,
+  onDeleteEntityState,
   onOpenEntity,
   onOpenTimelineEvent,
 }: WikiTabProps) {
@@ -365,6 +497,7 @@ export function WikiTab({
   const [selectedCategory, setSelectedCategory] = useState<EntityCategory[]>(
     [],
   );
+  const [stateHistoryExpanded, setStateHistoryExpanded] = useState(true);
 
   const filteredEntities = useMemo(() => {
     return entities.filter((entity) => {
@@ -392,6 +525,26 @@ export function WikiTab({
       selectedEntity.imageUrl ??
       `/api/storage/image/${selectedEntity.id}?v=${Date.parse(selectedEntity.updatedAt)}`)
     : "";
+  const selectedEntityId = selectedEntity?.id;
+
+  useEffect(() => {
+    if (
+      !selectedEntityId ||
+      stateHistoryLoading ||
+      window.location.hash !== "#entity-state-history"
+    ) {
+      return;
+    }
+
+    const section = document.getElementById("entity-state-history");
+    if (!section) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      section.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [selectedEntityId, stateHistoryLoading]);
+
   const selectedEntityRelationships = selectedEntity
     ? relationships.filter(
         (relationship) =>
@@ -611,6 +764,47 @@ export function WikiTab({
                   </CardContent>
                 </Card>
               </section>
+
+              {stateTrackingEnabled && <section
+                id="entity-state-history"
+                className="scroll-mt-5 space-y-3"
+              >
+                <button
+                  type="button"
+                  className="flex w-full items-center justify-between gap-3 rounded-lg px-1 py-1 text-left transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  aria-expanded={stateHistoryExpanded}
+                  aria-controls="entity-state-history-content"
+                  onClick={() =>
+                    setStateHistoryExpanded((expanded) => !expanded)
+                  }
+                >
+                  <span className="flex items-center gap-2 text-lg font-semibold">
+                    <History className="size-5 text-primary" />
+                    Historial de cambios
+                  </span>
+                  {stateHistoryExpanded ? (
+                    <ChevronDown className="size-5 shrink-0 text-muted-foreground" />
+                  ) : (
+                    <ChevronRight className="size-5 shrink-0 text-muted-foreground" />
+                  )}
+                </button>
+                {stateHistoryExpanded && (
+                  <Card id="entity-state-history-content" className="min-w-0 w-full bg-muted/30">
+                    <CardContent className="space-y-4">
+                      <Button type="button" size="sm" onClick={onCreateEntityState}>
+                        <Plus className="mr-2 size-4" />Agregar estado
+                      </Button>
+                      <EntityStateHistoryContent
+                        entries={stateHistory}
+                        loading={stateHistoryLoading}
+                        error={stateHistoryError}
+                        onEdit={onEditEntityState}
+                        onDelete={onDeleteEntityState}
+                      />
+                    </CardContent>
+                  </Card>
+                )}
+              </section>}
 
               <section className="space-y-3">
                 <h3 className="text-lg font-semibold">Baúl de imágenes</h3>

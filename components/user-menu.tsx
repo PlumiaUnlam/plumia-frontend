@@ -1,10 +1,11 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react"
-import { Camera, CircleAlert, KeyRound, LogOut, Monitor, Moon, Settings, Sun, Trash2, UserRound } from "lucide-react"
+import { Camera, CircleAlert, KeyRound, LogOut, Monitor, Moon, Search, Settings, SlidersHorizontal, Sun, Trash2, UserRound, X } from "lucide-react"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { useTheme } from "next-themes"
+import { useSWRConfig } from "swr"
 
 import { useAuth } from "@/contexts/AuthContext"
 import { deleteAccountErrorMessage } from "@/helpers/api-errors"
@@ -45,8 +46,27 @@ import {
   removeGeminiApiKey,
   saveGeminiApiKey,
   updateAutoAnalyzeOnAutosave,
+  updateEntityRecognitionThresholds,
+  DEFAULT_ENTITY_RECOGNITION_THRESHOLDS,
   type AiSettings,
+  type EntityRecognitionThresholds,
 } from "@/services/ai-settings.service"
+import {
+  getProjectEntityRecognitionSettings,
+  updateProjectEntityRecognitionSettings,
+  type RejectedEntityRecognitionProposal,
+} from "@/services/entity-recognition-settings.service"
+import {
+  DEFAULT_KNOWLEDGE_REVIEW_SETTINGS,
+  getKnowledgeReviewSettings,
+  updateKnowledgeReviewSettings,
+  type KnowledgeReviewSettings,
+} from "@/services/knowledge-review-settings.service"
+import {
+  getDashboardProjects,
+  updateProject,
+  type ProjectResponse,
+} from "@/services/project.service"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Switch } from "@/components/ui/switch"
 
@@ -58,11 +78,112 @@ const ALLOWED_AVATAR_TYPES = new Set([
   "image/avif",
 ])
 
+function normalizeEntityName(name: string) {
+  return name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+}
+
+const ENTITY_TYPE_LABELS: Record<string, string> = {
+  CHARACTER: "Personaje",
+  LOCATION: "Ubicaci\u00f3n",
+  OBJECT: "Objeto",
+  ORGANIZATION: "Organizaci\u00f3n",
+  EVENT: "Evento",
+  CONCEPT: "Concepto",
+}
+
+function getEntityTypeLabel(type: string | null) {
+  if (!type) return "Entidad"
+  return ENTITY_TYPE_LABELS[type.toUpperCase()] ?? type
+}
+
+function getProjectWorldRules(project: ProjectResponse | undefined) {
+  const genreRules = project?.genreRules
+  if (!genreRules || Array.isArray(genreRules)) return []
+
+  const rules = genreRules.rules
+  return Array.isArray(rules)
+    ? rules.filter((rule): rule is string => typeof rule === "string")
+    : []
+}
+
+function normalizeWorldRule(rule: string) {
+  return rule.trim().toLocaleLowerCase()
+}
+
+function areStringArraysEqual(left: string[], right: string[]) {
+  return left.length === right.length && left.every((value, index) => value === right[index])
+}
+
 type UserMenuProps = {
   readonly inverted?: boolean
 }
 
-type ProfileSection = "account" | "ai"
+type ProfileSection =
+  | "account"
+  | "ai"
+  | "entityRecognition"
+  | "inconsistencies"
+
+type ProfileSubmitHandlers = {
+  account: () => Promise<void>
+  ai: () => Promise<void>
+  entityRecognition: () => Promise<void>
+  inconsistencies: () => Promise<void>
+}
+
+function getProfileSubmitLabel(
+  section: ProfileSection,
+  hasUnsavedChanges: boolean,
+) {
+  if (section === "ai") return "Guardar API Key"
+  if (!hasUnsavedChanges) return "Sin cambios pendientes"
+  if (section === "account") return "Guardar cambios"
+  return "Guardar configuraci\u00f3n"
+}
+
+function getProfileLoadingState(
+  section: ProfileSection,
+  state: {
+    account: boolean
+    ai: boolean
+    entityRecognition: boolean
+    inconsistencies: boolean
+  },
+) {
+  switch (section) {
+    case "account":
+      return state.account
+    case "ai":
+      return state.ai
+    case "entityRecognition":
+      return state.entityRecognition
+    case "inconsistencies":
+      return state.inconsistencies
+  }
+}
+
+function getProfileSubmitHandler(
+  section: ProfileSection,
+  handlers: ProfileSubmitHandlers,
+) {
+  switch (section) {
+    case "account":
+      return handlers.account
+    case "ai":
+      return handlers.ai
+    case "entityRecognition":
+      return handlers.entityRecognition
+    case "inconsistencies":
+      return handlers.inconsistencies
+  }
+}
+
+type EntityCatalogSection = "important" | "ignored" | "rejected"
 
 type ProfileAvatarProps = {
   readonly src: string | null
@@ -123,6 +244,7 @@ function getInitials(name: string | null | undefined, email: string | null | und
 export function UserMenu({ inverted = false }: UserMenuProps) {
   const router = useRouter()
   const { setTheme, theme } = useTheme()
+  const { mutate } = useSWRConfig()
   const { firebaseUser, user, logout, deleteAccount, updateUserProfile } = useAuth()
   const [profileOpen, setProfileOpen] = useState(false)
   const [profileSection, setProfileSection] = useState<ProfileSection>("account")
@@ -147,7 +269,70 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
   const [confirmEmail, setConfirmEmail] = useState("")
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [entityThresholds, setEntityThresholds] = useState<EntityRecognitionThresholds>(
+    DEFAULT_ENTITY_RECOGNITION_THRESHOLDS,
+  )
+  const [entityRecognitionSaving, setEntityRecognitionSaving] = useState(false)
+  const [entityRecognitionError, setEntityRecognitionError] = useState<string | null>(null)
+  const [entityRecognitionNotice, setEntityRecognitionNotice] = useState<string | null>(null)
+  const [worldRules, setWorldRules] = useState<string[]>([])
+  const [newWorldRule, setNewWorldRule] = useState("")
+  const [worldRulesSearch, setWorldRulesSearch] = useState("")
+  const [worldRulesSaving, setWorldRulesSaving] = useState(false)
+  const [worldRulesError, setWorldRulesError] = useState<string | null>(null)
+  const [worldRulesNotice, setWorldRulesNotice] = useState<string | null>(null)
+  const [knowledgeReviewSettings, setKnowledgeReviewSettings] =
+    useState<KnowledgeReviewSettings>(DEFAULT_KNOWLEDGE_REVIEW_SETTINGS)
+  const [knowledgeReviewLoading, setKnowledgeReviewLoading] = useState(false)
+  const [knowledgeReviewSaving, setKnowledgeReviewSaving] = useState(false)
+  const [knowledgeReviewError, setKnowledgeReviewError] = useState<string | null>(null)
+  const [knowledgeReviewNotice, setKnowledgeReviewNotice] = useState<string | null>(null)
+  const [projects, setProjects] = useState<ProjectResponse[]>([])
+  const [projectsLoading, setProjectsLoading] = useState(false)
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
+  const [importantEntityNames, setImportantEntityNames] = useState<string[]>([])
+  const [newImportantEntityName, setNewImportantEntityName] = useState("")
+  const [ignoredEntityNames, setIgnoredEntityNames] = useState<string[]>([])
+  const [newIgnoredEntityName, setNewIgnoredEntityName] = useState("")
+  const [rejectedEntityProposals, setRejectedEntityProposals] = useState<RejectedEntityRecognitionProposal[]>([])
+  const [entityCatalogOpen, setEntityCatalogOpen] = useState(false)
+  const [entityCatalogSection, setEntityCatalogSection] = useState<EntityCatalogSection>("important")
+  const [importantEntitySearch, setImportantEntitySearch] = useState("")
+  const [ignoredEntitySearch, setIgnoredEntitySearch] = useState("")
+  const [rejectedEntitySearch, setRejectedEntitySearch] = useState("")
+  const [rejectedEntityTypeFilter, setRejectedEntityTypeFilter] = useState("ALL")
+  const [projectNamesLoading, setProjectNamesLoading] = useState(false)
+  const [projectNamesError, setProjectNamesError] = useState<string | null>(null)
+  const [profileCloseWarningOpen, setProfileCloseWarningOpen] = useState(false)
+  const entityCatalogOpenRef = useRef(false)
+  const [entityRecognitionBaseline, setEntityRecognitionBaseline] = useState({
+    projectId: null as string | null,
+    importantEntityNames: [] as string[],
+    ignoredEntityNames: [] as string[],
+  })
+  const [knowledgeReviewBaseline, setKnowledgeReviewBaseline] = useState<{
+    projectId: string | null
+    stateTrackingEnabled: boolean
+    stateReviewMode: KnowledgeReviewSettings["stateReviewMode"]
+    stateConfidenceThreshold: number
+    relationshipReviewMode: KnowledgeReviewSettings["relationshipReviewMode"]
+    relationshipConfidenceThreshold: number
+    crossChunkAuditMode: KnowledgeReviewSettings["crossChunkAuditMode"]
+  }>({
+    projectId: null,
+    stateTrackingEnabled: false,
+    stateReviewMode: "MANUAL",
+    stateConfidenceThreshold: 0.9,
+    relationshipReviewMode: "MANUAL",
+    relationshipConfidenceThreshold: 0.9,
+    crossChunkAuditMode: "ADJACENT_CHUNKS",
+  })
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const setEntityCatalogVisibility = (open: boolean) => {
+    entityCatalogOpenRef.current = open
+    setEntityCatalogOpen(open)
+  }
 
   let ThemeIcon = Monitor
   if (theme === "dark") {
@@ -180,17 +365,46 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
     setAiLoading(true)
     setAiError(null)
     try {
-      setAiSettings(await getAiSettings())
+      const settings = await getAiSettings()
+      setAiSettings(settings)
+      setEntityThresholds(
+        settings.entityExtractionThresholds ?? DEFAULT_ENTITY_RECOGNITION_THRESHOLDS,
+      )
     } catch {
-      setAiError("No pudimos cargar la configuraciÃ³n de IA.")
+      setAiError("No pudimos cargar la configuración de IA.")
     } finally {
       setAiLoading(false)
+    }
+  }
+
+  const loadProjects = async () => {
+    setProjectsLoading(true)
+    try {
+      const nextProjects = await getDashboardProjects()
+      setProjects(nextProjects)
+      const nextProjectId =
+        (selectedProjectId && nextProjects.some((project) => project.id === selectedProjectId)
+          ? selectedProjectId
+          : nextProjects[0]?.id) ?? null
+      setSelectedProjectId(nextProjectId)
+      setWorldRules(
+        getProjectWorldRules(nextProjects.find((project) => project.id === nextProjectId)),
+      )
+      if (nextProjectId) {
+        void loadProjectEntityNames(nextProjectId)
+        void loadReviewSettings(nextProjectId)
+      }
+    } catch {
+      setEntityRecognitionError("No pudimos cargar tus proyectos.")
+    } finally {
+      setProjectsLoading(false)
     }
   }
 
   const openProfileDialog = () => {
     setDisplayName(currentDisplayName)
     setProfileSection("account")
+    setProfileCloseWarningOpen(false)
     setAvatarFile(null)
     setAvatarPreview(null)
     setRemoveAvatar(false)
@@ -198,7 +412,25 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
     setAiKey("")
     setAiNotice(null)
     setAutoAnalysisError(null)
+    setEntityRecognitionError(null)
+    setEntityRecognitionNotice(null)
+    setWorldRulesError(null)
+    setWorldRulesNotice(null)
+    setKnowledgeReviewError(null)
+    setKnowledgeReviewNotice(null)
+    setNewWorldRule("")
+    setWorldRulesSearch("")
+    setProjectNamesError(null)
+    setNewImportantEntityName("")
+    setNewIgnoredEntityName("")
+    setEntityCatalogVisibility(false)
+    setEntityCatalogSection("important")
+    setImportantEntitySearch("")
+    setIgnoredEntitySearch("")
+    setRejectedEntitySearch("")
+    setRejectedEntityTypeFilter("ALL")
     void loadAiSettings()
+    void loadProjects()
     setProfileOpen(true)
   }
 
@@ -273,7 +505,7 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
   const handleAiSubmit = async () => {
     const normalizedKey = aiKey.trim()
     if (!normalizedKey) {
-      setAiError("IngresÃ¡ una API Key de Gemini.")
+      setAiError("Ingresá una API Key de Gemini.")
       return
     }
 
@@ -286,7 +518,7 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
       setAiKey("")
       setAiNotice("La API Key de Gemini fue guardada de forma segura.")
     } catch {
-      setAiError("No pudimos guardar la API Key. IntentÃ¡ nuevamente.")
+      setAiError("No pudimos guardar la API Key. Intentá nuevamente.")
     } finally {
       setAiSaving(false)
     }
@@ -302,12 +534,14 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
         keyPrefix: null,
         updatedAt: null,
         autoAnalyzeOnAutosave: current?.autoAnalyzeOnAutosave ?? true,
+        entityExtractionThresholds:
+          current?.entityExtractionThresholds ?? DEFAULT_ENTITY_RECOGNITION_THRESHOLDS,
       }))
       setAiKey("")
       setAiNotice("La API Key propia fue eliminada.")
       setRemoveAiKeyOpen(false)
     } catch {
-      setAiError("No pudimos eliminar la API Key. IntentÃ¡ nuevamente.")
+      setAiError("No pudimos eliminar la API Key. Intentá nuevamente.")
     } finally {
       setRemovingAiKey(false)
     }
@@ -334,6 +568,206 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
     } finally {
       setAutoAnalysisSaving(false)
     }
+  }
+
+  const handleEntityRecognitionSubmit = async () => {
+    setEntityRecognitionSaving(true)
+    setEntityRecognitionError(null)
+    setEntityRecognitionNotice(null)
+    setProjectNamesError(null)
+    try {
+      const [nextSettings, nextProjectSettings] = await Promise.all([
+        updateEntityRecognitionThresholds(entityThresholds),
+        selectedProjectId
+          ? updateProjectEntityRecognitionSettings(
+              selectedProjectId,
+              { importantEntityNames, ignoredEntityNames },
+            )
+          : Promise.resolve(null),
+      ])
+      setAiSettings(nextSettings)
+      setEntityThresholds(nextSettings.entityExtractionThresholds)
+      if (nextProjectSettings) {
+        setImportantEntityNames(nextProjectSettings.importantEntityNames)
+        setIgnoredEntityNames(nextProjectSettings.ignoredEntityNames)
+        setRejectedEntityProposals(nextProjectSettings.rejectedEntities)
+        setEntityRecognitionBaseline({
+          projectId: selectedProjectId,
+          importantEntityNames: [...nextProjectSettings.importantEntityNames],
+          ignoredEntityNames: [...nextProjectSettings.ignoredEntityNames],
+        })
+      }
+      setEntityRecognitionNotice("La precisión de reconocimiento fue guardada.")
+    } catch {
+      setEntityRecognitionError("No pudimos guardar la precisión de reconocimiento.")
+    } finally {
+      setEntityRecognitionSaving(false)
+    }
+  }
+
+  const addWorldRule = () => {
+    const value = newWorldRule.trim()
+    if (!value) return
+
+    if (!worldRules.some((rule) => normalizeWorldRule(rule) === normalizeWorldRule(value))) {
+      setWorldRules((current) => [...current, value])
+    }
+    setNewWorldRule("")
+    setWorldRulesError(null)
+    setWorldRulesNotice(null)
+  }
+
+  const handleWorldRulesSubmit = async () => {
+    if (!selectedProjectId) {
+      setWorldRulesError("Selecciona un proyecto para guardar sus reglas.")
+      return
+    }
+
+    const selectedProject = projects.find((project) => project.id === selectedProjectId)
+    const currentGenreRules =
+      selectedProject?.genreRules && !Array.isArray(selectedProject.genreRules)
+        ? selectedProject.genreRules
+        : {}
+
+    setWorldRulesSaving(true)
+    setKnowledgeReviewSaving(true)
+    setWorldRulesError(null)
+    setWorldRulesNotice(null)
+    setKnowledgeReviewError(null)
+    setKnowledgeReviewNotice(null)
+    try {
+      const [savedProject, savedReviewSettings] = await Promise.all([
+        updateProject(selectedProjectId, {
+          genreRules: {
+            ...currentGenreRules,
+            rules: worldRules,
+          },
+        }),
+        updateKnowledgeReviewSettings(selectedProjectId, {
+          stateTrackingEnabled: knowledgeReviewSettings.stateTrackingEnabled,
+          stateReviewMode: knowledgeReviewSettings.stateReviewMode,
+          stateConfidenceThreshold: knowledgeReviewSettings.stateConfidenceThreshold,
+          relationshipReviewMode: knowledgeReviewSettings.relationshipReviewMode,
+          relationshipConfidenceThreshold:
+            knowledgeReviewSettings.relationshipConfidenceThreshold,
+          crossChunkAuditMode: knowledgeReviewSettings.crossChunkAuditMode,
+        }),
+      ])
+      setProjects((current) =>
+        current.map((project) => (project.id === savedProject.id ? savedProject : project)),
+      )
+      setWorldRules(getProjectWorldRules(savedProject))
+      setWorldRulesNotice("Las reglas del mundo fueron guardadas.")
+      setKnowledgeReviewSettings(savedReviewSettings)
+      void mutate(
+        `/projects/${encodeURIComponent(selectedProjectId)}/knowledge-review-settings`,
+        savedReviewSettings,
+        { revalidate: false },
+      )
+      const stateProposalsKey = `/v1/projects/${encodeURIComponent(selectedProjectId)}/state-proposals`
+      if (savedReviewSettings.stateTrackingEnabled) {
+        void mutate(stateProposalsKey)
+      } else {
+        void mutate(stateProposalsKey, [], { revalidate: false })
+      }
+      setKnowledgeReviewBaseline({
+        projectId: selectedProjectId,
+        stateTrackingEnabled: savedReviewSettings.stateTrackingEnabled,
+        stateReviewMode: savedReviewSettings.stateReviewMode,
+        stateConfidenceThreshold: savedReviewSettings.stateConfidenceThreshold,
+        relationshipReviewMode: savedReviewSettings.relationshipReviewMode,
+        relationshipConfidenceThreshold:
+          savedReviewSettings.relationshipConfidenceThreshold,
+        crossChunkAuditMode: savedReviewSettings.crossChunkAuditMode,
+      })
+      setKnowledgeReviewNotice("La revisión automática quedó configurada.")
+    } catch {
+      setWorldRulesError("No pudimos guardar las reglas del mundo.")
+      setKnowledgeReviewError("No pudimos guardar el modo de revisión.")
+    } finally {
+      setWorldRulesSaving(false)
+      setKnowledgeReviewSaving(false)
+    }
+  }
+
+  const loadProjectEntityNames = async (projectId: string) => {
+    setProjectNamesLoading(true)
+    setProjectNamesError(null)
+    try {
+      const settings = await getProjectEntityRecognitionSettings(projectId)
+      setImportantEntityNames(settings.importantEntityNames)
+      setIgnoredEntityNames(settings.ignoredEntityNames)
+      setRejectedEntityProposals(settings.rejectedEntities)
+      setEntityRecognitionBaseline({
+        projectId,
+        importantEntityNames: [...settings.importantEntityNames],
+        ignoredEntityNames: [...settings.ignoredEntityNames],
+      })
+    } catch {
+      setProjectNamesError("No pudimos cargar la lista de entidades importantes.")
+      setImportantEntityNames([])
+      setIgnoredEntityNames([])
+      setRejectedEntityProposals([])
+      setEntityRecognitionBaseline({
+        projectId,
+        importantEntityNames: [],
+        ignoredEntityNames: [],
+      })
+    } finally {
+      setProjectNamesLoading(false)
+    }
+  }
+
+  const loadReviewSettings = async (projectId: string) => {
+    setKnowledgeReviewLoading(true)
+    setKnowledgeReviewError(null)
+    try {
+      const settings = await getKnowledgeReviewSettings(projectId)
+      setKnowledgeReviewSettings(settings)
+      setKnowledgeReviewBaseline({
+        projectId,
+        stateTrackingEnabled: settings.stateTrackingEnabled,
+        stateReviewMode: settings.stateReviewMode,
+        stateConfidenceThreshold: settings.stateConfidenceThreshold,
+        relationshipReviewMode: settings.relationshipReviewMode,
+        relationshipConfidenceThreshold: settings.relationshipConfidenceThreshold,
+        crossChunkAuditMode: settings.crossChunkAuditMode,
+      })
+    } catch {
+      setKnowledgeReviewSettings(DEFAULT_KNOWLEDGE_REVIEW_SETTINGS)
+      setKnowledgeReviewBaseline({
+        projectId,
+        stateTrackingEnabled: DEFAULT_KNOWLEDGE_REVIEW_SETTINGS.stateTrackingEnabled,
+        stateReviewMode: "MANUAL",
+        stateConfidenceThreshold: 0.9,
+        relationshipReviewMode: "MANUAL",
+        relationshipConfidenceThreshold: 0.9,
+        crossChunkAuditMode: "ADJACENT_CHUNKS",
+      })
+      setKnowledgeReviewError("No pudimos cargar la configuración de revisión.")
+    } finally {
+      setKnowledgeReviewLoading(false)
+    }
+  }
+
+  const addImportantEntityName = () => {
+    const value = newImportantEntityName.trim()
+    if (!value) return
+    if (!importantEntityNames.some((name) => normalizeEntityName(name) === normalizeEntityName(value))) {
+      setImportantEntityNames((current) => [...current, value])
+    }
+    setNewImportantEntityName("")
+    setProjectNamesError(null)
+  }
+
+  const addIgnoredEntityName = () => {
+    const value = newIgnoredEntityName.trim()
+    if (!value) return
+    if (!ignoredEntityNames.some((name) => normalizeEntityName(name) === normalizeEntityName(value))) {
+      setIgnoredEntityNames((current) => [...current, value])
+    }
+    setNewIgnoredEntityName("")
+    setProjectNamesError(null)
   }
 
   const handleLogout = async () => {
@@ -365,6 +799,147 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
   }
 
   const emailMatchesConfirmation = confirmEmail.trim() === email
+  const filterEntityNames = (names: string[], search: string) => {
+    const normalizedSearch = normalizeEntityName(search)
+    if (!normalizedSearch) return names
+    return names.filter((name) => normalizeEntityName(name).includes(normalizedSearch))
+  }
+  const filteredImportantEntityNames = filterEntityNames(
+    importantEntityNames,
+    importantEntitySearch,
+  )
+  const filteredIgnoredEntityNames = filterEntityNames(
+    ignoredEntityNames,
+    ignoredEntitySearch,
+  )
+  const filteredRejectedEntityProposals = rejectedEntityProposals.filter((proposal) => {
+    const searchText = normalizeEntityName(
+      [proposal.name, ...proposal.aliases].join(" "),
+    )
+    const matchesSearch =
+      !normalizeEntityName(rejectedEntitySearch) ||
+      searchText.includes(normalizeEntityName(rejectedEntitySearch))
+    const matchesType =
+      rejectedEntityTypeFilter === "ALL" ||
+      proposal.type?.toUpperCase() === rejectedEntityTypeFilter
+    return matchesSearch && matchesType
+  })
+  const normalizedWorldRulesSearch = normalizeEntityName(worldRulesSearch)
+  const filteredWorldRules = worldRules.filter(
+    (rule) =>
+      !normalizedWorldRulesSearch ||
+      normalizeEntityName(rule).includes(normalizedWorldRulesSearch),
+  )
+
+  const hasUnsavedAccountChanges = () =>
+    displayName.trim() !== currentDisplayName.trim() ||
+    avatarFile !== null ||
+    avatarPreview !== null ||
+    removeAvatar
+
+  const hasUnsavedEntityRecognitionChanges = () => {
+    const savedThresholds =
+      aiSettings?.entityExtractionThresholds ?? DEFAULT_ENTITY_RECOGNITION_THRESHOLDS
+    const thresholdsChanged = Object.entries(entityThresholds).some(
+      ([type, value]) => savedThresholds[type as keyof EntityRecognitionThresholds] !== value,
+    )
+    const entityBaseline = entityRecognitionBaseline
+    const entityListsChanged =
+      entityBaseline.projectId === selectedProjectId &&
+      (!areStringArraysEqual(importantEntityNames, entityBaseline.importantEntityNames) ||
+        !areStringArraysEqual(ignoredEntityNames, entityBaseline.ignoredEntityNames))
+    return thresholdsChanged || entityListsChanged
+  }
+
+  const hasUnsavedInconsistencyChanges = () => {
+    const savedWorldRules = getProjectWorldRules(
+      projects.find((project) => project.id === selectedProjectId),
+    )
+    const reviewBaseline = knowledgeReviewBaseline
+    const reviewSettingsChanged =
+      reviewBaseline.projectId === selectedProjectId &&
+      (knowledgeReviewSettings.stateReviewMode !== reviewBaseline.stateReviewMode ||
+        knowledgeReviewSettings.stateTrackingEnabled !== reviewBaseline.stateTrackingEnabled ||
+        knowledgeReviewSettings.stateConfidenceThreshold !==
+          reviewBaseline.stateConfidenceThreshold ||
+        knowledgeReviewSettings.relationshipReviewMode !==
+          reviewBaseline.relationshipReviewMode ||
+        knowledgeReviewSettings.relationshipConfidenceThreshold !==
+          reviewBaseline.relationshipConfidenceThreshold ||
+        knowledgeReviewSettings.crossChunkAuditMode !==
+          reviewBaseline.crossChunkAuditMode)
+    return (
+      (selectedProjectId !== null &&
+        !areStringArraysEqual(worldRules, savedWorldRules)) ||
+      reviewSettingsChanged
+    )
+  }
+
+  const hasUnsavedProfileChanges = () =>
+    hasUnsavedAccountChanges() ||
+    aiKey.trim().length > 0 ||
+    hasUnsavedEntityRecognitionChanges() ||
+    hasUnsavedInconsistencyChanges() ||
+    newImportantEntityName.trim().length > 0 ||
+    newIgnoredEntityName.trim().length > 0 ||
+    newWorldRule.trim().length > 0
+
+  const hasUnsavedCurrentSectionChanges = () => {
+    if (profileSection === "account") return hasUnsavedAccountChanges()
+    if (profileSection === "ai") return aiKey.trim().length > 0
+    if (profileSection === "entityRecognition") {
+      return hasUnsavedEntityRecognitionChanges()
+    }
+    return hasUnsavedInconsistencyChanges()
+  }
+
+  const currentSectionHasUnsavedChanges = hasUnsavedCurrentSectionChanges()
+
+  const isCurrentSectionSettingsUnavailable =
+    (profileSection === "entityRecognition" &&
+      (aiLoading || projectNamesLoading)) ||
+    (profileSection === "inconsistencies" &&
+      (projectsLoading || knowledgeReviewLoading))
+
+  const profileSubmitDisabled =
+    profileSection === "ai"
+      ? !aiKey.trim()
+      : !currentSectionHasUnsavedChanges ||
+        isCurrentSectionSettingsUnavailable ||
+        (profileSection === "inconsistencies" && !selectedProjectId)
+
+  const profileSubmitLabel = getProfileSubmitLabel(
+    profileSection,
+    currentSectionHasUnsavedChanges,
+  )
+
+
+  const profileSubmitButtonClassName = currentSectionHasUnsavedChanges
+    ? undefined
+    : "bg-muted text-muted-foreground shadow-none hover:bg-muted hover:text-muted-foreground"
+
+  const requestProfileClose = (open: boolean) => {
+    if (open) {
+      setProfileOpen(true)
+      return
+    }
+    if (
+      entityCatalogOpenRef.current ||
+      document.querySelectorAll('[data-slot="dialog-content"]').length > 1
+    ) {
+      return
+    }
+    if (hasUnsavedProfileChanges()) {
+      setProfileCloseWarningOpen(true)
+      return
+    }
+    setProfileOpen(false)
+  }
+
+  const discardProfileChanges = () => {
+    setProfileCloseWarningOpen(false)
+    setProfileOpen(false)
+  }
 
   return (
     <>
@@ -407,7 +982,7 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
           <DropdownMenuSeparator />
           <DropdownMenuItem onSelect={openProfileDialog}>
             <Settings />
-            Configurar perfil
+            Configuración
           </DropdownMenuItem>
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>
@@ -448,24 +1023,42 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
 
       <FormDialog
         open={profileOpen}
-        onOpenChange={setProfileOpen}
+        onOpenChange={requestProfileClose}
         title={
           <span className="flex items-center gap-2">
             <UserRound className="size-4" />
-            Configurar perfil
+            Configuración
           </span>
         }
         description="Administrá tus datos y la configuración de IA de tu cuenta."
-        size="md"
-        submitLabel={profileSection === "account" ? "Guardar cambios" : "Guardar API Key"}
-        submitDisabled={profileSection === "ai" && !aiKey.trim()}
-        loading={
-          profileSection === "account"
-            ? saving
-            : aiSaving || autoAnalysisSaving
-        }
-        onSubmit={profileSection === "account" ? handleProfileSubmit : handleAiSubmit}
+        size="lg"
+        contentClassName="md:h-[min(88dvh,800px)]"
+        submitLabel={profileSubmitLabel}
+        submitDisabled={profileSubmitDisabled}
+        submitButtonClassName={profileSubmitButtonClassName}
+        loading={getProfileLoadingState(profileSection, {
+          account: saving,
+          ai: aiSaving || autoAnalysisSaving,
+          entityRecognition: entityRecognitionSaving,
+          inconsistencies: worldRulesSaving || knowledgeReviewSaving,
+        })}
+
+        showLoadingIndicator={false}
+        onSubmit={getProfileSubmitHandler(profileSection, {
+          account: handleProfileSubmit,
+          ai: handleAiSubmit,
+          entityRecognition: handleEntityRecognitionSubmit,
+          inconsistencies: handleWorldRulesSubmit,
+        })}
+
         onInteractOutside={(event) => {
+          if (
+            entityCatalogOpenRef.current ||
+            document.querySelectorAll('[data-slot="dialog-content"]').length > 1
+          ) {
+            event.preventDefault()
+            return
+          }
           // La confirmación de eliminación vive en un portal propio, así que
           // sus eventos se ven como "afuera" de este diálogo y Radix lo
           // cerraría. Se decide por el DOM y no por el estado `deleteOpen`:
@@ -482,7 +1075,7 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
         onValueChange={(value) => setProfileSection(value as ProfileSection)}
         className="min-h-0"
       >
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="account">
             <UserRound />
             Datos de la cuenta
@@ -490,6 +1083,14 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
           <TabsTrigger value="ai">
             <KeyRound />
             Configuración de IA
+          </TabsTrigger>
+          <TabsTrigger value="entityRecognition">
+            <SlidersHorizontal />
+            Reconocimiento
+          </TabsTrigger>
+          <TabsTrigger value="inconsistencies">
+            <CircleAlert />
+            Inconsistencias
           </TabsTrigger>
         </TabsList>
 
@@ -594,6 +1195,469 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
       </div>
         </TabsContent>
 
+        <TabsContent value="entityRecognition" className="mt-0 space-y-4">
+          <div className="rounded-lg border bg-muted/30 p-3 text-sm">
+            <p className="font-medium">Precisión de entidades nuevas</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Ajustá la relevancia narrativa mínima para que una entidad nueva llegue a propuestas.
+              Las entidades confirmadas continúan analizándose aunque tengan baja relevancia.
+            </p>
+          </div>
+
+          {Object.entries(entityThresholds).map(([type, value]) => (
+            <Field key={type}>
+              <FieldLabel htmlFor={`entity-threshold-${type}`}>{type}</FieldLabel>
+              <div className="flex items-center gap-3">
+                <input
+                  id={`entity-threshold-${type}`}
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.05"
+                  value={value}
+                  onChange={(event) =>
+                    setEntityThresholds((current) => ({
+                      ...current,
+                      [type]: Number(event.target.value),
+                    }))
+                  }
+                  className="min-w-0 flex-1 accent-primary"
+                />
+                <span className="w-10 text-right text-sm tabular-nums text-primary">
+                  {value.toFixed(2)}
+                </span>
+              </div>
+            </Field>
+          ))}
+
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setEntityThresholds(DEFAULT_ENTITY_RECOGNITION_THRESHOLDS)}
+            disabled={entityRecognitionSaving}
+          >
+            Restaurar valores recomendados
+          </Button>
+
+          {entityRecognitionError && <FieldError>{entityRecognitionError}</FieldError>}
+          {entityRecognitionNotice && (
+            <Alert>
+              <AlertDescription>{entityRecognitionNotice}</AlertDescription>
+            </Alert>
+          )}
+
+          <div className="space-y-3 rounded-lg border p-3">
+            <div>
+              <p className="font-medium">Entidades importantes del proyecto</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Estas entidades se proponen aunque no superen el umbral. La coincidencia usa el
+                nombre completo o alias, ignorando mayúsculas y acentos.
+              </p>
+            </div>
+            <Field>
+              <FieldLabel htmlFor="entity-recognition-project">Proyecto</FieldLabel>
+              <select
+                id="entity-recognition-project"
+                value={selectedProjectId ?? ""}
+                onChange={(event) => {
+                  const projectId = event.target.value || null
+                  setSelectedProjectId(projectId)
+                  setWorldRules(
+                    getProjectWorldRules(projects.find((project) => project.id === projectId)),
+                  )
+                  setWorldRulesError(null)
+                  setWorldRulesNotice(null)
+                  if (projectId) {
+                    void loadProjectEntityNames(projectId)
+                  } else {
+                    setImportantEntityNames([])
+                    setIgnoredEntityNames([])
+                    setRejectedEntityProposals([])
+                  }
+                }}
+                disabled={projectsLoading || projectNamesLoading || projects.length === 0}
+                className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+              >
+                <option value="">Seleccioná un proyecto</option>
+                {projects.map((project) => (
+                  <option key={project.id} value={project.id}>{project.title}</option>
+                ))}
+              </select>
+            </Field>
+            {selectedProjectId && (
+              <>
+                <div className="flex items-center justify-between gap-3 rounded-md bg-muted/40 p-3 text-sm">
+                  <div className="min-w-0">
+                    <p className="font-medium">{importantEntityNames.length} importantes</p>
+                    <p className="text-xs text-muted-foreground">
+                      {ignoredEntityNames.length} ignoradas · {rejectedEntityProposals.length} rechazadas
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setEntityCatalogVisibility(true)}
+                    disabled={projectNamesLoading || entityRecognitionSaving}
+                  >
+                    Administrar entidades
+                  </Button>
+                </div>
+                {/* The catalog modal owns the editable lists to keep this tab compact. */}
+                {/*
+                <>
+                <div className="flex gap-2">
+                  <Input
+                    value={newImportantEntityName}
+                    onChange={(event) => setNewImportantEntityName(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault()
+                        addImportantEntityName()
+                      }
+                    }}
+                    placeholder="Ej. La lámpara de obsidiana"
+                    disabled={projectNamesLoading || entityRecognitionSaving}
+                  />
+                  <Button type="button" variant="outline" onClick={addImportantEntityName}>
+                    Agregar
+                  </Button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {importantEntityNames.map((name) => (
+                    <button
+                      key={name}
+                      type="button"
+                      className="rounded-full border px-2.5 py-1 text-xs hover:bg-muted"
+                      onClick={() =>
+                        setImportantEntityNames((current) => current.filter((item) => item !== name))
+                      }
+                      title="Quitar entidad importante"
+                    >
+                      {name} ×
+                    </button>
+                  ))}
+                  {importantEntityNames.length === 0 && !projectNamesLoading && (
+                    <p className="text-xs text-muted-foreground">No hay entidades agregadas.</p>
+                  )}
+                </div>
+                </>
+                */}
+                {projectNamesError && <FieldError>{projectNamesError}</FieldError>}
+              </>
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="inconsistencies" className="mt-0 space-y-4">
+          <Field>
+            <FieldLabel htmlFor="world-rules-project">Proyecto</FieldLabel>
+            <select
+              id="world-rules-project"
+              value={selectedProjectId ?? ""}
+              onChange={(event) => {
+                const projectId = event.target.value || null
+                setSelectedProjectId(projectId)
+                setWorldRulesSearch("")
+                setWorldRules(
+                  getProjectWorldRules(projects.find((project) => project.id === projectId)),
+                )
+                setWorldRulesError(null)
+                setWorldRulesNotice(null)
+                if (projectId) {
+                  void loadProjectEntityNames(projectId)
+                  void loadReviewSettings(projectId)
+                }
+              }}
+              disabled={projectsLoading || worldRulesSaving || projects.length === 0}
+              className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+            >
+              <option value="">Selecciona un proyecto</option>
+              {projects.map((project) => (
+                <option key={project.id} value={project.id}>
+                  {project.title}
+                </option>
+              ))}
+            </select>
+          </Field>
+
+          {selectedProjectId && (
+            <div className="space-y-4 rounded-lg border border-primary/15 bg-primary/[0.025] p-4">
+              <div>
+                <p className="font-medium">Revisión temporal de estados y relaciones</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  En modo manual, cada cambio requiere tu aprobación. El modo automático solo
+                  acepta evidencia vigente que supere el umbral y no tenga conflictos.
+                </p>
+              </div>
+              {knowledgeReviewLoading ? (
+                <p className="text-xs text-muted-foreground">Cargando preferencias del proyecto...</p>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-start gap-3 rounded-lg border bg-card p-3">
+                    <input
+                      id="state-tracking-enabled"
+                      type="checkbox"
+                      aria-labelledby="state-tracking-enabled-label"
+                      aria-describedby="state-tracking-enabled-description"
+                      checked={knowledgeReviewSettings.stateTrackingEnabled}
+                      onChange={(event) =>
+                        setKnowledgeReviewSettings((current) => ({
+                          ...current,
+                          stateTrackingEnabled: event.target.checked,
+                        }))
+                      }
+                      className="mt-1 size-4 accent-primary"
+                    />
+                    <div>
+                      <label
+                        id="state-tracking-enabled-label"
+                        htmlFor="state-tracking-enabled"
+                        className="cursor-pointer text-sm font-medium"
+                      >
+                        Activar seguimiento de estados
+                      </label>
+                      <p
+                        id="state-tracking-enabled-description"
+                        className="mt-1 text-xs text-muted-foreground"
+                      >
+                        Permite registrar cambios de ubicación, estado vital y salud, ver su historial y revisar propuestas.
+                        Al desactivarlo, los datos existentes se conservan, pero no se muestran ni se usan en el análisis.
+                      </p>
+                    </div>
+                  </div>
+
+                  <section className="space-y-3 rounded-lg border bg-card p-3">
+                    <Field>
+                      <FieldLabel htmlFor="cross-chunk-audit-mode">
+                        Comparación entre fragmentos
+                      </FieldLabel>
+                      <select
+                        id="cross-chunk-audit-mode"
+                        value={knowledgeReviewSettings.crossChunkAuditMode}
+                        onChange={(event) =>
+                          setKnowledgeReviewSettings((current) => ({
+                            ...current,
+                            crossChunkAuditMode: event.target.value as KnowledgeReviewSettings["crossChunkAuditMode"],
+                          }))
+                        }
+                        className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+                      >
+                        <option value="ADJACENT_CHUNKS">Comparar fragmentos consecutivos</option>
+                        <option value="SCENE_GROUPED">Analizar toda la escena</option>
+                        <option value="PROJECT_SUMMARY">Usar resumen de escenas anteriores</option>
+                        <option value="DISABLED">Desactivar comparación entre fragmentos</option>
+                      </select>
+                      <p className="text-xs text-muted-foreground">
+                        La revisión de cada fragmento contra la ficha y las reglas del mundo permanece activa.
+                      </p>
+                    </Field>
+                  </section>
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    {knowledgeReviewSettings.stateTrackingEnabled && (
+                      <section className="space-y-3 rounded-lg border bg-card p-3">
+                    <p className="text-sm font-medium">Estados y cambios narrativos</p>
+                    <Field>
+                      <FieldLabel htmlFor="state-review-mode">Modo de revisión</FieldLabel>
+                      <select
+                        id="state-review-mode"
+                        value={knowledgeReviewSettings.stateReviewMode}
+                        onChange={(event) =>
+                          setKnowledgeReviewSettings((current) => ({
+                            ...current,
+                            stateReviewMode: event.target.value as KnowledgeReviewSettings["stateReviewMode"],
+                          }))
+                        }
+                        className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+                      >
+                        <option value="MANUAL">Siempre pedir aprobación</option>
+                        <option value="AUTO_THRESHOLD">Aprobar sobre el umbral</option>
+                      </select>
+                    </Field>
+                    <Field>
+                      <FieldLabel htmlFor="state-review-threshold">
+                        Confianza mínima ({knowledgeReviewSettings.stateConfidenceThreshold.toFixed(2)})
+                      </FieldLabel>
+                      <Input
+                        id="state-review-threshold"
+                        type="number"
+                        min="0"
+                        max="1"
+                        step="0.05"
+                        value={knowledgeReviewSettings.stateConfidenceThreshold}
+                        onChange={(event) =>
+                          setKnowledgeReviewSettings((current) => ({
+                            ...current,
+                            stateConfidenceThreshold: Math.min(1, Math.max(0, Number(event.target.value))),
+                          }))
+                        }
+                      />
+                    </Field>
+                      </section>
+                    )}
+
+                    <section className="space-y-3 rounded-lg border bg-card p-3">
+                    <p className="text-sm font-medium">Relaciones</p>
+                    <Field>
+                      <FieldLabel htmlFor="relationship-review-mode">Modo de revisión</FieldLabel>
+                      <select
+                        id="relationship-review-mode"
+                        value={knowledgeReviewSettings.relationshipReviewMode}
+                        onChange={(event) =>
+                          setKnowledgeReviewSettings((current) => ({
+                            ...current,
+                            relationshipReviewMode: event.target.value as KnowledgeReviewSettings["relationshipReviewMode"],
+                          }))
+                        }
+                        className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+                      >
+                        <option value="MANUAL">Siempre pedir aprobación</option>
+                        <option value="AUTO_THRESHOLD">Aprobar sobre el umbral</option>
+                      </select>
+                    </Field>
+                    <Field>
+                      <FieldLabel htmlFor="relationship-review-threshold">
+                        Confianza mínima ({knowledgeReviewSettings.relationshipConfidenceThreshold.toFixed(2)})
+                      </FieldLabel>
+                      <Input
+                        id="relationship-review-threshold"
+                        type="number"
+                        min="0"
+                        max="1"
+                        step="0.05"
+                        value={knowledgeReviewSettings.relationshipConfidenceThreshold}
+                        onChange={(event) =>
+                          setKnowledgeReviewSettings((current) => ({
+                            ...current,
+                            relationshipConfidenceThreshold: Math.min(1, Math.max(0, Number(event.target.value))),
+                          }))
+                        }
+                      />
+                    </Field>
+                    </section>
+                  </div>
+                </div>
+              )}
+              {knowledgeReviewError && <FieldError>{knowledgeReviewError}</FieldError>}
+              {knowledgeReviewNotice && (
+                <Alert><AlertDescription>{knowledgeReviewNotice}</AlertDescription></Alert>
+              )}
+            </div>
+          )}
+
+          {selectedProjectId && (
+            <div className="space-y-4 rounded-lg border p-3">
+              <div className="rounded-lg border bg-muted/30 p-3 text-sm">
+                <p className="font-medium">Reglas del mundo</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Agrega reglas narrativas concretas para que el analisis pueda advertir cuando una
+                  escena contradice la logica de tu obra.
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-dashed bg-muted/20 p-4">
+                <div className="mb-3">
+                  <p className="font-medium">Agregar regla al universo</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Escribi una regla concreta y verificable para tu historia.
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Input
+                    id="new-world-rule"
+                    value={newWorldRule}
+                    onChange={(event) => setNewWorldRule(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault()
+                        addWorldRule()
+                      }
+                    }}
+                    placeholder="Ej. La magia requiere contacto visual"
+                    disabled={worldRulesSaving}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={addWorldRule}
+                    disabled={worldRulesSaving || !newWorldRule.trim()}
+                  >
+                    Agregar
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-medium">Reglas configuradas</p>
+                  <span className="text-xs text-muted-foreground">
+                    {worldRules.length} {worldRules.length === 1 ? "regla" : "reglas"}
+                  </span>
+                </div>
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    value={worldRulesSearch}
+                    onChange={(event) => setWorldRulesSearch(event.target.value)}
+                    placeholder="Buscar una regla..."
+                    aria-label="Buscar reglas del mundo"
+                    className="pl-9"
+                  />
+                </div>
+              </div>
+
+              {filteredWorldRules.length > 0 ? (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {filteredWorldRules.map((rule) => {
+                    const ruleIndex = worldRules.indexOf(rule)
+                    return (
+                      <div
+                        key={`${rule}-${ruleIndex}`}
+                        className="group flex min-h-28 items-start gap-3 rounded-xl border bg-card p-4 shadow-sm transition-colors hover:bg-muted/30"
+                      >
+                        <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                          <CircleAlert className="size-4" />
+                        </div>
+                        <p className="min-w-0 flex-1 text-sm leading-6">{rule}</p>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="size-7 shrink-0 opacity-70 transition-opacity group-hover:opacity-100"
+                          onClick={() =>
+                            setWorldRules((current) =>
+                              current.filter((_, itemIndex) => itemIndex !== ruleIndex),
+                            )
+                          }
+                          disabled={worldRulesSaving}
+                          aria-label="Eliminar regla del mundo"
+                        >
+                          <X />
+                        </Button>
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : (
+                <div className="rounded-xl border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">
+                  {worldRules.length === 0
+                    ? "Todavia no hay reglas configuradas para este proyecto."
+                    : "No se encontraron reglas con esa busqueda."}
+                </div>
+              )}
+
+            </div>
+          )}
+
+          {worldRulesError && <FieldError>{worldRulesError}</FieldError>}
+          {worldRulesNotice && (
+            <Alert>
+              <AlertDescription>{worldRulesNotice}</AlertDescription>
+            </Alert>
+          )}
+        </TabsContent>
+
         <TabsContent value="ai" className="mt-0 space-y-4">
           {aiLoading ? (
             <div className="rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground">
@@ -681,6 +1745,261 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
         </TabsContent>
       </Tabs>
       </FormDialog>
+
+      <FormDialog
+        open={entityCatalogOpen}
+        onOpenChange={(open) => {
+          if (open) {
+            setEntityCatalogVisibility(true)
+            return
+          }
+          setEntityCatalogOpen(false)
+          setProfileOpen(true)
+          entityCatalogOpenRef.current = true
+          window.setTimeout(() => {
+            entityCatalogOpenRef.current = false
+          }, 0)
+        }}
+        title="Administrar entidades"
+        description="Configurá qué entidades deben priorizarse o ignorarse en este proyecto."
+        size="md"
+        layer={2}
+        contentClassName="md:h-[min(78dvh,680px)]"
+        bodyClassName="min-h-0"
+      >
+        <Tabs
+          value={entityCatalogSection}
+          onValueChange={(value) => setEntityCatalogSection(value as EntityCatalogSection)}
+          className="min-h-0"
+        >
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="important">Importantes</TabsTrigger>
+            <TabsTrigger value="ignored">Ignoradas</TabsTrigger>
+            <TabsTrigger value="rejected">Rechazadas</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="important" className="mt-4 space-y-3">
+            <p className="text-xs text-muted-foreground">
+              Se proponen aunque no superen el umbral de relevancia. La coincidencia ignora
+              mayúsculas y acentos, pero exige el nombre completo o un alias.
+            </p>
+            <Input
+              type="search"
+              value={importantEntitySearch}
+              onChange={(event) => setImportantEntitySearch(event.target.value)}
+              placeholder="Buscar entidad importante"
+              aria-label="Buscar entidad importante"
+            />
+            <div className="flex gap-2">
+              <Input
+                value={newImportantEntityName}
+                onChange={(event) => setNewImportantEntityName(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault()
+                    addImportantEntityName()
+                  }
+                }}
+                placeholder="Ej. La lámpara de obsidiana"
+              />
+              <Button type="button" variant="outline" onClick={addImportantEntityName}>
+                Agregar
+              </Button>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {filteredImportantEntityNames.map((name) => (
+                <button
+                  key={name}
+                  type="button"
+                  className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs hover:bg-muted"
+                  onClick={() =>
+                    setImportantEntityNames((current) => current.filter((item) => item !== name))
+                  }
+                  title="Quitar entidad importante"
+                >
+                  <span>{name}</span>
+                  <X className="size-3.5" aria-hidden="true" />
+                </button>
+              ))}
+              {filteredImportantEntityNames.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  {importantEntityNames.length === 0
+                    ? "No hay entidades importantes."
+                    : "No hay coincidencias."
+                  }
+                </p>
+              )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="ignored" className="mt-4 space-y-3">
+            <p className="text-xs text-muted-foreground">
+              Estas entidades no generarán propuestas nuevas para este proyecto. Las entidades
+              ya confirmadas y sus actualizaciones continúan analizándose.
+            </p>
+            <Input
+              type="search"
+              value={ignoredEntitySearch}
+              onChange={(event) => setIgnoredEntitySearch(event.target.value)}
+              placeholder="Buscar entidad ignorada"
+              aria-label="Buscar entidad ignorada"
+            />
+            <div className="flex gap-2">
+              <Input
+                value={newIgnoredEntityName}
+                onChange={(event) => setNewIgnoredEntityName(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault()
+                    addIgnoredEntityName()
+                  }
+                }}
+                placeholder="Ej. una escalera"
+              />
+              <Button type="button" variant="outline" onClick={addIgnoredEntityName}>
+                Agregar
+              </Button>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {filteredIgnoredEntityNames.map((name) => (
+                <button
+                  key={name}
+                  type="button"
+                  className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs hover:bg-muted"
+                  onClick={() =>
+                    setIgnoredEntityNames((current) => current.filter((item) => item !== name))
+                  }
+                  title="Quitar entidad ignorada"
+                >
+                  <span>{name}</span>
+                  <X className="size-3.5" aria-hidden="true" />
+                </button>
+              ))}
+              {filteredIgnoredEntityNames.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  {ignoredEntityNames.length === 0
+                    ? "No hay entidades ignoradas."
+                    : "No hay coincidencias."
+                  }
+                </p>
+              )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="rejected" className="mt-4 space-y-3">
+            <p className="text-xs text-muted-foreground">
+              Son propuestas que rechazaste anteriormente. Podés agregarlas a Ignoradas para
+              evitar que vuelvan a proponerse en análisis futuros.
+            </p>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Input
+                type="search"
+                value={rejectedEntitySearch}
+                onChange={(event) => setRejectedEntitySearch(event.target.value)}
+                placeholder="Buscar por nombre o alias"
+                aria-label="Buscar entidades rechazadas"
+              />
+              <select
+                value={rejectedEntityTypeFilter}
+                onChange={(event) => setRejectedEntityTypeFilter(event.target.value)}
+                aria-label="Filtrar entidades rechazadas por tipo"
+                className="h-9 rounded-md border bg-background px-3 text-sm sm:w-44"
+              >
+                <option value="ALL">Todos los tipos</option>
+                {Object.entries(ENTITY_TYPE_LABELS).map(([type, label]) => (
+                  <option key={type} value={type}>{label}</option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-2">
+              {filteredRejectedEntityProposals.map((proposal) => {
+                const isIgnored = ignoredEntityNames.some(
+                  (name) => normalizeEntityName(name) === normalizeEntityName(proposal.name),
+                )
+                const isImportant = importantEntityNames.some(
+                  (name) => normalizeEntityName(name) === normalizeEntityName(proposal.name),
+                )
+                return (
+                  <div key={proposal.id} className="flex items-center justify-between gap-3 rounded-md border p-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">{proposal.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {getEntityTypeLabel(proposal.type)}
+                        {proposal.sceneTitle ? `\u00b7 ${proposal.sceneTitle}` : ""}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 gap-2">
+                      <Button
+                        type="button"
+                        variant={isIgnored ? "secondary" : "outline"}
+                        size="sm"
+                        onClick={() =>
+                          setIgnoredEntityNames((current) =>
+                            isIgnored
+                              ? current.filter(
+                                  (name) => normalizeEntityName(name) !== normalizeEntityName(proposal.name),
+                                )
+                              : [...current, proposal.name],
+                          )
+                        }
+                      >
+                        {isIgnored ? "Quitar ignorada" : "Ignorar"}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={isImportant ? "secondary" : "outline"}
+                        size="sm"
+                        onClick={() =>
+                          setImportantEntityNames((current) =>
+                            isImportant
+                              ? current.filter(
+                                  (name) => normalizeEntityName(name) !== normalizeEntityName(proposal.name),
+                                )
+                              : [...current, proposal.name],
+                          )
+                        }
+                      >
+                        {isImportant ? "Quitar importante" : "Importante"}
+                      </Button>
+                    </div>
+                  </div>
+                )
+              })}
+              {filteredRejectedEntityProposals.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  {rejectedEntityProposals.length === 0
+                    ? "No hay propuestas rechazadas."
+                    : "No hay coincidencias."
+                  }
+                </p>
+              )}
+            </div>
+          </TabsContent>
+        </Tabs>
+      </FormDialog>
+
+      <AlertDialog
+        open={profileCloseWarningOpen}
+        onOpenChange={setProfileCloseWarningOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Salir sin guardar?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Hay cambios de configuracion pendientes. Si cerras ahora, se perderan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Seguir editando</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={discardProfileChanges}
+            >
+              Descartar cambios
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog
         open={deleteOpen}
@@ -773,3 +2092,6 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
     </>
   )
 }
+
+
+

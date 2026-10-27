@@ -1,12 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type ComponentType } from "react";
+import Link from "next/link";
 import {
   AlertTriangle,
+  ArrowUpRight,
   Check,
   ChevronDown,
   ChevronRight,
   FileText,
+  History,
   RefreshCw,
   Search,
   Sparkles,
@@ -21,7 +24,6 @@ import { EntityIconTile } from "@/components/worldbuilding/entity-icon-tile";
 import { EntityImage } from "@/components/worldbuilding/entity-image";
 import { NewEntityModal } from "@/components/modal/new-entity-modal";
 import { NewRelationModal } from "@/components/modal/new-relation-modal";
-import { EntityStateModal } from "@/components/wiki/entity-state-modal";
 import { getEntityCategoryStyle } from "@/lib/entity-category-style";
 import {
   TYPE_TO_CATEGORY,
@@ -34,15 +36,16 @@ import type { RelationshipProposal } from "@/types/relationship-proposal";
 import type { UpdateRelationshipInput } from "@/types/relationship";
 import { relationStyles } from "@/lib/relation-style";
 import { AuditAlertCard } from "@/components/wiki/audit-alert-card";
-import type { AuditAlert, AuditAlertResolution } from "@/types/audit-alert";
-import type {
-  CreateEntityStateInput,
-  EntityStateProposal,
-  EntityStateProposalOverride,
-  TemporalKnowledgeView,
-} from "@/types/entity-state";
+import { AuditAlertHistoryDialog } from "@/components/wiki/audit-alert-history-dialog";
+import type { AuditAlert, AuditAlertUpdateStatus } from "@/types/audit-alert";
+import type { EntityStateProposal } from "@/types/entity-state";
+import type { EditorSectionOption } from "@/components/editor/editor-types";
+import { getWorldbuildingEntityHref } from "@/lib/worldbuilding-links";
 
 type WikiPanelProps = {
+  readonly projectId: string;
+  readonly stateTrackingEnabled: boolean;
+  readonly sceneOptions: readonly EditorSectionOption[];
   readonly entities: readonly Entity[];
   readonly proposals: readonly EntityProposal[];
   readonly relationshipProposals: readonly RelationshipProposal[];
@@ -75,27 +78,17 @@ type WikiPanelProps = {
   readonly onRejectRelationshipProposal: (proposalId: string) => Promise<void>;
   readonly acceptingStateProposalId: string | null;
   readonly rejectingStateProposalId: string | null;
-  readonly onAcceptStateProposal: (
-    proposal: EntityStateProposal,
-    override?: EntityStateProposalOverride,
+  readonly onAcceptStateProposalSequence: (
+    acceptedProposalIds: string[],
+    rejectedProposalIds: string[],
   ) => Promise<void>;
   readonly onRejectStateProposal: (proposalId: string) => Promise<void>;
-  readonly creatingStateForEntityId: string | null;
-  readonly onCreateEntityState: (
-    entityId: string,
-    input: CreateEntityStateInput,
-  ) => Promise<void>;
-  readonly temporalKnowledgeView: TemporalKnowledgeView | null;
-  readonly temporalKnowledgeViewError: Error | undefined;
-  readonly temporalKnowledgeViewLoading: boolean;
-  readonly selectedTemporalSceneId: string | null;
-  readonly onSelectTemporalScene: (sceneId: string) => void;
   readonly updatingAuditAlertId: string | null;
   readonly onUpdateAuditAlert: (
     alertId: string,
-    status: AuditAlertResolution,
-  ) => Promise<void>;
-  readonly onFocusAuditAlert: (alert: AuditAlert) => void;
+    status: AuditAlertUpdateStatus,
+  ) => Promise<boolean>;
+  readonly onFocusAuditAlert: (alert: AuditAlert, evidenceIndex?: number) => void;
   readonly onApplyAuditKnowledgeUpdate: (alertId: string) => Promise<void>;
   readonly actionError: string | null;
   readonly entityActionFeedback: {
@@ -114,6 +107,9 @@ type WikiSectionKey =
   | "states";
 
 export function WikiPanel({
+  projectId,
+  stateTrackingEnabled,
+  sceneOptions,
   entities,
   proposals,
   relationshipProposals,
@@ -140,15 +136,8 @@ export function WikiPanel({
   onRejectRelationshipProposal,
   acceptingStateProposalId,
   rejectingStateProposalId,
-  onAcceptStateProposal,
+  onAcceptStateProposalSequence,
   onRejectStateProposal,
-  creatingStateForEntityId,
-  onCreateEntityState,
-  temporalKnowledgeView,
-  temporalKnowledgeViewError,
-  temporalKnowledgeViewLoading,
-  selectedTemporalSceneId,
-  onSelectTemporalScene,
   updatingAuditAlertId,
   onUpdateAuditAlert,
   onFocusAuditAlert,
@@ -159,6 +148,7 @@ export function WikiPanel({
   focusedAlertId,
 }: Readonly<WikiPanelProps>) {
   const [searchQuery, setSearchQuery] = useState("");
+  const [auditHistoryOpen, setAuditHistoryOpen] = useState(false);
   const [reviewingProposalId, setReviewingProposalId] = useState<string | null>(
     null,
   );
@@ -167,12 +157,6 @@ export function WikiPanel({
   >(null);
   const [editingRelationshipProposalId, setEditingRelationshipProposalId] =
     useState<string | null>(null);
-  const [editingStateProposalId, setEditingStateProposalId] = useState<
-    string | null
-  >(null);
-  const [creatingStateEntityId, setCreatingStateEntityId] = useState<
-    string | null
-  >(null);
   const [expandedSections, setExpandedSections] = useState<
     Record<WikiSectionKey, boolean>
   >({
@@ -297,21 +281,6 @@ export function WikiPanel({
     relationshipProposals.find(
       (proposal) => proposal.id === editingRelationshipProposalId,
     ) ?? null;
-  const editingStateProposal =
-    stateProposals.find((proposal) => proposal.id === editingStateProposalId) ??
-    null;
-  const creatingStateEntity =
-    entities.find((entity) => entity.id === creatingStateEntityId) ?? null;
-  const dynamicStatesByEntityId = useMemo(
-    () =>
-      new Map(
-        (temporalKnowledgeView?.entities ?? []).map((entity) => [
-          entity.id,
-          entity.dynamicStates,
-        ]),
-      ),
-    [temporalKnowledgeView],
-  );
 
   const handleCloseReview = () => {
     if (acceptingProposalId || rejectingProposalId) {
@@ -348,18 +317,6 @@ export function WikiPanel({
     setEditingRelationshipProposalId(null);
   };
 
-  const handleEditStateSubmit = async (data: CreateEntityStateInput) => {
-    if (!editingStateProposal) return;
-    await onAcceptStateProposal(editingStateProposal, data);
-    setEditingStateProposalId(null);
-  };
-
-  const handleCreateStateSubmit = async (data: CreateEntityStateInput) => {
-    if (!creatingStateEntity) return;
-    await onCreateEntityState(creatingStateEntity.id, data);
-    setCreatingStateEntityId(null);
-  };
-
   return (
     <div className="flex h-full min-h-0 min-w-0 max-w-full flex-1 flex-col overflow-hidden bg-card">
       <div className="flex shrink-0 flex-col gap-2 border-b border-border px-3 py-3">
@@ -376,29 +333,6 @@ export function WikiPanel({
             className="min-w-0 flex-1 bg-transparent text-xs text-foreground outline-none placeholder:text-muted-foreground"
           />
         </div>
-        <label className="flex w-full min-w-0 flex-col items-stretch gap-1 text-[10px] text-muted-foreground">
-          <span className="shrink-0">Vista temporal</span>
-          <select
-            value={selectedTemporalSceneId ?? ""}
-            onChange={(event) => onSelectTemporalScene(event.target.value)}
-            disabled={
-              temporalKnowledgeViewLoading ||
-              (temporalKnowledgeView?.scenes.length ?? 0) === 0
-            }
-            className="h-9 w-full min-w-0 rounded-lg border border-border bg-background px-2 text-[10px] text-foreground disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {(temporalKnowledgeView?.scenes ?? []).map((scene) => (
-              <option key={scene.id} value={scene.id}>
-                {scene.title ?? "Escena sin titulo"}
-              </option>
-            ))}
-          </select>
-        </label>
-        {temporalKnowledgeViewError && (
-          <p className="text-[10px] text-destructive">
-            No se pudo cargar la vista temporal.
-          </p>
-        )}
       </div>
 
       <ScrollArea className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain">
@@ -414,6 +348,7 @@ export function WikiPanel({
             focusedAlertId={focusedAlertId}
             expanded={expandedSections.inconsistencies}
             alerts={filteredAuditAlerts}
+            stateTrackingEnabled={stateTrackingEnabled}
             loading={auditAlertsLoading}
             error={auditAlertsError}
             updatingAlertId={updatingAuditAlertId}
@@ -421,6 +356,7 @@ export function WikiPanel({
             onUpdate={onUpdateAuditAlert}
             onFocus={onFocusAuditAlert}
             onApplyKnowledgeUpdate={onApplyAuditKnowledgeUpdate}
+            onOpenHistory={() => setAuditHistoryOpen(true)}
           />
 
           <RelationshipProposalsSection
@@ -452,19 +388,16 @@ export function WikiPanel({
               proposals={proposals}
               showReviewSections={showReviewSections}
               updateProposalsByEntityId={updateProposalsByEntityId}
-              dynamicStatesByEntityId={dynamicStatesByEntityId}
-              hasTemporalScenes={Boolean(temporalKnowledgeView?.scenes.length)}
-              creatingStateForEntityId={creatingStateForEntityId}
               primaryImageUrls={primaryImageUrls}
-              onCreateState={setCreatingStateEntityId}
+              projectId={projectId}
               onReviewProposal={handleEntityProposalEdit}
             />
           )}
-          {showReviewSections && (
+          {showReviewSections && stateTrackingEnabled && (
             <>
               <WikiSectionTitle
                 icon={RefreshCw}
-                label="Cambios de estado detectados"
+                label="Cambios narrativos"
                 count={stateProposals.length}
                 expanded={expandedSections.states}
                 onToggle={() => toggleSection("states")}
@@ -476,11 +409,8 @@ export function WikiPanel({
                   proposals={stateProposals}
                   acceptingId={acceptingStateProposalId}
                   rejectingId={rejectingStateProposalId}
-                  onAccept={onAcceptStateProposal}
+                  onAcceptSequence={onAcceptStateProposalSequence}
                   onReject={onRejectStateProposal}
-                  onEdit={(proposalId) =>
-                    setEditingStateProposalId(proposalId)
-                  }
                 />
               )}
             </>
@@ -502,66 +432,58 @@ export function WikiPanel({
         </div>
       </ScrollArea>
 
+      <AuditAlertHistoryDialog
+        projectId={projectId}
+        open={auditHistoryOpen}
+        onOpenChange={setAuditHistoryOpen}
+        updatingAlertId={updatingAuditAlertId}
+        onRestore={(alertId) => onUpdateAuditAlert(alertId, "ACTIVE")}
+        onFocusEvidence={onFocusAuditAlert}
+      />
+
       <WikiPanelDialogs
+        sceneOptions={sceneOptions}
         reviewingProposal={reviewingProposal}
         editingEntityProposal={editingEntityProposal}
         editingRelationshipProposal={editingRelationshipProposal}
-        editingStateProposal={editingStateProposal}
-        creatingStateEntity={creatingStateEntity}
         acceptingProposalId={acceptingProposalId}
         rejectingProposalId={rejectingProposalId}
         entities={entities}
-        temporalKnowledgeView={temporalKnowledgeView}
-        selectedTemporalSceneId={selectedTemporalSceneId}
         onCloseReview={handleCloseReview}
         onAcceptProposal={onAcceptProposal}
         onRejectProposal={onRejectProposal}
         onSetEditingEntityProposalId={setEditingEntityProposalId}
         onSetEditingRelationshipProposalId={setEditingRelationshipProposalId}
-        onSetEditingStateProposalId={setEditingStateProposalId}
-        onSetCreatingStateEntityId={setCreatingStateEntityId}
         onEditEntitySubmit={handleEditEntitySubmit}
         onEditRelationshipSubmit={handleEditRelationshipSubmit}
-        onEditStateSubmit={handleEditStateSubmit}
-        onCreateStateSubmit={handleCreateStateSubmit}
       />
     </div>
   );
 }
 
 function WikiPanelDialogs({
+  sceneOptions,
   reviewingProposal,
   editingEntityProposal,
   editingRelationshipProposal,
-  editingStateProposal,
-  creatingStateEntity,
   acceptingProposalId,
   rejectingProposalId,
   entities,
-  temporalKnowledgeView,
-  selectedTemporalSceneId,
   onCloseReview,
   onAcceptProposal,
   onRejectProposal,
   onSetEditingEntityProposalId,
   onSetEditingRelationshipProposalId,
-  onSetEditingStateProposalId,
-  onSetCreatingStateEntityId,
   onEditEntitySubmit,
   onEditRelationshipSubmit,
-  onEditStateSubmit,
-  onCreateStateSubmit,
 }: Readonly<{
+  sceneOptions: readonly EditorSectionOption[];
   reviewingProposal: EntityProposal | null;
   editingEntityProposal: EntityProposal | null;
   editingRelationshipProposal: RelationshipProposal | null;
-  editingStateProposal: EntityStateProposal | null;
-  creatingStateEntity: Entity | null;
   acceptingProposalId: string | null;
   rejectingProposalId: string | null;
   entities: readonly Entity[];
-  temporalKnowledgeView: TemporalKnowledgeView | null;
-  selectedTemporalSceneId: string | null;
   onCloseReview: () => void;
   onAcceptProposal: (
     proposal: EntityProposal,
@@ -570,14 +492,10 @@ function WikiPanelDialogs({
   onRejectProposal: (proposalId: string) => Promise<void>;
   onSetEditingEntityProposalId: (proposalId: string | null) => void;
   onSetEditingRelationshipProposalId: (proposalId: string | null) => void;
-  onSetEditingStateProposalId: (proposalId: string | null) => void;
-  onSetCreatingStateEntityId: (entityId: string | null) => void;
   onEditEntitySubmit: (
     data: CreateEntityInput | UpdateEntityInput,
   ) => Promise<void>;
   onEditRelationshipSubmit: (data: UpdateRelationshipInput) => Promise<void>;
-  onEditStateSubmit: (data: CreateEntityStateInput) => Promise<void>;
-  onCreateStateSubmit: (data: CreateEntityStateInput) => Promise<void>;
 }>) {
   return (
     <>
@@ -617,6 +535,10 @@ function WikiPanelDialogs({
         show={!!editingRelationshipProposal}
         mode="proposal"
         entities={entities}
+        scenes={sceneOptions.map((scene) => ({
+          id: scene.id,
+          title: `${scene.bookTitle} · ${scene.chapterTitle} · ${scene.title}`,
+        }))}
         initialValues={getRelationshipProposalInitialValues(
           editingRelationshipProposal,
         )}
@@ -624,37 +546,6 @@ function WikiPanelDialogs({
         onSubmit={onEditRelationshipSubmit}
       />
 
-      {editingStateProposal && (
-        <EntityStateModal
-          key={editingStateProposal.id}
-          open
-          title="Revisar cambio de estado"
-          entityName={editingStateProposal.entityName}
-          scenes={temporalKnowledgeView?.scenes ?? []}
-          initialValue={{
-            attributeKey: editingStateProposal.attributeKey,
-            toValue: editingStateProposal.toValue ?? "",
-            validFromSceneId: editingStateProposal.sceneId,
-          }}
-          onClose={() => onSetEditingStateProposalId(null)}
-          onSubmit={onEditStateSubmit}
-        />
-      )}
-
-      {creatingStateEntity && (
-        <EntityStateModal
-          key={creatingStateEntity.id}
-          open
-          title="Agregar estado temporal"
-          entityName={creatingStateEntity.canonicalName}
-          scenes={temporalKnowledgeView?.scenes ?? []}
-          initialValue={{
-            validFromSceneId: selectedTemporalSceneId ?? undefined,
-          }}
-          onClose={() => onSetCreatingStateEntityId(null)}
-          onSubmit={onCreateStateSubmit}
-        />
-      )}
     </>
   );
 }
@@ -698,6 +589,8 @@ function getRelationshipProposalInitialValues(
     relationType: proposal.relationType,
     intensity: Math.max(1, Math.round(proposal.intensity * 5)),
     description: proposal.description,
+    validFromSceneId: proposal.sceneId,
+    proposalKind: proposal.kind,
   };
 }
 
@@ -708,11 +601,8 @@ function EntityDirectoryContent({
   proposals,
   showReviewSections,
   updateProposalsByEntityId,
-  dynamicStatesByEntityId,
-  hasTemporalScenes,
-  creatingStateForEntityId,
   primaryImageUrls,
-  onCreateState,
+  projectId,
   onReviewProposal,
 }: Readonly<{
   loading: boolean;
@@ -721,14 +611,8 @@ function EntityDirectoryContent({
   proposals: readonly EntityProposal[];
   showReviewSections: boolean;
   updateProposalsByEntityId: ReadonlyMap<string, EntityProposal>;
-  dynamicStatesByEntityId: ReadonlyMap<
-    string,
-    readonly { key: string; value: string | null }[]
-  >;
-  hasTemporalScenes: boolean;
-  creatingStateForEntityId: string | null;
   primaryImageUrls: Readonly<Record<string, string>>;
-  onCreateState: (entityId: string) => void;
+  projectId: string;
   onReviewProposal: (proposal: EntityProposal) => void;
 }>) {
   if (loading) {
@@ -766,16 +650,12 @@ function EntityDirectoryContent({
       key={entity.id}
       entity={entity}
       primaryImageUrl={primaryImageUrls[entity.id]}
+      projectId={projectId}
       updateProposal={
         showReviewSections
           ? updateProposalsByEntityId.get(entity.id) ?? null
           : null
       }
-      dynamicStates={dynamicStatesByEntityId.get(entity.id) ?? []}
-      onCreateState={
-        hasTemporalScenes ? () => onCreateState(entity.id) : undefined
-      }
-      isCreatingState={creatingStateForEntityId === entity.id}
       onReviewProposal={(proposalId) => {
         const proposal = proposals.find(
           (candidate) => candidate.id === proposalId,
@@ -792,58 +672,206 @@ function StateProposalsContent({
   proposals,
   acceptingId,
   rejectingId,
-  onAccept,
+  onAcceptSequence,
   onReject,
-  onEdit,
 }: Readonly<{
   loading: boolean;
   error: Error | undefined;
   proposals: readonly EntityStateProposal[];
   acceptingId: string | null;
   rejectingId: string | null;
-  onAccept: (
-    proposal: EntityStateProposal,
-    override?: EntityStateProposalOverride,
+  onAcceptSequence: (
+    acceptedProposalIds: string[],
+    rejectedProposalIds: string[],
   ) => Promise<void>;
   onReject: (proposalId: string) => Promise<void>;
-  onEdit: (proposalId: string) => void;
 }>) {
   if (loading) {
     return (
       <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-3 text-xs text-muted-foreground">
-        Revisando cambios de estado...
+        Revisando cambios narrativos...
       </div>
     );
   }
   if (error) {
     return (
       <div className="rounded-lg border border-dashed border-border bg-background p-3 text-xs text-muted-foreground">
-        No se pudieron cargar los cambios de estado.
+        No se pudieron cargar los cambios narrativos.
       </div>
     );
   }
   if (proposals.length === 0) {
     return (
       <EmptyWikiState
-        title="Sin cambios de estado pendientes"
+        title="Sin cambios narrativos pendientes"
         description="Los cambios de ubicacion, estado vital y condicion apareceran aqui para revision."
       />
     );
   }
 
-  return proposals.map((proposal) => (
-    <EntityStateProposalCard
-      key={proposal.id}
-      proposal={proposal}
-      accepting={acceptingId === proposal.id}
-      rejecting={rejectingId === proposal.id}
-      onAccept={() => {
-        void onAccept(proposal).catch(() => undefined);
-      }}
-      onReject={() => void onReject(proposal.id)}
-      onEdit={() => onEdit(proposal.id)}
+  const groups = new Map<string, EntityStateProposal[]>();
+  proposals.forEach((proposal) => {
+    const key = `${proposal.entityId}:${proposal.attributeKey}`;
+    const current = groups.get(key) ?? [];
+    current.push(proposal);
+    groups.set(key, current);
+  });
+
+  return [...groups.entries()].map(([key, group]) => (
+    <EntityStateSequenceCard
+      key={key}
+      proposals={group}
+      accepting={acceptingId === "__sequence__"}
+      rejecting={rejectingId !== null}
+      onAccept={onAcceptSequence}
+      onReject={onReject}
     />
   ));
+}
+
+function EntityStateSequenceCard({
+  proposals,
+  accepting,
+  rejecting,
+  onAccept,
+  onReject,
+}: Readonly<{
+  proposals: readonly EntityStateProposal[];
+  accepting: boolean;
+  rejecting: boolean;
+  onAccept: (acceptedIds: string[], rejectedIds: string[]) => Promise<void>;
+  onReject: (proposalId: string) => Promise<void>;
+}>) {
+  const [choices, setChoices] = useState<Record<string, string>>({});
+  const entity = proposals[0];
+  if (!entity) return null;
+  const byScene = new Map<string, EntityStateProposal[]>();
+  for (const proposal of proposals) {
+    const items = byScene.get(proposal.sceneId) ?? [];
+    items.push(proposal);
+    byScene.set(proposal.sceneId, items);
+  }
+  const conflicts = new Set(
+    [...byScene.entries()]
+      .filter(([, items]) => {
+        const values = new Set(items.map((item) => item.toValue?.trim().toLocaleLowerCase()));
+        return values.size > 1 && items.some((item) => item.sequenceKind !== "TRANSITION");
+      })
+      .map(([sceneId]) => sceneId),
+  );
+  const selectedIds = proposals
+    .filter((proposal) =>
+      conflicts.has(proposal.sceneId)
+        ? choices[proposal.sceneId] === proposal.id
+        : true,
+    )
+    .map((proposal) => proposal.id);
+  const canAccept = [...conflicts].every((sceneId) => Boolean(choices[sceneId]));
+  const rejectedIds = proposals
+    .filter((proposal) => !selectedIds.includes(proposal.id))
+    .map((proposal) => proposal.id);
+
+  return (
+    <section className="space-y-3 rounded-xl border border-cyan-500/20 bg-cyan-500/[0.035] p-3">
+      <header className="flex min-w-0 flex-wrap items-center justify-between gap-2">
+        <div className="min-w-0">
+          <p className="break-words text-xs font-semibold text-cyan-900 dark:text-cyan-100">
+            {entity.entityName} · {getStateLabel(entity.attributeKey)}
+          </p>
+          <p className="mt-0.5 text-[10px] text-muted-foreground">
+            {proposals.length} {proposals.length === 1 ? "cambio" : "cambios"} en el recorrido narrativo
+          </p>
+        </div>
+        <Badge variant="outline" className="border-cyan-500/30 text-[9px]">
+          {new Set(proposals.map((proposal) => proposal.sceneId)).size} escenas
+        </Badge>
+      </header>
+
+      <div className="space-y-2">
+        {proposals.map((proposal) => {
+          const isConflict = conflicts.has(proposal.sceneId);
+          const sceneLabel = [proposal.bookTitle, proposal.chapterTitle, proposal.sceneTitle]
+            .filter(Boolean)
+            .join(" · ") || "Escena";
+          return (
+            <div key={proposal.id} className="rounded-lg border bg-card p-2.5">
+              <div className="flex min-w-0 items-start gap-2">
+                {isConflict && (
+                  <input
+                    type="radio"
+                    name={`state-choice-${entity.entityId}-${entity.attributeKey}-${proposal.sceneId}`}
+                    aria-label={`Elegir ${proposal.toValue} en ${sceneLabel}`}
+                    checked={choices[proposal.sceneId] === proposal.id}
+                    onChange={() =>
+                      setChoices((current) => ({ ...current, [proposal.sceneId]: proposal.id }))
+                    }
+                    className="mt-1 accent-cyan-700"
+                  />
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-medium text-muted-foreground">{sceneLabel}</p>
+                  <p className="mt-1 break-words text-[11px] text-foreground">
+                    {proposal.fromValue ?? "Sin valor anterior"} → <strong>{proposal.toValue ?? "Sin valor nuevo"}</strong>
+                  </p>
+                  {proposal.sequenceKind === "CONTRADICTION" && (
+                    <p className="mt-1 text-[10px] text-amber-700 dark:text-amber-300">
+                      Se detectaron valores incompatibles; elegí cuál conservar en esta escena.
+                    </p>
+                  )}
+                  {proposal.sequenceKind === "UNCERTAIN" && (
+                    <p className="mt-1 text-[10px] text-muted-foreground">
+                      El orden del cambio no está claro; revisá la evidencia antes de aceptarlo.
+                    </p>
+                  )}
+                  {proposal.conflictsWithLocked && (
+                    <p className="mt-1 text-[10px] text-amber-700 dark:text-amber-300">
+                      Este cambio toca un campo protegido por una edición manual.
+                    </p>
+                  )}
+                  {proposal.evidence[0] && (
+                    <p className="mt-1 break-words text-[10px] italic text-muted-foreground">
+                      “{proposal.evidence[0]}”
+                    </p>
+                  )}
+                  <p className="mt-1 text-[9px] text-muted-foreground">
+                    Confianza {Math.round(proposal.confidenceScore * 100)}%
+                  </p>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {conflicts.size > 0 && (
+        <p className="text-[10px] text-amber-700 dark:text-amber-300">
+          Elegí un valor para cada escena marcada antes de aceptar el recorrido.
+        </p>
+      )}
+      <div className="flex gap-2">
+        <Button
+          type="button"
+          size="xs"
+          variant="outline"
+          className="min-w-0 flex-1"
+          disabled={accepting || rejecting || !canAccept}
+          onClick={() => void onAccept(selectedIds, rejectedIds)}
+        >
+          {accepting ? "Guardando recorrido..." : "Aceptar recorrido"}
+        </Button>
+        <Button
+          type="button"
+          size="xs"
+          variant="outline"
+          className="min-w-0 flex-1"
+          disabled={accepting || rejecting}
+          onClick={() => void Promise.all(proposals.map((proposal) => onReject(proposal.id)))}
+        >
+          {rejecting ? "Rechazando..." : "Rechazar recorrido"}
+        </Button>
+      </div>
+    </section>
+  );
 }
 
 function AuditAlertList({
@@ -855,15 +883,17 @@ function AuditAlertList({
   onUpdate,
   onFocus,
   onApplyKnowledgeUpdate,
+  stateTrackingEnabled,
 }: Readonly<{
   loading: boolean;
   error: Error | undefined;
   alerts: readonly AuditAlert[];
   focusedAlertId: string | null;
   updatingAlertId: string | null;
-  onUpdate: (alertId: string, status: AuditAlertResolution) => Promise<void>;
-  onFocus: (alert: AuditAlert) => void;
+  onUpdate: (alertId: string, status: AuditAlertUpdateStatus) => Promise<boolean>;
+  onFocus: (alert: AuditAlert, evidenceIndex?: number) => void;
   onApplyKnowledgeUpdate: (alertId: string) => Promise<void>;
+  stateTrackingEnabled: boolean;
 }>) {
   if (loading) {
     return (
@@ -894,7 +924,8 @@ function AuditAlertList({
       alert={alert}
       focused={alert.id === focusedAlertId}
       updating={updatingAlertId === alert.id}
-      onFocusEvidence={() => onFocus(alert)}
+      stateTrackingEnabled={stateTrackingEnabled}
+      onFocusEvidence={(evidenceIndex) => onFocus(alert, evidenceIndex)}
       onResolve={() => void onUpdate(alert.id, "RESOLVED")}
       onDismiss={() => void onUpdate(alert.id, "DISMISSED")}
       onApplyKnowledgeUpdate={() => void onApplyKnowledgeUpdate(alert.id)}
@@ -914,6 +945,8 @@ function AuditAlertsSection({
   onUpdate,
   onFocus,
   onApplyKnowledgeUpdate,
+  stateTrackingEnabled,
+  onOpenHistory,
 }: Readonly<{
   visible: boolean;
   expanded: boolean;
@@ -923,20 +956,36 @@ function AuditAlertsSection({
   error: Error | undefined;
   updatingAlertId: string | null;
   onToggle: () => void;
-  onUpdate: (alertId: string, status: AuditAlertResolution) => Promise<void>;
-  onFocus: (alert: AuditAlert) => void;
+  onUpdate: (alertId: string, status: AuditAlertUpdateStatus) => Promise<boolean>;
+  onFocus: (alert: AuditAlert, evidenceIndex?: number) => void;
   onApplyKnowledgeUpdate: (alertId: string) => Promise<void>;
+  stateTrackingEnabled: boolean;
+  onOpenHistory: () => void;
 }>) {
   if (!visible) return null
   return (
     <>
-      <WikiSectionTitle
-        icon={AlertTriangle}
-        label="Inconsistencias detectadas"
-        count={alerts.length}
-        expanded={expanded}
-        onToggle={onToggle}
-      />
+      <div className="flex min-w-0 items-center gap-1">
+        <div className="min-w-0 flex-1">
+          <WikiSectionTitle
+            icon={AlertTriangle}
+            label="Inconsistencias detectadas"
+            count={alerts.length}
+            expanded={expanded}
+            onToggle={onToggle}
+          />
+        </div>
+        <Button
+          type="button"
+          size="xs"
+          variant="ghost"
+          className="h-7 shrink-0 px-2 text-[10px] text-muted-foreground"
+          onClick={onOpenHistory}
+        >
+          <History className="size-3.5" />
+          Historial
+        </Button>
+      </div>
       {expanded && (
         <AuditAlertList
           loading={loading}
@@ -947,6 +996,7 @@ function AuditAlertsSection({
           onUpdate={onUpdate}
           onFocus={onFocus}
           onApplyKnowledgeUpdate={onApplyKnowledgeUpdate}
+          stateTrackingEnabled={stateTrackingEnabled}
         />
       )}
     </>
@@ -1298,99 +1348,6 @@ function RelationshipProposalCard({
   );
 }
 
-function EntityStateProposalCard({
-  proposal,
-  accepting,
-  rejecting,
-  onAccept,
-  onReject,
-  onEdit,
-}: {
-  readonly proposal: EntityStateProposal;
-  readonly accepting: boolean;
-  readonly rejecting: boolean;
-  readonly onAccept: () => void;
-  readonly onReject: () => void;
-  readonly onEdit: () => void;
-}) {
-  const busy = accepting || rejecting;
-  const stateLabel = getStateLabel(proposal.attributeKey);
-
-  return (
-    <article className="min-w-0 rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-3">
-      <div className="flex min-w-0 items-start gap-2">
-        <RefreshCw className="mt-0.5 size-4 shrink-0 text-cyan-700 dark:text-cyan-300" />
-        <div className="min-w-0 flex-1">
-          <div className="flex min-w-0 flex-wrap items-start gap-1.5">
-            <p className="min-w-0 flex-1 break-words text-xs font-semibold text-foreground">
-              {proposal.entityName}
-            </p>
-            <Badge
-              variant="outline"
-              className="border-cyan-500/30 text-[9px] text-cyan-800 dark:text-cyan-200"
-            >
-              {stateLabel}
-            </Badge>
-          </div>
-          <p className="mt-1 break-words text-[11px] text-muted-foreground">
-            {proposal.fromValue ?? "Sin valor anterior"} -&gt;{" "}
-            <span className="font-medium text-foreground">
-              {proposal.toValue ?? "Sin valor nuevo"}
-            </span>
-          </p>
-          {proposal.conflictsWithLocked && (
-            <p className="mt-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[10px] text-amber-800 dark:text-amber-300">
-              Contradice un campo que fue bloqueado manualmente por el autor.
-            </p>
-          )}
-          {proposal.evidence[0] && (
-            <p className="mt-2 break-words text-[10px] italic text-muted-foreground">
-              &ldquo;{proposal.evidence[0]}&rdquo;
-            </p>
-          )}
-          <p className="mt-2 text-[10px] text-muted-foreground">
-            Confianza: {Math.round(proposal.confidenceScore * 100)}%
-          </p>
-          <div className="mt-3 flex w-full min-w-0 gap-1.5">
-            <Button
-              type="button"
-              size="xs"
-              variant="outline"
-              className="h-7 min-w-0 flex-1 text-[11px]"
-              disabled={busy}
-              onClick={onReject}
-            >
-              <X className="size-3.5" />
-              {rejecting ? "Rechazando..." : "Rechazar"}
-            </Button>
-            <Button
-              type="button"
-              size="xs"
-              variant="outline"
-              className="h-7 min-w-0 flex-1 text-[11px]"
-              disabled={busy}
-              onClick={onEdit}
-            >
-              Editar
-            </Button>
-            <Button
-              type="button"
-              size="xs"
-              variant="outline"
-              className="h-7 min-w-0 flex-1 text-[11px]"
-              disabled={busy}
-              onClick={onAccept}
-            >
-              <Check className="size-3.5" />
-              {accepting ? "Aceptando..." : "Aceptar"}
-            </Button>
-          </div>
-        </div>
-      </div>
-    </article>
-  );
-}
-
 function WikiSectionTitle({
   icon: Icon,
   label,
@@ -1468,31 +1425,29 @@ function combineEntityDescriptions(
 }
 
 function getStateLabel(attributeKey: string): string {
-  const normalized = attributeKey.trim().toLowerCase();
-  if (normalized === "location") return "Ubicacion";
+  const normalized = attributeKey.trim().toLowerCase().replace(/[ -]/g, "_");
+  if (normalized === "location") return "Ubicación";
   if (normalized === "status") return "Estado vital";
-  if (normalized === "health_status") return "Salud";
-  return attributeKey;
+  if (normalized === "health_status") return "Salud y condición";
+  return attributeKey
+    .trim()
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\p{L}/gu, (letter) => letter.toLocaleUpperCase("es"));
 }
 
 function EditorWikiEntityCard({
   entity,
   primaryImageUrl,
+  projectId,
   updateProposal,
-  dynamicStates,
-  onCreateState,
-  isCreatingState,
   onReviewProposal,
 }: {
   readonly entity: Entity;
   readonly primaryImageUrl: string | undefined;
+  readonly projectId: string;
   readonly updateProposal?: EntityProposal | null;
-  readonly dynamicStates?: readonly { key: string; value: string | null }[];
-  readonly onCreateState?: () => void;
-  readonly isCreatingState?: boolean;
   readonly onReviewProposal?: (proposalId: string) => void;
 }) {
-  const states = dynamicStates ?? [];
   const category = TYPE_TO_CATEGORY[entity.type];
   const categoryStyle = getEntityCategoryStyle(category);
   const imageSrc = `/api/storage/image/${entity.id}?v=${Date.parse(entity.updatedAt)}`;
@@ -1546,18 +1501,6 @@ function EditorWikiEntityCard({
               Actualizar
             </Button>
           )}
-          {onCreateState && (
-            <Button
-              type="button"
-              size="xs"
-              variant="outline"
-              className="h-6 shrink-0 border-cyan-500/30 px-2 text-[9px] text-cyan-800 hover:bg-cyan-500/10 dark:text-cyan-300"
-              onClick={onCreateState}
-              disabled={isCreatingState}
-            >
-              {isCreatingState ? "Guardando..." : "Estado"}
-            </Button>
-          )}
         </div>
 
         {entity.aliases.length > 0 && (
@@ -1574,23 +1517,17 @@ function EditorWikiEntityCard({
           </div>
         )}
 
-        {states.length > 0 && (
-          <div className="mb-1.5 flex flex-wrap gap-1">
-            {states.map((state) => (
-              <Badge
-                key={state.key}
-                variant="outline"
-                className="h-auto max-w-full break-all border-cyan-500/25 px-1.5 py-0 text-[9px] text-cyan-800 dark:text-cyan-200"
-              >
-                {getStateLabel(state.key)}: {state.value ?? "Sin valor"}
-              </Badge>
-            ))}
-          </div>
-        )}
-
         <p className="line-clamp-2 break-words text-[10px] leading-relaxed text-muted-foreground">
           {entity.description || "Sin descripcion"}
         </p>
+
+        <Link
+          href={`${getWorldbuildingEntityHref(projectId, entity.id)}#entity-state-history`}
+          className="mt-2 flex w-full min-w-0 items-center gap-2 rounded-md border border-primary/20 bg-primary/5 px-2 py-1.5 text-[10px] font-medium text-primary transition-colors hover:border-primary/35 hover:bg-primary/10"
+        >
+          <span className="min-w-0 flex-1">Ver historial en Worldbuilding</span>
+          <ArrowUpRight className="size-3.5 shrink-0" />
+        </Link>
       </div>
     </article>
   );
@@ -1613,8 +1550,8 @@ function EditorWikiProposalCard({
 }>) {
   const category = TYPE_TO_CATEGORY[proposal.proposedData.type];
   const categoryStyle = getEntityCategoryStyle(category);
-  const aliases = proposal.proposedData.aliases.slice(0, 2);
   const isUpdate = proposal.proposedData.proposalKind === "ENTITY_UPDATE";
+  const aliases = isUpdate ? [] : proposal.proposedData.aliases.slice(0, 2);
 
   return (
     <article className="flex w-full min-w-0 max-w-full items-start gap-3 overflow-hidden rounded-lg border border-amber-500/20 bg-amber-500/5 p-2.5 transition-colors hover:border-amber-500/30 hover:bg-amber-500/10">
@@ -1661,35 +1598,10 @@ function EditorWikiProposalCard({
         </div>
 
         <p className="line-clamp-2 break-words text-[10px] leading-relaxed text-muted-foreground">
-          {proposal.proposedData.description ||
-            (isUpdate
-              ? "Se detectaron detalles nuevos para esta entidad."
-              : "Sin descripcion")}
+          {isUpdate
+            ? "Se detectaron detalles nuevos para esta entidad."
+            : proposal.proposedData.description || "Sin descripcion"}
         </p>
-
-        {isUpdate && proposal.targetEntity && (
-          <div className="mt-2 grid min-w-0 gap-1 rounded-md border border-amber-500/20 bg-background/50 p-2 text-[10px]">
-            <p className="font-semibold text-amber-700 dark:text-amber-400">
-              Informacion actual y nueva
-            </p>
-            <p className="break-words text-muted-foreground">
-              Descripcion actual:{" "}
-              {proposal.targetEntity.description || "Sin descripcion"}
-            </p>
-            <p className="whitespace-pre-wrap break-words text-muted-foreground">
-              Informacion nueva:{" "}
-              {proposal.proposedData.description || "Sin descripcion nueva"}
-            </p>
-            <p className="break-words text-muted-foreground">
-              Alias actuales:{" "}
-              {proposal.targetEntity.aliases.join(", ") || "Sin alias"}
-            </p>
-            <p className="break-words text-muted-foreground">
-              Alias nuevos:{" "}
-              {proposal.proposedData.aliases.join(", ") || "Sin alias nuevos"}
-            </p>
-          </div>
-        )}
 
         {proposal.conflictsWithLocked && (
           <p className="mt-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[10px] text-amber-800 dark:text-amber-300">

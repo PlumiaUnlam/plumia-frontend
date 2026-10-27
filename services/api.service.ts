@@ -169,7 +169,10 @@ async function request<T>(
 }
 
 export const api = {
-  get: <T>(path: string, options: Pick<RequestInit, "signal"> = {}) =>
+  get: <T>(
+    path: string,
+    options: Pick<RequestInit, "signal" | "cache"> = {},
+  ) =>
     request<T>(path, options),
   post: <T>(
     path: string,

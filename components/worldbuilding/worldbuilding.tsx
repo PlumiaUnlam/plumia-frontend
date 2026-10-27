@@ -48,6 +48,13 @@ import {
 } from "@/services/relationships.service";
 import { getTimelineEvents } from "@/services/timeline.service";
 import {
+  createEntityState,
+  deleteEntityState,
+  getProjectEntityStateHistory,
+  updateEntityState,
+} from "@/services/entity-states.service";
+import { getKnowledgeReviewSettings } from "@/services/knowledge-review-settings.service";
+import {
   getWorldbuildingEntityHref,
   getWorldbuildingTimelineEventHref,
 } from "@/lib/worldbuilding-links";
@@ -80,6 +87,11 @@ import type {
   UpdateRelationshipInput,
 } from "@/types/relationship";
 import type { TimelineEvent } from "@/types/timeline";
+import type {
+  CreateEntityStateInput,
+  EntityStateHistoryEntry,
+} from "@/types/entity-state";
+import { EntityStateModal } from "@/components/wiki/entity-state-modal";
 
 type WorldbuildingTab = "wiki" | "relationships" | "timeline" | "summaries";
 
@@ -889,6 +901,13 @@ type WorldbuildingTabsProps = {
   timelineEventsError: Error | undefined;
   timelineEvents: TimelineEvent[];
   isLoadingTimelineEvents: boolean;
+  stateHistory: EntityStateHistoryEntry[];
+  stateHistoryError: Error | undefined;
+  isLoadingStateHistory: boolean;
+  stateTrackingEnabled: boolean;
+  onCreateEntityState: () => void;
+  onEditEntityState: (entry: EntityStateHistoryEntry) => void;
+  onDeleteEntityState: (entry: EntityStateHistoryEntry) => void;
   onEditRelationship: (relationship: Relationship) => void;
   onDeleteRelationship: (relationship: Relationship) => void;
   chapters: WorldbuildingChapter[];
@@ -932,6 +951,13 @@ function WorldbuildingTabs({
   timelineEventsError,
   timelineEvents,
   isLoadingTimelineEvents,
+  stateHistory,
+  stateHistoryError,
+  isLoadingStateHistory,
+  stateTrackingEnabled,
+  onCreateEntityState,
+  onEditEntityState,
+  onDeleteEntityState,
   onEditRelationship,
   onDeleteRelationship,
   chapters,
@@ -992,6 +1018,13 @@ function WorldbuildingTabs({
           relationships={relationships}
           timelineEvents={timelineEvents}
           linksLoading={isLoadingRelationships || isLoadingTimelineEvents}
+          stateHistory={stateHistory}
+          stateTrackingEnabled={stateTrackingEnabled}
+          stateHistoryError={stateHistoryError}
+          stateHistoryLoading={isLoadingStateHistory}
+          onCreateEntityState={onCreateEntityState}
+          onEditEntityState={onEditEntityState}
+          onDeleteEntityState={onDeleteEntityState}
           relationshipError={relationshipError}
           timelineEventsError={timelineEventsError}
           onOpenEntity={onOpenEntity}
@@ -1282,6 +1315,29 @@ function useWorldbuildingData({
     () => getTimelineEvents(projectId),
   );
 
+  const {
+    data: knowledgeReviewSettings,
+    isLoading: isLoadingKnowledgeReviewSettings,
+  } = useSWR(
+    shouldFetch ? `/projects/${projectId}/knowledge-review-settings` : null,
+    () => getKnowledgeReviewSettings(projectId),
+  );
+
+  const stateTrackingEnabled =
+    !isLoadingKnowledgeReviewSettings &&
+    (knowledgeReviewSettings?.stateTrackingEnabled ?? false);
+  const {
+    data: projectStateHistory,
+    error: stateHistoryError,
+    isLoading: isLoadingStateHistory,
+    mutate: mutateStateHistory,
+  } = useSWR(
+    shouldFetch && activeTab === "wiki" && selectedEntityId && stateTrackingEnabled
+      ? `/knowledge/projects/${projectId}/state-history`
+      : null,
+    () => getProjectEntityStateHistory(projectId),
+  );
+
   const { trigger: triggerDelete } = useSWRMutation(
     getDeleteMutationKey(projectId),
     async (_key: string, { arg }: { arg: string }) => {
@@ -1295,6 +1351,13 @@ function useWorldbuildingData({
       worldbuildingEntities.find((entity) => entity.id === selectedEntityId) ??
       null,
     [selectedEntityId, worldbuildingEntities],
+  );
+  const stateHistory = useMemo(
+    () =>
+      (projectStateHistory ?? []).filter(
+        (entry) => entry.entityId === selectedEntityId,
+      ),
+    [projectStateHistory, selectedEntityId],
   );
 
   const {
@@ -1380,6 +1443,11 @@ function useWorldbuildingData({
     isLoadingRelationships,
     timelineEvents: timelineEvents ?? [],
     isLoadingTimelineEvents,
+    stateHistory,
+    stateHistoryError,
+    isLoadingStateHistory,
+    mutateStateHistory,
+    stateTrackingEnabled,
     mutateRelationships,
     triggerDelete,
     worldbuildingEntities,
@@ -1433,6 +1501,14 @@ export function Worldbuilding({ projectId }: Readonly<WorldbuildingProps>) {
   const [deleteConfirmEntity, setDeleteConfirmEntity] = useState<Entity | null>(
     null,
   );
+  const [showEntityStateModal, setShowEntityStateModal] = useState(false);
+  const [editingEntityState, setEditingEntityState] =
+    useState<EntityStateHistoryEntry | null>(null);
+  const [deleteConfirmEntityState, setDeleteConfirmEntityState] =
+    useState<EntityStateHistoryEntry | null>(null);
+  const [deletingEntityState, setDeletingEntityState] = useState(false);
+  const [entityStateActionError, setEntityStateActionError] =
+    useState<string | null>(null);
   const [timelineNewEventRequest, setTimelineNewEventRequest] = useState(0);
   const handleTabChange = useCallback(
     (value: WorldbuildingTab) => {
@@ -1495,6 +1571,11 @@ export function Worldbuilding({ projectId }: Readonly<WorldbuildingProps>) {
     isLoadingRelationships,
     timelineEvents,
     isLoadingTimelineEvents,
+    stateHistory,
+    stateHistoryError,
+    isLoadingStateHistory,
+    mutateStateHistory,
+    stateTrackingEnabled,
     mutateRelationships,
     triggerDelete,
     worldbuildingEntities,
@@ -1516,6 +1597,48 @@ export function Worldbuilding({ projectId }: Readonly<WorldbuildingProps>) {
     mockEntities,
     setImageReview,
   });
+
+  const openCreateEntityState = useCallback(() => {
+    setEditingEntityState(null);
+    setEntityStateActionError(null);
+    setShowEntityStateModal(true);
+  }, []);
+  const openEditEntityState = useCallback(
+    (entry: EntityStateHistoryEntry) => {
+      setEditingEntityState(entry);
+      setEntityStateActionError(null);
+      setShowEntityStateModal(true);
+    },
+    [],
+  );
+  const handleSubmitEntityState = useCallback(
+    async (input: CreateEntityStateInput) => {
+      if (!selectedEntity) throw new Error("Seleccioná una entidad.");
+      if (editingEntityState) {
+        await updateEntityState(editingEntityState.id, input);
+      } else {
+        await createEntityState(selectedEntity.id, input);
+      }
+      await mutateStateHistory();
+    },
+    [editingEntityState, mutateStateHistory, selectedEntity],
+  );
+  const handleConfirmEntityStateDelete = useCallback(async () => {
+    if (!deleteConfirmEntityState) return;
+    setDeletingEntityState(true);
+    setEntityStateActionError(null);
+    try {
+      await deleteEntityState(deleteConfirmEntityState.id);
+      await mutateStateHistory();
+      setDeleteConfirmEntityState(null);
+    } catch (cause) {
+      setEntityStateActionError(
+        cause instanceof Error ? cause.message : "No se pudo eliminar el estado.",
+      );
+    } finally {
+      setDeletingEntityState(false);
+    }
+  }, [deleteConfirmEntityState, mutateStateHistory]);
 
   const aiStorageKeyRef = useRef<string | null>(null);
   const aiPromptRef = useRef<string | null>(null);
@@ -1666,6 +1789,13 @@ export function Worldbuilding({ projectId }: Readonly<WorldbuildingProps>) {
           timelineEventsError={timelineEventsError}
           timelineEvents={timelineEvents}
           isLoadingTimelineEvents={isLoadingTimelineEvents}
+          stateHistory={stateHistory}
+          stateHistoryError={stateHistoryError}
+          isLoadingStateHistory={isLoadingStateHistory}
+          stateTrackingEnabled={stateTrackingEnabled}
+          onCreateEntityState={openCreateEntityState}
+          onEditEntityState={openEditEntityState}
+          onDeleteEntityState={setDeleteConfirmEntityState}
           onEditRelationship={(relationship) => {
             setEditingRelationship(relationship);
             setShowNewRelationModal(true);
@@ -1683,6 +1813,42 @@ export function Worldbuilding({ projectId }: Readonly<WorldbuildingProps>) {
           onOpenEntity={handleOpenEntity}
         />
       </div>
+
+      {stateTrackingEnabled && selectedEntity && showEntityStateModal && (
+        <EntityStateModal
+          key={editingEntityState?.id ?? "new-entity-state"}
+          open
+          title={editingEntityState ? "Editar estado" : "Agregar estado"}
+          entityName={selectedEntity.canonicalName}
+          scenes={scenes}
+          initialValue={editingEntityState ? {
+            attributeKey: editingEntityState.attributeKey,
+            toValue: editingEntityState.toValue ?? "",
+            validFromSceneId: editingEntityState.validFromSceneId,
+            validToSceneId: editingEntityState.validToSceneId,
+          } : undefined}
+          onClose={() => {
+            setShowEntityStateModal(false);
+            setEditingEntityState(null);
+          }}
+          onSubmit={handleSubmitEntityState}
+        />
+      )}
+
+      <ConfirmDialog
+        open={Boolean(deleteConfirmEntityState)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteConfirmEntityState(null);
+            setEntityStateActionError(null);
+          }
+        }}
+        title="Eliminar estado"
+        description={`¿Querés eliminar este cambio de ${deleteConfirmEntityState?.attributeKey ?? "la entidad"}?`}
+        loading={deletingEntityState}
+        error={entityStateActionError}
+        onConfirm={handleConfirmEntityStateDelete}
+      />
 
       <WorldbuildingDeleteDialogs
         deleteConfirmEntity={deleteConfirmEntity}

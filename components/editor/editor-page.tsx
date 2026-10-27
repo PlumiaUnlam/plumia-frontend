@@ -410,11 +410,12 @@ export function EditorLayout({ projectId }: Readonly<EditorLayoutProps>) {
             />
           ) : null}
 
-          {writingMode !== "zen" && (
+          {loadedProjectId === projectId && writingMode !== "zen" && (
             <Suspense fallback={null}>
               <EditorRightPanel
                 projectId={projectId}
                 mode={writingMode}
+                sceneOptions={sections}
               />
             </Suspense>
           )}

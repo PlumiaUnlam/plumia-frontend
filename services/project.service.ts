@@ -7,10 +7,7 @@ export type ProjectResponse = {
   title: string
   description: string
   genre: string
-  genreRules: {
-    tone: string
-    audience: string
-  }
+  genreRules: Record<string, unknown> | null
   wordCountTarget: number
   status: string
   createdAt: string

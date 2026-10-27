@@ -26,6 +26,7 @@ import {
   type SavedSceneResult,
 } from "@/hooks/use-autosave"
 import { requestKnowledgeRefresh } from "@/hooks/use-knowledge-refresh"
+import { useSceneAnalysis } from "@/hooks/use-scene-analysis"
 import { requireSuccessfulSave } from "@/lib/editor-save-protection"
 import { registerEditorSaveShortcut } from "@/lib/editor-save-shortcut"
 import {
@@ -42,7 +43,9 @@ import { EditorToolbar } from "./toolbar"
 import { EditorParagraphFormatDialog } from "./paragraph-format-dialog"
 import { RichTextEditor } from "./RichTextEditor"
 import { AnalysisToast } from "./analysis/analysis-toast"
+import { ProjectAnalysisDialog } from "./analysis/project-analysis-dialog"
 import { EditorZoomProvider } from "./editor-zoom"
+import { useProjectAnalysis } from "@/hooks/use-project-analysis"
 import type {
   EditorPaneId,
   EditorSectionOption,
@@ -61,6 +64,7 @@ type SceneEditorProps = {
   onOpenSearch?: () => void
   onOpenSpellcheckSettings?: () => void
   onExportClick?: () => void
+  onAnalyzeProject?: () => void
   paneId: EditorPaneId
   showToolbar: boolean
   onEditorFocus?: () => void
@@ -93,6 +97,7 @@ function SceneEditor({
   onOpenSearch,
   onOpenSpellcheckSettings,
   onExportClick,
+  onAnalyzeProject,
   paneId,
   showToolbar,
   onEditorFocus,
@@ -113,17 +118,50 @@ function SceneEditor({
   const latestEditorRef = useRef<Editor | null>(null)
   const [analysisFeedback, setAnalysisFeedback] = useState<{
     message: string
-    tone: "default" | "success"
+    tone: "default" | "success" | "error"
   } | null>(null)
   const [analysisInFlight, setAnalysisInFlight] = useState(false)
+  const { watch: watchSceneAnalysis } = useSceneAnalysis(projectId, sceneId)
+
+  const monitorSceneAnalysis = useCallback(() => {
+    void watchSceneAnalysis().then((result) => {
+      if (result.status === "CANCELLED") return
+      if (result.status === "SUCCEEDED") {
+        setAnalysisFeedback({
+          message: "Análisis completado; Wiki e inconsistencias actualizadas",
+          tone: "success",
+        })
+        return
+      }
+      if (result.status === "FAILED") {
+        setAnalysisFeedback({
+          message: result.error ?? "No se pudo completar el análisis.",
+          tone: "error",
+        })
+        return
+      }
+      if (result.status === "TIMEOUT" || result.status === "UNAVAILABLE") {
+        setAnalysisFeedback({
+          message: result.error ?? "No se pudo confirmar el estado del análisis.",
+          tone: "error",
+        })
+      }
+    })
+  }, [watchSceneAnalysis])
 
   const handleSaveComplete = useCallback(
     (result: SavedSceneResult) => {
       if (selectedVersionId === null && result.contentChanged) {
         requestKnowledgeRefresh(projectId)
+        if (
+          "analysisStatus" in result &&
+          result.analysisStatus === "QUEUED"
+        ) {
+          monitorSceneAnalysis()
+        }
       }
     },
-    [projectId, selectedVersionId],
+    [monitorSceneAnalysis, projectId, selectedVersionId],
   )
 
   const { queueSave, saveNow } = useAutosave({
@@ -156,22 +194,23 @@ function SceneEditor({
             })
             return
           }
+          monitorSceneAnalysis()
         }
 
         setAnalysisFeedback({
           message:
-            "Cambios guardados; el analisis se ejecutara en segundo plano",
+            "Cambios guardados; el análisis se ejecutará en segundo plano",
           tone: "success",
         })
       })
       .catch(() => {
         setAnalysisFeedback({
-          message: "No se pudo programar el analisis. Intenta nuevamente.",
-          tone: "default",
+          message: "No se pudo programar el análisis. Intenta nuevamente.",
+          tone: "error",
         })
       })
       .finally(() => setAnalysisInFlight(false))
-  }, [analysisInFlight, saveNow, sceneId])
+  }, [analysisInFlight, monitorSceneAnalysis, saveNow, sceneId])
 
   const handleContentChange = useCallback((nextEditor: Editor) => {
     latestEditorRef.current = nextEditor
@@ -230,6 +269,7 @@ function SceneEditor({
         onAnalyzeChanges={
           selectedVersionId === null ? handleAnalyzeChanges : undefined
         }
+        onAnalyzeProject={onAnalyzeProject}
         isAnalysisSaving={saveStatus === "saving" || analysisInFlight}
         isZenMode={isZenMode}
         onToggleZenMode={onToggleZenMode}
@@ -261,6 +301,7 @@ function SceneDocumentLoader({
   onOpenSearch,
   onOpenSpellcheckSettings,
   onExportClick,
+  onAnalyzeProject,
   showToolbar,
   onEditorFocus,
   onToolbarActionsChange,
@@ -279,6 +320,7 @@ function SceneDocumentLoader({
   onOpenSearch?: () => void
   onOpenSpellcheckSettings?: () => void
   onExportClick?: () => void
+  onAnalyzeProject?: () => void
   showToolbar: boolean
   onEditorFocus?: () => void
   onToolbarActionsChange?: (
@@ -359,6 +401,7 @@ function SceneDocumentLoader({
       onOpenSearch={onOpenSearch}
       onOpenSpellcheckSettings={onOpenSpellcheckSettings}
       onExportClick={onExportClick}
+      onAnalyzeProject={onAnalyzeProject}
       paneId={paneId}
       showToolbar={showToolbar}
       onEditorFocus={onEditorFocus}
@@ -519,6 +562,7 @@ function EditorPanel({
   onOpenSearch,
   onOpenSpellcheckSettings,
   onExportClick,
+  onAnalyzeProject,
   showToolbar,
   onEditorFocus,
   onToolbarActionsChange,
@@ -536,6 +580,7 @@ function EditorPanel({
   onOpenSearch?: () => void
   onOpenSpellcheckSettings?: () => void
   onExportClick?: () => void
+  onAnalyzeProject?: () => void
   showToolbar: boolean
   onEditorFocus?: () => void
   onToolbarActionsChange?: (
@@ -558,6 +603,7 @@ function EditorPanel({
       onOpenSearch={onOpenSearch}
       onOpenSpellcheckSettings={onOpenSpellcheckSettings}
       onExportClick={onExportClick}
+      onAnalyzeProject={onAnalyzeProject}
       showToolbar={showToolbar}
       onEditorFocus={onEditorFocus}
       onToolbarActionsChange={onToolbarActionsChange}
@@ -733,6 +779,8 @@ function EditorWorkspace({
     useState<EditorToolbarActions | null>(null)
   const [isSavingBeforeChange, setIsSavingBeforeChange] = useState(false)
   const [saveChangeError, setSaveChangeError] = useState<string | null>(null)
+  const projectAnalysis = useProjectAnalysis(projectId)
+  const openProjectAnalysisDialog = projectAnalysis.openDialog
 
   const primaryVersionList = useSceneVersionList(
     sceneId,
@@ -797,6 +845,24 @@ function EditorWorkspace({
       ...(effectiveIsSplit && secondaryActions ? [requireSuccessfulSave(secondaryActions.saveNow)] : []),
     ])
   }, [effectiveIsSplit, primaryActions, secondaryActions])
+
+  const handleOpenProjectAnalysis = useCallback(async () => {
+    if (isSavingBeforeChange) return
+    setIsSavingBeforeChange(true)
+    setSaveChangeError(null)
+    try {
+      await saveBeforeExport()
+      await openProjectAnalysisDialog()
+    } catch (error) {
+      setSaveChangeError(
+        error instanceof Error
+          ? error.message
+          : "No se pudieron guardar los cambios antes del análisis.",
+      )
+    } finally {
+      setIsSavingBeforeChange(false)
+    }
+  }, [isSavingBeforeChange, openProjectAnalysisDialog, saveBeforeExport])
 
   useEffect(() => {
     onBeforeExportChange?.(saveBeforeExport)
@@ -1014,6 +1080,7 @@ function EditorWorkspace({
           onExportClick={onExportClick}
           onInsertImage={focusedActions.onInsertImage}
           onAnalyzeChanges={focusedActions.onAnalyzeChanges}
+          onAnalyzeProject={() => void handleOpenProjectAnalysis()}
           isAnalysisSaving={focusedActions.isAnalysisSaving}
           onToggleZenMode={onToggleZenMode}
           onOpenSearch={onOpenSearch}
@@ -1071,6 +1138,8 @@ function EditorWorkspace({
         />
       )}
 
+      <ProjectAnalysisDialog analysis={projectAnalysis} />
+
       <div
         className={
           effectiveIsSplit
@@ -1112,6 +1181,7 @@ function EditorWorkspace({
               onOpenSearch={onOpenSearch}
               onOpenSpellcheckSettings={onOpenSpellcheckSettings}
               onExportClick={onExportClick}
+              onAnalyzeProject={() => void handleOpenProjectAnalysis()}
               showToolbar={!effectiveIsSplit}
               onEditorFocus={() => setFocusedPane("primary")}
               onToolbarActionsChange={registerPrimaryActions}

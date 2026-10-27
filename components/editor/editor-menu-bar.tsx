@@ -14,6 +14,7 @@ import {
   Highlighter,
   ImagePlus,
   Italic,
+  Layers3,
   Languages,
   MessageSquare,
   NotebookPen,
@@ -94,6 +95,7 @@ type EditorMenuBarProps = {
   onInsertDivider?: (variant: SceneDividerVariant) => void
   onInsertNote?: (kind: NoteKind) => void
   onAnalyzeChanges?: () => void
+  onAnalyzeProject?: () => void
   isAnalysisSaving?: boolean
   onToggleAnnotations?: () => void
   areAnnotationsOpen?: boolean
@@ -154,6 +156,7 @@ export function EditorMenuBar({
   onInsertDivider,
   onInsertNote,
   onAnalyzeChanges,
+  onAnalyzeProject,
   isAnalysisSaving = false,
   onToggleAnnotations,
   areAnnotationsOpen = false,
@@ -560,6 +563,13 @@ export function EditorMenuBar({
             () => onAnalyzeChanges?.(),
             undefined,
             !onAnalyzeChanges || isAnalysisSaving,
+          )}
+          {menuItem(
+            <Layers3 className="size-4" />,
+            "Analizar proyecto",
+            () => onAnalyzeProject?.(),
+            undefined,
+            !onAnalyzeProject,
           )}
           {menuItem(
             <Languages className="size-4" />,

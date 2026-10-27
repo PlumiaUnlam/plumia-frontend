@@ -38,8 +38,11 @@ type FormDialogProps = {
   submitLabel?: string
   cancelLabel?: string
   submitDisabled?: boolean
-  /** Bloquea el cierre y muestra un spinner en el botón principal. */
+  submitButtonClassName?: string
+  /** Bloquea el cierre y el envío mientras hay una operación en curso. */
   loading?: boolean
+  /** Permite bloquear el envío sin mostrar el spinner de carga. */
+  showLoadingIndicator?: boolean
   error?: ReactNode
   /** Acción secundaria alineada a la izquierda del pie (ej. "Eliminar"). */
   footerStart?: ReactNode
@@ -50,6 +53,60 @@ type FormDialogProps = {
   onInteractOutside?: (event: Event) => void
   bodyClassName?: string
   showCloseButton?: boolean
+}
+
+function DefaultFormDialogFooter({
+  onOpenChange,
+  onSubmit,
+  footerStart,
+  loading,
+  cancelLabel,
+  enterToSubmit,
+  submitDisabled,
+  submitButtonClassName,
+  showLoadingIndicator,
+  submitLabel,
+}: Readonly<
+  Pick<
+    FormDialogProps,
+    | "onOpenChange"
+    | "onSubmit"
+    | "footerStart"
+    | "loading"
+    | "cancelLabel"
+    | "enterToSubmit"
+    | "submitDisabled"
+    | "submitButtonClassName"
+    | "showLoadingIndicator"
+    | "submitLabel"
+  >
+>) {
+  return (
+    <>
+      {footerStart ? (
+        <div className="flex items-center sm:mr-auto">{footerStart}</div>
+      ) : null}
+      <Button
+        type="button"
+        variant="outline"
+        disabled={loading}
+        onClick={() => onOpenChange(false)}
+      >
+        {onSubmit ? cancelLabel : "Cerrar"}
+      </Button>
+      {onSubmit ? (
+        <Button
+          type={enterToSubmit ? "submit" : "button"}
+          disabled={submitDisabled || loading}
+          className={submitButtonClassName}
+          onClick={enterToSubmit ? undefined : () => void onSubmit()}
+        >
+          {loading && showLoadingIndicator ? <Spinner /> : null}
+          {submitLabel}
+        </Button>
+      ) : null}
+    </>
+  )
 }
 
 /**
@@ -69,7 +126,9 @@ export function FormDialog({
   submitLabel = "Guardar",
   cancelLabel = "Cancelar",
   submitDisabled = false,
+  submitButtonClassName,
   loading = false,
+  showLoadingIndicator = true,
   error,
   footerStart,
   footer,
@@ -88,29 +147,18 @@ export function FormDialog({
 
   const footerContent =
     footer ?? (
-      <>
-        {footerStart ? (
-          <div className="flex items-center sm:mr-auto">{footerStart}</div>
-        ) : null}
-        <Button
-          type="button"
-          variant="outline"
-          disabled={loading}
-          onClick={() => onOpenChange(false)}
-        >
-          {onSubmit ? cancelLabel : "Cerrar"}
-        </Button>
-        {onSubmit ? (
-          <Button
-            type={enterToSubmit ? "submit" : "button"}
-            disabled={submitDisabled || loading}
-            onClick={enterToSubmit ? undefined : () => void onSubmit()}
-          >
-            {loading ? <Spinner /> : null}
-            {submitLabel}
-          </Button>
-        ) : null}
-      </>
+      <DefaultFormDialogFooter
+        onOpenChange={onOpenChange}
+        onSubmit={onSubmit}
+        footerStart={footerStart}
+        loading={loading}
+        cancelLabel={cancelLabel}
+        enterToSubmit={enterToSubmit}
+        submitDisabled={submitDisabled}
+        submitButtonClassName={submitButtonClassName}
+        showLoadingIndicator={showLoadingIndicator}
+        submitLabel={submitLabel}
+      />
     )
 
   const inner = (
