@@ -43,11 +43,14 @@ import { Spinner } from "@/components/ui/spinner"
 import { uploadProfileImage } from "@/services/upload.service"
 import {
   getAiSettings,
-  removeGeminiApiKey,
-  saveGeminiApiKey,
+  removeProviderApiKey,
+  saveAiProviderSettings,
+  saveProviderApiKey,
   updateAutoAnalyzeOnAutosave,
   updateEntityRecognitionThresholds,
   DEFAULT_ENTITY_RECOGNITION_THRESHOLDS,
+  type AiCredentialSource,
+  type AiProvider,
   type AiSettings,
   type EntityRecognitionThresholds,
 } from "@/services/ai-settings.service"
@@ -119,6 +122,13 @@ function areStringArraysEqual(left: string[], right: string[]) {
   return left.length === right.length && left.every((value, index) => value === right[index])
 }
 
+function formatProviderKeyUpdatedAt(value: string | null) {
+  if (!value) return null
+  return new Intl.DateTimeFormat("es-AR", { dateStyle: "medium" }).format(
+    new Date(value),
+  )
+}
+
 type UserMenuProps = {
   readonly inverted?: boolean
 }
@@ -140,8 +150,8 @@ function getProfileSubmitLabel(
   section: ProfileSection,
   hasUnsavedChanges: boolean,
 ) {
-  if (section === "ai") return "Guardar API Key"
   if (!hasUnsavedChanges) return "Sin cambios pendientes"
+  if (section === "ai") return "Guardar configuración de IA"
   if (section === "account") return "Guardar cambios"
   return "Guardar configuraci\u00f3n"
 }
@@ -256,15 +266,26 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
   const [loggingOut, setLoggingOut] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [aiSettings, setAiSettings] = useState<AiSettings | null>(null)
-  const [aiKey, setAiKey] = useState("")
+  const [aiProvider, setAiProvider] = useState<AiProvider>("gemini")
+  const [aiModel, setAiModel] = useState("")
+  const [aiCredentialSource, setAiCredentialSource] =
+    useState<AiCredentialSource>("SERVER")
+  const [providerApiKeys, setProviderApiKeys] = useState<Record<AiProvider, string>>({
+    gemini: "",
+    anthropic: "",
+  })
   const [aiLoading, setAiLoading] = useState(false)
   const [aiSaving, setAiSaving] = useState(false)
+  const [providerKeySaving, setProviderKeySaving] = useState<AiProvider | null>(null)
   const [autoAnalysisSaving, setAutoAnalysisSaving] = useState(false)
   const [aiError, setAiError] = useState<string | null>(null)
+  const [aiProviderError, setAiProviderError] = useState<string | null>(null)
+  const [aiProviderNotice, setAiProviderNotice] = useState<string | null>(null)
   const [autoAnalysisError, setAutoAnalysisError] = useState<string | null>(null)
   const [aiNotice, setAiNotice] = useState<string | null>(null)
   const [removeAiKeyOpen, setRemoveAiKeyOpen] = useState(false)
   const [removingAiKey, setRemovingAiKey] = useState(false)
+  const [providerToRemove, setProviderToRemove] = useState<AiProvider>("gemini")
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [confirmEmail, setConfirmEmail] = useState("")
   const [deleting, setDeleting] = useState(false)
@@ -367,6 +388,9 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
     try {
       const settings = await getAiSettings()
       setAiSettings(settings)
+      setAiProvider(settings.provider)
+      setAiModel(settings.model)
+      setAiCredentialSource(settings.credentialSource)
       setEntityThresholds(
         settings.entityExtractionThresholds ?? DEFAULT_ENTITY_RECOGNITION_THRESHOLDS,
       )
@@ -409,7 +433,9 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
     setAvatarPreview(null)
     setRemoveAvatar(false)
     setError(null)
-    setAiKey("")
+    setProviderApiKeys({ gemini: "", anthropic: "" })
+    setAiProviderError(null)
+    setAiProviderNotice(null)
     setAiNotice(null)
     setAutoAnalysisError(null)
     setEntityRecognitionError(null)
@@ -503,24 +529,73 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
   }
 
   const handleAiSubmit = async () => {
-    const normalizedKey = aiKey.trim()
-    if (!normalizedKey) {
-      setAiError("Ingresá una API Key de Gemini.")
+    if (!aiModel.trim()) {
+      setAiProviderError("Elegí o ingresá un modelo válido.")
+      return
+    }
+    const selectedProvider = aiSettings?.providers.find(
+      (provider) => provider.provider === aiProvider,
+    )
+    if (aiCredentialSource === "USER" && !selectedProvider?.userKeyConfigured) {
+      setAiProviderError("Guardá una API Key propia para este proveedor antes de seleccionarlo.")
+      return
+    }
+    if (aiCredentialSource === "SERVER" && !selectedProvider?.serverCredentialAvailable) {
+      setAiProviderError("No hay una clave de PlumIA disponible para este proveedor.")
       return
     }
 
     setAiSaving(true)
+    setAiProviderError(null)
+    setAiProviderNotice(null)
+    try {
+      const nextSettings = await saveAiProviderSettings({
+        provider: aiProvider,
+        model: aiModel.trim(),
+        credentialSource: aiCredentialSource,
+      })
+      setAiSettings(nextSettings)
+      setAiProvider(nextSettings.provider)
+      setAiModel(nextSettings.model)
+      setAiCredentialSource(nextSettings.credentialSource)
+      setAiProviderNotice("La configuración de proveedor y modelo fue guardada.")
+    } catch {
+      setAiProviderError("No pudimos guardar la configuración. Revisá la credencial seleccionada e intentá nuevamente.")
+    } finally {
+      setAiSaving(false)
+    }
+  }
+
+  const handleSaveProviderKey = async (provider: AiProvider) => {
+    const apiKey = providerApiKeys[provider].trim()
+    if (!apiKey) {
+      setAiError("Ingresá una API Key para guardar.")
+      return
+    }
+
+    const configurationWasUnchanged = Boolean(
+      aiSettings &&
+        aiProvider === aiSettings.provider &&
+        aiModel.trim() === aiSettings.model &&
+        aiCredentialSource === aiSettings.credentialSource,
+    )
+    setProviderKeySaving(provider)
     setAiError(null)
     setAiNotice(null)
     try {
-      const nextSettings = await saveGeminiApiKey(normalizedKey)
+      const nextSettings = await saveProviderApiKey(provider, apiKey)
       setAiSettings(nextSettings)
-      setAiKey("")
-      setAiNotice("La API Key de Gemini fue guardada de forma segura.")
+      if (configurationWasUnchanged) {
+        setAiProvider(nextSettings.provider)
+        setAiModel(nextSettings.model)
+        setAiCredentialSource(nextSettings.credentialSource)
+      }
+      setProviderApiKeys((current) => ({ ...current, [provider]: "" }))
+      setAiNotice(`La API Key de ${provider === "gemini" ? "Gemini" : "Anthropic"} fue guardada de forma segura.`)
     } catch {
-      setAiError("No pudimos guardar la API Key. Intentá nuevamente.")
+      setAiError("No pudimos guardar la API Key. Verificá el valor e intentá nuevamente.")
     } finally {
-      setAiSaving(false)
+      setProviderKeySaving(null)
     }
   }
 
@@ -528,20 +603,13 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
     setRemovingAiKey(true)
     setAiError(null)
     try {
-      await removeGeminiApiKey()
-      setAiSettings((current) => ({
-        configured: false,
-        keyPrefix: null,
-        updatedAt: null,
-        autoAnalyzeOnAutosave: current?.autoAnalyzeOnAutosave ?? true,
-        entityExtractionThresholds:
-          current?.entityExtractionThresholds ?? DEFAULT_ENTITY_RECOGNITION_THRESHOLDS,
-      }))
-      setAiKey("")
-      setAiNotice("La API Key propia fue eliminada.")
+      await removeProviderApiKey(providerToRemove)
+      setAiSettings(await getAiSettings())
+      setProviderApiKeys((current) => ({ ...current, [providerToRemove]: "" }))
+      setAiNotice(`La API Key de ${providerToRemove === "gemini" ? "Gemini" : "Anthropic"} fue eliminada.`)
       setRemoveAiKeyOpen(false)
     } catch {
-      setAiError("No pudimos eliminar la API Key. Intentá nuevamente.")
+      setAiError("No pudimos eliminar la API Key. Si está en uso, cambiá primero la fuente de credencial.")
     } finally {
       setRemovingAiKey(false)
     }
@@ -830,6 +898,22 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
       !normalizedWorldRulesSearch ||
       normalizeEntityName(rule).includes(normalizedWorldRulesSearch),
   )
+  const selectedAiProviderOption = aiSettings?.providers.find(
+    (provider) => provider.provider === aiProvider,
+  )
+  const selectedProviderModels = selectedAiProviderOption?.suggestedModels ?? []
+  const isSuggestedAiModel = selectedProviderModels.some(
+    (model) => model.id === aiModel,
+  )
+  const hasUnsavedAiProviderSettings = Boolean(
+    aiSettings &&
+      (aiProvider !== aiSettings.provider ||
+        aiModel.trim() !== aiSettings.model ||
+        aiCredentialSource !== aiSettings.credentialSource),
+  )
+  const hasUnsubmittedProviderKey = Object.values(providerApiKeys).some(
+    (apiKey) => apiKey.trim().length > 0,
+  )
 
   const hasUnsavedAccountChanges = () =>
     displayName.trim() !== currentDisplayName.trim() ||
@@ -877,7 +961,8 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
 
   const hasUnsavedProfileChanges = () =>
     hasUnsavedAccountChanges() ||
-    aiKey.trim().length > 0 ||
+    hasUnsubmittedProviderKey ||
+    hasUnsavedAiProviderSettings ||
     hasUnsavedEntityRecognitionChanges() ||
     hasUnsavedInconsistencyChanges() ||
     newImportantEntityName.trim().length > 0 ||
@@ -886,7 +971,7 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
 
   const hasUnsavedCurrentSectionChanges = () => {
     if (profileSection === "account") return hasUnsavedAccountChanges()
-    if (profileSection === "ai") return aiKey.trim().length > 0
+    if (profileSection === "ai") return hasUnsavedAiProviderSettings
     if (profileSection === "entityRecognition") {
       return hasUnsavedEntityRecognitionChanges()
     }
@@ -896,6 +981,7 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
   const currentSectionHasUnsavedChanges = hasUnsavedCurrentSectionChanges()
 
   const isCurrentSectionSettingsUnavailable =
+    (profileSection === "ai" && aiLoading) ||
     (profileSection === "entityRecognition" &&
       (aiLoading || projectNamesLoading)) ||
     (profileSection === "inconsistencies" &&
@@ -903,7 +989,13 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
 
   const profileSubmitDisabled =
     profileSection === "ai"
-      ? !aiKey.trim()
+      ? !currentSectionHasUnsavedChanges ||
+        isCurrentSectionSettingsUnavailable ||
+        !aiModel.trim() ||
+        (aiCredentialSource === "USER" &&
+          !selectedAiProviderOption?.userKeyConfigured) ||
+        (aiCredentialSource === "SERVER" &&
+          !selectedAiProviderOption?.serverCredentialAvailable)
       : !currentSectionHasUnsavedChanges ||
         isCurrentSectionSettingsUnavailable ||
         (profileSection === "inconsistencies" && !selectedProjectId)
@@ -1665,81 +1757,248 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
             </div>
           ) : (
             <>
-              <div className="rounded-lg border bg-muted/30 p-3 text-sm">
-                <p className="font-medium">
-                  Extracción de entidades e inconsistencias
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Podés usar tu propia API Key de Gemini. Se almacena cifrada y
-                  nunca volvemos a mostrarla completa.
-                </p>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  Estado: {aiSettings?.configured ? "Configurada" : "Se usa la clave del servidor"}
-                  {aiSettings?.keyPrefix ? ` (${aiSettings.keyPrefix})` : ""}
-                </p>
-              </div>
+              <section className="space-y-4 rounded-xl border bg-card p-4">
+                <div>
+                  <p className="font-semibold">Modelo para extracción y auditoría</p>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                    Esta selección se aplica a todos tus proyectos para extraer entidades y relaciones, y revisar inconsistencias. No modifica el proveedor del chat.
+                  </p>
+                </div>
+
+                <Field>
+                  <FieldLabel htmlFor="ai-provider">Proveedor</FieldLabel>
+                  <select
+                    id="ai-provider"
+                    value={aiProvider}
+                    onChange={(event) => {
+                      const nextProvider = event.target.value as AiProvider
+                      const nextOption = aiSettings?.providers.find(
+                        (option) => option.provider === nextProvider,
+                      )
+                      setAiProvider(nextProvider)
+                      setAiModel(nextOption?.suggestedModels[0]?.id ?? "")
+                      setAiCredentialSource(
+                        nextOption?.userKeyConfigured
+                          ? "USER"
+                          : nextOption?.serverCredentialAvailable
+                            ? "SERVER"
+                            : "USER",
+                      )
+                      setAiProviderError(null)
+                      setAiProviderNotice(null)
+                    }}
+                    className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                  >
+                    {aiSettings?.providers.map((provider) => (
+                      <option key={provider.provider} value={provider.provider}>
+                        {provider.label}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+
+                <Field>
+                  <FieldLabel htmlFor="ai-model">Modelo</FieldLabel>
+                  <select
+                    id="ai-model"
+                    value={isSuggestedAiModel ? aiModel : "__custom__"}
+                    onChange={(event) => {
+                      setAiModel(event.target.value === "__custom__" ? "" : event.target.value)
+                      setAiProviderError(null)
+                    }}
+                    className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                  >
+                    {selectedProviderModels.map((model) => (
+                      <option key={model.id} value={model.id}>
+                        {model.label}
+                      </option>
+                    ))}
+                    <option value="__custom__">Otro modelo…</option>
+                  </select>
+                  {!isSuggestedAiModel && (
+                    <Input
+                      id="ai-custom-model"
+                      value={aiModel}
+                      maxLength={120}
+                      onChange={(event) => {
+                        setAiModel(event.target.value)
+                        setAiProviderError(null)
+                      }}
+                      placeholder="ID del modelo del proveedor"
+                      autoComplete="off"
+                    />
+                  )}
+                  <FieldDescription>
+                    Podés elegir un modelo sugerido o ingresar su ID. El proveedor lo validará cuando se ejecute un análisis.
+                  </FieldDescription>
+                </Field>
+
+                <Field>
+                  <FieldLabel htmlFor="ai-credential-source">Credencial a utilizar</FieldLabel>
+                  <select
+                    id="ai-credential-source"
+                    value={aiCredentialSource}
+                    onChange={(event) => {
+                      setAiCredentialSource(event.target.value as AiCredentialSource)
+                      setAiProviderError(null)
+                    }}
+                    className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                  >
+                    <option
+                      value="USER"
+                      disabled={!selectedAiProviderOption?.userKeyConfigured}
+                    >
+                      Mi API Key
+                    </option>
+                    <option
+                      value="SERVER"
+                      disabled={!selectedAiProviderOption?.serverCredentialAvailable}
+                    >
+                      Clave administrada por PlumIA
+                    </option>
+                  </select>
+                  <FieldDescription>
+                    {aiCredentialSource === "USER"
+                      ? selectedAiProviderOption?.userKeyConfigured
+                        ? `Se usará tu clave cifrada${selectedAiProviderOption.keyPrefix ? ` (${selectedAiProviderOption.keyPrefix})` : ""}.`
+                        : "Guardá una clave personal para este proveedor en la sección siguiente."
+                      : selectedAiProviderOption?.serverCredentialAvailable
+                        ? "Se usará la credencial configurada por PlumIA para este proveedor."
+                        : "PlumIA no tiene una credencial disponible para este proveedor."}
+                  </FieldDescription>
+                </Field>
+
+                {aiProviderError && <FieldError>{aiProviderError}</FieldError>}
+                {aiProviderNotice && (
+                  <Alert>
+                    <AlertDescription>{aiProviderNotice}</AlertDescription>
+                  </Alert>
+                )}
+              </section>
+
+              <section className="space-y-3 rounded-xl border p-4">
+                <div>
+                  <p className="font-semibold">Claves personales</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Cada proveedor conserva su propia clave cifrada. Nunca se muestra completa y se puede cambiar sin afectar la del otro proveedor.
+                  </p>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {aiSettings?.providers.map((provider) => {
+                    const isSelectedPersonalKey =
+                      aiProvider === provider.provider && aiCredentialSource === "USER"
+                    return (
+                      <div
+                        key={provider.provider}
+                        className="min-w-0 space-y-3 rounded-lg border bg-card p-3"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium">{provider.label}</p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {provider.userKeyConfigured
+                                ? `Clave guardada${provider.keyPrefix ? ` · ${provider.keyPrefix}` : ""}${formatProviderKeyUpdatedAt(provider.updatedAt) ? ` · Actualizada ${formatProviderKeyUpdatedAt(provider.updatedAt)}` : ""}`
+                                : "Sin clave personal"}
+                            </p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {provider.serverCredentialAvailable
+                                ? "Clave de PlumIA disponible"
+                                : "Clave de PlumIA no configurada"}
+                            </p>
+                          </div>
+                          <KeyRound className="size-4 shrink-0 text-primary" />
+                        </div>
+                        <Field>
+                          <FieldLabel htmlFor={`provider-key-${provider.provider}`}>
+                            API Key
+                          </FieldLabel>
+                          <Input
+                            id={`provider-key-${provider.provider}`}
+                            type="password"
+                            maxLength={500}
+                            value={providerApiKeys[provider.provider]}
+                            onChange={(event) => {
+                              setProviderApiKeys((current) => ({
+                                ...current,
+                                [provider.provider]: event.target.value,
+                              }))
+                              setAiError(null)
+                              setAiNotice(null)
+                            }}
+                            placeholder={
+                              provider.userKeyConfigured
+                                ? "Ingresá una clave nueva para reemplazarla"
+                                : "Pegá tu API Key"
+                            }
+                            autoComplete="new-password"
+                            disabled={providerKeySaving !== null || removingAiKey}
+                          />
+                        </Field>
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => void handleSaveProviderKey(provider.provider)}
+                            disabled={
+                              providerKeySaving !== null ||
+                              removingAiKey ||
+                              !providerApiKeys[provider.provider].trim()
+                            }
+                          >
+                            {providerKeySaving === provider.provider ? <Spinner /> : null}
+                            Guardar clave
+                          </Button>
+                          {provider.userKeyConfigured && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                setProviderToRemove(provider.provider)
+                                setRemoveAiKeyOpen(true)
+                              }}
+                              disabled={removingAiKey || providerKeySaving !== null || isSelectedPersonalKey}
+                              aria-label={`Eliminar API Key de ${provider.label}`}
+                            >
+                              <Trash2 />
+                              Eliminar
+                            </Button>
+                          )}
+                        </div>
+                        {isSelectedPersonalKey && (
+                          <p className="text-xs text-muted-foreground">
+                            Cambiá la fuente de credencial y guardá la configuración antes de eliminar esta clave.
+                          </p>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+                {aiError && <FieldError>{aiError}</FieldError>}
+                {aiNotice && (
+                  <Alert>
+                    <AlertDescription>{aiNotice}</AlertDescription>
+                  </Alert>
+                )}
+              </section>
 
               <div className="flex items-center justify-between gap-4 rounded-lg border p-3">
                 <div className="min-w-0">
-                  <p className="font-medium">Analizar automaticamente al guardar</p>
+                  <p className="font-medium">Analizar automáticamente al guardar</p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Si lo desactivas, los cambios se guardan sin utilizar IA.
-                    Podras usar Analizar cambios desde el editor cuando quieras.
+                    Si lo desactivás, los cambios se guardan sin utilizar IA. Podés usar Analizar cambios desde el editor cuando quieras.
                   </p>
                 </div>
                 <Switch
                   checked={aiSettings?.autoAnalyzeOnAutosave ?? true}
                   onCheckedChange={handleAutoAnalysisChange}
                   disabled={autoAnalysisSaving || aiLoading}
-                  aria-label="Analizar automaticamente al guardar"
+                  aria-label="Analizar automáticamente al guardar"
                 />
               </div>
 
               {autoAnalysisError && <FieldError>{autoAnalysisError}</FieldError>}
-
-              <Field>
-                <FieldLabel htmlFor="gemini-api-key">API Key de Gemini</FieldLabel>
-                <Input
-                  id="gemini-api-key"
-                  type="password"
-                  value={aiKey}
-                  onChange={(event) => {
-                    setAiKey(event.target.value)
-                    setAiError(null)
-                    setAiNotice(null)
-                  }}
-                  placeholder={
-                    aiSettings?.configured
-                      ? "Ingresá una nueva clave para reemplazarla"
-                      : "Pegá tu API Key"
-                  }
-                  autoComplete="new-password"
-                  disabled={aiSaving || removingAiKey}
-                />
-                <FieldDescription>
-                  La clave se aplicará a todos tus proyectos de PlumIA.
-                </FieldDescription>
-              </Field>
-
-              {aiError && <FieldError>{aiError}</FieldError>}
-              {aiNotice && (
-                <Alert>
-                  <AlertDescription>{aiNotice}</AlertDescription>
-                </Alert>
-              )}
-
-              {aiSettings?.configured && (
-                <Button
-                  type="button"
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => setRemoveAiKeyOpen(true)}
-                  disabled={aiSaving || removingAiKey}
-                >
-                  <Trash2 />
-                  Eliminar API Key propia
-                </Button>
-              )}
             </>
           )}
         </TabsContent>
@@ -2068,9 +2327,11 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar tu API Key de Gemini?</AlertDialogTitle>
+            <AlertDialogTitle>
+              ¿Eliminar tu API Key de {providerToRemove === "gemini" ? "Gemini" : "Anthropic"}?
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              Los próximos análisis volverán a utilizar la clave configurada por el servidor.
+              La clave personal se eliminará. Si ese proveedor está activo, primero cambiá la fuente de credencial y guardá la configuración.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -2084,7 +2345,7 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
               }}
             >
               {removingAiKey ? <Spinner /> : null}
-              Eliminar API Key
+              Eliminar clave
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
