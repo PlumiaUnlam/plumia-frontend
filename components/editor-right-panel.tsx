@@ -425,12 +425,13 @@ function EditorRightPanelContent({
         alert.conflict?.evidence[evidenceIndex] ??
         alert.conflict?.evidence[0];
       const sourceSceneId = supportingSource?.sceneId ?? alert.sceneId;
-      setActiveScene(sourceSceneId);
       if (evidence) {
         focusCitation({ sceneId: sourceSceneId, textQuote: evidence });
       } else {
         clearCitationFocus();
       }
+      // Set focus first so scene navigation preserves the citation target.
+      setActiveScene(sourceSceneId);
     },
     [clearCitationFocus, focusCitation, setActiveScene],
   );

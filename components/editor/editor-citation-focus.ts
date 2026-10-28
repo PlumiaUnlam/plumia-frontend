@@ -4,7 +4,7 @@ import { Plugin, PluginKey } from "@tiptap/pm/state"
 import { Decoration, DecorationSet } from "@tiptap/pm/view"
 
 export type CitationHighlightMeta =
-  | { from: number; to: number }
+  | { ranges: TextSelectionRange[] }
   | { clear: true }
 
 export const citationFocusPluginKey = new PluginKey<DecorationSet>(
@@ -25,14 +25,17 @@ export const CitationFocus = Extension.create({
               citationFocusPluginKey,
             ) as CitationHighlightMeta | undefined
             if (meta && "clear" in meta) return DecorationSet.empty
-            if (meta && "from" in meta) {
-              return DecorationSet.create(transaction.doc, [
-                Decoration.inline(meta.from, meta.to, {
-                  style:
-                    "border-radius:.28rem;background:color-mix(in srgb,var(--primary) 16%,transparent);box-shadow:0 0 0 2px color-mix(in srgb,var(--primary) 16%,transparent);box-decoration-break:clone;-webkit-box-decoration-break:clone;",
-                  "data-citation-highlight": "true",
-                }),
-              ])
+            if (meta && "ranges" in meta) {
+              return DecorationSet.create(
+                transaction.doc,
+                meta.ranges.map((range) =>
+                  Decoration.inline(range.from, range.to, {
+                    style:
+                      "border-radius:.28rem;background:color-mix(in srgb,var(--primary) 16%,transparent);box-shadow:0 0 0 2px color-mix(in srgb,var(--primary) 16%,transparent);box-decoration-break:clone;-webkit-box-decoration-break:clone;",
+                    "data-citation-highlight": "true",
+                  }),
+                ),
+              )
             }
             return transaction.docChanged
               ? decorations.map(transaction.mapping, transaction.doc)
@@ -52,10 +55,10 @@ export type TextSelectionRange = {
   to: number
 }
 
-export function findCitationRange(
+export function findCitationRanges(
   document: ProseMirrorNode,
   quote: string,
-): TextSelectionRange | null {
+): TextSelectionRange[] {
   const searchableCharacters: string[] = []
   const documentPositions: number[] = []
   let previousTextEnd = -1
@@ -93,13 +96,17 @@ export function findCitationRange(
 
   const haystack = searchableCharacters.join("")
   const needle = quote.replace(/\s+/gu, " ").trim().toLocaleLowerCase()
-  if (!needle) return null
-  const startIndex = haystack.indexOf(needle)
-  if (startIndex < 0) return null
-  // A repeated quote cannot identify one passage reliably.
-  if (haystack.includes(needle, startIndex + 1)) return null
-  const from = documentPositions[startIndex]
-  const lastPosition = documentPositions[startIndex + needle.length - 1]
-  if (from === undefined || lastPosition === undefined) return null
-  return { from, to: lastPosition + 1 }
+  if (!needle) return []
+
+  const ranges: TextSelectionRange[] = []
+  let startIndex = haystack.indexOf(needle)
+  while (startIndex >= 0) {
+    const from = documentPositions[startIndex]
+    const lastPosition = documentPositions[startIndex + needle.length - 1]
+    if (from !== undefined && lastPosition !== undefined) {
+      ranges.push({ from, to: lastPosition + 1 })
+    }
+    startIndex = haystack.indexOf(needle, startIndex + needle.length)
+  }
+  return ranges
 }
