@@ -18,7 +18,7 @@ import { useEditorStore } from "@/stores/editor.store"
 import {
   CitationFocus,
   citationFocusPluginKey,
-  findCitationRange,
+  findCitationRanges,
 } from "./editor-citation-focus"
 import {
   EditorSearchFocus,
@@ -438,8 +438,9 @@ export function RichTextEditor({
       return
     }
 
-    const range = findCitationRange(editor.state.doc, citationFocus.textQuote)
-    if (!range) {
+    const ranges = findCitationRanges(editor.state.doc, citationFocus.textQuote)
+    const firstRange = ranges[0]
+    if (!firstRange) {
       clearCitationDecoration()
       clearCitationFocus()
       return
@@ -447,11 +448,10 @@ export function RichTextEditor({
 
     editor.view.dispatch(
       editor.state.tr.setMeta(citationFocusPluginKey, {
-        from: range.from,
-        to: range.to,
+        ranges,
       }),
     )
-    const domNode = editor.view.domAtPos(range.from).node
+    const domNode = editor.view.domAtPos(firstRange.from).node
     const scrollTarget =
       domNode instanceof HTMLElement ? domNode : domNode.parentElement
     scrollTarget?.scrollIntoView({ behavior: "smooth", block: "center" })

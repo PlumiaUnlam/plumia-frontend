@@ -16,6 +16,7 @@
     "test:editor-save": "node --import tsx scripts/editor-save-protection.test.mts",
     "test:editor-project-scene": "node --import tsx scripts/editor-project-scene.test.mts",
     "test:editor-paragraph": "node --import tsx scripts/editor-paragraph.test.mts",
+    "test:editor-citation-focus": "node --import tsx scripts/editor-citation-focus.test.mts",
     "test:scene-notes": "node --import tsx scripts/scene-notes.test.mts",
     "test:mobile-project": "node --import tsx scripts/mobile-project.test.mts",
     "test:imports": "node --import tsx scripts/imports.test.mts",
