@@ -129,6 +129,22 @@ function formatProviderKeyUpdatedAt(value: string | null) {
   )
 }
 
+function formatProviderKeyStatus(
+  configured: boolean,
+  keyPrefix: string | null,
+  updatedAt: string | null,
+) {
+  if (!configured) return "Sin clave personal"
+
+  const details = ["Clave guardada"]
+  if (keyPrefix) details.push(keyPrefix)
+
+  const formattedUpdatedAt = formatProviderKeyUpdatedAt(updatedAt)
+  if (formattedUpdatedAt) details.push(`Actualizada ${formattedUpdatedAt}`)
+
+  return details.join(" · ")
+}
+
 type UserMenuProps = {
   readonly inverted?: boolean
 }
@@ -902,6 +918,19 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
     (provider) => provider.provider === aiProvider,
   )
   const selectedProviderModels = selectedAiProviderOption?.suggestedModels ?? []
+  let aiCredentialDescription = "PlumIA no tiene una credencial disponible para este proveedor."
+  if (aiCredentialSource === "USER") {
+    if (selectedAiProviderOption?.userKeyConfigured) {
+      const keyPrefix = selectedAiProviderOption.keyPrefix
+      aiCredentialDescription = keyPrefix
+        ? `Se usará tu clave cifrada (${keyPrefix}).`
+        : "Se usará tu clave cifrada."
+    } else {
+      aiCredentialDescription = "Guardá una clave personal para este proveedor en la sección siguiente."
+    }
+  } else if (selectedAiProviderOption?.serverCredentialAvailable) {
+    aiCredentialDescription = "Se usará la credencial configurada por PlumIA para este proveedor."
+  }
   const isSuggestedAiModel = selectedProviderModels.some(
     (model) => model.id === aiModel,
   )
@@ -1775,15 +1804,13 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
                       const nextOption = aiSettings?.providers.find(
                         (option) => option.provider === nextProvider,
                       )
+                      let nextCredentialSource: AiCredentialSource = "USER"
+                      if (!nextOption?.userKeyConfigured && nextOption?.serverCredentialAvailable) {
+                        nextCredentialSource = "SERVER"
+                      }
                       setAiProvider(nextProvider)
                       setAiModel(nextOption?.suggestedModels[0]?.id ?? "")
-                      setAiCredentialSource(
-                        nextOption?.userKeyConfigured
-                          ? "USER"
-                          : nextOption?.serverCredentialAvailable
-                            ? "SERVER"
-                            : "USER",
-                      )
+                      setAiCredentialSource(nextCredentialSource)
                       setAiProviderError(null)
                       setAiProviderNotice(null)
                     }}
@@ -1858,13 +1885,7 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
                     </option>
                   </select>
                   <FieldDescription>
-                    {aiCredentialSource === "USER"
-                      ? selectedAiProviderOption?.userKeyConfigured
-                        ? `Se usará tu clave cifrada${selectedAiProviderOption.keyPrefix ? ` (${selectedAiProviderOption.keyPrefix})` : ""}.`
-                        : "Guardá una clave personal para este proveedor en la sección siguiente."
-                      : selectedAiProviderOption?.serverCredentialAvailable
-                        ? "Se usará la credencial configurada por PlumIA para este proveedor."
-                        : "PlumIA no tiene una credencial disponible para este proveedor."}
+                    {aiCredentialDescription}
                   </FieldDescription>
                 </Field>
 
@@ -1896,9 +1917,11 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
                           <div className="min-w-0">
                             <p className="text-sm font-medium">{provider.label}</p>
                             <p className="mt-1 text-xs text-muted-foreground">
-                              {provider.userKeyConfigured
-                                ? `Clave guardada${provider.keyPrefix ? ` · ${provider.keyPrefix}` : ""}${formatProviderKeyUpdatedAt(provider.updatedAt) ? ` · Actualizada ${formatProviderKeyUpdatedAt(provider.updatedAt)}` : ""}`
-                                : "Sin clave personal"}
+                              {formatProviderKeyStatus(
+                                provider.userKeyConfigured,
+                                provider.keyPrefix,
+                                provider.updatedAt,
+                              )}
                             </p>
                             <p className="mt-1 text-xs text-muted-foreground">
                               {provider.serverCredentialAvailable
