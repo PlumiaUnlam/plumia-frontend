@@ -6,6 +6,7 @@ import { FormDialog } from "@/components/modal/form-dialog"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import type { CreateEntityStateInput } from "@/types/entity-state"
+import { userFacingError } from "@/helpers/api-errors"
 
 const stateKeys = [
   { value: "location", label: "Ubicación" },
@@ -70,7 +71,7 @@ export function EntityStateModal({
       })
       onClose()
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "No se pudo guardar el estado.")
+      setError(userFacingError(cause, "No se pudo guardar el estado."))
     } finally {
       setSubmitting(false)
     }

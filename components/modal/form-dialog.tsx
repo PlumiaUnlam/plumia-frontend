@@ -1,6 +1,6 @@
 "use client"
 
-import type { FormEvent, ReactNode } from "react"
+import type { SubmitEvent, ReactNode } from "react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -51,8 +51,24 @@ type FormDialogProps = {
   contentClassName?: string
   /** Para decidir si un click fuera cierra el modal (ej. cuando hay otro modal encima). */
   onInteractOutside?: (event: Event) => void
+  /** A dónde vuelve el foco al cerrar (por defecto, al elemento que lo tenía al abrir). */
+  onCloseAutoFocus?: (event: Event) => void
   bodyClassName?: string
   showCloseButton?: boolean
+}
+
+/**
+ * Confirmaciones, otros modales y desplegables viven en su propio portal, así
+ * que Radix ve sus clicks y foco como "afuera" y cerraría este modal.
+ */
+const OTHER_OVERLAY_SELECTOR = [
+  '[data-slot="alert-dialog-content"]',
+  '[data-slot="dialog-content"]',
+  '[data-radix-popper-content-wrapper]',
+].join(",")
+
+function isInsideOtherOverlay(target: EventTarget | null): boolean {
+  return target instanceof Element && target.closest(OTHER_OVERLAY_SELECTOR) !== null
 }
 
 function DefaultFormDialogFooter({
@@ -134,10 +150,11 @@ export function FormDialog({
   footer,
   contentClassName,
   onInteractOutside,
+  onCloseAutoFocus,
   bodyClassName,
   showCloseButton = true,
 }: Readonly<FormDialogProps>) {
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault()
     // Un modal anidado dentro de otro también es hijo en el árbol de React.
     event.stopPropagation()
@@ -185,11 +202,14 @@ export function FormDialog({
         layer={layer}
         showCloseButton={showCloseButton}
         className={contentClassName}
+        onCloseAutoFocus={onCloseAutoFocus}
         onEscapeKeyDown={(event) => {
           if (loading) event.preventDefault()
         }}
         onInteractOutside={(event) => {
-          if (loading) event.preventDefault()
+          if (loading || isInsideOtherOverlay(event.target)) {
+            event.preventDefault()
+          }
           onInteractOutside?.(event)
         }}
       >

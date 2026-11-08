@@ -54,6 +54,7 @@ import type {
   SidebarModalState,
 } from "@/components/left-sidebar-types";
 import type { SceneVersionSummary } from "@/types/scene";
+import { userFacingError } from "@/helpers/api-errors"
 
 export type { SidebarBook, SidebarChapter, SidebarScene } from "@/components/left-sidebar-types";
 
@@ -118,7 +119,7 @@ export function LeftSidebar({
       await onBeforeDocumentChange?.();
       change();
     } catch (error) {
-      setNavigationError(error instanceof Error ? error.message : "No se pudieron guardar los cambios. Reintentá antes de continuar.");
+      setNavigationError(userFacingError(error, "No se pudieron guardar los cambios. Reintentá antes de continuar."));
     } finally {
       navigationPendingRef.current = false;
     }
@@ -142,6 +143,17 @@ export function LeftSidebar({
     .flatMap((chapter) => chapter.scenes)
     .find((scene) => scene.id === activeSceneId)
   const [historyOpen, setHistoryOpen] = useState(false);
+  const historyRevealToken = useEditorStore((state) => state.historyRevealToken);
+  const historyRevealPending = useEditorStore((state) => state.historyRevealPending);
+  const clearHistoryReveal = useEditorStore((state) => state.clearHistoryReveal);
+  const [seenHistoryToken, setSeenHistoryToken] = useState(0);
+  if (historyRevealPending && seenHistoryToken !== historyRevealToken) {
+    setSeenHistoryToken(historyRevealToken);
+    setHistoryOpen(true);
+  }
+  useEffect(() => {
+    if (historyRevealPending) clearHistoryReveal();
+  }, [historyRevealPending, clearHistoryReveal]);
   const [versions, setVersions] = useState<SceneVersionSummary[]>([]);
   const [versionsError, setVersionsError] = useState<string | null>(null);
   const [versionsLoading, setVersionsLoading] = useState(false);

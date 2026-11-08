@@ -109,7 +109,7 @@ export function LeftSidebarTree({
                     <SidebarMenuButton className="min-w-0 gap-1.5 pr-2 group-hover/book-row:bg-sidebar-accent group-hover/book-row:pr-14 group-hover/book-row:text-sidebar-accent-foreground [&_.tree-book-icon]:size-2.5 [&_.tree-chevron]:size-2.5 [&[data-state=open]_.tree-chevron]:rotate-90">
                       <ChevronRight className="tree-chevron text-sidebar-primary transition-transform" />
                       <BookOpen className="tree-book-icon text-sidebar-primary" />
-                      <span className="truncate text-xs font-semibold text-foreground">
+                      <span className="min-w-0 max-w-full truncate text-xs font-semibold text-foreground">
                         {book.title}
                       </span>
                     </SidebarMenuButton>
@@ -149,7 +149,7 @@ export function LeftSidebarTree({
                             <CollapsibleTrigger asChild>
                               <SidebarMenuButton className="min-w-0 gap-1.5 pr-2 group-hover/chapter-row:bg-sidebar-accent group-hover/chapter-row:pr-14 group-hover/chapter-row:text-sidebar-accent-foreground [&_.tree-chevron]:size-2.5 [&[data-state=open]_.tree-chevron]:rotate-90">
                                 <ChevronRight className="tree-chevron -mr-1 text-sidebar-primary transition-transform" />
-                                <span className="truncate text-[11px] font-medium text-sidebar-primary">
+                                <span className="min-w-0 max-w-full truncate text-[11px] font-medium text-sidebar-primary">
                                   {chapter.title}
                                 </span>
                               </SidebarMenuButton>
@@ -195,7 +195,7 @@ export function LeftSidebarTree({
                                       className="pr-2 group-hover/scene-row:bg-sidebar-accent group-hover/scene-row:pr-8 group-hover/scene-row:text-sidebar-accent-foreground"
                                     >
                                       <div className="flex min-w-0 flex-col items-start gap-1 padding-4">
-                                        <span className="truncate text-[11px] font-medium text-foreground">
+                                        <span className="min-w-0 max-w-full truncate text-[11px] font-medium text-foreground">
                                           {scene.title}
                                         </span>
                                         <span className="text-[9px] text-muted-foreground">

@@ -26,12 +26,22 @@ export type ChatSource = {
   route?: string
 }
 
+/** Parte concreta del editor a la que lleva un acceso directo (la define el backend). */
+export type ChatSection =
+  | "editor-toolbar"
+  | "editor-right-wiki"
+  | "editor-right-chat"
+  | "editor-right-stats"
+  | "editor-right-review"
+  | "editor-history"
+
 export type ChatAction = {
   id: string
   kind: "navigation"
   label: string
   description: string
   route: string
+  section?: ChatSection
 }
 
 export type ChatThread = {

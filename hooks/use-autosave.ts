@@ -9,6 +9,7 @@ import type {
   SaveSceneResult,
   SaveSceneVersionResult,
 } from "@/types/scene"
+import { userFacingError } from "@/helpers/api-errors"
 
 const DEBOUNCE_MS = 30000
 const MAX_RETRIES = 3
@@ -114,7 +115,7 @@ export function useAutosave({
         savingRef.current = false
         setPaneError(
           paneId,
-          error instanceof Error ? error.message : "Error al guardar",
+          userFacingError(error, "Error al guardar"),
         )
         retriesRef.current += 1
 

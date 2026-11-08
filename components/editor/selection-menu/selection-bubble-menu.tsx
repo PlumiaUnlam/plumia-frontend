@@ -13,9 +13,11 @@ type SelectionBubbleMenuProps = {
   editor: Editor
   projectId: string
   onAddAnnotation?: () => void
+  /** Oculta el menú (p. ej. mientras se redacta una anotación) para que no tape el panel que se está usando. */
+  hidden?: boolean
 }
 
-export function SelectionBubbleMenu({ editor, projectId, onAddAnnotation }: Readonly<SelectionBubbleMenuProps>) {
+export function SelectionBubbleMenu({ editor, projectId, onAddAnnotation, hidden = false }: Readonly<SelectionBubbleMenuProps>) {
   const [open, setOpen] = useState(false)
   const scrollTarget = editor.view.dom.closest<HTMLElement>("[data-editor-scroll-container]") ?? undefined
   const bubbleMenuOptions = useMemo(() => ({ scrollTarget }), [scrollTarget])
@@ -28,12 +30,18 @@ export function SelectionBubbleMenu({ editor, projectId, onAddAnnotation }: Read
     }
   }, [editor])
 
+  if (hidden) return null
+
   return (
     <BubbleMenu
       editor={editor}
       className="z-50"
-      shouldShow={({ state }) =>
-        state.selection instanceof TextSelection && !state.selection.empty
+      // Solo se muestra mientras el foco está en el editor (o dentro del propio menú): si el foco pasa a otro panel,
+      // por ejemplo el campo de una anotación, el menú no debe quedar flotando encima.
+      shouldShow={({ state, view, element }) =>
+        state.selection instanceof TextSelection &&
+        !state.selection.empty &&
+        (view.hasFocus() || element.contains(document.activeElement))
       }
       options={bubbleMenuOptions}
     >

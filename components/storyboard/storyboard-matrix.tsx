@@ -300,7 +300,7 @@ function ArcDialog({
             </SelectTrigger>
             <SelectContent align="start">
               <SelectItem value={UNASSIGNED_VALUE}>
-                Selecciona una entidad
+                Seleccioná una entidad
               </SelectItem>
               {entities.map((entity) => (
                 <SelectItem key={entity.id} value={entity.id}>
@@ -326,7 +326,7 @@ function ArcDialog({
             </SelectTrigger>
             <SelectContent align="start">
               <SelectItem value={UNASSIGNED_VALUE}>
-                Selecciona una relación
+                Seleccioná una relación
               </SelectItem>
               {relationships.map((relationship) => (
                 <SelectItem key={relationship.id} value={relationship.id}>
@@ -491,7 +491,7 @@ function NoteDialog({
               void handleSubmit()
             }
           }}
-          placeholder="Escribe una nota breve"
+          placeholder="Escribí una nota breve"
           className="min-h-28 resize-none"
         />
       </div>
@@ -655,7 +655,7 @@ export function StoryboardMatrix({
 
       {sortedChapters.length === 0 && (
         <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-          Agrega capítulos para construir la matriz.
+          Agregá capítulos para construir la matriz.
         </div>
       )}
       {sortedChapters.length > 0 && sortedArcs.length === 0 && (
@@ -743,7 +743,7 @@ export function StoryboardMatrix({
                               </span>
                               <button
                                 type="button"
-                                className="grid size-4 shrink-0 place-items-center rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+                                className="relative grid size-4 shrink-0 place-items-center rounded-sm text-muted-foreground after:absolute after:-inset-1.5 hover:bg-muted hover:text-foreground"
                                 disabled={submitting}
                                 onClick={() => setNoteToDelete(note)}
                                 aria-label="Eliminar nota"

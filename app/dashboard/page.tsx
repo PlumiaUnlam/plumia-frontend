@@ -15,6 +15,7 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import dynamic from "next/dynamic"
 
+import { searchEntities } from "@/lib/entity-search"
 import { Navbar } from "@/components/navbar"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -124,25 +125,14 @@ export default function DashboardPage() {
     }
   }, [router])
 
-  const filteredProjects = useMemo(() => {
-    const normalizedQuery = searchQuery.trim().toLowerCase()
-
-    if (!normalizedQuery) {
-      return projects
-    }
-
-    return projects.filter((project) => {
-      const searchableText = [
-        project.title,
-        project.genre,
-        project.description,
-      ]
-        .join(" ")
-        .toLowerCase()
-
-      return searchableText.includes(normalizedQuery)
-    })
-  }, [projects, searchQuery])
+  const filteredProjects = useMemo(
+    () =>
+      searchEntities(projects, searchQuery, (project) => ({
+        name: project.title,
+        content: [project.genre, project.description],
+      })),
+    [projects, searchQuery],
+  )
 
   const handleCreateSuccess = (project: ProjectResponse) => {
     setProjects((currentProjects) => [project, ...currentProjects])
@@ -174,7 +164,7 @@ export default function DashboardPage() {
     } catch (error) {
       console.error("Error deleting project:", error)
       setErrorMessage(
-        `No se pudo eliminar “${projectToDelete.title}”. Inténtalo nuevamente.`,
+        `No se pudo eliminar “${projectToDelete.title}”. Intentalo nuevamente.`,
       )
     } finally {
       setIsDeleting(false)

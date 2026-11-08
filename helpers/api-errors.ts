@@ -1,3 +1,4 @@
+import { isLikelyEnglish } from "@/helpers/api-error-text"
 import {
   ACCOUNT_DELETED_MESSAGE,
   ApiError,
@@ -134,13 +135,13 @@ export function loginErrorMessage(error: unknown): string {
     case "auth/user-not-found":
       return CREDENCIALES_INVALIDAS
     case "auth/invalid-email":
-      return "Introduce un email con formato válido."
+      return "Ingresá un email con formato válido."
     case "auth/too-many-requests":
       return "Demasiados intentos. Esperá unos minutos y volvé a intentar."
     case "auth/network-request-failed":
       return SIN_CONEXION
     case "auth/user-disabled":
-      return "Esta cuenta fue deshabilitada. Si crees que es un error, escribinos."
+      return "Esta cuenta fue deshabilitada. Si creés que es un error, escribinos."
     default:
       break
   }
@@ -181,7 +182,7 @@ export function registerErrorMessage(error: unknown): string {
     case "auth/email-already-in-use":
       return "Ya existe una cuenta con ese email. Probá iniciar sesión o usá otro correo."
     case "auth/invalid-email":
-      return "Introduce un email con formato válido."
+      return "Ingresá un email con formato válido."
     case "auth/weak-password":
       return "La contraseña debe tener al menos 8 caracteres."
     case "auth/operation-not-allowed":
@@ -253,4 +254,32 @@ export function deleteAccountErrorMessage(error: unknown): string {
   const message = error instanceof Error ? error.message.trim() : ""
 
   return message || "No pudimos eliminar la cuenta. Intentá nuevamente."
+}
+
+/**
+ * Texto de un error listo para mostrar. Los errores del backend conocidos se
+ * traducen; los mensajes técnicos en inglés se reemplazan por `fallback`; un
+ * mensaje que ya está en español (propio de la app o del servidor) se conserva.
+ */
+export function userFacingError(error: unknown, fallback: string): string {
+  if (
+    error instanceof ApiError ||
+    error instanceof BackendSyncError ||
+    error instanceof EmailNotVerifiedError ||
+    error instanceof SessionUnavailableError
+  ) {
+    const mapped = messageForApiError(error, "")
+    if (mapped) return mapped
+    if (error instanceof ApiError) {
+      const message = error.message.trim()
+      return message && !isLikelyEnglish(message) ? message : fallback
+    }
+    return fallback
+  }
+
+  if (error instanceof Error) {
+    const message = error.message.trim()
+    if (message && !isLikelyEnglish(message)) return message
+  }
+  return fallback
 }

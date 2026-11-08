@@ -17,6 +17,7 @@ import {
   groupMatchesByScene,
   replaceEditorSearchMatches,
 } from "@/lib/editor-search"
+import { userFacingError } from "@/helpers/api-errors"
 
 type ReplaceScope = "one" | "scene" | "all"
 
@@ -312,9 +313,7 @@ export function SearchReplacePanel({
       setFeedback({
         tone: "error",
         message:
-          error instanceof Error
-            ? error.message
-            : "No se pudieron preparar los cambios.",
+          userFacingError(error, "No se pudieron preparar los cambios."),
       })
     } finally {
       setIsReplacing(false)
@@ -339,7 +338,7 @@ export function SearchReplacePanel({
             <h2>Buscar y reemplazar</h2>
           </div>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Busca en el contenido de todas las escenas del proyecto.
+            Buscá en el contenido de todas las escenas del proyecto.
           </p>
           <Button
             type="button"

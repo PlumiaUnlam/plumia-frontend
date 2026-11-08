@@ -1,3 +1,4 @@
+import { errorTextFromBody } from "@/helpers/api-error-text"
 import { auth } from "@/lib/firebase"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "/api"
@@ -139,11 +140,7 @@ async function request<T>(
   }
 
   if (!response.ok) {
-    let errorText = await response.text()
-    try {
-      const parsed = JSON.parse(errorText)
-      if (parsed.message) errorText = parsed.message
-    } catch {}
+    const errorText = errorTextFromBody(await response.text())
 
     // No todo 403 significa "mail sin verificar": el módulo de lectura
     // compartida también responde 403 por permisos, así que hay que matchear

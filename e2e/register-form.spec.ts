@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test"
 
-test.describe("HU-44 CA-138: formulario de registro", () => {
+test.describe("HU-44 CA-137: formulario de registro", () => {
   test.use({ storageState: { cookies: [], origins: [] } })
 
   test.beforeEach(async ({ page }) => {

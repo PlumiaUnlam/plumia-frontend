@@ -60,6 +60,7 @@ type StartNumberDialogProps = {
   onOpenChange: (open: boolean) => void
   onValueChange: (value: string) => void
   onApply: () => void
+  onCloseAutoFocus?: (event: Event) => void
 }
 
 type OrderedListActionsProps = {
@@ -118,6 +119,7 @@ function StartNumberDialog({
   onOpenChange,
   onValueChange,
   onApply,
+  onCloseAutoFocus,
 }: Readonly<StartNumberDialogProps>) {
   return (
     <FormDialog
@@ -128,6 +130,7 @@ function StartNumberDialog({
       size="sm"
       submitLabel="Aplicar"
       onSubmit={onApply}
+      onCloseAutoFocus={onCloseAutoFocus}
     >
       <div className="grid gap-2">
         <Label htmlFor={inputId} className="text-sm font-medium">
@@ -155,10 +158,14 @@ export function ListNumberingActionsButton({
   const [startDialogOpen, setStartDialogOpen] = useState(false)
   const [startValue, setStartValue] = useState("1")
   const orderedListActive = editor.isActive("orderedList")
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const dialogAfterMenuRef = useRef(false)
 
+  // El modal se abre cuando el menú terminó de cerrarse: si se abre antes, el menú todavía
+  // retiene el foco y el campo del modal lo pierde.
   const openStartDialog = () => {
     setStartValue(String(getOrderedListStart(editor)))
-    setStartDialogOpen(true)
+    dialogAfterMenuRef.current = true
     setMenuOpen(false)
   }
 
@@ -170,6 +177,7 @@ export function ListNumberingActionsButton({
       <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
         <DropdownMenuTrigger asChild>
           <Button
+            ref={triggerRef}
             type="button"
             size="icon-sm"
             variant="ghost"
@@ -182,7 +190,16 @@ export function ListNumberingActionsButton({
             <ListRestart className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className={`w-64 ${menuClass}`}>
+        <DropdownMenuContent
+          align="start"
+          className={`w-64 ${menuClass}`}
+          onCloseAutoFocus={(event) => {
+            if (!dialogAfterMenuRef.current) return
+            dialogAfterMenuRef.current = false
+            event.preventDefault()
+            setStartDialogOpen(true)
+          }}
+        >
           <OrderedListActions
             editor={editor}
             itemClassName={itemClass}
@@ -198,6 +215,10 @@ export function ListNumberingActionsButton({
         onOpenChange={setStartDialogOpen}
         onValueChange={setStartValue}
         onApply={applyStartValue}
+        onCloseAutoFocus={(event) => {
+          event.preventDefault()
+          triggerRef.current?.focus()
+        }}
       />
     </>
   )
@@ -319,6 +340,8 @@ export function ListNumberingMenu({ editor }: Readonly<ListNumberingMenuProps>) 
     }
   }, [editor])
 
+  const dialogAfterMenuRef = useRef(false)
+
   const closeMenu = () => {
     setMenuOpen(false)
     selectedListItemRef.current?.classList.remove("list-marker-selected")
@@ -327,7 +350,7 @@ export function ListNumberingMenu({ editor }: Readonly<ListNumberingMenuProps>) 
 
   const openStartDialog = () => {
     setStartValue(String(getOrderedListStart(editor)))
-    setStartDialogOpen(true)
+    dialogAfterMenuRef.current = true
     closeMenu()
   }
 
@@ -361,7 +384,13 @@ export function ListNumberingMenu({ editor }: Readonly<ListNumberingMenuProps>) 
         </DropdownMenuTrigger>
         <DropdownMenuContent
           align="start"
-          className={`w-[min(34rem,calc(100vw-1rem))] max-w-[calc(100vw-1rem)] max-h-[min(75vh,38rem)] overflow-x-hidden overflow-y-auto p-2 ${menuClass}`}
+          className={`w-[min(34rem,calc(100vw-1rem))] max-w-[calc(100vw-1rem)] max-h-[min(75vh,38rem,var(--radix-dropdown-menu-content-available-height,100vh))] overflow-x-hidden overflow-y-auto p-2 ${menuClass}`}
+          onCloseAutoFocus={(event) => {
+            if (!dialogAfterMenuRef.current) return
+            dialogAfterMenuRef.current = false
+            event.preventDefault()
+            setStartDialogOpen(true)
+          }}
         >
           {markerKind === "bullet" ? (
             <>
@@ -390,6 +419,10 @@ export function ListNumberingMenu({ editor }: Readonly<ListNumberingMenuProps>) 
         onOpenChange={setStartDialogOpen}
         onValueChange={setStartValue}
         onApply={applyStartValue}
+        onCloseAutoFocus={(event) => {
+          event.preventDefault()
+          editor.commands.focus()
+        }}
       />
     </>
   )

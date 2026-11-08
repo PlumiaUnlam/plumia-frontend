@@ -148,7 +148,7 @@ test("HU-44 CA-138: iniciar sesión y llegar al panel de proyectos", async ({
 
 // /verify-email redirige al dashboard apenas detecta emailVerified, así que los
 // tests de ese flujo necesitan una sesión persistida como NO verificada.
-test("HU-44 CA-139: guardar una sesión de prueba sin verificar", async ({
+test("preparar una sesión de prueba con el correo sin verificar", async ({
   page,
 }) => {
   await installAuthRoutes(page, false)

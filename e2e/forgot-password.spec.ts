@@ -5,7 +5,7 @@ import { expect, test } from "@playwright/test"
 // patrón matchea el host en vez de depender del valor de la env var.
 const AUTH_WORKER_PATTERN = /:\/\/[^/]*api-auth\.plumia\.com\.ar(\/|$)/
 
-test.describe("HU-44 CA-139: recuperación de contraseña", () => {
+test.describe("HU-48 CA-149: solicitar el restablecimiento de contraseña", () => {
   test.use({ storageState: { cookies: [], origins: [] } })
 
   test.beforeEach(async ({ page }) => {
@@ -47,7 +47,7 @@ test.describe("HU-44 CA-139: recuperación de contraseña", () => {
     await page.getByRole("button", { name: "Enviar enlace" }).click()
 
     await expect(
-      page.getByText("Introduce un email con formato válido.", { exact: true }),
+      page.getByText("Ingresá un email con formato válido.", { exact: true }),
     ).toBeVisible()
     await expect(page).toHaveURL(/\/forgot-password$/)
   })

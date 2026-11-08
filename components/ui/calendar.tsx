@@ -72,10 +72,11 @@ function Calendar({
   buttonVariant = "ghost",
   locale,
   formatters,
+  labels,
   components,
   ...props
 }: React.ComponentProps<typeof DayPicker> & {
-  buttonVariant?: React.ComponentProps<typeof Button>["variant"]
+  buttonVariant?: NonNullable<React.ComponentProps<typeof Button>["variant"]>
 }) {
   const defaultClassNames = getDefaultClassNames()
 
@@ -91,6 +92,21 @@ function Calendar({
       )}
       captionLayout={captionLayout}
       locale={locale}
+      labels={{
+        labelPrevious: () => "Ir al mes anterior",
+        labelNext: () => "Ir al mes siguiente",
+        labelMonthDropdown: () => "Mes",
+        labelYearDropdown: () => "Año",
+        labelNav: () => "Navegación del calendario",
+        labelGrid: (date, options, dateLib) =>
+          (dateLib ?? undefined)?.format(date, "LLLL yyyy", options) ?? date.toLocaleDateString(locale?.code),
+        labelDayButton: (date, modifiers, options, dateLib) =>
+          `${modifiers.today ? "Hoy, " : ""}${
+            (dateLib ?? undefined)?.format(date, "PPPP", options) ?? date.toLocaleDateString(locale?.code)
+          }${modifiers.selected ? ", seleccionado" : ""}`,
+        labelWeekNumber: (weekNumber) => `Semana ${weekNumber}`,
+        ...labels,
+      }}
       formatters={{
         formatMonthDropdown: (date) =>
           date.toLocaleString(locale?.code, { month: "short" }),

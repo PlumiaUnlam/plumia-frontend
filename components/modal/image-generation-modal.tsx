@@ -349,7 +349,7 @@ export function ImageGenerationModal({
     !visualBase &&
     !form.visualIdentity?.trim();
 
-  const submit = async (event: React.FormEvent<HTMLFormElement>) => {
+  const submit = async (event: React.SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSubmitting(true);
     setError(null);

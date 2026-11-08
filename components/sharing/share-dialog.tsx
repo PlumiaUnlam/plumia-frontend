@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState, type FormEvent } from "react"
+import { useCallback, useEffect, useState, type SubmitEvent } from "react"
 import {
   AlertCircle,
   Check,
@@ -112,7 +112,7 @@ export function ShareDialog({
     onOpenChange(nextOpen)
   }
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault()
     const normalizedEmail = email.trim().toLowerCase()
     if (!isEmail(normalizedEmail)) {

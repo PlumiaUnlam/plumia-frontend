@@ -100,6 +100,22 @@ function getActiveSceneDetails(books: SidebarBook[], activeSceneId: string | nul
   return null
 }
 
+/**
+ * Un pedido de abrir una pestaña del panel derecho (por ejemplo desde el chat) necesita el
+ * panel visible: sale del modo Zen y, si pide revisión, pasa al modo Revisión.
+ */
+function useWritingModeForPanelRequest(
+  writingMode: WritingMode,
+  setWritingMode: (mode: WritingMode) => void,
+) {
+  const request = useEditorStore((state) => state.rightPanelRequest)
+  const [handledToken, setHandledToken] = useState(0)
+  if (!request || request.token === handledToken) return
+  setHandledToken(request.token)
+  if (request.review) setWritingMode("review")
+  else if (writingMode === "zen") setWritingMode("creation")
+}
+
 type EditorLayoutProps = {
   projectId: string
 }
@@ -114,6 +130,7 @@ export function EditorLayout({ projectId }: Readonly<EditorLayoutProps>) {
   const [loadedProjectId, setLoadedProjectId] = useState<string | null>(null)
   const [projectsError, setProjectsError] = useState<string | null>(null)
   const [writingMode, setWritingMode] = useState<WritingMode>("review")
+  useWritingModeForPanelRequest(writingMode, setWritingMode)
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false)
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false)
   const [isSearchPanelOpen, setIsSearchPanelOpen] = useState(false)

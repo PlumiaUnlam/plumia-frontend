@@ -1,13 +1,14 @@
 "use client"
 
 import Image from "next/image"
-import { useRouter } from "next/navigation"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
+import { toast } from "sonner"
 import {
   useEffect,
   useCallback,
   useRef,
   useState,
-  type FormEvent,
+  type SubmitEvent,
 } from "react"
 import {
   BookOpen,
@@ -38,13 +39,6 @@ import {
 } from "lucide-react"
 
 import { ConfirmDialog } from "@/components/modal/confirm-dialog"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import {
   Select,
@@ -62,8 +56,10 @@ import {
   updateChatThread,
 } from "@/services/chat.service"
 import { useVoiceTranscriber } from "@/hooks/use-voice-transcriber"
+import { resolveNavigationFeedback, rightPanelTabFor } from "@/lib/chat-navigation-feedback"
 import { useEditorStore } from "@/stores/editor.store"
 import type { ChatMessage, ChatSource, ChatThread } from "@/types/chat"
+import { FormDialog } from "@/components/modal/form-dialog"
 
 type ChatPanelProps = {
   readonly projectId: string
@@ -267,7 +263,9 @@ export function ChatPanel({
   useEffect(() => {
     if (!isFullscreen) return
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setIsFullscreen(false)
+      if (event.key !== "Escape") return
+      if (document.querySelector('[role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"]')) return
+      setIsFullscreen(false)
     }
     const previousOverflow = document.body.style.overflow
     document.body.style.overflow = "hidden"
@@ -353,7 +351,7 @@ export function ChatPanel({
     [isSending, isVoiceBusy, projectId, threadId],
   )
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault()
     void sendContent(draft.trim())
   }
@@ -706,7 +704,7 @@ function ChatComposer({
   }>
   readonly selectedAudioInputId: string
   readonly onDraftChange: (value: string) => void
-  readonly onSubmit: (event: FormEvent<HTMLFormElement>) => void
+  readonly onSubmit: (event: SubmitEvent<HTMLFormElement>) => void
   readonly onRetry: () => void
   readonly onToggleVoiceInput: () => void
   readonly onCancelSending: () => void
@@ -756,7 +754,7 @@ function ChatComposer({
             disabled={isSending}
             aria-label="Pregunta sobre tu obra o PlumIA"
             placeholder="Preguntá sobre tu obra o PlumIA..."
-            className={`max-h-28 min-h-9 w-full resize-none overflow-y-auto bg-transparent px-1 py-1 leading-relaxed text-foreground outline-none placeholder:text-muted-foreground [scrollbar-width:none] [&::-webkit-scrollbar]:hidden disabled:opacity-60 ${isFullscreen ? "text-base" : "text-sm"}`}
+            className={`max-h-28 min-h-9 w-full resize-none overflow-y-auto bg-transparent px-1 py-1 leading-relaxed text-foreground outline-none placeholder:text-muted-foreground [scrollbar-width:none] [&::-webkit-scrollbar]:hidden disabled:opacity-60 ${isFullscreen ? "text-base" : "text-xs"}`}
           />
           {isRecording && (
             <div className="mt-2 flex items-center gap-2 text-[10px] text-muted-foreground">
@@ -942,10 +940,13 @@ function ChatBubble({
 }) {
   const isUser = message.role === "user"
   const actions = message.actions ?? []
-  const [sourcesExpanded, setSourcesExpanded] = useState(true)
+  const [sourcesExpanded, setSourcesExpanded] = useState(false)
   const [allSourcesOpen, setAllSourcesOpen] = useState(false)
-  const primarySources = message.sources.slice(0, 3)
-  const additionalSources = message.sources.length - primarySources.length
+  // Las respuestas sobre cómo usar PlumIA no muestran el texto crudo de la documentación:
+  // se resuelven con el acceso directo. Solo se listan fuentes de la obra.
+  const workSources = message.sources.filter((source) => source.kind !== "application_help")
+  const primarySources = workSources.slice(0, 3)
+  const additionalSources = workSources.length - primarySources.length
   return (
     <article className={isUser ? "ml-8" : "mr-3"}>
       <div className={`flex items-start gap-2 ${isUser ? "justify-end" : ""}`}>
@@ -955,7 +956,7 @@ function ChatBubble({
           </div>
         )}
         <div
-          className={`min-w-0 rounded-2xl px-3 py-2.5 leading-relaxed whitespace-pre-wrap ${isFullscreen ? "text-base" : "text-sm"} ${
+          className={`min-w-0 rounded-2xl px-3 py-2.5 leading-relaxed whitespace-pre-wrap ${isFullscreen ? "text-base" : "text-xs"} ${
             isUser
               ? "rounded-br-md bg-primary text-primary-foreground"
               : "rounded-tl-md bg-muted text-foreground"
@@ -978,33 +979,33 @@ function ChatBubble({
           ))}
         </div>
       )}
-      {!isUser && message.sources.length > 0 && (
+      {!isUser && workSources.length > 0 && (
         <div className="ml-8 mt-2 space-y-1.5">
-          <div className="flex items-center justify-between gap-2 px-1">
-            <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+          <button
+            type="button"
+            onClick={() => setSourcesExpanded((expanded) => !expanded)}
+            aria-expanded={sourcesExpanded}
+            aria-label={
+              sourcesExpanded
+                ? "Ocultar referencias utilizadas"
+                : "Mostrar referencias utilizadas"
+            }
+            className="flex w-full items-center justify-between gap-2 rounded-lg px-1 py-1 text-left transition-colors hover:bg-primary/5"
+          >
+            <span className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
               Referencias utilizadas{" "}
               <span className="ml-1 font-normal text-muted-foreground/70">
-                · {message.sources.length}
+                · {workSources.length}
               </span>
             </span>
-            <button
-              type="button"
-              onClick={() => setSourcesExpanded((expanded) => !expanded)}
-              aria-expanded={sourcesExpanded}
-              aria-label={
-                sourcesExpanded
-                  ? "Ocultar referencias utilizadas"
-                  : "Mostrar referencias utilizadas"
-              }
-              className="flex size-5 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
-            >
+            <span className="flex size-5 shrink-0 items-center justify-center rounded-md text-muted-foreground">
               {sourcesExpanded ? (
                 <ChevronUp className="size-3.5" />
               ) : (
                 <ChevronDown className="size-3.5" />
               )}
-            </button>
-          </div>
+            </span>
+          </button>
           {sourcesExpanded && (
             <div className="space-y-1.5">
               {primarySources.map((source, index) => (
@@ -1025,7 +1026,7 @@ function ChatBubble({
                 <button
                   type="button"
                   onClick={() => setAllSourcesOpen(true)}
-                  className="w-full rounded-xl border border-border px-3 py-2 text-left text-xs font-medium text-primary transition-colors hover:bg-primary/5"
+                  className="w-full rounded-lg border border-border px-3 py-1.5 text-left text-[11px] font-medium text-primary transition-colors hover:bg-primary/5"
                 >
                   +{additionalSources} fuentes revisadas · Ver todas
                 </button>
@@ -1034,34 +1035,32 @@ function ChatBubble({
           )}
         </div>
       )}
-      <Dialog open={allSourcesOpen} onOpenChange={setAllSourcesOpen}>
-        <DialogContent size="md" className="max-h-[85dvh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Fuentes revisadas</DialogTitle>
-            <DialogDescription>
-              Las fuentes citadas aparecen primero. También podés abrir las demás para revisar el contexto.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2">
-            {message.sources.map((source, index) => (
-              <SourceCard
-                key={source.id}
-                source={source}
-                citationNumber={index + 1}
-                projectId={projectId}
-                onBeforeNavigation={() => {
-                  setAllSourcesOpen(false)
-                  onBeforeSourceNavigation()
-                }}
-                imageUrl={
-                  (source.entityId && primaryImageUrls[source.entityId]) ||
-                  source.imageUrl || undefined
-                }
-              />
-            ))}
-          </div>
-        </DialogContent>
-      </Dialog>
+      <FormDialog
+        open={allSourcesOpen}
+        onOpenChange={setAllSourcesOpen}
+        title="Fuentes revisadas"
+        description="Las fuentes citadas aparecen primero. También podés abrir las demás para revisar el contexto."
+        size="md"
+      >
+      <div className="space-y-2">
+        {workSources.map((source, index) => (
+          <SourceCard
+            key={source.id}
+            source={source}
+            citationNumber={index + 1}
+            projectId={projectId}
+            onBeforeNavigation={() => {
+              setAllSourcesOpen(false)
+              onBeforeSourceNavigation()
+            }}
+            imageUrl={
+              (source.entityId && primaryImageUrls[source.entityId]) ||
+              source.imageUrl || undefined
+            }
+          />
+        ))}
+      </div>
+      </FormDialog>
     </article>
   )
 }
@@ -1074,15 +1073,46 @@ function NavigationActionCard({
   readonly onBeforeNavigation: () => void
 }) {
   const router = useRouter()
+  const pathname = usePathname()
+  const search = useSearchParams().toString()
+  const requestToolbarReveal = useEditorStore((state) => state.requestToolbarReveal)
+  const requestHistoryReveal = useEditorStore((state) => state.requestHistoryReveal)
+  const requestRightPanelTab = useEditorStore((state) => state.requestRightPanelTab)
+
+  const go = () => {
+    onBeforeNavigation()
+    const target = resolveNavigationFeedback(action, pathname, search)
+    if (target.kind === "reveal-history") {
+      requestHistoryReveal()
+      toast.success(target.message)
+      return
+    }
+    if (target.kind === "reveal-toolbar") {
+      requestToolbarReveal()
+      toast.success(target.message)
+      return
+    }
+    if (target.kind === "reveal-panel") {
+      requestRightPanelTab(target.tab, action.section === "editor-right-review")
+      toast.success(target.message)
+      return
+    }
+    if (target.kind === "already-here") {
+      toast.info(target.message)
+      return
+    }
+    // Si el destino es una pestaña del editor, el panel la abre al cargarse.
+    const panelTab = rightPanelTabFor(action.section)
+    if (panelTab) requestRightPanelTab(panelTab, action.section === "editor-right-review")
+    if (action.section === "editor-history") requestHistoryReveal()
+    router.push(action.route)
+  }
 
   return (
     <button
       type="button"
-      onClick={() => {
-        onBeforeNavigation()
-        router.push(action.route)
-      }}
-      className="group flex w-full items-center gap-2 rounded-xl border border-primary/20 bg-primary/5 p-2 text-left transition-colors hover:border-primary/40 hover:bg-primary/10"
+      onClick={go}
+      className="group flex w-full items-center gap-3 rounded-xl border border-primary/20 bg-primary/5 px-3 py-2.5 text-left transition-colors hover:border-primary/40 hover:bg-primary/10"
     >
       <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
         <Waypoints className="size-3.5" />
@@ -1090,14 +1120,14 @@ function NavigationActionCard({
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
           <span className="truncate">{action.label}</span>
-          <ExternalLink className="size-2.5 shrink-0 text-primary opacity-0 transition-opacity group-hover:opacity-100" />
         </span>
         <span className="mt-0.5 block text-xs text-muted-foreground">
           {action.description}
         </span>
       </span>
-      <span className="shrink-0 text-xs font-semibold text-primary">
+      <span className="flex shrink-0 items-center gap-1 pr-0.5 text-xs font-semibold text-primary">
         Ir ahí
+        <ExternalLink className="size-3" aria-hidden />
       </span>
     </button>
   )
@@ -1535,7 +1565,7 @@ function SourceCard({
       type="button"
       disabled={!canNavigate}
       onClick={navigate}
-      className="group flex w-full items-start gap-2 rounded-xl border border-border bg-background p-2 text-left transition-colors enabled:hover:border-primary/30 enabled:hover:bg-primary/5 disabled:cursor-default"
+      className="group flex w-full items-center gap-2 rounded-lg border border-border bg-background px-2 py-1.5 text-left transition-colors enabled:hover:border-primary/30 enabled:hover:bg-primary/5 disabled:cursor-default"
     >
       <SourceCardContent
         source={source}
@@ -1567,14 +1597,14 @@ function SourceCardContent({
         <Image
           src={imageUrl}
           alt={wikiDetails?.name ?? ""}
-          width={wikiDetails ? 44 : 32}
-          height={wikiDetails ? 44 : 32}
+          width={28}
+          height={28}
           unoptimized
-          className={`${wikiDetails ? "size-11 rounded-xl" : "size-8 rounded-lg"} shrink-0 object-cover ring-1 ring-black/5`}
+          className={`size-7 rounded-lg shrink-0 object-cover ring-1 ring-black/5`}
         />
       ) : (
         <div
-          className={`${wikiDetails ? "size-11 rounded-xl" : "size-7 rounded-lg"} flex shrink-0 items-center justify-center bg-primary/10 text-primary`}
+          className={`size-7 rounded-lg flex shrink-0 items-center justify-center bg-primary/10 text-primary`}
         >
           {getSourceIcon(source.kind)}
         </div>
@@ -1597,20 +1627,15 @@ function SourceCardContent({
         </span>
         {wikiDetails ? (
           <>
-            <span className="mt-0.5 inline-flex rounded-full bg-primary/10 px-1.5 py-0.5 text-[8px] font-medium text-primary">
+            <span className="ml-1 inline-flex shrink-0 rounded-full bg-primary/10 px-1.5 py-px text-[9px] font-medium text-primary">
               {wikiDetails.entityType}
             </span>
-            <span className="chat-source-description mt-1 line-clamp-2 block leading-relaxed text-muted-foreground">
+            <span className="chat-source-description mt-0.5 line-clamp-1 leading-snug text-muted-foreground">
               {wikiDetails.description}
             </span>
-            {wikiDetails.aliases.length > 0 && (
-              <span className="chat-source-description mt-1 block truncate text-muted-foreground/80">
-                También: {wikiDetails.aliases.slice(0, 3).join(" · ")}
-              </span>
-            )}
           </>
         ) : (
-          <span className="chat-source-description mt-0.5 line-clamp-2 block leading-relaxed text-muted-foreground">
+          <span className="chat-source-description mt-0.5 line-clamp-1 leading-snug text-muted-foreground">
             {source.excerpt}
           </span>
         )}

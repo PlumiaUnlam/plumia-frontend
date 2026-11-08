@@ -20,7 +20,15 @@
     "test:scene-notes": "node --import tsx scripts/scene-notes.test.mts",
     "test:mobile-project": "node --import tsx scripts/mobile-project.test.mts",
     "test:imports": "node --import tsx scripts/imports.test.mts",
+    "test:api-error-text": "node --import tsx scripts/api-error-text.test.mts",
+    "test:zen-toolbar": "node --import tsx scripts/zen-toolbar.test.mts",
+    "test:entity-search": "node --import tsx scripts/entity-search.test.mts",
+    "test:profile-submit": "node --import tsx scripts/profile-submit.test.mts",
+    "test:unit": "node scripts/run-unit-tests.mjs",
+    "test:coverage": "c8 node scripts/run-unit-tests.mjs",
     "pretest:e2e": "NEXT_PUBLIC_API_URL=http://127.0.0.1:3000 API_URL=http://127.0.0.1:3000 pnpm build",
+    "pretest:ui-audit": "NEXT_PUBLIC_API_URL=http://127.0.0.1:3000 API_URL=http://127.0.0.1:3000 pnpm build",
+    "test:ui-audit": "UI_AUDIT=1 playwright test e2e/ui-audit.spec.ts --project=chromium",
     "test:e2e": "playwright test"
   },
   "dependencies": {
@@ -71,6 +79,7 @@
     "@types/nspell": "^2.1.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "c8": "^12.0.0",
     "dictionary-en": "^4.0.0",
     "dictionary-es": "^4.0.0",
     "eslint": "^9",

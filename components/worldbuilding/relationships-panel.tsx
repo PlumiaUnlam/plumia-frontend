@@ -304,7 +304,7 @@ export function RelationshipsPanel({
         <div className="space-y-2">
           <Users className="mx-auto size-12" />
           <h2 className="text-lg font-semibold">No hay entidades</h2>
-          <p>Crea entidades en la wiki para construir el mapa de relaciones.</p>
+          <p>Creá entidades en la wiki para construir el mapa de relaciones.</p>
         </div>
       </div>
     );
@@ -312,7 +312,7 @@ export function RelationshipsPanel({
 
   return (
     <div className="flex h-full min-h-0 w-full overflow-hidden">
-      <aside className="flex h-full w-80 shrink-0 flex-col overflow-hidden border-r border-border bg-muted/30">
+      <aside className="flex h-full w-80 shrink-0 flex-col overflow-x-hidden overflow-y-auto border-r border-border bg-muted/30">
         <div className="space-y-3 border-b border-border bg-card/50 p-3">
           {scenes.length > 0 && (
             <label className="grid gap-1 text-xs font-medium text-muted-foreground">
@@ -382,7 +382,7 @@ export function RelationshipsPanel({
           </div>
         </div>
 
-        <ScrollArea className="min-h-0 flex-1 p-3">
+        <ScrollArea className="min-h-48 flex-1 p-3">
           <ItemGroup className="min-w-0">
             {filteredRelationships.length > 0 ? (
               filteredRelationships.map((relationship) => {
@@ -440,7 +440,7 @@ export function RelationshipsPanel({
               <div className="rounded-lg border border-dashed border-border bg-background p-4 text-sm text-muted-foreground">
                 {visibleRelationships.length > 0
                   ? "No hay relaciones para los filtros seleccionados."
-                  : "Crea una relación para conectar entidades en el grafo."}
+                  : "Creá una relación para conectar entidades en el grafo."}
               </div>
             )}
           </ItemGroup>

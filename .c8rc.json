@@ -1,0 +1,9 @@
+{
+  "all": true,
+  "src": ["app", "components", "helpers", "lib"],
+  "extension": [".ts", ".tsx", ".mts"],
+  "include": ["app/**", "components/**", "helpers/**", "lib/**"],
+  "exclude": ["**/*.d.ts", "**/*.test.*", "**/*.spec.*", "**/node_modules/**", "**/.next/**"],
+  "reporter": ["lcov", "text-summary"],
+  "reportsDir": "coverage"
+}

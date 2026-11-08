@@ -159,7 +159,7 @@ const respondNetworkError: WorkerResponder = async (route) => {
   await route.abort("failed")
 }
 
-test.describe("HU-44 CA-139: verificación de email", () => {
+test.describe("HU-44 CA-137: verificación de email", () => {
   // /verify-email redirige al dashboard en cuanto detecta emailVerified, así
   // que usamos la sesión que auth.setup.ts guarda como NO verificada.
   test.use({ storageState: "./test-results/.auth/unverified-user.json" })

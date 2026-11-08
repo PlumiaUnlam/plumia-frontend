@@ -31,7 +31,7 @@ function ButtonGroup({
       data-slot="button-group"
       data-orientation={orientation}
       className={cn(
-        "m-0 min-w-0 border-0 p-0",
+        "mx-0 min-w-0 border-0 p-0",
         buttonGroupVariants({ orientation }),
         className
       )}

@@ -5,6 +5,7 @@ import { Dialog as DialogPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { RestoreFocusMarker, useRestoreFocus } from "@/components/ui/use-restore-focus"
 import { XIcon } from "lucide-react"
 
 function Dialog({
@@ -45,6 +46,55 @@ function DialogOverlay({
       {...props}
     />
   )
+}
+
+/**
+ * Los combobox de base-ui escuchan Escape igual que Radix: sin esto un solo
+ * Escape cerraría la lista y también el modal que la contiene.
+ */
+function hasOpenComboboxPopup(): boolean {
+  return (
+    document.querySelector(
+      '[data-slot="combobox-content"]:not([data-closed]):not([data-ending-style])',
+    ) !== null
+  )
+}
+
+const POPUP_SELECTOR = [
+  '[role="listbox"]',
+  '[role="menu"]',
+  '[data-slot="select-content"]',
+  '[data-slot="combobox-content"]',
+  "[data-radix-popper-content-wrapper]",
+].join(",")
+
+/** Ventana (ms) en que, tras tocar con una lista abierta, el modal ignora clics/foco "afuera". */
+const POPUP_OUTSIDE_GRACE_MS = 450
+
+/**
+ * Con una lista desplegable abierta, el primer toque afuera debe cerrar solo la
+ * lista. Radix deja sin eventos al contenido del modal mientras la lista está
+ * abierta, así que el toque cae en el fondo y, al cerrarse la lista, el foco
+ * "sale" del modal y Radix lo cerraba también.
+ */
+function PopupInteractionGuard({
+  until,
+}: Readonly<{ until: React.RefObject<number> }>) {
+  React.useEffect(() => {
+    const mark = () => {
+      if (document.querySelector(POPUP_SELECTOR)) {
+        until.current = Date.now() + POPUP_OUTSIDE_GRACE_MS
+      }
+    }
+    document.addEventListener("pointerdown", mark, true)
+    document.addEventListener("keydown", mark, true)
+    return () => {
+      document.removeEventListener("pointerdown", mark, true)
+      document.removeEventListener("keydown", mark, true)
+    }
+  }, [until])
+
+  return null
 }
 
 /**
@@ -103,6 +153,10 @@ function DialogContent({
   size = "default",
   layout = "default",
   layer,
+  onEscapeKeyDown,
+  onInteractOutside,
+  onOpenAutoFocus,
+  onCloseAutoFocus,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
@@ -117,6 +171,8 @@ function DialogContent({
 }) {
   const sectioned = layout === "sectioned"
   const sizeClassName = getSizeClassName(size, sectioned)
+  const restoreFocus = useRestoreFocus({ onOpenAutoFocus, onCloseAutoFocus })
+  const popupGraceUntil = React.useRef(0)
 
   return (
     <DialogPortal>
@@ -132,8 +188,22 @@ function DialogContent({
           layer && LAYER_CLASS[layer],
           className
         )}
+        onEscapeKeyDown={(event) => {
+          if (hasOpenComboboxPopup()) event.preventDefault()
+          onEscapeKeyDown?.(event)
+        }}
+        onInteractOutside={(event) => {
+          const target = event.target
+          const insidePopup = target instanceof Element && target.closest(POPUP_SELECTOR) !== null
+          if (insidePopup || Date.now() < popupGraceUntil.current) event.preventDefault()
+          onInteractOutside?.(event)
+        }}
+        onOpenAutoFocus={restoreFocus.onOpenAutoFocus}
+        onCloseAutoFocus={restoreFocus.onCloseAutoFocus}
         {...props}
       >
+        <RestoreFocusMarker previouslyFocusedRef={restoreFocus.previouslyFocused} />
+        <PopupInteractionGuard until={popupGraceUntil} />
         {children}
         {showCloseButton && (
           <DialogPrimitive.Close data-slot="dialog-close" asChild>

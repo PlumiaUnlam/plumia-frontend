@@ -29,6 +29,8 @@ type ConfirmDialogProps = {
   /** Mientras es true el modal no se puede cerrar y el botón muestra un spinner. */
   loading?: boolean
   error?: ReactNode
+  /** Deshabilita el botón de confirmar (ej. hasta completar un campo). */
+  confirmDisabled?: boolean
   /** Contenido extra entre la descripción y los botones. */
   children?: ReactNode
   onConfirm: () => void | Promise<void>
@@ -49,6 +51,7 @@ export function ConfirmDialog({
   tone = "destructive",
   loading = false,
   error,
+  confirmDisabled = false,
   children,
   onConfirm,
 }: Readonly<ConfirmDialogProps>) {
@@ -79,7 +82,7 @@ export function ConfirmDialog({
           ) : null}
           <AlertDialogAction
             variant={tone === "destructive" ? "destructive" : "default"}
-            disabled={loading}
+            disabled={loading || confirmDisabled}
             onClick={(event) => {
               // Evita que Radix cierre el modal antes de que termine la acción.
               event.preventDefault()

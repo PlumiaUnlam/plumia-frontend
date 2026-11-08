@@ -1,22 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { AlertTriangle, Search } from "lucide-react";
+import { Search } from "lucide-react";
 
 import { useAuditAlertHistory } from "@/hooks/use-audit-alerts";
 import { AuditAlertCard } from "@/components/wiki/audit-alert-card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogBody,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import type { AuditAlert } from "@/types/audit-alert";
+import { FormDialog } from "@/components/modal/form-dialog"
 
 type HistoryStatusFilter = "ALL" | "DISMISSED" | "RESOLVED";
 type HistorySeverityFilter = "ALL" | AuditAlert["severity"];
@@ -103,115 +93,93 @@ export function AuditAlertHistoryDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        size="lg"
-        className="flex max-h-[min(90dvh,850px)] flex-col gap-0 overflow-hidden border-primary/20 bg-background p-0 shadow-2xl"
-      >
-        <DialogHeader className="shrink-0 border-b border-border bg-card px-5 py-5 pr-14 sm:px-6">
-          <div className="mb-2 flex items-center gap-2">
-            <span className="flex size-9 items-center justify-center rounded-full bg-primary/10 text-primary">
-              <AlertTriangle className="size-4" />
-            </span>
-            <Badge variant="outline">Historial</Badge>
-          </div>
-          <DialogTitle>Inconsistencias archivadas</DialogTitle>
-          <DialogDescription>
-            Revisa lo rechazado o marcado como resuelto. Puedes devolver cualquier alerta a pendientes.
-          </DialogDescription>
-        </DialogHeader>
-
-        <DialogBody className="gap-3 bg-muted/20">
-          <div className="grid gap-2 rounded-xl border border-border bg-card p-3 sm:grid-cols-2 lg:grid-cols-4">
-            <label className="flex h-9 min-w-0 items-center gap-2 rounded-lg border border-border bg-background px-2.5 sm:col-span-2 lg:col-span-1">
-              <Search className="size-3.5 shrink-0 text-muted-foreground" />
-              <input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="Buscar en el historial..."
-                className="min-w-0 flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
-              />
-            </label>
-            <FilterSelect
-              label="Estado"
-              value={status}
-              onChange={(value) => setStatus(value as HistoryStatusFilter)}
-            >
-              <option value="ALL">Todos</option>
-              <option value="DISMISSED">Rechazadas</option>
-              <option value="RESOLVED">Resueltas</option>
-            </FilterSelect>
-            <FilterSelect
-              label="Tipo"
-              value={category}
-              onChange={setCategory}
-            >
-              <option value="ALL">Todos</option>
-              {categories.map((item) => (
-                <option key={item} value={item}>
-                  {categoryLabel(item)}
-                </option>
-              ))}
-            </FilterSelect>
-            <FilterSelect
-              label="Severidad"
-              value={severity}
-              onChange={(value) => setSeverity(value as HistorySeverityFilter)}
-            >
-              <option value="ALL">Todas</option>
-              {Object.entries(severityLabels).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </FilterSelect>
-          </div>
-
-          <div className="flex min-h-0 flex-col gap-2 overflow-y-auto pr-1">
-            {restoreError && (
-              <p
-                role="alert"
-                className="rounded-lg border border-destructive/25 bg-destructive/5 px-3 py-2 text-xs text-destructive"
-              >
-                {restoreError}
-              </p>
-            )}
-            {isLoading && <HistoryMessage>Cargando historial...</HistoryMessage>}
-            {!isLoading && error && (
-              <HistoryMessage>No se pudo cargar el historial.</HistoryMessage>
-            )}
-            {showEmptyState && (
-              <HistoryMessage>
-                {alerts.length > 0
-                  ? "No hay alertas que coincidan con esos filtros."
-                  : "Todavía no hay inconsistencias archivadas."}
-              </HistoryMessage>
-            )}
-            {showAlertList && (
-              filteredAlerts.map((alert) => (
-                <AuditAlertCard
-                  key={alert.id}
-                  alert={alert}
-                  updating={updatingAlertId === alert.id}
-                  historyMode
-                  onRestore={() => void restoreAlert(alert.id)}
-                  onFocusEvidence={(index) => onFocusEvidence(alert, index)}
-                />
-              ))
-            )}
-          </div>
-        </DialogBody>
-
-        <DialogFooter
-          className="m-0 w-full shrink-0 rounded-b-xl border-border bg-muted px-5 py-3 sm:px-6"
-          showCloseButton
+    <FormDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Inconsistencias archivadas"
+      description="Revisá lo rechazado o marcado como resuelto. Podés devolver cualquier alerta a pendientes."
+      size="lg"
+      bodyClassName="gap-3 bg-muted/20"
+    >
+      <div className="grid gap-2 rounded-xl border border-border bg-card p-3 sm:grid-cols-2 lg:grid-cols-4">
+        <label className="flex h-9 min-w-0 items-center gap-2 rounded-lg border border-border bg-background px-2.5 sm:col-span-2 lg:col-span-1">
+          <Search className="size-3.5 shrink-0 text-muted-foreground" />
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Buscar en el historial..."
+            className="min-w-0 flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
+          />
+        </label>
+        <FilterSelect
+          label="Estado"
+          value={status}
+          onChange={(value) => setStatus(value as HistoryStatusFilter)}
         >
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            Cerrar
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          <option value="ALL">Todos</option>
+          <option value="DISMISSED">Rechazadas</option>
+          <option value="RESOLVED">Resueltas</option>
+        </FilterSelect>
+        <FilterSelect
+          label="Tipo"
+          value={category}
+          onChange={setCategory}
+        >
+          <option value="ALL">Todos</option>
+          {categories.map((item) => (
+            <option key={item} value={item}>
+              {categoryLabel(item)}
+            </option>
+          ))}
+        </FilterSelect>
+        <FilterSelect
+          label="Severidad"
+          value={severity}
+          onChange={(value) => setSeverity(value as HistorySeverityFilter)}
+        >
+          <option value="ALL">Todas</option>
+          {Object.entries(severityLabels).map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </FilterSelect>
+      </div>
+
+      <div className="flex min-h-0 flex-col gap-2 overflow-y-auto pr-1">
+        {restoreError && (
+          <p
+            role="alert"
+            className="rounded-lg border border-destructive/25 bg-destructive/5 px-3 py-2 text-xs text-destructive"
+          >
+            {restoreError}
+          </p>
+        )}
+        {isLoading && <HistoryMessage>Cargando historial...</HistoryMessage>}
+        {!isLoading && error && (
+          <HistoryMessage>No se pudo cargar el historial.</HistoryMessage>
+        )}
+        {showEmptyState && (
+          <HistoryMessage>
+            {alerts.length > 0
+              ? "No hay alertas que coincidan con esos filtros."
+              : "Todavía no hay inconsistencias archivadas."}
+          </HistoryMessage>
+        )}
+        {showAlertList && (
+          filteredAlerts.map((alert) => (
+            <AuditAlertCard
+              key={alert.id}
+              alert={alert}
+              updating={updatingAlertId === alert.id}
+              historyMode
+              onRestore={() => void restoreAlert(alert.id)}
+              onFocusEvidence={(index) => onFocusEvidence(alert, index)}
+            />
+          ))
+        )}
+      </div>
+    </FormDialog>
   );
 }
 

@@ -368,6 +368,12 @@
   white-space: pre-wrap;
 }
 
+/* El párrafo contiene a la capital flotante: si es más alta que el texto,
+   el párrafo crece en vez de pisar al siguiente. */
+p[data-drop-cap="true"] {
+  display: flow-root;
+}
+
 p[data-drop-cap="true"]::first-letter {
   float: left;
   font-size: var(--drop-cap-font-size, 48pt);
@@ -690,4 +696,53 @@ p[data-drop-cap="true"]::first-letter {
 .chat-panel[data-expanded="true"] .chat-suggestion,
 .chat-panel[data-expanded="true"] .chat-thinking-status {
   font-size: 0.875rem;
+}
+
+
+/* Campos numéricos sin las flechitas del navegador: se escribe el número o se usan ↑ ↓ del teclado. */
+input[type="number"] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+}
+
+/* Wiki expandida: letra claramente mayor que en el panel (≈ +3px en cada tamaño). */
+.wiki-panel[data-expanded="true"] .text-\[9px\] {
+  font-size: 0.75rem;
+}
+
+.wiki-panel[data-expanded="true"] .text-\[10px\] {
+  font-size: 0.8125rem;
+}
+
+.wiki-panel[data-expanded="true"] .text-\[11px\] {
+  font-size: 0.875rem;
+}
+
+.wiki-panel[data-expanded="true"] .text-xs {
+  font-size: 0.9375rem;
+  line-height: 1.45rem;
+}
+
+.wiki-panel[data-expanded="true"] .text-sm {
+  font-size: 1.0625rem;
+  line-height: 1.6rem;
+}
+
+.wiki-panel[data-expanded="true"] .text-base {
+  font-size: 1.1875rem;
+  line-height: 1.7rem;
+}
+
+/* Cerrar aviso: el botón se ve chico pero el área de toque llega a 32px. */
+[data-sonner-toast] [data-close-button]::after {
+  content: "";
+  position: absolute;
+  inset: -6px;
 }

@@ -58,7 +58,7 @@ export function EditorImageNodeView({
   selected,
   getPos,
   updateAttributes,
-}: NodeViewProps) {
+}: Readonly<NodeViewProps>) {
   const imageRef = useRef<HTMLImageElement | null>(null)
   const resizeListenersRef = useRef<{
     onPointerMove: (event: PointerEvent) => void
@@ -281,7 +281,7 @@ export function EditorImageNodeView({
               onKeyDown={resizeWithKeyboard}
               className="absolute -right-2 -bottom-2 inline-flex h-8 w-8 items-center justify-center rounded-full border border-border bg-background text-foreground shadow-md transition-colors hover:bg-muted"
               title="Redimensionar imagen"
-              aria-label={`Redimensionar imagen${widthDescription}. Usa las flechas izquierda y derecha.`}
+              aria-label={`Redimensionar imagen${widthDescription}. Usá las flechas izquierda y derecha.`}
             >
               <MoveDiagonal2 className="h-4 w-4" />
             </button>

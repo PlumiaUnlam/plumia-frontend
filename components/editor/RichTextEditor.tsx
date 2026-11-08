@@ -134,6 +134,13 @@ export function RichTextEditor({
   const [isAnnotationComposerOpen, setIsAnnotationComposerOpen] = useState(false)
   const [annotationDraftAnchor, setAnnotationDraftAnchor] = useState<Omit<CreateAuthorAnnotationInput, "body"> | null>(null)
   const [toolbarExpanded, setToolbarExpanded] = useState(false)
+  // Desde el chat se puede pedir ver la barra de formato: se abre si estaba oculta.
+  const toolbarRevealToken = useEditorStore((state) => state.toolbarRevealToken)
+  const [seenToolbarRevealToken, setSeenToolbarRevealToken] = useState(toolbarRevealToken)
+  if (seenToolbarRevealToken !== toolbarRevealToken) {
+    setSeenToolbarRevealToken(toolbarRevealToken)
+    setToolbarExpanded(true)
+  }
   const {
     error,
     isUploading,
@@ -632,6 +639,7 @@ export function RichTextEditor({
               editor={editor}
               projectId={projectId}
               onAddAnnotation={allowAnnotations ? handleStartAnnotation : undefined}
+              hidden={isAnnotationComposerOpen}
             />
             <ImageTextFlowMenu editor={editor} />
             <ListNumberingMenu editor={editor} />
