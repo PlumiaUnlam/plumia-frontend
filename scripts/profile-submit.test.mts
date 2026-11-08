@@ -4,7 +4,8 @@ import { getProfileSubmitState, type ProfileSubmitInput } from "../lib/profile-s
 
 const base: ProfileSubmitInput = {
   section: "account",
-  aiKeyFilled: false,
+  aiConfigurationValid: false,
+  aiSettingsLoading: false,
   hasUnsavedChanges: true,
   entityRecognitionLoading: false,
   inconsistenciesLoading: false,
@@ -30,11 +31,23 @@ check("con cambios en la cuenta se puede guardar", () => {
   assert.equal(state.submitButtonClassName, undefined)
 })
 
-check("la sección de IA depende solo de que haya una clave escrita", () => {
+check("la sección de IA requiere cambios y una configuración válida", () => {
   assert.equal(getProfileSubmitState({ ...base, section: "ai", hasUnsavedChanges: false }).submitDisabled, true)
   assert.equal(
-    getProfileSubmitState({ ...base, section: "ai", aiKeyFilled: true, hasUnsavedChanges: false }).submitDisabled,
+    getProfileSubmitState({ ...base, section: "ai", aiConfigurationValid: true, hasUnsavedChanges: false }).submitDisabled,
+    true,
+  )
+  assert.equal(
+    getProfileSubmitState({ ...base, section: "ai", hasUnsavedChanges: true }).submitDisabled,
+    true,
+  )
+  assert.equal(
+    getProfileSubmitState({ ...base, section: "ai", aiConfigurationValid: true }).submitDisabled,
     false,
+  )
+  assert.equal(
+    getProfileSubmitState({ ...base, section: "ai", aiSettingsLoading: true }).submitDisabled,
+    true,
   )
 })
 

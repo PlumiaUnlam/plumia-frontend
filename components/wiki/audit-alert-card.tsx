@@ -316,7 +316,7 @@ function AuditAlertDetailsDialog({
         </Badge>
         {isCrossChunkContradiction && (
           <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary">
-            Dentro de la misma escena
+            {isCrossSceneContradiction ? "Entre escenas" : "Dentro de la misma escena"}
           </Badge>
         )}
         {historyMode && archivedAt && (
@@ -373,12 +373,12 @@ function AuditAlertDetailsDialog({
             Evidencia en el texto
           </p>
           <EvidenceQuote
-            label="Primer fragmento"
+            label={isCrossSceneContradiction ? "Escena anterior" : "Primer fragmento"}
             quote={firstEvidence}
             onOpen={() => focusEvidence(0)}
           />
           <EvidenceQuote
-            label="Segundo fragmento"
+            label={isCrossSceneContradiction ? "Escena analizada" : "Segundo fragmento"}
             quote={secondEvidence}
             onOpen={() => focusEvidence(1)}
           />

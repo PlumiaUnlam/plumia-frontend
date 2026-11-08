@@ -1151,8 +1151,12 @@ function getProjectKey(
   projectId: string,
   shouldFetch: boolean,
   activeTab: WorldbuildingTab,
+  selectedEntityId: string | null,
 ) {
-  return shouldFetch && (activeTab === "summaries" || activeTab === "relationships")
+  return shouldFetch &&
+    (activeTab === "summaries" ||
+      activeTab === "relationships" ||
+      (activeTab === "wiki" && Boolean(selectedEntityId)))
     ? `/projects/${projectId}`
     : null;
 }
@@ -1287,7 +1291,7 @@ function useWorldbuildingData({
     error: projectError,
     isLoading: isLoadingProject,
   } = useSWR(
-    getProjectKey(projectId, shouldFetch, activeTab),
+    getProjectKey(projectId, shouldFetch, activeTab, selectedEntityId),
     () => getProject(projectId),
   );
 
