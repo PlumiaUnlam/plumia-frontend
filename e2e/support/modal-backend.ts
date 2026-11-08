@@ -78,7 +78,7 @@ function makeEntity(id: string, name: string, type: string) {
   }
 }
 
-function makeProject() {
+export function makeProject() {
   return {
     id: projectId,
     userId: "e2e-writer",
@@ -131,6 +131,11 @@ export type ModalBackendOptions = {
   secondBook?: boolean
   /** Anotaciones privadas iniciales de la escena. */
   authorAnnotations?: AuthorAnnotation[]
+  /**
+   * Títulos, nombres y descripciones larguísimos (con y sin espacios) para
+   * revisar que nada se salga de su caja ni rompa el diseño.
+   */
+  longText?: boolean
 }
 
 export async function installModalBackend(
@@ -252,6 +257,28 @@ export async function installModalBackend(
   let mutationDelay = 0
   const failures: Failure[] = []
 
+  if (options.longText) {
+    const unbroken = "Supercalifragilisticoespialidoso".repeat(6)
+    const sentence =
+      "Un título extremadamente largo que debería ajustarse sin romper el diseño ni salirse de la pantalla en ningún tamaño"
+    project.title = sentence
+    project.books[0].title = sentence
+    project.books[0].chapters[0].title = unbroken
+    project.books[0].chapters[0].scenes[0].title = sentence
+    cards[0].title = unbroken
+    cards[0].description = sentence.repeat(3)
+    arcs[0].title = sentence
+    entities = entities.map((entity, index) => ({
+      ...entity,
+      canonicalName: index === 0 ? unbroken : sentence,
+      description: sentence.repeat(3),
+    }))
+    timeline[0].title = unbroken
+    timeline[0].description = sentence.repeat(3)
+    timeline[1].title = sentence
+    threads[0].title = unbroken
+  }
+
   const mock: ModalBackend = {
     base,
     calls: [],
@@ -338,7 +365,7 @@ export async function installModalBackend(
     if (/^\/chat\/threads\/[^/]+(\/messages)?$/.test(path)) return true
     if (/^\/reading\/invitations\/[^/]+(\/accept|\/comments)?$/.test(path)) return true
     if (/^\/analytics\//.test(path)) return true
-    if (/^\/knowledge\/(entities|relationships|timeline)(\/.*)?$/.test(path)) return method !== "GET" || !/entities\/[^/]+\/states/.test(path)
+    if (/^\/knowledge\/(entities|relationships|timeline)(\/.*)?$/.test(path)) return true
     return false
   }
 
@@ -812,9 +839,17 @@ export async function installModalBackend(
       }
     }
     const entityMatch = path.match(/^\/knowledge\/entities\/([^/]+)$/)
-    if (entityMatch && method === "DELETE") {
-      entities = entities.filter((entity) => entity.id !== entityMatch[1])
-      return route.fulfill({ status: 204 })
+    if (entityMatch) {
+      if (method === "PATCH") {
+        const index = entities.findIndex((entity) => entity.id === entityMatch[1])
+        if (index < 0) return respond(route, { message: "Entidad no encontrada" }, 404)
+        entities[index] = { ...entities[index], ...body, updatedAt: ts }
+        return respond(route, entities[index])
+      }
+      if (method === "DELETE") {
+        entities = entities.filter((entity) => entity.id !== entityMatch[1])
+        return route.fulfill({ status: 204 })
+      }
     }
     if (path === "/knowledge/relationships") {
       if (method === "GET") return respond(route, relationships)

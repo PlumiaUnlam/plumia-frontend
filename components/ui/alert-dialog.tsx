@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils"
 import { AlertDialog as AlertDialogPrimitive } from "radix-ui"
 
 import { Button } from "@/components/ui/button"
+import { useRestoreFocus } from "@/components/ui/use-restore-focus"
 
 function AlertDialog({
   ...props
@@ -36,7 +37,7 @@ function AlertDialogOverlay({
     <AlertDialogPrimitive.Overlay
       data-slot="alert-dialog-overlay"
       className={cn(
-        "fixed inset-0 z-50 bg-black/40 duration-100 supports-backdrop-filter:backdrop-blur-xs dark:bg-black/60 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0",
+        "fixed inset-0 z-[75] bg-black/40 duration-100 supports-backdrop-filter:backdrop-blur-xs dark:bg-black/60 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0",
         className
       )}
       {...props}
@@ -47,10 +48,14 @@ function AlertDialogOverlay({
 function AlertDialogContent({
   className,
   size = "default",
+  onOpenAutoFocus,
+  onCloseAutoFocus,
   ...props
 }: React.ComponentProps<typeof AlertDialogPrimitive.Content> & {
   size?: "default" | "sm"
 }) {
+  const restoreFocus = useRestoreFocus({ onOpenAutoFocus, onCloseAutoFocus })
+
   return (
     <AlertDialogPortal>
       <AlertDialogOverlay />
@@ -58,9 +63,11 @@ function AlertDialogContent({
         data-slot="alert-dialog-content"
         data-size={size}
         className={cn(
-          "group/alert-dialog-content fixed top-1/2 left-1/2 z-50 grid w-full -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-6 text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none max-w-[calc(100%-2rem)] shadow-xl data-[size=default]:sm:max-w-dialog-alert data-[size=sm]:sm:max-w-xs data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95",
+          "group/alert-dialog-content fixed top-1/2 left-1/2 z-[75] grid w-full -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-6 text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none max-w-[calc(100%-2rem)] shadow-xl data-[size=default]:sm:max-w-dialog-alert data-[size=sm]:sm:max-w-xs data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95",
           className
         )}
+        onOpenAutoFocus={restoreFocus.onOpenAutoFocus}
+        onCloseAutoFocus={restoreFocus.onCloseAutoFocus}
         {...props}
       />
     </AlertDialogPortal>

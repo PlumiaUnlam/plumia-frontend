@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { ArrowDownIcon } from "lucide-react"
 
 function MessageScrollerProvider(
-  props: React.ComponentProps<typeof MessageScrollerPrimitive.Provider>
+  props: Readonly<React.ComponentProps<typeof MessageScrollerPrimitive.Provider>>
 ) {
   return <MessageScrollerPrimitive.Provider {...props} />
 }

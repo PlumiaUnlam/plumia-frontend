@@ -77,7 +77,7 @@ export function StoryboardColumn({
         </SortableContext>
         {cards.length === 0 ? (
           <div className="flex h-32 items-center justify-center text-center text-sm italic text-muted-foreground">
-            Arrastra tarjetas aquí
+            Arrastrá tarjetas acá
           </div>
         ) : null}
       </div>

@@ -12,7 +12,7 @@ import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react"
 type CarouselApi = UseEmblaCarouselType[1]
 type UseCarouselParameters = Parameters<typeof useEmblaCarousel>
 type CarouselOptions = UseCarouselParameters[0]
-type CarouselPlugin = UseCarouselParameters[1]
+type CarouselPlugin = NonNullable<UseCarouselParameters[1]>
 
 type CarouselProps = {
   opts?: CarouselOptions
@@ -217,7 +217,7 @@ function CarouselPrevious({
       {...props}
     >
       <ChevronLeftIcon />
-      <span className="sr-only">Previous slide</span>
+      <span className="sr-only">Diapositiva anterior</span>
     </Button>
   )
 }
@@ -247,7 +247,7 @@ function CarouselNext({
       {...props}
     >
       <ChevronRightIcon />
-      <span className="sr-only">Next slide</span>
+      <span className="sr-only">Diapositiva siguiente</span>
     </Button>
   )
 }

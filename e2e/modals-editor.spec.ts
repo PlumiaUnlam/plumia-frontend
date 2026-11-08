@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test"
 
-import { installModalBackend } from "./support/modal-backend"
+import { installModalBackend, projectId } from "./support/modal-backend"
 import {
   alertNamed,
   dialogNamed,
@@ -168,7 +168,7 @@ async function clickHistoryControl(page: Page, name: string) {
   await expect(async () => {
     const control = page.getByRole("button", { name })
     if (!(await control.isVisible())) {
-      await page.getByRole("button", { name: "Historial", exact: true }).click({ timeout: 1500 })
+      await page.getByRole("button", { name: "Historial", exact: true }).first().click({ timeout: 1500 })
     }
     await control.click({ timeout: 1500 })
   }).toPass({ timeout: 10_000 })
@@ -211,8 +211,8 @@ test.describe("Historial de versiones", () => {
     await openEditor(page)
     await openScene(page)
 
-    await page.getByRole("button", { name: "Historial", exact: true }).click()
-    await page.getByRole("button", { name: /Crear version/ }).click()
+    await page.getByRole("button", { name: "Historial", exact: true }).first().click()
+    await page.getByRole("button", { name: /Crear versión/ }).click()
 
     // Crear
     const create = dialogNamed(page, "Crear versión")
@@ -664,34 +664,28 @@ test.describe("Chat con IA", () => {
 })
 
 test.describe("Wiki del editor y corrector ortográfico", () => {
-  test("Agregar estado temporal: valida el valor y guarda el cambio de la entidad", async ({
+  test("HU-24 CA-072/074: muestra y conserva los cambios de la ficha de entidad", async ({
     page,
   }) => {
     const backend = await installModalBackend(page)
-    await openEditor(page)
-    await openScene(page)
+    await page.goto(`/projects/${projectId}/worldbuilding`)
+    await expect(page.getByRole("heading", { name: "Worldbuilding" })).toBeVisible()
 
-    await page.getByRole("button", { name: "Estado", exact: true }).first().click()
-    const dialog = dialogNamed(page, /Agregar estado temporal/)
-    await expect(dialog).toBeVisible()
-    await expect(dialog).toContainText("Tomás Reyes")
+    await page.getByText("Tomás Reyes", { exact: true }).first().click()
+    await expect(page.getByRole("heading", { name: "Tomás Reyes", exact: true })).toBeVisible()
+    const details = page.getByRole("main")
+    await expect(details.getByText("Tomás Reyes en la historia.", { exact: true })).toBeVisible()
 
-    await dialog.getByRole("button", { name: "Guardar estado" }).click()
-    await expect(dialog.getByText("Completá el atributo, valor y escena de inicio.", { exact: true })).toBeVisible()
-    expect(backend.callsTo("POST", /\/states$/)).toHaveLength(0)
-
-    await dialog.getByLabel("Nuevo valor").fill("Puerto de Bruma")
-    await dialog.getByLabel("Válido desde").selectOption("e2e-scene")
-    await dialog.getByRole("button", { name: "Guardar estado" }).click()
+    await page.getByRole("button", { name: "Editar", exact: true }).click()
+    const dialog = dialogNamed(page, "Editar Entidad")
+    await dialog.getByLabel("Descripción").fill("Tomás protege el archivo del puerto.")
+    await dialog.getByRole("button", { name: "Guardar cambios" }).click()
 
     await expect(dialog).toBeHidden()
-    const created = backend.callsTo("POST", /\/knowledge\/entities\/tomas-reyes\/states$/)
-    expect(created).toHaveLength(1)
-    expect(created[0].body).toMatchObject({
-      attributeKey: "location",
-      toValue: "Puerto de Bruma",
-      validFromSceneId: "e2e-scene",
-    })
+    expect(backend.callsTo("PATCH", /\/knowledge\/entities\/tomas-reyes$/)).toHaveLength(1)
+    await page.getByText("Maren Solís", { exact: true }).first().click()
+    await page.getByText("Tomás Reyes", { exact: true }).first().click()
+    await expect(details.getByText("Tomás protege el archivo del puerto.", { exact: true })).toBeVisible()
   })
 
   test("Sugerencias ortográficas: la corrección manual reemplaza la palabra y «Cerrar» no cambia nada", async ({

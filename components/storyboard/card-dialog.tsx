@@ -57,11 +57,13 @@ export function CardDialog({
 }: CardDialogProps) {
   const card = state?.card ?? null
   const [voiceBusy, setVoiceBusy] = useState(false)
+  // Mientras se graba o se guarda no se puede cerrar: se perdería el trabajo.
+  const busy = voiceBusy || submitting
   const handleClose = useCallback(() => {
-    if (voiceBusy) return
+    if (busy) return
     setVoiceBusy(false)
     onClose()
-  }, [onClose, voiceBusy])
+  }, [onClose, busy])
 
   return (
     <Dialog
@@ -74,10 +76,10 @@ export function CardDialog({
         layout="sectioned"
         size="md"
         onEscapeKeyDown={(event) => {
-          if (voiceBusy) event.preventDefault()
+          if (busy) event.preventDefault()
         }}
         onPointerDownOutside={(event) => {
-          if (voiceBusy) event.preventDefault()
+          if (busy) event.preventDefault()
         }}
       >
         {state ? (

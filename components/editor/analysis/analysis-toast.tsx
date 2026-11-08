@@ -1,7 +1,7 @@
-import { useEffect } from "react"
-import { AlertCircle, CheckCircle2, Info } from "lucide-react"
+"use client"
 
-import { cn } from "@/lib/utils"
+import { useEffect, useRef } from "react"
+import { toast } from "sonner"
 
 type AnalysisToastProps = {
   feedback: {
@@ -11,36 +11,39 @@ type AnalysisToastProps = {
   onDismiss: () => void
 }
 
-const feedbackIcons = {
-  default: Info,
-  success: CheckCircle2,
-  error: AlertCircle,
-} as const
+const TOAST_DURATION_MS = 4000
 
+/**
+ * Aviso del análisis del editor. Usa el mismo sistema de avisos que el resto de
+ * la app (sonner): queda por encima de los modales, arriba y centrado, y se puede
+ * cerrar. Antes era un aviso propio con z-50 que los modales tapaban.
+ */
 export function AnalysisToast({ feedback, onDismiss }: Readonly<AnalysisToastProps>) {
+  const onDismissRef = useRef(onDismiss)
+
+  useEffect(() => {
+    onDismissRef.current = onDismiss
+  }, [onDismiss])
+
   useEffect(() => {
     if (!feedback) return
 
-    const timeout = window.setTimeout(onDismiss, 4000)
-    return () => window.clearTimeout(timeout)
-  }, [feedback, onDismiss])
+    const notify = () => onDismissRef.current()
+    const show = {
+      default: toast.info,
+      success: toast.success,
+      error: toast.error,
+    }[feedback.tone]
+    const id = show(feedback.message, {
+      duration: TOAST_DURATION_MS,
+      onDismiss: notify,
+      onAutoClose: notify,
+    })
 
-  if (!feedback) return null
+    return () => {
+      toast.dismiss(id)
+    }
+  }, [feedback])
 
-  const Icon = feedbackIcons[feedback.tone]
-
-  return (
-    <output
-      className={cn(
-        "fixed left-1/2 top-6 z-50 flex w-[calc(100%-2rem)] max-w-md -translate-x-1/2 items-center gap-3 rounded-lg border bg-background px-4 py-3 text-sm shadow-lg",
-        feedback.tone === "success" && "border-emerald-200 text-emerald-800",
-        feedback.tone === "error" && "border-destructive/30 text-destructive",
-      )}
-      aria-live={feedback.tone === "error" ? "assertive" : "polite"}
-      aria-atomic="true"
-    >
-      <Icon className="size-5 shrink-0" />
-      <span>{feedback.message}</span>
-    </output>
-  )
+  return null
 }
