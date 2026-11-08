@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { useTheme } from "next-themes"
 import dynamic from "next/dynamic"
 import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 import {
   ArrowLeft,
   BookOpen,
@@ -821,9 +822,19 @@ function SharedReaderContent({
   useActiveChapterObserver(chapters, setActiveChapterId)
 
   const scrollToChapter = (chapterId: string) => {
-    document
-      .getElementById(`shared-chapter-${chapterId}`)
-      ?.scrollIntoView({ behavior: "smooth", block: "start" })
+    const target = document.getElementById(`shared-chapter-${chapterId}`)
+    if (!target) return
+    const { top } = target.getBoundingClientRect()
+    const maxScroll = document.documentElement.scrollHeight - window.innerHeight
+    const alreadyAtTop = top >= -4 && top <= 120
+    const cannotScrollMore = top > 0 && window.scrollY >= maxScroll - 2
+    if (alreadyAtTop || cannotScrollMore) {
+      // Sin desplazamiento posible no habría ningún cambio visible: se avisa.
+      const title = chapters.find((chapter) => chapter.id === chapterId)?.title
+      toast.info(title ? `«${title}» ya está a la vista.` : "Este capítulo ya está a la vista.")
+      return
+    }
+    target.scrollIntoView({ behavior: "smooth", block: "start" })
   }
 
   const discussionProps = { viewer: view.viewer, ...reader.discussionProps }

@@ -34,6 +34,10 @@ export type EditorSearchFocus = {
   occurrence: number
 }
 
+export type RightPanelTab = "wiki" | "chat" | "stats"
+
+export type RightPanelRequest = { tab: RightPanelTab; token: number; review?: boolean }
+
 type EditorState = {
   /** Capítulo actualmente cargado en el editor (carga perezosa). */
   activeSceneId: string | null
@@ -51,6 +55,14 @@ type EditorState = {
   lastSavedAtByPane: Record<EditorPaneId, string | null>
   errorByPane: Record<EditorPaneId, string | null>
   citationFocus: EditorCitationFocus | null
+  /** Sube cada vez que algo pide mostrar la barra de herramientas de formato. */
+  toolbarRevealToken: number
+  historyRevealToken: number
+  historyRevealPending: boolean
+  /** Pestaña del panel derecho que se pidió abrir (la consume el propio panel). */
+  rightPanelRequest: RightPanelRequest | null
+  /** Cuenta los pedidos para que cada uno tenga un número distinto aunque se limpie el anterior. */
+  rightPanelSeq: number
   searchFocus: EditorSearchFocus | null
   searchQuery: string
   spellcheckLanguage: SpellcheckLanguage
@@ -68,6 +80,11 @@ type EditorState = {
   setPaneError: (paneId: EditorPaneId, message: string) => void
   focusCitation: (focus: EditorCitationFocus) => void
   clearCitationFocus: () => void
+  requestToolbarReveal: () => void
+  requestHistoryReveal: () => void
+  clearHistoryReveal: () => void
+  requestRightPanelTab: (tab: RightPanelTab, review?: boolean) => void
+  clearRightPanelRequest: () => void
   focusSearch: (focus: EditorSearchFocus) => void
   clearSearchFocus: () => void
   setSearchQuery: (query: string) => void
@@ -87,6 +104,11 @@ export const useEditorStore = create<EditorState>((set) => ({
   lastSavedAtByPane: { primary: null, secondary: null },
   errorByPane: { primary: null, secondary: null },
   citationFocus: null,
+  toolbarRevealToken: 0,
+  historyRevealToken: 0,
+  historyRevealPending: false,
+  rightPanelRequest: null,
+  rightPanelSeq: 0,
   searchFocus: null,
   searchQuery: "",
   spellcheckLanguage: "es-AR",
@@ -185,6 +207,17 @@ export const useEditorStore = create<EditorState>((set) => ({
     })),
   focusCitation: (citationFocus) => set({ citationFocus }),
   clearCitationFocus: () => set({ citationFocus: null }),
+  requestToolbarReveal: () =>
+    set((state) => ({ toolbarRevealToken: state.toolbarRevealToken + 1 })),
+  requestHistoryReveal: () =>
+    set((state) => ({ historyRevealToken: state.historyRevealToken + 1, historyRevealPending: true })),
+  clearHistoryReveal: () => set({ historyRevealPending: false }),
+  requestRightPanelTab: (tab, review = false) =>
+    set((state) => ({
+      rightPanelSeq: state.rightPanelSeq + 1,
+      rightPanelRequest: { tab, token: state.rightPanelSeq + 1, review },
+    })),
+  clearRightPanelRequest: () => set({ rightPanelRequest: null }),
   focusSearch: (searchFocus) => set({ searchFocus }),
   clearSearchFocus: () => set({ searchFocus: null }),
   setSearchQuery: (searchQuery) => set({ searchQuery }),

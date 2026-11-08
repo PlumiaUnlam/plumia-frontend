@@ -5,7 +5,7 @@ import { Dialog as DialogPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { useRestoreFocus } from "@/components/ui/use-restore-focus"
+import { RestoreFocusMarker, useRestoreFocus } from "@/components/ui/use-restore-focus"
 import { XIcon } from "lucide-react"
 
 function Dialog({
@@ -202,6 +202,7 @@ function DialogContent({
         onCloseAutoFocus={restoreFocus.onCloseAutoFocus}
         {...props}
       >
+        <RestoreFocusMarker previouslyFocusedRef={restoreFocus.previouslyFocused} />
         <PopupInteractionGuard until={popupGraceUntil} />
         {children}
         {showCloseButton && (

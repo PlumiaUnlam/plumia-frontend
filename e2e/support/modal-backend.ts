@@ -649,18 +649,59 @@ export async function installModalBackend(
             id: `message-${index + 1}`,
             threadId: threadMatch[1],
             role: index % 2 === 0 ? "user" : "assistant",
-            content: `Mensaje número ${index + 1}`,
+            content:
+              index === 27
+                ? "La barra de herramientas de formato se muestra con el botón Mostrar herramientas. [1]"
+                : index === 25
+                  ? "Las estadísticas están en la pestaña Stats del panel derecho del editor."
+                  : `Mensaje número ${index + 1}`,
+            // Mensaje 30: respuesta sobre la obra, con fuentes. Mensaje 28: respuesta sobre cómo usar
+            // PlumIA: solo trae documentación (no se muestra) y un acceso directo.
             sources:
               index === 29
                 ? Array.from({ length: 5 }, (_, n) => ({
                     id: `source-${n + 1}`,
-                    kind: "application_help",
+                    kind: "manuscript",
                     label: `Fuente ${n + 1}`,
-                    excerpt: `Extracto ${n + 1}`,
+                    excerpt: `Extracto ${n + 1} de la obra, con un texto un poco más largo para comprobar que se recorta en una sola línea.`,
                     cited: n < 2,
                   }))
-                : [],
-            actions: [],
+                : index === 27
+                  ? [
+                      {
+                        id: "application_help:editor.herramientas.mostrar-ocultar",
+                        kind: "application_help",
+                        label: "PlumIA › Editor › Mostrar u ocultar la barra de herramientas de formato",
+                        excerpt: "**Resumen:** La barra de herramientas de formato está oculta por defecto en los modos Creación y Revisión.",
+                        cited: true,
+                        route: `/projects/${projectId}/editor`,
+                      },
+                    ]
+                  : [],
+            actions:
+              index === 27
+                ? [
+                    {
+                      id: `navigation:/projects/${projectId}/editor`,
+                      kind: "navigation",
+                      label: "Mostrar u ocultar la barra de herramientas de formato",
+                      description: "Abrir esta sección de PlumIA",
+                      route: `/projects/${projectId}/editor`,
+                      section: "editor-toolbar",
+                    },
+                  ]
+                : index === 25
+                  ? [
+                      {
+                        id: `navigation:/projects/${projectId}/editor#stats`,
+                        kind: "navigation",
+                        label: "El panel Stats del Editor",
+                        description: "Abrir esta sección de PlumIA",
+                        route: `/projects/${projectId}/editor`,
+                        section: "editor-right-stats",
+                      },
+                    ]
+                  : [],
             inputTokens: null,
             outputTokens: null,
             createdAt: ts,

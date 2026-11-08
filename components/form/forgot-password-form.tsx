@@ -1,5 +1,6 @@
 "use client"
 
+import { InlineLinkButton } from "@/components/form/inline-link-button"
 import { useEffect, useState, type SubmitEvent, type ReactNode } from "react"
 import { CircleAlert, MailCheck } from "lucide-react"
 import { useRouter } from "next/navigation"
@@ -101,14 +102,10 @@ export function ForgotPasswordForm() {
       footer={
         <p>
           ¿Recordaste tu contraseña?{" "}
-          <Button
-            variant="link"
-            type="button"
-            className="h-auto p-0 text-xs font-medium"
-            onClick={() => router.push("/login")}
+          <InlineLinkButton onClick={() => router.push("/login")}
           >
             Iniciar sesión
-          </Button>
+          </InlineLinkButton>
         </p>
       }
     >

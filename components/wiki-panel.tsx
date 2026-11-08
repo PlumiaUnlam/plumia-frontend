@@ -14,6 +14,8 @@ import {
   Search,
   Sparkles,
   X,
+  Maximize2,
+  Minimize2,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -24,6 +26,7 @@ import { EntityIconTile } from "@/components/worldbuilding/entity-icon-tile";
 import { EntityImage } from "@/components/worldbuilding/entity-image";
 import { NewEntityModal } from "@/components/modal/new-entity-modal";
 import { NewRelationModal } from "@/components/modal/new-relation-modal";
+import { useExpandedOverlay } from "@/hooks/use-expanded-overlay";
 import { searchEntities } from "@/lib/entity-search";
 import { getEntityCategoryStyle } from "@/lib/entity-category-style";
 import {
@@ -107,7 +110,7 @@ type WikiSectionKey =
   | "proposals"
   | "states";
 
-export function WikiPanel({
+function WikiPanelContent({
   projectId,
   stateTrackingEnabled,
   sceneOptions,
@@ -147,7 +150,9 @@ export function WikiPanel({
   entityActionFeedback,
   showReviewSections,
   focusedAlertId,
-}: Readonly<WikiPanelProps>) {
+  expanded,
+  onToggleExpanded,
+}: Readonly<WikiPanelProps & WikiPanelExpandProps>) {
   const [searchQuery, setSearchQuery] = useState("");
   const [auditHistoryOpen, setAuditHistoryOpen] = useState(false);
   const [reviewingProposalId, setReviewingProposalId] = useState<string | null>(
@@ -306,8 +311,8 @@ export function WikiPanel({
 
   return (
     <div className="flex h-full min-h-0 min-w-0 max-w-full flex-1 flex-col overflow-hidden bg-card">
-      <div className="flex shrink-0 flex-col gap-2 border-b border-border px-3 py-3">
-        <div className="flex h-9 w-full min-w-0 items-center gap-2 rounded-lg border border-border bg-background px-3">
+      <div className="flex shrink-0 items-center gap-2 border-b border-border px-3 py-3">
+        <div className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-lg border border-border bg-background px-3">
           <Search size={13} className="shrink-0 text-muted-foreground" />
           <input
             value={searchQuery}
@@ -320,6 +325,18 @@ export function WikiPanel({
             className="min-w-0 flex-1 bg-transparent text-xs text-foreground outline-none placeholder:text-muted-foreground"
           />
         </div>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          onClick={onToggleExpanded}
+          aria-label={expanded ? "Salir de pantalla completa" : "Ver la wiki en pantalla completa"}
+          aria-pressed={expanded}
+          title={expanded ? "Salir de pantalla completa" : "Ver en pantalla completa"}
+          className="size-9 shrink-0 rounded-lg text-muted-foreground"
+        >
+          {expanded ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
+        </Button>
       </div>
 
       <ScrollArea
@@ -449,6 +466,45 @@ export function WikiPanel({
       />
     </div>
   );
+}
+
+type WikiPanelExpandProps = {
+  readonly expanded: boolean
+  readonly onToggleExpanded: () => void
+}
+
+/**
+ * Panel de la wiki del editor. Igual que el chat, se puede expandir a pantalla completa
+ * para revisar con calma propuestas, inconsistencias y entidades con letra más grande.
+ */
+export function WikiPanel(props: Readonly<WikiPanelProps>) {
+  const [expanded, setExpanded] = useState(false)
+  useExpandedOverlay(expanded, () => setExpanded(false))
+
+  return (
+    <div
+      className={
+        expanded
+          ? "wiki-panel fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-2 backdrop-blur-[2px] sm:p-6 lg:p-10"
+          : "wiki-panel contents"
+      }
+      data-expanded={expanded}
+    >
+      <div
+        className={
+          expanded
+            ? "flex h-full max-h-[calc(100vh-1rem)] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl sm:max-h-[calc(100vh-3rem)] sm:rounded-3xl"
+            : "contents"
+        }
+      >
+        <WikiPanelContent
+          {...props}
+          expanded={expanded}
+          onToggleExpanded={() => setExpanded((value) => !value)}
+        />
+      </div>
+    </div>
+  )
 }
 
 function WikiPanelDialogs({

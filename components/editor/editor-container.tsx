@@ -774,6 +774,13 @@ function EditorWorkspace({
   const [focusedPane, setFocusedPane] = useState<EditorPaneId>("primary")
   const [paragraphDialogOpen, setParagraphDialogOpen] = useState(false)
   const [toolbarExpanded, setToolbarExpanded] = useState(false)
+  // Desde el chat se puede pedir ver la barra de formato: se abre si estaba oculta.
+  const toolbarRevealToken = useEditorStore((s) => s.toolbarRevealToken)
+  const [seenToolbarRevealToken, setSeenToolbarRevealToken] = useState(toolbarRevealToken)
+  if (seenToolbarRevealToken !== toolbarRevealToken) {
+    setSeenToolbarRevealToken(toolbarRevealToken)
+    setToolbarExpanded(true)
+  }
   const [primaryActions, setPrimaryActions] =
     useState<EditorToolbarActions | null>(null)
   const [secondaryActions, setSecondaryActions] =

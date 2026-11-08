@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils"
 import { AlertDialog as AlertDialogPrimitive } from "radix-ui"
 
 import { Button } from "@/components/ui/button"
-import { useRestoreFocus } from "@/components/ui/use-restore-focus"
+import { RestoreFocusMarker, useRestoreFocus } from "@/components/ui/use-restore-focus"
 
 function AlertDialog({
   ...props
@@ -50,6 +50,7 @@ function AlertDialogContent({
   size = "default",
   onOpenAutoFocus,
   onCloseAutoFocus,
+  children,
   ...props
 }: React.ComponentProps<typeof AlertDialogPrimitive.Content> & {
   size?: "default" | "sm"
@@ -69,7 +70,10 @@ function AlertDialogContent({
         onOpenAutoFocus={restoreFocus.onOpenAutoFocus}
         onCloseAutoFocus={restoreFocus.onCloseAutoFocus}
         {...props}
-      />
+      >
+        <RestoreFocusMarker previouslyFocusedRef={restoreFocus.previouslyFocused} />
+        {children}
+      </AlertDialogPrimitive.Content>
     </AlertDialogPortal>
   )
 }

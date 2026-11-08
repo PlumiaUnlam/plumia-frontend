@@ -626,7 +626,7 @@ export function EditorMenuBar({
           size="sm"
           variant="ghost"
           className="h-8 min-w-14 rounded-none border-x border-border px-2 text-xs tabular-nums text-foreground hover:bg-[#eee3f5] hover:text-[#70348c] dark:hover:bg-muted dark:hover:text-foreground"
-          disabled={!editor}
+          disabled={!editor || zoom === 100}
           aria-label={`Restablecer zoom del editor, actual ${zoom}%`}
           title="Restablecer zoom (Ctrl/Cmd+0)"
           onMouseDown={(event) => event.preventDefault()}

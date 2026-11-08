@@ -115,6 +115,24 @@ function useShowWikiOnAlertChange(
   }
 }
 
+/** Abre la pestaña que pidió otra parte de la app (por ejemplo un acceso directo del chat). */
+function useShowRequestedTab(
+  setActiveTab: (tab: RightTab) => void,
+  setManualCollapsed: (collapsed: boolean) => void,
+) {
+  const request = useEditorStore((state) => state.rightPanelRequest);
+  const clearRequest = useEditorStore((state) => state.clearRightPanelRequest);
+  const [handledToken, setHandledToken] = useState(0);
+  if (request && request.token !== handledToken) {
+    setHandledToken(request.token);
+    setActiveTab(request.tab);
+    setManualCollapsed(false);
+  }
+  useEffect(() => {
+    if (request) clearRequest();
+  }, [request, clearRequest]);
+}
+
 function EditorRightPanelContent({
   projectId,
   mode,
@@ -133,6 +151,7 @@ function EditorRightPanelContent({
   const isCompactViewport = useCompactViewport();
   const [manualCollapsed, setManualCollapsed] = useState<boolean | null>(null);
   const isCollapsed = manualCollapsed ?? isCompactViewport;
+  useShowRequestedTab(setActiveTab, setManualCollapsed);
 
   const [acceptingProposalId, setAcceptingProposalId] = useState<string | null>(
     null,

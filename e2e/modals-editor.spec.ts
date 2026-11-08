@@ -569,6 +569,7 @@ test.describe("Chat con IA", () => {
     await openEditor(page)
     await page.getByRole("button", { name: /Chat IA/ }).click()
 
+    await page.getByRole("button", { name: "Mostrar referencias utilizadas" }).click()
     const viewAll = page.getByRole("button", { name: /\+2 fuentes revisadas · Ver todas/ })
     await viewAll.scrollIntoViewIfNeeded()
     await viewAll.click()

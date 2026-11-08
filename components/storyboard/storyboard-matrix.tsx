@@ -743,7 +743,7 @@ export function StoryboardMatrix({
                               </span>
                               <button
                                 type="button"
-                                className="grid size-4 shrink-0 place-items-center rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+                                className="relative grid size-4 shrink-0 place-items-center rounded-sm text-muted-foreground after:absolute after:-inset-1.5 hover:bg-muted hover:text-foreground"
                                 disabled={submitting}
                                 onClick={() => setNoteToDelete(note)}
                                 aria-label="Eliminar nota"

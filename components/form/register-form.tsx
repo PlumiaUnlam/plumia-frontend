@@ -1,5 +1,6 @@
 "use client"
 
+import { InlineLinkButton } from "@/components/form/inline-link-button"
 import { useState, type SubmitEvent } from "react"
 import { CircleAlert } from "lucide-react"
 import Link from "next/link"
@@ -127,14 +128,10 @@ export function RegisterForm() {
       footer={
         <p>
           ¿Ya tenés cuenta?{" "}
-          <Button
-            variant="link"
-            type="button"
-            className="h-auto p-0 text-xs font-medium"
-            onClick={goToLogin}
+          <InlineLinkButton onClick={goToLogin}
           >
             Iniciá sesión
-          </Button>
+          </InlineLinkButton>
         </p>
       }
     >

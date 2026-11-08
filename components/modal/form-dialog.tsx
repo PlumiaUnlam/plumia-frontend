@@ -51,6 +51,8 @@ type FormDialogProps = {
   contentClassName?: string
   /** Para decidir si un click fuera cierra el modal (ej. cuando hay otro modal encima). */
   onInteractOutside?: (event: Event) => void
+  /** A dónde vuelve el foco al cerrar (por defecto, al elemento que lo tenía al abrir). */
+  onCloseAutoFocus?: (event: Event) => void
   bodyClassName?: string
   showCloseButton?: boolean
 }
@@ -148,6 +150,7 @@ export function FormDialog({
   footer,
   contentClassName,
   onInteractOutside,
+  onCloseAutoFocus,
   bodyClassName,
   showCloseButton = true,
 }: Readonly<FormDialogProps>) {
@@ -199,6 +202,7 @@ export function FormDialog({
         layer={layer}
         showCloseButton={showCloseButton}
         className={contentClassName}
+        onCloseAutoFocus={onCloseAutoFocus}
         onEscapeKeyDown={(event) => {
           if (loading) event.preventDefault()
         }}

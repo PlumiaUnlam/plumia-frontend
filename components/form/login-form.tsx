@@ -1,5 +1,6 @@
 "use client"
 
+import { InlineLinkButton } from "@/components/form/inline-link-button"
 import { useState, type SubmitEvent } from "react"
 import { CircleAlert, MailCheck } from "lucide-react"
 import { useRouter, useSearchParams } from "next/navigation"
@@ -120,14 +121,10 @@ export function LoginForm() {
       footer={
         <p>
           ¿No tenés cuenta?{" "}
-          <Button
-            variant="link"
-            type="button"
-            className="h-auto p-0 text-xs font-medium"
-            onClick={goToRegister}
+          <InlineLinkButton onClick={goToRegister}
           >
             Registrate
-          </Button>
+          </InlineLinkButton>
         </p>
       }
     >
@@ -166,14 +163,12 @@ export function LoginForm() {
           <Field data-invalid={!!errors.password}>
             <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
               <FieldLabel htmlFor="password">Contraseña</FieldLabel>
-              <Button
-                variant="link"
-                type="button"
-                className="h-auto shrink-0 p-0 text-xs font-medium text-muted-foreground"
+              <InlineLinkButton
+                className="shrink-0 text-muted-foreground"
                 onClick={() => router.push("/forgot-password")}
               >
                 ¿Olvidaste tu contraseña?
-              </Button>
+              </InlineLinkButton>
             </div>
             <FieldContent>
               <Input
