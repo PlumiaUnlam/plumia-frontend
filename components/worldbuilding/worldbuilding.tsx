@@ -92,6 +92,7 @@ import type {
   EntityStateHistoryEntry,
 } from "@/types/entity-state";
 import { EntityStateModal } from "@/components/wiki/entity-state-modal";
+import { userFacingError } from "@/helpers/api-errors"
 
 type WorldbuildingTab = "wiki" | "relationships" | "timeline" | "summaries";
 
@@ -99,7 +100,7 @@ const WORLD_BUILDING_TABS = [
   { id: "wiki" as const, label: "Wiki del Universo", shortLabel: "Wiki", icon: Star },
   { id: "relationships" as const, label: "Relaciones", shortLabel: "Relaciones", icon: GitBranch },
   { id: "timeline" as const, label: "Línea Temporal", shortLabel: "Línea", icon: Calendar },
-  { id: "summaries" as const, label: "Resúmenes", shortLabel: "Resúmenes", icon: FileText },
+  { id: "summaries" as const, label: "Resúmenes", shortLabel: "Resumen", icon: FileText },
 ];
 
 type WorldbuildingChapter = {
@@ -257,9 +258,7 @@ function useImageGenerationPolling({
                   ...current,
                   status: "FAILED",
                   errorMessage:
-                    pollError instanceof Error
-                      ? pollError.message
-                      : "No se pudo consultar la generación",
+                    userFacingError(pollError, "No se pudo consultar la generación"),
                 }
               : current,
           );
@@ -504,7 +503,7 @@ function useWorldbuildingActions({
   const handleDeleteConfirmed = async (id: string) => {
     try {
       await triggerDelete(id);
-      mutate(
+      await mutate(
         (currentData) => currentData?.filter((entity) => entity.id !== id) ?? [],
         { revalidate: false },
       );
@@ -551,9 +550,7 @@ function useWorldbuildingActions({
       await mutate();
     } catch (error) {
       setImageActionError(
-        error instanceof Error
-          ? error.message
-          : "No se pudo establecer la imagen principal.",
+        userFacingError(error, "No se pudo establecer la imagen principal."),
       );
     }
   };
@@ -576,9 +573,7 @@ function useWorldbuildingActions({
       setImageToDelete(null);
     } catch (error) {
       setImageActionError(
-        error instanceof Error
-          ? error.message
-          : "No se pudo eliminar la imagen.",
+        userFacingError(error, "No se pudo eliminar la imagen."),
       );
     } finally {
       setDeletingImage(false);
@@ -1633,7 +1628,7 @@ export function Worldbuilding({ projectId }: Readonly<WorldbuildingProps>) {
       setDeleteConfirmEntityState(null);
     } catch (cause) {
       setEntityStateActionError(
-        cause instanceof Error ? cause.message : "No se pudo eliminar el estado.",
+        userFacingError(cause, "No se pudo eliminar el estado."),
       );
     } finally {
       setDeletingEntityState(false);

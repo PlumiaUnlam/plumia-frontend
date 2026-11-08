@@ -59,6 +59,7 @@ import type {
   WritingGoal,
   WritingGoalType,
 } from "@/types/analytics";
+import { userFacingError } from "@/helpers/api-errors"
 
 const REFRESH_INTERVAL_MS = 15_000;
 const numberFormatter = new Intl.NumberFormat("es-ES");
@@ -411,7 +412,7 @@ function GoalsDialog({
       onOpenChange(false);
     } catch (error) {
       setMessage(
-        error instanceof Error ? error.message : "No se pudieron guardar las metas",
+        userFacingError(error, "No se pudieron guardar las metas"),
       );
     } finally {
       setSaving(false);
@@ -604,9 +605,7 @@ export function StatisticsDashboard({ projectId }: Readonly<{ projectId: string 
       } catch (loadError) {
         if (signal?.aborted) return;
         setError(
-          loadError instanceof Error
-            ? loadError.message
-            : "No se pudieron cargar las estadísticas",
+          userFacingError(loadError, "No se pudieron cargar las estadísticas"),
         );
       } finally {
         if (!signal?.aborted) {

@@ -31,6 +31,7 @@ import type {
   RelationType,
   UpdateRelationshipInput,
 } from "@/types/relationship";
+import { userFacingError } from "@/helpers/api-errors"
 
 type NewRelationModalProps = {
   readonly show: boolean;
@@ -141,12 +142,17 @@ export function NewRelationModal({
     ? relationType
     : (availableRelationTypes[0] ?? "KNOWS");
 
+  // En una propuesta el selector nativo no tiene opción vacía: sin valor inicial
+  // mostraría la primera escena, así que ese es el valor efectivo.
+  const effectiveValidFromSceneId =
+    validFromSceneId || (isProposal ? (scenes[0]?.id ?? "") : "");
+
   const canSubmit =
     !!sourceEntityId &&
     !!targetEntityId &&
     sourceEntityId !== targetEntityId &&
     availableRelationTypes.length > 0 &&
-    (!isProposal || scenes.length === 0 || !!validFromSceneId);
+    (!isProposal || scenes.length === 0 || !!effectiveValidFromSceneId);
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
@@ -162,7 +168,7 @@ export function NewRelationModal({
         intensity,
         description: description.trim() || (isEditing ? null : undefined),
         ...(isProposal
-          ? { validFromSceneId: validFromSceneId || undefined }
+          ? { validFromSceneId: effectiveValidFromSceneId || undefined }
           : {
               validFromSceneId: validFromSceneId || null,
               validToSceneId: validToSceneId || null,
@@ -172,7 +178,7 @@ export function NewRelationModal({
       onClose();
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Error al guardar la relación",
+        userFacingError(err, "Error al guardar la relación"),
       );
     } finally {
       setSubmitting(false);
@@ -276,7 +282,7 @@ export function NewRelationModal({
           <FieldContent>
             <select
               id="proposal-effective-scene"
-              value={validFromSceneId}
+              value={effectiveValidFromSceneId}
               onChange={(event) => setValidFromSceneId(event.target.value)}
               className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm dark:bg-input/30"
             >

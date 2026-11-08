@@ -69,6 +69,7 @@ import type {
   TimelineEventInput,
   TimelineImpact,
 } from "@/types/timeline"
+import { userFacingError } from "@/helpers/api-errors"
 
 type TimelinePanelProps = {
   projectId: string
@@ -258,7 +259,7 @@ function includeFocusedEvent(
 }
 
 function getErrorMessage(error: unknown, fallback: string) {
-  return error instanceof Error ? error.message : fallback
+  return userFacingError(error, fallback)
 }
 
 function fromFilterValue(value: string) {
@@ -723,7 +724,7 @@ export function TimelinePanel({
 
   return (
     <div className="flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden md:flex-row">
-      <aside className="flex min-h-0 w-full shrink-0 flex-col overflow-hidden border-b border-border bg-muted/30 md:h-full md:w-80 md:border-b-0 md:border-r">
+      <aside className="flex min-h-0 w-full shrink-0 flex-col overflow-x-hidden overflow-y-auto border-b border-border bg-muted/30 md:h-full md:w-80 md:border-b-0 md:border-r">
         <button
           type="button"
           aria-expanded={filtersOpen}
@@ -1191,7 +1192,7 @@ function TimelineEventDialog({ arcs, entities, createdEntity, event, open, onReq
       await onSave(toInput(displayedDraft))
       onOpenChange(false)
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : "No se pudo guardar el evento")
+      setError(userFacingError(saveError, "No se pudo guardar el evento"))
     } finally {
       setSubmitting(false)
     }

@@ -54,6 +54,7 @@ import type {
   SidebarModalState,
 } from "@/components/left-sidebar-types";
 import type { SceneVersionSummary } from "@/types/scene";
+import { userFacingError } from "@/helpers/api-errors"
 
 export type { SidebarBook, SidebarChapter, SidebarScene } from "@/components/left-sidebar-types";
 
@@ -118,7 +119,7 @@ export function LeftSidebar({
       await onBeforeDocumentChange?.();
       change();
     } catch (error) {
-      setNavigationError(error instanceof Error ? error.message : "No se pudieron guardar los cambios. Reintentá antes de continuar.");
+      setNavigationError(userFacingError(error, "No se pudieron guardar los cambios. Reintentá antes de continuar."));
     } finally {
       navigationPendingRef.current = false;
     }

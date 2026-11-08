@@ -27,6 +27,7 @@ import {
   getSummaryJob,
   type SummaryResponse,
 } from "@/services/worldbuilding.service";
+import { userFacingError } from "@/helpers/api-errors"
 
 export type SummaryChapter = {
   id: string;
@@ -203,9 +204,7 @@ export function SummariesPanel({
     void loadSummaries().catch((loadError: unknown) => {
       if (!cancelled && !controller.signal.aborted) {
         setSummaryError(
-          loadError instanceof Error
-            ? loadError.message
-            : "No se pudieron cargar los resúmenes.",
+          userFacingError(loadError, "No se pudieron cargar los resúmenes."),
         );
       }
     });
@@ -246,9 +245,7 @@ export function SummariesPanel({
       if (signal?.aborted || isAbortError(generateError)) return;
 
       setSummaryError(
-        generateError instanceof Error
-          ? generateError.message
-          : "No se pudo generar el resumen.",
+        userFacingError(generateError, "No se pudo generar el resumen."),
       );
     } finally {
       if (!signal.aborted) {
@@ -293,7 +290,7 @@ export function SummariesPanel({
         setCopyError({
           chapterId,
           message:
-            "No se pudo copiar automáticamente. Selecciona el resumen y cópialo manualmente.",
+            "No se pudo copiar automáticamente. Seleccioná el resumen y copialo manualmente.",
         });
         return;
       }
@@ -304,7 +301,7 @@ export function SummariesPanel({
       setCopyError({
         chapterId,
         message:
-          "El navegador bloqueó el copiado automático. Selecciona el resumen y cópialo manualmente.",
+          "El navegador bloqueó el copiado automático. Seleccioná el resumen y copialo manualmente.",
       });
     }
   };
@@ -312,7 +309,7 @@ export function SummariesPanel({
   return (
     <div className="flex h-full min-h-0 w-full min-w-0 overflow-hidden">
       <aside
-        className={`flex h-full min-h-0 w-full shrink-0 flex-col overflow-hidden border-r border-border bg-muted/30 md:w-80 ${
+        className={`flex h-full min-h-0 w-full shrink-0 flex-col overflow-x-hidden overflow-y-auto border-r border-border bg-muted/30 md:w-80 ${
           activeChapter ? "max-md:hidden" : ""
         }`}
       >
@@ -344,7 +341,7 @@ export function SummariesPanel({
           </Button>
         </div>
 
-        <ScrollArea className="min-h-0 flex-1 p-3">
+        <ScrollArea className="min-h-48 flex-1 p-3">
           <div className="min-w-0 space-y-1.5">
             {loading &&
               Array.from({ length: 5 }).map((_, index) => (
@@ -375,7 +372,7 @@ export function SummariesPanel({
                     key={chapter.id}
                     type="button"
                     onClick={() => setActiveChapterId(chapter.id)}
-                    className={`w-full rounded-xl border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 ${isActive
+                    className={`block w-full min-w-0 overflow-hidden rounded-xl border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 ${isActive
                       ? "border-primary/40 bg-primary/5 shadow-sm"
                       : "border-border bg-card hover:border-primary/20 hover:bg-card/80"
                       }`}
@@ -614,9 +611,9 @@ export function SummariesPanel({
         ) : (
           <div className="flex h-full min-h-80 flex-col items-center justify-center gap-2 text-center text-primary opacity-70">
             <Album size={48} />
-            <h2 className="text-lg font-semibold">Selecciona un capítulo</h2>
+            <h2 className="text-lg font-semibold">Seleccioná un capítulo</h2>
             <p>
-              Haz click en cualquier capítulo de la lista para ver su resumen.
+              Hacé clic en cualquier capítulo de la lista para ver su resumen.
             </p>
           </div>
         )}

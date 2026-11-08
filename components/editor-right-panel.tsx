@@ -13,6 +13,7 @@ import {
 import useSWR from "swr";
 
 import { Spinner } from "@/components/ui/spinner";
+import { useCompactViewport } from "@/hooks/use-compact-viewport";
 
 import { getEntities } from "@/services/entities.service";
 import {
@@ -46,6 +47,7 @@ import type { UpdateRelationshipInput } from "@/types/relationship";
 import type { AuditAlert, AuditAlertUpdateStatus } from "@/types/audit-alert";
 import type { WritingMode } from "@/types/writing-mode";
 import type { EditorSectionOption } from "@/components/editor/editor-types";
+import { userFacingError } from "@/helpers/api-errors"
 
 // Sin `loading`, next/dynamic no crea su propio Suspense: al cargar el chunk por
 // primera vez suspendería hasta el límite del editor y haría desaparecer todo el panel.
@@ -127,7 +129,10 @@ function EditorRightPanelContent({
   const refreshTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [activeTab, setActiveTab] = useState<RightTab>("wiki");
   useShowWikiOnAlertChange(focusedAlertId, setActiveTab);
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  // Sin elección de la persona, el panel arranca colapsado en pantallas chicas.
+  const isCompactViewport = useCompactViewport();
+  const [manualCollapsed, setManualCollapsed] = useState<boolean | null>(null);
+  const isCollapsed = manualCollapsed ?? isCompactViewport;
 
   const [acceptingProposalId, setAcceptingProposalId] = useState<string | null>(
     null,
@@ -305,9 +310,7 @@ function EditorRightPanelContent({
       ]).catch(() => undefined);
     } catch (error) {
       const message =
-        error instanceof Error
-          ? error.message
-          : "No se pudo aceptar la propuesta.";
+        userFacingError(error, "No se pudo aceptar la propuesta.");
       setEntityActionFeedback({ kind: "error", message });
       throw error;
     } finally {
@@ -326,9 +329,7 @@ function EditorRightPanelContent({
       await mutateRelationshipProposals();
     } catch (error) {
       setActionError(
-        error instanceof Error
-          ? error.message
-          : "No se pudo aceptar la relacion.",
+        userFacingError(error, "No se pudo aceptar la relacion."),
       );
     } finally {
       setAcceptingRelationshipProposalId(null);
@@ -343,9 +344,7 @@ function EditorRightPanelContent({
       await mutateRelationshipProposals();
     } catch (error) {
       setActionError(
-        error instanceof Error
-          ? error.message
-          : "No se pudo rechazar la relacion.",
+        userFacingError(error, "No se pudo rechazar la relacion."),
       );
     } finally {
       setRejectingRelationshipProposalId(null);
@@ -367,9 +366,7 @@ function EditorRightPanelContent({
       setEntityActionFeedback({
         kind: "error",
         message:
-          error instanceof Error
-            ? error.message
-            : "No se pudo rechazar la propuesta.",
+          userFacingError(error, "No se pudo rechazar la propuesta."),
       });
     } finally {
       setRejectingProposalId(null);
@@ -400,9 +397,7 @@ function EditorRightPanelContent({
       return true;
     } catch (error) {
       setActionError(
-        error instanceof Error
-          ? error.message
-          : "No se pudo actualizar la advertencia.",
+        userFacingError(error, "No se pudo actualizar la advertencia."),
       );
       return false;
     } finally {
@@ -444,9 +439,7 @@ function EditorRightPanelContent({
       scheduleKnowledgeRefresh();
     } catch (error) {
       setActionError(
-        error instanceof Error
-          ? error.message
-          : "No se pudo actualizar la base de conocimiento.",
+        userFacingError(error, "No se pudo actualizar la base de conocimiento."),
       );
     } finally {
       setUpdatingAuditAlertId(null);
@@ -484,9 +477,7 @@ function EditorRightPanelContent({
       scheduleKnowledgeRefresh();
     } catch (error) {
       setActionError(
-        error instanceof Error
-          ? error.message
-          : "No se pudo aceptar el cambio de estado.",
+        userFacingError(error, "No se pudo aceptar el cambio de estado."),
       );
     } finally {
       setAcceptingStateProposalId(null);
@@ -501,9 +492,7 @@ function EditorRightPanelContent({
       await mutateStateProposals();
     } catch (error) {
       setActionError(
-        error instanceof Error
-          ? error.message
-          : "No se pudo rechazar el cambio de estado.",
+        userFacingError(error, "No se pudo rechazar el cambio de estado."),
       );
     } finally {
       setRejectingStateProposalId(null);
@@ -536,7 +525,7 @@ function EditorRightPanelContent({
           ))}
           <button
             type="button"
-            onClick={() => setIsCollapsed(true)}
+            onClick={() => setManualCollapsed(true)}
             className="ml-0.5 flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
             title="Colapsar panel derecho"
             aria-label="Colapsar panel derecho"
@@ -608,7 +597,7 @@ function EditorRightPanelContent({
         <div className="flex h-12 w-full shrink-0 items-center justify-center border-b border-border">
           <button
             type="button"
-            onClick={() => setIsCollapsed(false)}
+            onClick={() => setManualCollapsed(false)}
             className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
             title="Expandir panel derecho"
             aria-label="Expandir panel derecho"
@@ -624,7 +613,7 @@ function EditorRightPanelContent({
               type="button"
               onClick={() => {
                 setActiveTab(id);
-                setIsCollapsed(false);
+                setManualCollapsed(false);
               }}
               className={`flex h-8 w-8 items-center justify-center rounded-md transition-colors ${
                 activeTab === id

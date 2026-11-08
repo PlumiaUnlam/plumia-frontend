@@ -28,6 +28,7 @@ import {
   type EpubProjectImportResult,
   type ProjectResponse,
 } from "@/services/project.service"
+import { userFacingError } from "@/helpers/api-errors"
 
 type NewProjectFormProps = {
   onCancel: () => void
@@ -180,8 +181,8 @@ export function NewProjectForm({
       onCancel()
     } catch (error) {
       console.error(`Error ${isEditing ? "updating" : "creating"} project:`, error)
-      const fallbackMessage = `No se pudo ${isEditing ? "guardar" : "crear"} el proyecto. Inténtalo nuevamente.`
-      const reason = error instanceof Error ? error.message : fallbackMessage
+      const fallbackMessage = `No se pudo ${isEditing ? "guardar" : "crear"} el proyecto. Intentalo nuevamente.`
+      const reason = userFacingError(error, fallbackMessage)
       setErrors((prev) => ({
         ...prev,
         submit: epubFile

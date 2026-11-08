@@ -46,6 +46,7 @@ import type {
   ImageGenerationJob,
   ImageResponse,
 } from "@/services/image-generation.service";
+import { userFacingError } from "@/helpers/api-errors"
 
 type NewEntityModalProps = {
   readonly show: boolean;
@@ -262,7 +263,7 @@ export function NewEntityModal({
     } catch (err) {
       if (cancelRef.current) return;
       const message =
-        err instanceof Error ? err.message : "Error al generar la imagen";
+        userFacingError(err, "Error al generar la imagen");
       setAiError(message);
     } finally {
       setAiGenerating(false);
@@ -314,7 +315,7 @@ export function NewEntityModal({
       onClose();
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Error al guardar la entidad",
+        userFacingError(err, "Error al guardar la entidad"),
       );
     } finally {
       setSubmitting(false);
