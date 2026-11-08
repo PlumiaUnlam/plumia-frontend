@@ -137,3 +137,35 @@ test("HU-annotations: ordena, enfoca, resuelve, reabre y elimina anotaciones pri
   ])
   expect(backend.getAuthorAnnotations()).toHaveLength(0)
 })
+
+test("HU-annotations: el menú Comentar no tapa la nota mientras se redacta", async ({
+  page,
+}) => {
+  const backend = await installMockBackend(page)
+
+  await page.goto(`/projects/${e2eProjectId}/editor`)
+  await page.getByRole("button", { name: "El umbral 10 palabras" }).click()
+
+  const editor = page.locator(".ProseMirror")
+  await expect(editor).toContainText("La noche cubría la ciudad")
+  await editor.click()
+  await editor.getByText("La noche cubría la ciudad.").selectText()
+
+  const comment = page.getByRole("button", { name: "Comentar", exact: true })
+  await expect(comment).toBeVisible()
+
+  await comment.click()
+  const note = page.getByLabel("Escribí una anotación privada")
+  await expect(note).toBeVisible()
+  // El menú flotante desaparece para no quedar encima del panel donde se escribe la nota.
+  await expect(comment).toHaveCount(0)
+
+  await note.fill("Revisar este arranque.")
+  await expect(note).toHaveValue("Revisar este arranque.")
+  await expect(comment).toHaveCount(0)
+
+  await page.getByRole("button", { name: "Guardar nota" }).click()
+  await expect.poll(() => backend.getAuthorAnnotations().length).toBe(1)
+  // Con el foco fuera del editor, el menú tampoco reaparece sobre el texto seleccionado.
+  await expect(comment).toHaveCount(0)
+})

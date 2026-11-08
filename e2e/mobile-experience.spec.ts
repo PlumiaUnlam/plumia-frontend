@@ -61,7 +61,7 @@ test.describe("Worldbuilding en mobile", () => {
 
     await expect(page.getByRole("tab", { name: /Wiki del Universo/ })).toBeVisible()
     await expect(page.getByRole("tab", { name: /Relaciones/ })).toHaveCount(0)
-    await expect(page.getByText("Selecciona una entidad")).toBeHidden()
+    await expect(page.getByText("Seleccioná una entidad")).toBeHidden()
 
     await page.getByText("Tomás Reyes").first().click()
     await expect(page.getByRole("button", { name: "Entidades" })).toBeVisible()
@@ -142,6 +142,24 @@ test.describe("Notas por voz en mobile", () => {
     await page.getByRole("button", { name: "Reintentar" }).click()
 
     await expect(page.getByText("Nota guardada en Ideas")).toBeVisible()
+
+    // El aviso aparece arriba y centrado, por encima de todo, sin tapar la navegación de abajo.
+    const toast = page.locator("[data-sonner-toast]").first()
+    await expect(toast).toBeVisible()
+    const box = await toast.boundingBox()
+    const viewport = page.viewportSize()
+    expect(box).not.toBeNull()
+    expect(box!.y).toBeLessThan(140)
+    expect(box!.x).toBeGreaterThanOrEqual(0)
+    expect(box!.x + box!.width).toBeLessThanOrEqual(viewport!.width + 1)
+    const bottomNav = await page.getByRole("navigation", { name: "Secciones del proyecto" }).boundingBox()
+    if (bottomNav) expect(box!.y + box!.height).toBeLessThanOrEqual(bottomNav.y)
+    const onTop = await toast.evaluate((el) => {
+      const r = el.getBoundingClientRect()
+      const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)
+      return !!hit && el.contains(hit)
+    })
+    expect(onTop).toBe(true)
     expect(uploadAttempts).toBe(2)
     expect(backend.callsTo("POST", /storyboard-cards$/)).toHaveLength(1)
   })
@@ -155,8 +173,11 @@ test.describe("Notas por voz en mobile", () => {
 
     await page.getByRole("button", { name: "Grabar nota por voz" }).click()
     await page.getByRole("button", { name: "Detener y guardar la nota" }).click()
-
-    await expect(page.getByRole("alert")).toBeVisible()
+    // Un 500 sin campo message no debe mostrar el JSON crudo a la persona.
+    // Un 500 sin  no debe mostrar el JSON crudo ("{}") a la persona.
+    const alert = page.getByRole("alert").filter({ hasText: /\S/ })
+    await expect(alert).toBeVisible()
+    await expect(alert).not.toHaveText(/[{}]/)
     expect(backend.callsTo("POST", /storyboard-cards$/)).toHaveLength(0)
   })
 })

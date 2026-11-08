@@ -24,6 +24,7 @@ import { EntityIconTile } from "@/components/worldbuilding/entity-icon-tile";
 import { EntityImage } from "@/components/worldbuilding/entity-image";
 import { NewEntityModal } from "@/components/modal/new-entity-modal";
 import { NewRelationModal } from "@/components/modal/new-relation-modal";
+import { searchEntities } from "@/lib/entity-search";
 import { getEntityCategoryStyle } from "@/lib/entity-category-style";
 import {
   TYPE_TO_CATEGORY,
@@ -201,45 +202,31 @@ export function WikiPanel({
     showReviewSections,
   ]);
 
-  const filteredEntities = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    const currentEntities = entities ?? [];
+  const filteredEntities = useMemo(
+    () =>
+      searchEntities(entities ?? [], searchQuery, (entity) => ({
+        name: entity.canonicalName,
+        aliases: entity.aliases,
+        category: TYPE_TO_CATEGORY[entity.type],
+        content: [entity.description],
+      })),
+    [entities, searchQuery],
+  );
 
-    if (!query) return currentEntities;
-
-    return currentEntities.filter((entity) => {
-      const category = TYPE_TO_CATEGORY[entity.type];
-      return (
-        entity.canonicalName.toLowerCase().includes(query) ||
-        category.toLowerCase().includes(query) ||
-        (entity.description ?? "").toLowerCase().includes(query) ||
-        entity.aliases.some((alias) => alias.toLowerCase().includes(query))
-      );
-    });
-  }, [entities, searchQuery]);
-
-  const filteredProposals = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    const currentProposals = proposals ?? [];
-
-    if (!query) return currentProposals;
-
-    return currentProposals.filter((proposal) => {
-      const category = TYPE_TO_CATEGORY[proposal.proposedData.type];
-      return (
-        proposal.proposedData.canonicalName.toLowerCase().includes(query) ||
-        category.toLowerCase().includes(query) ||
-        (proposal.proposedData.description ?? "")
-          .toLowerCase()
-          .includes(query) ||
-        proposal.proposedData.aliases.some((alias) =>
-          alias.toLowerCase().includes(query),
-        ) ||
-        (proposal.sceneTitle ?? "").toLowerCase().includes(query) ||
-        (proposal.chapterTitle ?? "").toLowerCase().includes(query)
-      );
-    });
-  }, [proposals, searchQuery]);
+  const filteredProposals = useMemo(
+    () =>
+      searchEntities(proposals ?? [], searchQuery, (proposal) => ({
+        name: proposal.proposedData.canonicalName,
+        aliases: proposal.proposedData.aliases,
+        category: TYPE_TO_CATEGORY[proposal.proposedData.type],
+        content: [
+          proposal.proposedData.description,
+          proposal.sceneTitle,
+          proposal.chapterTitle,
+        ],
+      })),
+    [proposals, searchQuery],
+  );
 
   const updateProposalsByEntityId = useMemo(
     () =>
@@ -335,7 +322,10 @@ export function WikiPanel({
         </div>
       </div>
 
-      <ScrollArea className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain">
+      <ScrollArea
+        viewportClassName="[&>div]:!block"
+        className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain"
+      >
         <div className="min-w-0 max-w-full space-y-3 overflow-x-hidden p-3">
           {showReviewSections && actionError && (
             <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-xs text-destructive">
@@ -640,7 +630,7 @@ function EntityDirectoryContent({
     return (
       <EmptyWikiState
         title="Sin entidades"
-        description="Crea entidades en la wiki para consultarlas desde el editor."
+        description="Creá entidades en la wiki para consultarlas desde el editor."
       />
     );
   }
@@ -704,7 +694,7 @@ function StateProposalsContent({
     return (
       <EmptyWikiState
         title="Sin cambios narrativos pendientes"
-        description="Los cambios de ubicacion, estado vital y condicion apareceran aqui para revision."
+        description="Los cambios de ubicación, estado vital y condición aparecerán acá para revisión."
       />
     );
   }
@@ -913,7 +903,7 @@ function AuditAlertList({
     return (
       <EmptyWikiState
         title="Sin inconsistencias pendientes"
-        description="Las posibles contradicciones de entidades apareceran aqui para tu revision."
+        description="Las posibles contradicciones de entidades aparecerán acá para tu revisión."
       />
     )
   }
@@ -1293,7 +1283,7 @@ function RelationshipProposalCard({
               </p>
               <p className="whitespace-pre-wrap break-words text-muted-foreground">
                 Descripcion actual:{" "}
-                {proposal.current.description || "Sin descripcion"}
+                {proposal.current.description || "Sin descripción"}
               </p>
             </div>
           )}
@@ -1518,7 +1508,7 @@ function EditorWikiEntityCard({
         )}
 
         <p className="line-clamp-2 break-words text-[10px] leading-relaxed text-muted-foreground">
-          {entity.description || "Sin descripcion"}
+          {entity.description || "Sin descripción"}
         </p>
 
         <Link
@@ -1600,7 +1590,7 @@ function EditorWikiProposalCard({
         <p className="line-clamp-2 break-words text-[10px] leading-relaxed text-muted-foreground">
           {isUpdate
             ? "Se detectaron detalles nuevos para esta entidad."
-            : proposal.proposedData.description || "Sin descripcion"}
+            : proposal.proposedData.description || "Sin descripción"}
         </p>
 
         {proposal.conflictsWithLocked && (
@@ -1612,7 +1602,7 @@ function EditorWikiProposalCard({
 
         <div className="mt-2 flex min-w-0 max-w-full flex-col gap-1 text-[10px] text-muted-foreground">
           <span className="break-words">
-            Escena: {proposal.sceneTitle ?? "Sin titulo"}
+            Escena: {proposal.sceneTitle ?? "Sin título"}
             {proposal.chapterTitle ? ` · ${proposal.chapterTitle}` : ""}
           </span>
           <span className="shrink-0">
@@ -1834,7 +1824,7 @@ function EntityUpdateReviewDialog({
               </div>
             </div>
             <div className="text-xs text-muted-foreground">
-              Detectado en: {proposal.sceneTitle ?? "Sin titulo"}
+              Detectado en: {proposal.sceneTitle ?? "Sin título"}
               {proposal.chapterTitle ? ` · ${proposal.chapterTitle}` : ""}
             </div>
           </div>

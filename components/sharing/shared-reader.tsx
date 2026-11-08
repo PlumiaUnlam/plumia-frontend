@@ -1171,7 +1171,7 @@ function ReaderCommentCard({
             onChange={(event) =>
               onReplyDraftChange(comment.id, event.target.value)
             }
-            placeholder="Escribe una respuesta…"
+            placeholder="Escribí una respuesta…"
             rows={2}
             aria-label={`Respuesta al comentario de ${comment.author.displayName}`}
           />

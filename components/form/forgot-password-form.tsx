@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, type FormEvent, type ReactNode } from "react"
+import { useEffect, useState, type SubmitEvent, type ReactNode } from "react"
 import { CircleAlert, MailCheck } from "lucide-react"
 import { useRouter } from "next/navigation"
 
@@ -48,7 +48,7 @@ export function ForgotPasswordForm() {
     return () => clearTimeout(timer)
   }, [cooldown])
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault()
     setGeneralError("")
 
@@ -60,7 +60,7 @@ export function ForgotPasswordForm() {
     }
 
     if (!isEmail(trimmed)) {
-      setEmailError("Introduce un email con formato válido.")
+      setEmailError("Ingresá un email con formato válido.")
       return
     }
 
@@ -105,7 +105,7 @@ export function ForgotPasswordForm() {
             variant="link"
             type="button"
             className="h-auto p-0 text-xs font-medium"
-            onClick={() => void router.push("/login")}
+            onClick={() => router.push("/login")}
           >
             Iniciar sesión
           </Button>

@@ -13,15 +13,8 @@ import {
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogContent,
-} from "@/components/ui/dialog";
 import type { AuditAlert } from "@/types/audit-alert";
+import { FormDialog } from "@/components/modal/form-dialog"
 
 const severityLabel = {
   LOW: "Baja",
@@ -299,127 +292,116 @@ function AuditAlertDetailsDialog({
   const conflict = alert.conflict;
 
   return (
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent
-          size="md"
-          className="flex max-h-[min(88dvh,760px)] flex-col gap-0 overflow-hidden border-amber-500/30 bg-background p-0 shadow-2xl"
+    <FormDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Detalle de la inconsistencia"
+      description={alert.title}
+      size="md"
+      footerStart={
+        <span className="hidden text-xs text-muted-foreground sm:block">
+          La decisión final queda en manos del autor.
+        </span>
+      }
+    >
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="flex size-9 items-center justify-center rounded-full bg-amber-500/10 text-amber-700">
+          <AlertTriangle className="size-4" />
+        </span>
+        <Badge
+          variant="outline"
+          className="border-amber-600/35 bg-amber-100 text-amber-950 dark:border-amber-400/40 dark:bg-amber-950 dark:text-amber-100"
         >
-          <DialogHeader className="shrink-0 border-b border-border bg-background px-5 py-5 pr-14 sm:px-6">
-            <div className="mb-2 flex flex-wrap items-center gap-2">
-              <span className="flex size-9 items-center justify-center rounded-full bg-amber-500/10 text-amber-700">
-                <AlertTriangle className="size-4" />
-              </span>
-              <Badge
-                variant="outline"
-                className="border-amber-600/35 bg-amber-100 text-amber-950 dark:border-amber-400/40 dark:bg-amber-950 dark:text-amber-100"
-              >
-                Severidad {severityLabel[alert.severity].toLowerCase()}
-              </Badge>
-              {isCrossChunkContradiction && (
-                <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary">
-                  Dentro de la misma escena
-                </Badge>
-              )}
-              {historyMode && archivedAt && (
-                <Badge variant="outline" className="border-border bg-muted text-muted-foreground">
-                  Archivada {archivedAt}
-                </Badge>
-              )}
-            </div>
-            <DialogTitle className="text-base">Detalle de la inconsistencia</DialogTitle>
-            <DialogDescription className="break-words pr-1 text-xs leading-relaxed text-foreground/80">
-              {alert.title}
-            </DialogDescription>
-          </DialogHeader>
+          Severidad {severityLabel[alert.severity].toLowerCase()}
+        </Badge>
+        {isCrossChunkContradiction && (
+          <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary">
+            Dentro de la misma escena
+          </Badge>
+        )}
+        {historyMode && archivedAt && (
+          <Badge variant="outline" className="border-border bg-muted text-muted-foreground">
+            Archivada {archivedAt}
+          </Badge>
+        )}
+      </div>
 
-          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto bg-background px-5 py-5 sm:px-6">
-            <section className="rounded-xl border border-primary/20 bg-card p-4 shadow-sm">
-              <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-primary">
-                Explicación
+      <section className="rounded-xl border border-primary/20 bg-card p-4 shadow-sm">
+        <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-primary">
+          Explicación
+        </p>
+        <p className="break-words text-sm leading-relaxed text-foreground">
+          {explanation}
+        </p>
+      </section>
+
+      {conflict && (
+        <section className="space-y-2.5">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+              {isCrossChunkContradiction ? "Información en conflicto" : "Comparación"}
+            </p>
+            <p className="mt-1 break-words text-xs font-medium text-foreground">
+              {conflict.relationship
+                ? `${conflict.relationship.sourceEntityName} · ${conflict.relationship.targetEntityName}`
+                : conflict.entityName}
+            </p>
+            {conflict.relationship && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Relación: {conflict.relationship.relationType}
               </p>
-              <p className="break-words text-sm leading-relaxed text-foreground">
-                {explanation}
-              </p>
-            </section>
-
-            {conflict && (
-              <section className="space-y-2.5">
-                <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                    {isCrossChunkContradiction ? "Información en conflicto" : "Comparación"}
-                  </p>
-                  <p className="mt-1 break-words text-xs font-medium text-foreground">
-                    {conflict.relationship
-                      ? `${conflict.relationship.sourceEntityName} · ${conflict.relationship.targetEntityName}`
-                      : conflict.entityName}
-                  </p>
-                  {conflict.relationship && (
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Relación: {conflict.relationship.relationType}
-                    </p>
-                  )}
-                </div>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <DetailValue
-                    label={isCrossChunkContradiction ? "Primer texto" : "Establecido"}
-                    value={conflict.currentValue}
-                    tone="muted"
-                  />
-                  <DetailValue
-                    label={isCrossChunkContradiction ? "Segundo texto" : "Detectado"}
-                    value={conflict.observedValue}
-                    tone="accent"
-                  />
-                </div>
-              </section>
-            )}
-
-            {isCrossChunkContradiction && (
-              <section className="space-y-2.5">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                  Evidencia en el texto
-                </p>
-                <EvidenceQuote
-                  label="Primer fragmento"
-                  quote={firstEvidence}
-                  onOpen={() => focusEvidence(0)}
-                />
-                <EvidenceQuote
-                  label="Segundo fragmento"
-                  quote={secondEvidence}
-                  onOpen={() => focusEvidence(1)}
-                />
-              </section>
-            )}
-            {conflict &&
-              !isCrossChunkContradiction &&
-              conflict.evidence.length > 0 && (
-              <section className="space-y-2.5">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                  Evidencia en el texto
-                </p>
-                {conflict.evidence.map((quote, index) => (
-                  <EvidenceQuote
-                    key={`${index}-${quote}`}
-                    label={conflict.evidence.length > 1 ? `Cita ${index + 1}` : "Cita"}
-                    quote={quote}
-                    onOpen={() => focusEvidence(index)}
-                  />
-                ))}
-              </section>
             )}
           </div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <DetailValue
+              label={isCrossChunkContradiction ? "Primer texto" : "Establecido"}
+              value={conflict.currentValue}
+              tone="muted"
+            />
+            <DetailValue
+              label={isCrossChunkContradiction ? "Segundo texto" : "Detectado"}
+              value={conflict.observedValue}
+              tone="accent"
+            />
+          </div>
+        </section>
+      )}
 
-          <DialogFooter
-            className="m-0 w-full shrink-0 rounded-b-xl border-border bg-muted px-5 py-3 sm:px-6"
-            showCloseButton
-          >
-            <span className="hidden text-[10px] text-muted-foreground sm:block sm:mr-auto">
-              La decisión final queda en manos del autor.
-            </span>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {isCrossChunkContradiction && (
+        <section className="space-y-2.5">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+            Evidencia en el texto
+          </p>
+          <EvidenceQuote
+            label="Primer fragmento"
+            quote={firstEvidence}
+            onOpen={() => focusEvidence(0)}
+          />
+          <EvidenceQuote
+            label="Segundo fragmento"
+            quote={secondEvidence}
+            onOpen={() => focusEvidence(1)}
+          />
+        </section>
+      )}
+      {conflict &&
+        !isCrossChunkContradiction &&
+        conflict.evidence.length > 0 && (
+        <section className="space-y-2.5">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+            Evidencia en el texto
+          </p>
+          {conflict.evidence.map((quote, index) => (
+            <EvidenceQuote
+              key={`${index}-${quote}`}
+              label={conflict.evidence.length > 1 ? `Cita ${index + 1}` : "Cita"}
+              quote={quote}
+              onOpen={() => focusEvidence(index)}
+            />
+          ))}
+        </section>
+      )}
+    </FormDialog>
   );
 }
 

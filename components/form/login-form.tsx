@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, type FormEvent } from "react"
+import { useState, type SubmitEvent } from "react"
 import { CircleAlert, MailCheck } from "lucide-react"
 import { useRouter, useSearchParams } from "next/navigation"
 
@@ -50,7 +50,7 @@ export function LoginForm() {
     if (!values.email.trim()) {
       nextErrors.email = "El email es obligatorio."
     } else if (!isEmail(values.email.trim())) {
-      nextErrors.email = "Introduce un email con formato válido."
+      nextErrors.email = "Ingresá un email con formato válido."
     }
 
     // Sin control de largo acá. Los 8 caracteres son una política para CREAR
@@ -67,7 +67,7 @@ export function LoginForm() {
     return Object.keys(nextErrors).length === 0
   }
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault()
     setGeneralError("")
 
@@ -106,7 +106,7 @@ export function LoginForm() {
   const goToRegister = () => {
     const params = new URLSearchParams(globalThis.location?.search ?? "")
     const redirect = params.get("redirect")
-    void router.push(
+    router.push(
       redirect
         ? `/register?redirect=${encodeURIComponent(redirect)}`
         : "/register",
@@ -164,13 +164,13 @@ export function LoginForm() {
           </Field>
 
           <Field data-invalid={!!errors.password}>
-            <div className="flex items-start justify-between gap-3">
+            <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
               <FieldLabel htmlFor="password">Contraseña</FieldLabel>
               <Button
                 variant="link"
                 type="button"
                 className="h-auto shrink-0 p-0 text-xs font-medium text-muted-foreground"
-                onClick={() => void router.push("/forgot-password")}
+                onClick={() => router.push("/forgot-password")}
               >
                 ¿Olvidaste tu contraseña?
               </Button>

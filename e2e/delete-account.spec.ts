@@ -14,7 +14,7 @@ const deleteDialogCancel = (page: Page) =>
 // no debe quedar pegada a "Cerrar sesión", que también es destructiva.
 async function openDeleteDialog(page: Page) {
   await page.getByRole("button", { name: "Abrir menú de usuario" }).click()
-  await page.getByRole("menuitem", { name: "Configurar perfil" }).click()
+  await page.getByRole("menuitem", { name: "Configuración" }).click()
   await expect(page.getByRole("dialog")).toBeVisible()
   await page.getByRole("button", { name: "Eliminar cuenta" }).click()
   await expect(page.getByRole("alertdialog")).toBeVisible()
@@ -40,7 +40,7 @@ test.describe("Ley 25.326, art. 16: eliminación de la cuenta", () => {
     await expect(page.getByRole("alertdialog")).toBeHidden()
 
     // En cambio, sí está dentro del diálogo de perfil.
-    await page.getByRole("menuitem", { name: "Configurar perfil" }).click()
+    await page.getByRole("menuitem", { name: "Configuración" }).click()
     await expect(page.getByRole("dialog")).toBeVisible()
     await expect(
       page.getByRole("button", { name: "Eliminar cuenta" }),

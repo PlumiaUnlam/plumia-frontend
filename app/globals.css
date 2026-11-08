@@ -368,6 +368,12 @@
   white-space: pre-wrap;
 }
 
+/* El párrafo contiene a la capital flotante: si es más alta que el texto,
+   el párrafo crece en vez de pisar al siguiente. */
+p[data-drop-cap="true"] {
+  display: flow-root;
+}
+
 p[data-drop-cap="true"]::first-letter {
   float: left;
   font-size: var(--drop-cap-font-size, 48pt);
