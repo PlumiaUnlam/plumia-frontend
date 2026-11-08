@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react"
-import { Camera, CircleAlert, KeyRound, LogOut, Monitor, Moon, Search, Settings, SlidersHorizontal, Sun, Trash2, UserRound, X } from "lucide-react"
+import { Camera, CircleAlert, KeyRound, LogOut, Monitor, Moon, Settings, SlidersHorizontal, Sun, Trash2, UserRound, X } from "lucide-react"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { useTheme } from "next-themes"
@@ -11,17 +11,11 @@ import { useAuth } from "@/contexts/AuthContext"
 import { deleteAccountErrorMessage } from "@/helpers/api-errors"
 import { cn } from "@/lib/utils"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { ConfirmDialog } from "@/components/modal/confirm-dialog"
+import { AiKeyStatus, getAiKeyPlaceholder } from "@/components/profile-settings/ai-key-status"
+import { WorldRulesList } from "@/components/profile-settings/world-rules-list"
+import { getProfileSubmitState } from "@/lib/profile-submit"
 import { FormDialog } from "@/components/modal/form-dialog"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import {
@@ -558,12 +552,12 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
       setAiSettings(nextSettings)
       setAiNotice(
         enabled
-          ? "El analisis automatico al guardar fue activado."
-          : "El analisis automatico al guardar fue desactivado.",
+          ? "El análisis automático al guardar fue activado."
+          : "El análisis automático al guardar fue desactivado.",
       )
     } catch {
       setAutoAnalysisError(
-        "No pudimos actualizar la preferencia de analisis automatico.",
+        "No pudimos actualizar la preferencia de análisis automático.",
       )
     } finally {
       setAutoAnalysisSaving(false)
@@ -619,7 +613,7 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
 
   const handleWorldRulesSubmit = async () => {
     if (!selectedProjectId) {
-      setWorldRulesError("Selecciona un proyecto para guardar sus reglas.")
+      setWorldRulesError("Seleccioná un proyecto para guardar sus reglas.")
       return
     }
 
@@ -895,28 +889,20 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
 
   const currentSectionHasUnsavedChanges = hasUnsavedCurrentSectionChanges()
 
-  const isCurrentSectionSettingsUnavailable =
-    (profileSection === "entityRecognition" &&
-      (aiLoading || projectNamesLoading)) ||
-    (profileSection === "inconsistencies" &&
-      (projectsLoading || knowledgeReviewLoading))
-
-  const profileSubmitDisabled =
-    profileSection === "ai"
-      ? !aiKey.trim()
-      : !currentSectionHasUnsavedChanges ||
-        isCurrentSectionSettingsUnavailable ||
-        (profileSection === "inconsistencies" && !selectedProjectId)
+  const { submitDisabled: profileSubmitDisabled, submitButtonClassName: profileSubmitButtonClassName } =
+    getProfileSubmitState({
+      section: profileSection,
+      aiKeyFilled: aiKey.trim().length > 0,
+      hasUnsavedChanges: currentSectionHasUnsavedChanges,
+      entityRecognitionLoading: aiLoading || projectNamesLoading,
+      inconsistenciesLoading: projectsLoading || knowledgeReviewLoading,
+      hasSelectedProject: !!selectedProjectId,
+    })
 
   const profileSubmitLabel = getProfileSubmitLabel(
     profileSection,
     currentSectionHasUnsavedChanges,
   )
-
-
-  const profileSubmitButtonClassName = currentSectionHasUnsavedChanges
-    ? undefined
-    : "bg-muted text-muted-foreground shadow-none hover:bg-muted hover:text-muted-foreground"
 
   const requestProfileClose = (open: boolean) => {
     if (open) {
@@ -1073,26 +1059,28 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
       <Tabs
         value={profileSection}
         onValueChange={(value) => setProfileSection(value as ProfileSection)}
-        className="min-h-0"
+        className="shrink-0"
       >
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="account">
+        <div className="sticky -top-5 z-10 -mx-4 bg-background px-4 pb-3 pt-5 md:-mx-6 md:px-6">
+        <TabsList className="flex w-full justify-start overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:grid sm:grid-cols-4">
+          <TabsTrigger value="account" className="shrink-0 px-3 sm:shrink sm:px-1.5">
             <UserRound />
             Datos de la cuenta
           </TabsTrigger>
-          <TabsTrigger value="ai">
+          <TabsTrigger value="ai" className="shrink-0 px-3 sm:shrink sm:px-1.5">
             <KeyRound />
             Configuración de IA
           </TabsTrigger>
-          <TabsTrigger value="entityRecognition">
+          <TabsTrigger value="entityRecognition" className="shrink-0 px-3 sm:shrink sm:px-1.5">
             <SlidersHorizontal />
             Reconocimiento
           </TabsTrigger>
-          <TabsTrigger value="inconsistencies">
+          <TabsTrigger value="inconsistencies" className="shrink-0 px-3 sm:shrink sm:px-1.5">
             <CircleAlert />
             Inconsistencias
           </TabsTrigger>
         </TabsList>
+        </div>
 
         <TabsContent value="account" className="mt-0 space-y-4">
       <div className="flex items-center gap-3 rounded-lg border bg-muted/30 p-3">
@@ -1206,7 +1194,7 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
 
           {Object.entries(entityThresholds).map(([type, value]) => (
             <Field key={type}>
-              <FieldLabel htmlFor={`entity-threshold-${type}`}>{type}</FieldLabel>
+              <FieldLabel htmlFor={`entity-threshold-${type}`}>{getEntityTypeLabel(type)}</FieldLabel>
               <div className="flex items-center gap-3">
                 <input
                   id={`entity-threshold-${type}`}
@@ -1372,7 +1360,7 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
               disabled={projectsLoading || worldRulesSaving || projects.length === 0}
               className="h-9 w-full rounded-md border bg-background px-3 text-sm"
             >
-              <option value="">Selecciona un proyecto</option>
+              <option value="">Seleccioná un proyecto</option>
               {projects.map((project) => (
                 <option key={project.id} value={project.id}>
                   {project.title}
@@ -1551,8 +1539,8 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
               <div className="rounded-lg border bg-muted/30 p-3 text-sm">
                 <p className="font-medium">Reglas del mundo</p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Agrega reglas narrativas concretas para que el analisis pueda advertir cuando una
-                  escena contradice la logica de tu obra.
+                  Agregá reglas narrativas concretas para que el análisis pueda advertir cuando una
+                  escena contradice la lógica de tu obra.
                 </p>
               </div>
 
@@ -1560,7 +1548,7 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
                 <div className="mb-3">
                   <p className="font-medium">Agregar regla al universo</p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Escribi una regla concreta y verificable para tu historia.
+                    Escribí una regla concreta y verificable para tu historia.
                   </p>
                 </div>
                 <div className="flex gap-2">
@@ -1588,64 +1576,18 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm font-medium">Reglas configuradas</p>
-                  <span className="text-xs text-muted-foreground">
-                    {worldRules.length} {worldRules.length === 1 ? "regla" : "reglas"}
-                  </span>
-                </div>
-                <div className="relative">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    value={worldRulesSearch}
-                    onChange={(event) => setWorldRulesSearch(event.target.value)}
-                    placeholder="Buscar una regla..."
-                    aria-label="Buscar reglas del mundo"
-                    className="pl-9"
-                  />
-                </div>
-              </div>
-
-              {filteredWorldRules.length > 0 ? (
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {filteredWorldRules.map((rule) => {
-                    const ruleIndex = worldRules.indexOf(rule)
-                    return (
-                      <div
-                        key={`${rule}-${ruleIndex}`}
-                        className="group flex min-h-28 items-start gap-3 rounded-xl border bg-card p-4 shadow-sm transition-colors hover:bg-muted/30"
-                      >
-                        <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                          <CircleAlert className="size-4" />
-                        </div>
-                        <p className="min-w-0 flex-1 text-sm leading-6">{rule}</p>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="size-7 shrink-0 opacity-70 transition-opacity group-hover:opacity-100"
-                          onClick={() =>
-                            setWorldRules((current) =>
-                              current.filter((_, itemIndex) => itemIndex !== ruleIndex),
-                            )
-                          }
-                          disabled={worldRulesSaving}
-                          aria-label="Eliminar regla del mundo"
-                        >
-                          <X />
-                        </Button>
-                      </div>
-                    )
-                  })}
-                </div>
-              ) : (
-                <div className="rounded-xl border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">
-                  {worldRules.length === 0
-                    ? "Todavia no hay reglas configuradas para este proyecto."
-                    : "No se encontraron reglas con esa busqueda."}
-                </div>
-              )}
+              <WorldRulesList
+                rules={worldRules}
+                filteredRules={filteredWorldRules}
+                search={worldRulesSearch}
+                onSearchChange={setWorldRulesSearch}
+                onRemove={(ruleIndex) =>
+                  setWorldRules((current) =>
+                    current.filter((_, itemIndex) => itemIndex !== ruleIndex),
+                  )
+                }
+                disabled={worldRulesSaving}
+              />
 
             </div>
           )}
@@ -1665,33 +1607,21 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
             </div>
           ) : (
             <>
-              <div className="rounded-lg border bg-muted/30 p-3 text-sm">
-                <p className="font-medium">
-                  Extracción de entidades e inconsistencias
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Podés usar tu propia API Key de Gemini. Se almacena cifrada y
-                  nunca volvemos a mostrarla completa.
-                </p>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  Estado: {aiSettings?.configured ? "Configurada" : "Se usa la clave del servidor"}
-                  {aiSettings?.keyPrefix ? ` (${aiSettings.keyPrefix})` : ""}
-                </p>
-              </div>
+              <AiKeyStatus configured={aiSettings?.configured} keyPrefix={aiSettings?.keyPrefix} />
 
               <div className="flex items-center justify-between gap-4 rounded-lg border p-3">
                 <div className="min-w-0">
-                  <p className="font-medium">Analizar automaticamente al guardar</p>
+                  <p className="font-medium">Analizar automáticamente al guardar</p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Si lo desactivas, los cambios se guardan sin utilizar IA.
-                    Podras usar Analizar cambios desde el editor cuando quieras.
+                    Si lo desactivás, los cambios se guardan sin utilizar IA.
+                    Podrás usar «Analizar cambios» desde el editor cuando quieras.
                   </p>
                 </div>
                 <Switch
                   checked={aiSettings?.autoAnalyzeOnAutosave ?? true}
                   onCheckedChange={handleAutoAnalysisChange}
                   disabled={autoAnalysisSaving || aiLoading}
-                  aria-label="Analizar automaticamente al guardar"
+                  aria-label="Analizar automáticamente al guardar"
                 />
               </div>
 
@@ -1708,11 +1638,7 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
                     setAiError(null)
                     setAiNotice(null)
                   }}
-                  placeholder={
-                    aiSettings?.configured
-                      ? "Ingresá una nueva clave para reemplazarla"
-                      : "Pegá tu API Key"
-                  }
+                  placeholder={getAiKeyPlaceholder(aiSettings?.configured)}
                   autoComplete="new-password"
                   disabled={aiSaving || removingAiKey}
                 />
@@ -1770,13 +1696,15 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
         <Tabs
           value={entityCatalogSection}
           onValueChange={(value) => setEntityCatalogSection(value as EntityCatalogSection)}
-          className="min-h-0"
+          className="shrink-0"
         >
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="important">Importantes</TabsTrigger>
-            <TabsTrigger value="ignored">Ignoradas</TabsTrigger>
-            <TabsTrigger value="rejected">Rechazadas</TabsTrigger>
-          </TabsList>
+          <div className="sticky -top-5 z-10 -mx-4 bg-background px-4 pb-3 pt-5 md:-mx-6 md:px-6">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="important">Importantes</TabsTrigger>
+              <TabsTrigger value="ignored">Ignoradas</TabsTrigger>
+              <TabsTrigger value="rejected">Rechazadas</TabsTrigger>
+            </TabsList>
+          </div>
 
           <TabsContent value="important" className="mt-4 space-y-3">
             <p className="text-xs text-muted-foreground">
@@ -1978,117 +1906,55 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
         </Tabs>
       </FormDialog>
 
-      <AlertDialog
+      <ConfirmDialog
         open={profileCloseWarningOpen}
         onOpenChange={setProfileCloseWarningOpen}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Salir sin guardar?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Hay cambios de configuracion pendientes. Si cerras ahora, se perderan.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Seguir editando</AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              onClick={discardProfileChanges}
-            >
-              Descartar cambios
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        title="¿Salir sin guardar?"
+        description="Hay cambios de configuración pendientes. Si cerrás ahora, se perderán."
+        cancelLabel="Seguir editando"
+        confirmLabel="Descartar cambios"
+        onConfirm={discardProfileChanges}
+      />
 
-      <AlertDialog
+      <ConfirmDialog
         open={deleteOpen}
         onOpenChange={(open) => {
-          if (open) {
-            setDeleteOpen(true)
-            return
-          }
-          // Mientras se está borrando no se cierra: el error tiene que verse.
-          if (!deleting) closeDeleteDialog()
+          if (open) setDeleteOpen(true)
+          else closeDeleteDialog()
         }}
+        title="¿Eliminar tu cuenta?"
+        description="Se van a borrar tus proyectos, capítulos, escenas, imágenes y tu acceso a PlumIA. Esta acción no se puede deshacer."
+        confirmLabel={deleting ? "Eliminando…" : "Eliminar mi cuenta"}
+        loading={deleting}
+        confirmDisabled={!emailMatchesConfirmation}
+        error={deleteError}
+        onConfirm={handleDeleteAccount}
       >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar tu cuenta?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Se van a borrar tus proyectos, capítulos, escenas, imágenes y tu
-              acceso a PlumIA. Esta acción no se puede deshacer.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
+        <Field>
+          <FieldLabel htmlFor="confirm-delete-email">
+            Escribí tu email para confirmar
+          </FieldLabel>
+          <Input
+            id="confirm-delete-email"
+            type="email"
+            value={confirmEmail}
+            onChange={(event) => setConfirmEmail(event.target.value)}
+            placeholder={email}
+            autoComplete="off"
+            disabled={deleting}
+          />
+        </Field>
+      </ConfirmDialog>
 
-          {deleteError && (
-            <Alert variant="destructive">
-              <CircleAlert />
-              <AlertDescription>{deleteError}</AlertDescription>
-            </Alert>
-          )}
-
-          <Field>
-            <FieldLabel htmlFor="confirm-delete-email">
-              Escribí tu email para confirmar
-            </FieldLabel>
-            <Input
-              id="confirm-delete-email"
-              type="email"
-              value={confirmEmail}
-              onChange={(event) => setConfirmEmail(event.target.value)}
-              placeholder={email}
-              autoComplete="off"
-              disabled={deleting}
-            />
-          </Field>
-
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              disabled={deleting || !emailMatchesConfirmation}
-              onClick={(event) => {
-                event.preventDefault()
-                void handleDeleteAccount()
-              }}
-            >
-              {deleting ? <Spinner className="size-4" /> : <Trash2 />}
-              {deleting ? "Eliminando…" : "Eliminar mi cuenta"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <AlertDialog
+      <ConfirmDialog
         open={removeAiKeyOpen}
-        onOpenChange={(open) => {
-          if (!removingAiKey) setRemoveAiKeyOpen(open)
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar tu API Key de Gemini?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Los próximos análisis volverán a utilizar la clave configurada por el servidor.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={removingAiKey}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              disabled={removingAiKey}
-              onClick={(event) => {
-                event.preventDefault()
-                void handleRemoveAiKey()
-              }}
-            >
-              {removingAiKey ? <Spinner /> : null}
-              Eliminar API Key
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        onOpenChange={setRemoveAiKeyOpen}
+        title="¿Eliminar tu API Key de Gemini?"
+        description="Los próximos análisis volverán a utilizar la clave configurada por el servidor."
+        confirmLabel="Eliminar API Key"
+        loading={removingAiKey}
+        onConfirm={handleRemoveAiKey}
+      />
     </>
   )
 }
