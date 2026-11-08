@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 
-import { getProfileSubmitState, type ProfileSubmitInput } from "../lib/profile-submit"
+import { getProfileSubmitState, isAiConfigurationUnchanged, type ProfileSubmitInput } from "../lib/profile-submit"
 
 const base: ProfileSubmitInput = {
   section: "account",
@@ -69,6 +69,22 @@ check("inconsistencias necesita un proyecto elegido y datos cargados", () => {
     true,
   )
   assert.equal(getProfileSubmitState({ ...base, section: "inconsistencies" }).submitDisabled, false)
+})
+
+const saved = { provider: "gemini", model: "gemini-pro", credentialSource: "user" }
+
+check("sin configuración guardada nunca se considera sin cambios", () => {
+  assert.equal(isAiConfigurationUnchanged(null, saved), false)
+})
+
+check("la misma configuración (ignorando espacios del modelo) está sin cambios", () => {
+  assert.equal(isAiConfigurationUnchanged(saved, { ...saved, model: "  gemini-pro " }), true)
+})
+
+check("cambiar proveedor, modelo u origen de la clave cuenta como cambio", () => {
+  assert.equal(isAiConfigurationUnchanged(saved, { ...saved, provider: "openai" }), false)
+  assert.equal(isAiConfigurationUnchanged(saved, { ...saved, model: "otro" }), false)
+  assert.equal(isAiConfigurationUnchanged(saved, { ...saved, credentialSource: "system" }), false)
 })
 
 console.log(`profile-submit: ${passed} pruebas`)

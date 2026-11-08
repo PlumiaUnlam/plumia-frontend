@@ -123,9 +123,10 @@ function useShowRequestedTab(
   const request = useEditorStore((state) => state.rightPanelRequest);
   const clearRequest = useEditorStore((state) => state.clearRightPanelRequest);
   const [handledToken, setHandledToken] = useState(0);
-  if (request && request.token !== handledToken) {
-    setHandledToken(request.token);
-    setActiveTab(request.tab);
+  const pendingRequest = request?.token === handledToken ? null : request;
+  if (pendingRequest) {
+    setHandledToken(pendingRequest.token);
+    setActiveTab(pendingRequest.tab);
     setManualCollapsed(false);
   }
   useEffect(() => {

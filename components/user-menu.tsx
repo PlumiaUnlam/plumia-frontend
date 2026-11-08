@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react"
+import { useEffect, useRef, useState, type ChangeEvent } from "react"
 import { Camera, CircleAlert, KeyRound, LogOut, Monitor, Moon, Settings, SlidersHorizontal, Sun, Trash2, UserRound, X } from "lucide-react"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
@@ -13,7 +13,31 @@ import { cn } from "@/lib/utils"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { ConfirmDialog } from "@/components/modal/confirm-dialog"
 import { WorldRulesList } from "@/components/profile-settings/world-rules-list"
-import { getProfileSubmitState } from "@/lib/profile-submit"
+import {
+  getProfileSubmitState,
+  hasAiConfigurationChanged,
+  isAiConfigurationUnchanged,
+} from "@/lib/profile-submit"
+import { refreshReviewCaches, saveWorldRulesAndReview } from "@/lib/world-rules-save"
+import {
+  baselineFromReviewSettings,
+  describeAiCredential,
+  filterByText,
+  filterRejectedProposals,
+  getProjectWorldRules,
+  hasUnsavedAccountChanges,
+  haveWorldRulesChanged,
+  resolvePreviewSrc,
+  themeIconKey,
+  haveEntityListsChanged,
+  haveEntityThresholdsChanged,
+  haveReviewSettingsChanged,
+  isAiConfigurationValid,
+  normalizeEntityName,
+  resolveProfileIdentity,
+  type EntityRecognitionBaseline,
+  type KnowledgeReviewBaseline,
+} from "@/lib/profile-derived"
 import { FormDialog } from "@/components/modal/form-dialog"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -55,16 +79,16 @@ import {
 import {
   DEFAULT_KNOWLEDGE_REVIEW_SETTINGS,
   getKnowledgeReviewSettings,
-  updateKnowledgeReviewSettings,
   type KnowledgeReviewSettings,
 } from "@/services/knowledge-review-settings.service"
 import {
   getDashboardProjects,
-  updateProject,
   type ProjectResponse,
 } from "@/services/project.service"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Switch } from "@/components/ui/switch"
+
+const THEME_ICONS = { sun: Sun, moon: Moon, monitor: Monitor }
 
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024
 const ALLOWED_AVATAR_TYPES = new Set([
@@ -73,15 +97,6 @@ const ALLOWED_AVATAR_TYPES = new Set([
   "image/webp",
   "image/avif",
 ])
-
-function normalizeEntityName(name: string) {
-  return name
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim()
-}
 
 const ENTITY_TYPE_LABELS: Record<string, string> = {
   CHARACTER: "Personaje",
@@ -97,22 +112,8 @@ function getEntityTypeLabel(type: string | null) {
   return ENTITY_TYPE_LABELS[type.toUpperCase()] ?? type
 }
 
-function getProjectWorldRules(project: ProjectResponse | undefined) {
-  const genreRules = project?.genreRules
-  if (!genreRules || Array.isArray(genreRules)) return []
-
-  const rules = genreRules.rules
-  return Array.isArray(rules)
-    ? rules.filter((rule): rule is string => typeof rule === "string")
-    : []
-}
-
 function normalizeWorldRule(rule: string) {
   return rule.trim().toLocaleLowerCase()
-}
-
-function areStringArraysEqual(left: string[], right: string[]) {
-  return left.length === right.length && left.every((value, index) => value === right[index])
 }
 
 function formatProviderKeyUpdatedAt(value: string | null) {
@@ -335,28 +336,17 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
   const [projectNamesError, setProjectNamesError] = useState<string | null>(null)
   const [profileCloseWarningOpen, setProfileCloseWarningOpen] = useState(false)
   const entityCatalogOpenRef = useRef(false)
-  const [entityRecognitionBaseline, setEntityRecognitionBaseline] = useState({
-    projectId: null as string | null,
-    importantEntityNames: [] as string[],
-    ignoredEntityNames: [] as string[],
-  })
-  const [knowledgeReviewBaseline, setKnowledgeReviewBaseline] = useState<{
-    projectId: string | null
-    stateTrackingEnabled: boolean
-    stateReviewMode: KnowledgeReviewSettings["stateReviewMode"]
-    stateConfidenceThreshold: number
-    relationshipReviewMode: KnowledgeReviewSettings["relationshipReviewMode"]
-    relationshipConfidenceThreshold: number
-    crossChunkAuditMode: KnowledgeReviewSettings["crossChunkAuditMode"]
-  }>({
-    projectId: null,
-    stateTrackingEnabled: false,
-    stateReviewMode: "MANUAL",
-    stateConfidenceThreshold: 0.9,
-    relationshipReviewMode: "MANUAL",
-    relationshipConfidenceThreshold: 0.9,
-    crossChunkAuditMode: "ADJACENT_CHUNKS",
-  })
+  const [entityRecognitionBaseline, setEntityRecognitionBaseline] =
+    useState<EntityRecognitionBaseline>({
+      projectId: null,
+      importantEntityNames: [],
+      ignoredEntityNames: [],
+    })
+  const [knowledgeReviewBaseline, setKnowledgeReviewBaseline] =
+    useState<KnowledgeReviewBaseline>({
+      projectId: null,
+      ...DEFAULT_KNOWLEDGE_REVIEW_SETTINGS,
+    })
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const setEntityCatalogVisibility = (open: boolean) => {
@@ -364,32 +354,21 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
     setEntityCatalogOpen(open)
   }
 
-  let ThemeIcon = Monitor
-  if (theme === "dark") {
-    ThemeIcon = Moon
-  } else if (theme === "light") {
-    ThemeIcon = Sun
-  }
+  const ThemeIcon = THEME_ICONS[themeIconKey(theme)]
 
-  const currentDisplayName =
-    user?.displayName || firebaseUser?.displayName || user?.name || "Usuario"
+  const {
+    displayName: currentDisplayName,
+    avatarSrc: currentAvatarSrc,
+    email,
+    userId: profileUserId,
+  } = resolveProfileIdentity({ user, firebaseUser })
   const currentPhotoURL = user?.avatarUrl || firebaseUser?.photoURL || null
-  const storedProfileUserId = currentPhotoURL?.match(/\/profiles\/([^/]+)\//)?.[1]
-  const profileUserId = user?.id || storedProfileUserId || firebaseUser?.uid
-  const currentAvatarSrc =
-    user?.avatarUrl && profileUserId
-      ? `/api/storage/profile-image/${profileUserId}?v=${Date.parse(user.updatedAt)}`
-      : null
   // Lo que se muestra en el diálogo, que no siempre coincide con lo guardado:
   // "Quitar" pone la vista previa en null sin borrar todavía `currentPhotoURL`,
   // y ahí el botón tiene que decir "Subir imagen" porque ya no hay imagen que
   // cambiar.
-  const previewSrc = avatarPreview || (!removeAvatar ? currentAvatarSrc : null)
-  const email = user?.email || firebaseUser?.email || ""
-  const initials = useMemo(
-    () => getInitials(currentDisplayName, email),
-    [currentDisplayName, email],
-  )
+  const previewSrc = resolvePreviewSrc(avatarPreview, removeAvatar, currentAvatarSrc)
+  const initials = getInitials(currentDisplayName, email)
 
   const loadAiSettings = async () => {
     setAiLoading(true)
@@ -582,12 +561,11 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
       return
     }
 
-    const configurationWasUnchanged = Boolean(
-      aiSettings &&
-        aiProvider === aiSettings.provider &&
-        aiModel.trim() === aiSettings.model &&
-        aiCredentialSource === aiSettings.credentialSource,
-    )
+    const configurationWasUnchanged = isAiConfigurationUnchanged(aiSettings, {
+      provider: aiProvider,
+      model: aiModel,
+      credentialSource: aiCredentialSource,
+    })
     setProviderKeySaving(provider)
     setAiError(null)
     setAiNotice(null)
@@ -700,12 +678,6 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
       return
     }
 
-    const selectedProject = projects.find((project) => project.id === selectedProjectId)
-    const currentGenreRules =
-      selectedProject?.genreRules && !Array.isArray(selectedProject.genreRules)
-        ? selectedProject.genreRules
-        : {}
-
     setWorldRulesSaving(true)
     setKnowledgeReviewSaving(true)
     setWorldRulesError(null)
@@ -713,50 +685,20 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
     setKnowledgeReviewError(null)
     setKnowledgeReviewNotice(null)
     try {
-      const [savedProject, savedReviewSettings] = await Promise.all([
-        updateProject(selectedProjectId, {
-          genreRules: {
-            ...currentGenreRules,
-            rules: worldRules,
-          },
-        }),
-        updateKnowledgeReviewSettings(selectedProjectId, {
-          stateTrackingEnabled: knowledgeReviewSettings.stateTrackingEnabled,
-          stateReviewMode: knowledgeReviewSettings.stateReviewMode,
-          stateConfidenceThreshold: knowledgeReviewSettings.stateConfidenceThreshold,
-          relationshipReviewMode: knowledgeReviewSettings.relationshipReviewMode,
-          relationshipConfidenceThreshold:
-            knowledgeReviewSettings.relationshipConfidenceThreshold,
-          crossChunkAuditMode: knowledgeReviewSettings.crossChunkAuditMode,
-        }),
-      ])
+      const { savedProject, savedReviewSettings } = await saveWorldRulesAndReview({
+        projectId: selectedProjectId,
+        project: projects.find((project) => project.id === selectedProjectId),
+        worldRules,
+        reviewSettings: knowledgeReviewSettings,
+      })
       setProjects((current) =>
         current.map((project) => (project.id === savedProject.id ? savedProject : project)),
       )
       setWorldRules(getProjectWorldRules(savedProject))
       setWorldRulesNotice("Las reglas del mundo fueron guardadas.")
       setKnowledgeReviewSettings(savedReviewSettings)
-      void mutate(
-        `/projects/${encodeURIComponent(selectedProjectId)}/knowledge-review-settings`,
-        savedReviewSettings,
-        { revalidate: false },
-      )
-      const stateProposalsKey = `/v1/projects/${encodeURIComponent(selectedProjectId)}/state-proposals`
-      if (savedReviewSettings.stateTrackingEnabled) {
-        void mutate(stateProposalsKey)
-      } else {
-        void mutate(stateProposalsKey, [], { revalidate: false })
-      }
-      setKnowledgeReviewBaseline({
-        projectId: selectedProjectId,
-        stateTrackingEnabled: savedReviewSettings.stateTrackingEnabled,
-        stateReviewMode: savedReviewSettings.stateReviewMode,
-        stateConfidenceThreshold: savedReviewSettings.stateConfidenceThreshold,
-        relationshipReviewMode: savedReviewSettings.relationshipReviewMode,
-        relationshipConfidenceThreshold:
-          savedReviewSettings.relationshipConfidenceThreshold,
-        crossChunkAuditMode: savedReviewSettings.crossChunkAuditMode,
-      })
+      refreshReviewCaches(mutate, selectedProjectId, savedReviewSettings)
+      setKnowledgeReviewBaseline(baselineFromReviewSettings(selectedProjectId, savedReviewSettings))
       setKnowledgeReviewNotice("La revisión automática quedó configurada.")
     } catch {
       setWorldRulesError("No pudimos guardar las reglas del mundo.")
@@ -801,26 +743,10 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
     try {
       const settings = await getKnowledgeReviewSettings(projectId)
       setKnowledgeReviewSettings(settings)
-      setKnowledgeReviewBaseline({
-        projectId,
-        stateTrackingEnabled: settings.stateTrackingEnabled,
-        stateReviewMode: settings.stateReviewMode,
-        stateConfidenceThreshold: settings.stateConfidenceThreshold,
-        relationshipReviewMode: settings.relationshipReviewMode,
-        relationshipConfidenceThreshold: settings.relationshipConfidenceThreshold,
-        crossChunkAuditMode: settings.crossChunkAuditMode,
-      })
+      setKnowledgeReviewBaseline(baselineFromReviewSettings(projectId, settings))
     } catch {
       setKnowledgeReviewSettings(DEFAULT_KNOWLEDGE_REVIEW_SETTINGS)
-      setKnowledgeReviewBaseline({
-        projectId,
-        stateTrackingEnabled: DEFAULT_KNOWLEDGE_REVIEW_SETTINGS.stateTrackingEnabled,
-        stateReviewMode: "MANUAL",
-        stateConfidenceThreshold: 0.9,
-        relationshipReviewMode: "MANUAL",
-        relationshipConfidenceThreshold: 0.9,
-        crossChunkAuditMode: "ADJACENT_CHUNKS",
-      })
+      setKnowledgeReviewBaseline(baselineFromReviewSettings(projectId, DEFAULT_KNOWLEDGE_REVIEW_SETTINGS))
       setKnowledgeReviewError("No pudimos cargar la configuración de revisión.")
     } finally {
       setKnowledgeReviewLoading(false)
@@ -876,138 +802,87 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
   }
 
   const emailMatchesConfirmation = confirmEmail.trim() === email
-  const filterEntityNames = (names: string[], search: string) => {
-    const normalizedSearch = normalizeEntityName(search)
-    if (!normalizedSearch) return names
-    return names.filter((name) => normalizeEntityName(name).includes(normalizedSearch))
-  }
-  const filteredImportantEntityNames = filterEntityNames(
+  const filteredImportantEntityNames = filterByText(
     importantEntityNames,
     importantEntitySearch,
+    (name) => name,
   )
-  const filteredIgnoredEntityNames = filterEntityNames(
+  const filteredIgnoredEntityNames = filterByText(
     ignoredEntityNames,
     ignoredEntitySearch,
+    (name) => name,
   )
-  const filteredRejectedEntityProposals = rejectedEntityProposals.filter((proposal) => {
-    const searchText = normalizeEntityName(
-      [proposal.name, ...proposal.aliases].join(" "),
-    )
-    const matchesSearch =
-      !normalizeEntityName(rejectedEntitySearch) ||
-      searchText.includes(normalizeEntityName(rejectedEntitySearch))
-    const matchesType =
-      rejectedEntityTypeFilter === "ALL" ||
-      proposal.type?.toUpperCase() === rejectedEntityTypeFilter
-    return matchesSearch && matchesType
-  })
-  const normalizedWorldRulesSearch = normalizeEntityName(worldRulesSearch)
-  const filteredWorldRules = worldRules.filter(
-    (rule) =>
-      !normalizedWorldRulesSearch ||
-      normalizeEntityName(rule).includes(normalizedWorldRulesSearch),
+  const filteredRejectedEntityProposals = filterRejectedProposals(
+    rejectedEntityProposals,
+    rejectedEntitySearch,
+    rejectedEntityTypeFilter,
   )
+  const filteredWorldRules = filterByText(worldRules, worldRulesSearch, (rule) => rule)
   const selectedAiProviderOption = aiSettings?.providers.find(
     (provider) => provider.provider === aiProvider,
   )
   const selectedProviderModels = selectedAiProviderOption?.suggestedModels ?? []
-  let aiCredentialDescription = "PlumIA no tiene una credencial disponible para este proveedor."
-  if (aiCredentialSource === "USER") {
-    if (selectedAiProviderOption?.userKeyConfigured) {
-      const keyPrefix = selectedAiProviderOption.keyPrefix
-      aiCredentialDescription = keyPrefix
-        ? `Se usará tu clave cifrada (${keyPrefix}).`
-        : "Se usará tu clave cifrada."
-    } else {
-      aiCredentialDescription = "Guardá una clave personal para este proveedor en la sección siguiente."
-    }
-  } else if (selectedAiProviderOption?.serverCredentialAvailable) {
-    aiCredentialDescription = "Se usará la credencial configurada por PlumIA para este proveedor."
-  }
+  const aiCredentialDescription = describeAiCredential(
+    aiCredentialSource,
+    selectedAiProviderOption,
+  )
   const isSuggestedAiModel = selectedProviderModels.some(
     (model) => model.id === aiModel,
   )
-  const hasUnsavedAiProviderSettings = Boolean(
-    aiSettings &&
-      (aiProvider !== aiSettings.provider ||
-        aiModel.trim() !== aiSettings.model ||
-        aiCredentialSource !== aiSettings.credentialSource),
-  )
+  const hasUnsavedAiProviderSettings = hasAiConfigurationChanged(aiSettings, {
+    provider: aiProvider,
+    model: aiModel,
+    credentialSource: aiCredentialSource,
+  })
   const hasUnsubmittedProviderKey = Object.values(providerApiKeys).some(
     (apiKey) => apiKey.trim().length > 0,
   )
 
-  const hasUnsavedAccountChanges = () =>
-    displayName.trim() !== currentDisplayName.trim() ||
-    avatarFile !== null ||
-    avatarPreview !== null ||
-    removeAvatar
-
-  const hasUnsavedEntityRecognitionChanges = () => {
-    const savedThresholds =
-      aiSettings?.entityExtractionThresholds ?? DEFAULT_ENTITY_RECOGNITION_THRESHOLDS
-    const thresholdsChanged = Object.entries(entityThresholds).some(
-      ([type, value]) => savedThresholds[type as keyof EntityRecognitionThresholds] !== value,
+  const accountChanged = hasUnsavedAccountChanges({
+    displayName,
+    currentDisplayName,
+    avatarFile,
+    avatarPreview,
+    removeAvatar,
+  })
+  const entityRecognitionChanged =
+    haveEntityThresholdsChanged(
+      entityThresholds,
+      aiSettings?.entityExtractionThresholds ?? DEFAULT_ENTITY_RECOGNITION_THRESHOLDS,
+    ) ||
+    haveEntityListsChanged(
+      entityRecognitionBaseline,
+      selectedProjectId,
+      importantEntityNames,
+      ignoredEntityNames,
     )
-    const entityBaseline = entityRecognitionBaseline
-    const entityListsChanged =
-      entityBaseline.projectId === selectedProjectId &&
-      (!areStringArraysEqual(importantEntityNames, entityBaseline.importantEntityNames) ||
-        !areStringArraysEqual(ignoredEntityNames, entityBaseline.ignoredEntityNames))
-    return thresholdsChanged || entityListsChanged
-  }
-
-  const hasUnsavedInconsistencyChanges = () => {
-    const savedWorldRules = getProjectWorldRules(
-      projects.find((project) => project.id === selectedProjectId),
-    )
-    const reviewBaseline = knowledgeReviewBaseline
-    const reviewSettingsChanged =
-      reviewBaseline.projectId === selectedProjectId &&
-      (knowledgeReviewSettings.stateReviewMode !== reviewBaseline.stateReviewMode ||
-        knowledgeReviewSettings.stateTrackingEnabled !== reviewBaseline.stateTrackingEnabled ||
-        knowledgeReviewSettings.stateConfidenceThreshold !==
-          reviewBaseline.stateConfidenceThreshold ||
-        knowledgeReviewSettings.relationshipReviewMode !==
-          reviewBaseline.relationshipReviewMode ||
-        knowledgeReviewSettings.relationshipConfidenceThreshold !==
-          reviewBaseline.relationshipConfidenceThreshold ||
-        knowledgeReviewSettings.crossChunkAuditMode !==
-          reviewBaseline.crossChunkAuditMode)
-    return (
-      (selectedProjectId !== null &&
-        !areStringArraysEqual(worldRules, savedWorldRules)) ||
-      reviewSettingsChanged
-    )
+  const worldRulesChanged = haveWorldRulesChanged(selectedProjectId, projects, worldRules)
+  const inconsistenciesChanged =
+    worldRulesChanged ||
+    haveReviewSettingsChanged(knowledgeReviewBaseline, selectedProjectId, knowledgeReviewSettings)
+  const unsavedBySection: Record<ProfileSection, boolean> = {
+    account: accountChanged,
+    ai: hasUnsavedAiProviderSettings,
+    entityRecognition: entityRecognitionChanged,
+    inconsistencies: inconsistenciesChanged,
   }
 
   const hasUnsavedProfileChanges = () =>
-    hasUnsavedAccountChanges() ||
+    accountChanged ||
     hasUnsubmittedProviderKey ||
     hasUnsavedAiProviderSettings ||
-    hasUnsavedEntityRecognitionChanges() ||
-    hasUnsavedInconsistencyChanges() ||
-    newImportantEntityName.trim().length > 0 ||
-    newIgnoredEntityName.trim().length > 0 ||
-    newWorldRule.trim().length > 0
+    entityRecognitionChanged ||
+    inconsistenciesChanged ||
+    [newImportantEntityName, newIgnoredEntityName, newWorldRule].some(
+      (draft) => draft.trim().length > 0,
+    )
 
-  const hasUnsavedCurrentSectionChanges = () => {
-    if (profileSection === "account") return hasUnsavedAccountChanges()
-    if (profileSection === "ai") return hasUnsavedAiProviderSettings
-    if (profileSection === "entityRecognition") {
-      return hasUnsavedEntityRecognitionChanges()
-    }
-    return hasUnsavedInconsistencyChanges()
-  }
+  const currentSectionHasUnsavedChanges = unsavedBySection[profileSection]
 
-  const currentSectionHasUnsavedChanges = hasUnsavedCurrentSectionChanges()
-
-  const aiConfigurationValid = Boolean(
-    aiModel.trim() &&
-      ((aiCredentialSource === "USER" &&
-        selectedAiProviderOption?.userKeyConfigured) ||
-        (aiCredentialSource === "SERVER" &&
-          selectedAiProviderOption?.serverCredentialAvailable)),
+  const aiConfigurationValid = isAiConfigurationValid(
+    aiModel,
+    aiCredentialSource,
+    selectedAiProviderOption,
   )
   const { submitDisabled: profileSubmitDisabled, submitButtonClassName: profileSubmitButtonClassName } =
     getProfileSubmitState({

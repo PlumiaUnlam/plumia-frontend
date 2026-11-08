@@ -224,6 +224,7 @@ export function AuditAlertCard({
         open={detailsOpen}
         onOpenChange={setDetailsOpen}
         isCrossChunkContradiction={isCrossChunkContradiction}
+        isCrossSceneContradiction={isCrossSceneContradiction}
         historyMode={historyMode}
         archivedAt={archivedAt}
         explanation={explanation}
@@ -269,6 +270,7 @@ type AuditAlertDetailsDialogProps = {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly isCrossChunkContradiction: boolean;
+  readonly isCrossSceneContradiction: boolean;
   readonly historyMode: boolean;
   readonly archivedAt: string | null;
   readonly explanation: string;
@@ -282,6 +284,7 @@ function AuditAlertDetailsDialog({
   open,
   onOpenChange,
   isCrossChunkContradiction,
+  isCrossSceneContradiction,
   historyMode,
   archivedAt,
   explanation,

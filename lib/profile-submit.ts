@@ -1,3 +1,30 @@
+export type AiConfigurationFields = {
+  provider: string
+  model: string
+  credentialSource: string
+}
+
+/** La configuración de IA que se está editando es igual a la guardada (sin guardada, nunca lo es). */
+export function isAiConfigurationUnchanged(
+  saved: AiConfigurationFields | null,
+  editing: AiConfigurationFields,
+) {
+  if (!saved) return false
+  return (
+    saved.provider === editing.provider &&
+    saved.model === editing.model.trim() &&
+    saved.credentialSource === editing.credentialSource
+  )
+}
+
+/** Hay una configuración guardada y la que se edita es distinta. */
+export function hasAiConfigurationChanged(
+  saved: AiConfigurationFields | null,
+  editing: AiConfigurationFields,
+) {
+  return saved !== null && !isAiConfigurationUnchanged(saved, editing)
+}
+
 export type ProfileSubmitSection = "account" | "ai" | "entityRecognition" | "inconsistencies"
 
 export type ProfileSubmitInput = {
