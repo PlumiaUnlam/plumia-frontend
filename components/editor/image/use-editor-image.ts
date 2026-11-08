@@ -9,6 +9,7 @@ import {
   getImageFileFromClipboard,
   validateEditorImageFile,
 } from "./image.utils"
+import { userFacingError } from "@/helpers/api-errors"
 
 type UseEditorImageOptions = {
   sceneId: string
@@ -49,9 +50,7 @@ export function useEditorImage({ sceneId }: UseEditorImageOptions) {
           .run()
       } catch (uploadError) {
         setError(
-          uploadError instanceof Error
-            ? uploadError.message
-            : "No se pudo subir la imagen.",
+          userFacingError(uploadError, "No se pudo subir la imagen."),
         )
       } finally {
         setIsUploading(false)

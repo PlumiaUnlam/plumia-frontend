@@ -7,7 +7,7 @@ import {
   useCallback,
   useRef,
   useState,
-  type FormEvent,
+  type SubmitEvent,
 } from "react"
 import {
   BookOpen,
@@ -38,13 +38,6 @@ import {
 } from "lucide-react"
 
 import { ConfirmDialog } from "@/components/modal/confirm-dialog"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import {
   Select,
@@ -64,6 +57,7 @@ import {
 import { useVoiceTranscriber } from "@/hooks/use-voice-transcriber"
 import { useEditorStore } from "@/stores/editor.store"
 import type { ChatMessage, ChatSource, ChatThread } from "@/types/chat"
+import { FormDialog } from "@/components/modal/form-dialog"
 
 type ChatPanelProps = {
   readonly projectId: string
@@ -353,7 +347,7 @@ export function ChatPanel({
     [isSending, isVoiceBusy, projectId, threadId],
   )
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault()
     void sendContent(draft.trim())
   }
@@ -706,7 +700,7 @@ function ChatComposer({
   }>
   readonly selectedAudioInputId: string
   readonly onDraftChange: (value: string) => void
-  readonly onSubmit: (event: FormEvent<HTMLFormElement>) => void
+  readonly onSubmit: (event: SubmitEvent<HTMLFormElement>) => void
   readonly onRetry: () => void
   readonly onToggleVoiceInput: () => void
   readonly onCancelSending: () => void
@@ -1034,34 +1028,32 @@ function ChatBubble({
           )}
         </div>
       )}
-      <Dialog open={allSourcesOpen} onOpenChange={setAllSourcesOpen}>
-        <DialogContent size="md" className="max-h-[85dvh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Fuentes revisadas</DialogTitle>
-            <DialogDescription>
-              Las fuentes citadas aparecen primero. También podés abrir las demás para revisar el contexto.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2">
-            {message.sources.map((source, index) => (
-              <SourceCard
-                key={source.id}
-                source={source}
-                citationNumber={index + 1}
-                projectId={projectId}
-                onBeforeNavigation={() => {
-                  setAllSourcesOpen(false)
-                  onBeforeSourceNavigation()
-                }}
-                imageUrl={
-                  (source.entityId && primaryImageUrls[source.entityId]) ||
-                  source.imageUrl || undefined
-                }
-              />
-            ))}
-          </div>
-        </DialogContent>
-      </Dialog>
+      <FormDialog
+        open={allSourcesOpen}
+        onOpenChange={setAllSourcesOpen}
+        title="Fuentes revisadas"
+        description="Las fuentes citadas aparecen primero. También podés abrir las demás para revisar el contexto."
+        size="md"
+      >
+      <div className="space-y-2">
+        {message.sources.map((source, index) => (
+          <SourceCard
+            key={source.id}
+            source={source}
+            citationNumber={index + 1}
+            projectId={projectId}
+            onBeforeNavigation={() => {
+              setAllSourcesOpen(false)
+              onBeforeSourceNavigation()
+            }}
+            imageUrl={
+              (source.entityId && primaryImageUrls[source.entityId]) ||
+              source.imageUrl || undefined
+            }
+          />
+        ))}
+      </div>
+      </FormDialog>
     </article>
   )
 }

@@ -632,6 +632,7 @@ export function RichTextEditor({
               editor={editor}
               projectId={projectId}
               onAddAnnotation={allowAnnotations ? handleStartAnnotation : undefined}
+              hidden={isAnnotationComposerOpen}
             />
             <ImageTextFlowMenu editor={editor} />
             <ListNumberingMenu editor={editor} />

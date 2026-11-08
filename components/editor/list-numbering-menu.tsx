@@ -361,7 +361,7 @@ export function ListNumberingMenu({ editor }: Readonly<ListNumberingMenuProps>) 
         </DropdownMenuTrigger>
         <DropdownMenuContent
           align="start"
-          className={`w-[min(34rem,calc(100vw-1rem))] max-w-[calc(100vw-1rem)] max-h-[min(75vh,38rem)] overflow-x-hidden overflow-y-auto p-2 ${menuClass}`}
+          className={`w-[min(34rem,calc(100vw-1rem))] max-w-[calc(100vw-1rem)] max-h-[min(75vh,38rem,var(--radix-dropdown-menu-content-available-height,100vh))] overflow-x-hidden overflow-y-auto p-2 ${menuClass}`}
         >
           {markerKind === "bullet" ? (
             <>

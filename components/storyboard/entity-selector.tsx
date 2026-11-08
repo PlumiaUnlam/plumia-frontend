@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, useState } from "react"
+import { useMemo, useRef, useState } from "react"
 import { Plus } from "lucide-react"
 
 import {
@@ -16,6 +16,7 @@ import {
   useComboboxAnchor,
 } from "@/components/ui/combobox"
 import { Field, FieldContent, FieldLabel } from "@/components/ui/field"
+import { searchEntities } from "@/lib/entity-search"
 import { EntityIconTile } from "@/components/worldbuilding/entity-icon-tile"
 import type { Entity } from "@/types/entity"
 import { TYPE_TO_CATEGORY } from "@/types/entity"
@@ -42,6 +43,16 @@ export function EntitySelector({
     .map((entityId) => entities.find((entity) => entity.id === entityId))
     .filter((entity): entity is Entity => !!entity)
   const normalizedSearchValue = searchValue.trim().toLocaleLowerCase()
+  // Primero las entidades cuyo nombre coincide; la categoría y el resto van después.
+  const visibleEntities = useMemo(
+    () =>
+      searchEntities(entities, searchValue, (entity) => ({
+        name: entity.canonicalName,
+        aliases: entity.aliases,
+        category: TYPE_TO_CATEGORY[entity.type],
+      })),
+    [entities, searchValue],
+  )
   const canCreateEntity = !!onCreateEntity
 
   return (
@@ -51,6 +62,7 @@ export function EntitySelector({
         <div ref={portalContainerRef} />
         <Combobox<Entity, true>
           items={entities}
+          filteredItems={visibleEntities}
           multiple
           inputValue={searchValue}
           onInputValueChange={setSearchValue}

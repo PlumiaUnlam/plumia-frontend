@@ -17,6 +17,7 @@ import type {
   AuthorAnnotation,
   CreateAuthorAnnotationInput,
 } from "@/types/author-annotation"
+import { userFacingError } from "@/helpers/api-errors"
 
 type AnnotationFilter = "OPEN" | "RESOLVED" | "ALL"
 
@@ -107,9 +108,7 @@ export function AuthorAnnotationPanel({
       setEditingId(null)
     } catch (cause) {
       setError(
-        cause instanceof Error
-          ? cause.message
-          : "No se pudo guardar la anotación.",
+        userFacingError(cause, "No se pudo guardar la anotación."),
       )
     } finally {
       setSaving(false)
@@ -174,8 +173,8 @@ export function AuthorAnnotationPanel({
               autoFocus
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
-              placeholder="Escribe una nota privada…"
-              aria-label="Escribe una anotación privada"
+              placeholder="Escribí una nota privada…"
+              aria-label="Escribí una anotación privada"
               className="min-h-24 resize-y"
               maxLength={5000}
             />

@@ -1,4 +1,5 @@
 import type { Editor } from "@tiptap/react"
+import { ZenToolbarReveal } from "@/components/editor/zen-toolbar-reveal"
 import {
   AlignCenter,
   AlignJustify,
@@ -401,7 +402,7 @@ export function EditorToolbar({
                   style={{ fontFamily: getFontFamilyCss(displayedFontFamily) }}
                   placeholder="Buscar fuente"
                   aria-label="Escribir y aplicar una familia tipográfica"
-                  title="Escribe el nombre de una fuente y pulsa Enter"
+                  title="Escribí el nombre de una fuente y pulsá Enter"
                 />
               ) : (
                 <DropdownMenuTrigger asChild>
@@ -470,7 +471,7 @@ export function EditorToolbar({
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
                   align="start"
-                  className={`w-40 max-h-[min(70vh,28rem)] overflow-y-auto ${toolbarMenuClass}`}
+                  className={`w-40 max-h-[min(70vh,28rem,var(--radix-dropdown-menu-content-available-height,100vh))] overflow-y-auto ${toolbarMenuClass}`}
                 >
                   <DropdownMenuLabel>Tamaño de fuente</DropdownMenuLabel>
                   <DropdownMenuRadioGroup
@@ -609,7 +610,7 @@ export function EditorToolbar({
                     style={{ backgroundColor: paragraphState.highlightColor }} />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className={`w-[min(24rem,calc(100vw-1rem))] max-h-[min(70vh,28rem)] overflow-y-auto p-2 ${toolbarMenuClass}`}>
+              <DropdownMenuContent align="start" className={`w-[min(24rem,calc(100vw-1rem))] max-h-[min(70vh,28rem,var(--radix-dropdown-menu-content-available-height,100vh))] overflow-y-auto p-2 ${toolbarMenuClass}`}>
                 <DropdownMenuLabel>Resaltado</DropdownMenuLabel>
                 <DropdownMenuItem className={toolbarMenuItemClass} onSelect={() => toggleTextHighlight(editor)}>
                   <Highlighter className="size-4" /> {getHighlightActionLabel(paragraphState.isTextHighlight)}
@@ -635,7 +636,7 @@ export function EditorToolbar({
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 align="start"
-                  className={`w-[min(24rem,calc(100vw-1rem))] max-w-[calc(100vw-1rem)] max-h-[min(70vh,28rem)] overflow-y-auto p-2 ${toolbarMenuClass}`}
+                  className={`w-[min(24rem,calc(100vw-1rem))] max-w-[calc(100vw-1rem)] max-h-[min(70vh,28rem,var(--radix-dropdown-menu-content-available-height,100vh))] overflow-y-auto p-2 ${toolbarMenuClass}`}
               >
                 <DropdownMenuLabel>Color de texto</DropdownMenuLabel>
                 <ColorPalette
@@ -719,7 +720,7 @@ export function EditorToolbar({
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
                   align="start"
-                  className={`w-[min(34rem,calc(100vw-1rem))] max-w-[calc(100vw-1rem)] max-h-[min(75vh,38rem)] overflow-x-hidden overflow-y-auto p-2 ${toolbarMenuClass}`}
+                  className={`w-[min(34rem,calc(100vw-1rem))] max-w-[calc(100vw-1rem)] max-h-[min(75vh,38rem,var(--radix-dropdown-menu-content-available-height,100vh))] overflow-x-hidden overflow-y-auto p-2 ${toolbarMenuClass}`}
                 >
                   <DropdownMenuLabel>Biblioteca de viñetas</DropdownMenuLabel>
                   <ListStyleGrid
@@ -766,7 +767,7 @@ export function EditorToolbar({
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
                   align="start"
-                  className={`w-[min(34rem,calc(100vw-1rem))] max-w-[calc(100vw-1rem)] max-h-[min(75vh,38rem)] overflow-x-hidden overflow-y-auto p-2 ${toolbarMenuClass}`}
+                  className={`w-[min(34rem,calc(100vw-1rem))] max-w-[calc(100vw-1rem)] max-h-[min(75vh,38rem,var(--radix-dropdown-menu-content-available-height,100vh))] overflow-x-hidden overflow-y-auto p-2 ${toolbarMenuClass}`}
                 >
                   <DropdownMenuLabel>Biblioteca de numeración</DropdownMenuLabel>
                   <ListStyleGrid
@@ -959,13 +960,7 @@ export function EditorToolbar({
   )
 
   if (isZenMode) {
-    return (
-      <div className="group/zen-toolbar absolute inset-x-0 top-0 z-20 h-2 hover:h-20 focus-within:h-20">
-        <div className="-translate-y-20 opacity-0 shadow-sm transition-all duration-200 group-hover/zen-toolbar:translate-y-0 group-hover/zen-toolbar:opacity-100 group-focus-within/zen-toolbar:translate-y-0 group-focus-within/zen-toolbar:opacity-100">
-          {toolbar}
-        </div>
-      </div>
-    )
+    return <ZenToolbarReveal>{toolbar}</ZenToolbarReveal>
   }
 
   return toolbar
