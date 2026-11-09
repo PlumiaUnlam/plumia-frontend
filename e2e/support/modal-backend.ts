@@ -349,6 +349,7 @@ export async function installModalBackend(
       if (path === "/projects/import/epub") return true
       if (/^\/projects\/[^/]+\/(editor-styles|storyboard-cards|storyboard-arcs|chat\/threads|books\/[^/]+\/exports.*)$/.test(path)) return true
       if (/^\/projects\/[^/]+\/(books)$/.test(path)) return true
+      if (/^\/projects\/[^/]+\/knowledge-review-settings$/.test(path)) return method === "GET"
       if (/^\/projects\/[^/]+$/.test(path)) return true
       if (path === "/projects") return true
       return false
@@ -878,6 +879,22 @@ export async function installModalBackend(
         entities = [...entities, entity]
         return respond(route, entity, 201)
       }
+    }
+    // Con el seguimiento de estados activo aparece «Historial de cambios» en la ficha, que es
+    // desde donde se abre «Agregar estado». Sin esto ese modal era inalcanzable para los tests.
+    if (/^\/projects\/[^/]+\/knowledge-review-settings$/.test(path) && method === "GET") {
+      return respond(route, {
+        stateTrackingEnabled: true,
+        stateReviewMode: "MANUAL",
+        stateConfidenceThreshold: 0.9,
+        relationshipReviewMode: "MANUAL",
+        relationshipConfidenceThreshold: 0.9,
+        crossChunkAuditMode: "ADJACENT_CHUNKS",
+        updatedAt: ts,
+      })
+    }
+    if (/^\/knowledge\/entities\/[^/]+\/states$/.test(path) && method === "GET") {
+      return respond(route, [])
     }
     const entityMatch = path.match(/^\/knowledge\/entities\/([^/]+)$/)
     if (entityMatch) {

@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test"
+import { expect, test, type Locator, type Page } from "@playwright/test"
 
 import { installModalBackend, projectId } from "./support/modal-backend"
 import { dialogNamed, openEditor, openEditorMenu, openScene, openTreeMenu } from "./support/modal-helpers"
@@ -304,6 +304,28 @@ const SCENARIOS: Scenario[] = [
     },
   },
   {
+    name: "Agregar estado de una entidad",
+    title: /Agregar estado/,
+    open: async (page) => {
+      await page.goto(`${base}/worldbuilding`)
+      await page.getByText("Gabriel Ortega", { exact: true }).first().click()
+      const history = page.getByRole("button", { name: /Historial de cambios/ })
+      // Según el estado guardado de la sección puede venir abierta o cerrada.
+      if ((await history.getAttribute("aria-expanded")) !== "true") await history.click()
+      await page.getByRole("button", { name: "Agregar estado" }).click()
+    },
+  },
+  {
+    name: "Nueva relación",
+    title: "Nueva Relación",
+    // En celular el botón «Nueva» del encabezado abre «Nueva Entidad»: la relación se crea desde otro camino.
+    desktopOnly: true,
+    open: async (page) => {
+      await page.goto(`${base}/worldbuilding?tab=relationships`)
+      await page.getByRole("button", { name: /Nueva Relación/ }).first().click()
+    },
+  },
+  {
     name: "Reordenar cronología",
     title: "Confirmar reordenamiento",
     role: "alertdialog",
@@ -377,6 +399,25 @@ const SCENARIOS: Scenario[] = [
 ]
 
 const SHORT = new Set(["movil-375", "notebook-1280x720", "escritorio-1440"])
+/**
+ * Los datos de prueba tienen títulos cortos; en un manuscrito real las escenas se muestran como
+ * «Capítulo: Escena» y pueden ser largas. Se agrega una opción larga, ya elegida, a cada
+ * selector nativo del modal para que un diseño que solo funciona con textos cortos se note.
+ */
+async function useLongSelectOptions(page: Page, modal: Locator) {
+  await modal.locator("select").evaluateAll((selects) => {
+    for (const select of selects as HTMLSelectElement[]) {
+      select.add(
+        new Option(
+          "Capítulo 12 · El llamado de la torre: Una luz en la ventana del último piso",
+          "opcion-larga",
+        ),
+      )
+      select.value = "opcion-larga"
+    }
+  })
+}
+
 const ALL = new Set(["movil-320", "movil-375", "tablet-768", "notebook-1280x720", "notebook-1366x768", "escritorio-1440"])
 const viewports = VIEWPORTS.filter((v) => (process.env.UI_AUDIT ? ALL : SHORT).has(v.name))
 
@@ -398,6 +439,7 @@ for (const viewport of viewports) {
         const modal = page.getByRole(role, { name: scenario.title })
         await expect(modal, `no se abrió «${scenario.name}»`).toBeVisible()
 
+        await useLongSelectOptions(page, modal)
         const context = `${scenario.name} (${viewport.name})`
         await auditOverlay(page, collector, context, viewport.touch)
         await exploreInsideDialog(page, collector, context, viewport.touch)

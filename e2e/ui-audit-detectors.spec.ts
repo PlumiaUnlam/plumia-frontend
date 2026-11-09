@@ -81,4 +81,25 @@ test.describe("Detectores del auditor de interfaz", () => {
     )
     expect(overlapping.some((message) => /texto solapado|solape/.test(message))).toBe(true)
   })
+
+  test("detecta un contenedor que se desplaza de costado porque su contenido no entra, y no avisa si entra", async ({ page }) => {
+    const wide = `<select style="width:max-content"><option>Capítulo 12 · El llamado de la torre: Una luz en la ventana del último piso</option></select>`
+    const cut = await audit(
+      page,
+      `<div style="width:300px;overflow-x:auto"><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><label>${wide}</label><label><select><option>Sigue vigente</option></select></label></div></div>`,
+    )
+    expect(cut.some((message) => /scroll horizontal dentro de/.test(message))).toBe(true)
+
+    const fits = await audit(
+      page,
+      `<div style="width:300px;overflow-x:auto"><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><label style="min-width:0"><select style="width:100%;min-width:0"><option>Capítulo 12 · El llamado de la torre: Una luz en la ventana del último piso</option></select></label><label style="min-width:0"><select style="width:100%;min-width:0"><option>Sigue vigente</option></select></label></div></div>`,
+    )
+    expect(fits.filter((message) => /scroll horizontal dentro de/.test(message))).toEqual([])
+
+    const intended = await audit(
+      page,
+      `<div role="tablist" style="width:200px;overflow-x:auto;white-space:nowrap"><button role="tab">Una pestaña con un nombre bastante largo</button><button role="tab">Otra pestaña larga</button></div>`,
+    )
+    expect(intended.filter((message) => /scroll horizontal dentro de/.test(message))).toEqual([])
+  })
 })

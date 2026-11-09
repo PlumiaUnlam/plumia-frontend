@@ -185,6 +185,22 @@ export function auditDom(root: Element, opts: AuditOptions): string[] {
     }
   }
 
+  // ---------- scroll horizontal dentro de contenedores (un modal o un panel que se corta a un lado)
+  // Una región pensada para desplazarse de costado (pestañas, tablas, código, grafos) se exime.
+  const intendedHorizontalScroll =
+    '[role="tablist"],pre,code,table,.react-flow,[data-allow-hscroll],[data-slot="scroll-area-viewport"],[data-slot="tabs-list"]'
+  for (const el of Array.from(root.querySelectorAll("*")).slice(0, 2500)) {
+    if (!(el instanceof HTMLElement) || !isVisible(el)) continue
+    if (el.matches(intendedHorizontalScroll) || el.closest(intendedHorizontalScroll)) continue
+    const overflowX = getComputedStyle(el).overflowX
+    if (overflowX !== "auto" && overflowX !== "scroll") continue
+    if (el.scrollWidth > el.clientWidth + 1) {
+      out.push(
+        `scroll horizontal dentro de ${describe(el)} (${el.scrollWidth} > ${el.clientWidth}): el contenido se corta a un lado`,
+      )
+    }
+  }
+
   // ---------- elementos
   const interactiveSel =
     'button,a[href],input:not([type="hidden"]),select,textarea,[role="button"],[role="menuitem"],[role="tab"],[role="option"],[role="checkbox"],[role="switch"],[role="combobox"]'
