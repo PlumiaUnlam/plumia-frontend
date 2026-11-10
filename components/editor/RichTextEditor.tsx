@@ -1,7 +1,8 @@
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { EditorContent, useEditor, type Editor } from "@tiptap/react"
 import StarterKit from "@tiptap/starter-kit"
+import { toast } from "sonner"
 
 import type { ProseMirrorJSON } from "@/types/scene"
 import type {
@@ -37,10 +38,12 @@ import { SelectionBubbleMenu } from "./selection-menu/selection-bubble-menu"
 import { AuthorAnnotationPanel } from "./author-annotation-panel"
 import {
   findAuthorAnnotationAnchor,
+  findAuthorAnnotationsWithRemovedAnchors,
   AuthorAnnotationDecorations,
   authorAnnotationDecorationKey,
   sortAuthorAnnotationsByTextPosition,
 } from "./author-annotation-decorations"
+import { userFacingError } from "@/helpers/api-errors"
 import { SceneDivider } from "./scene-divider"
 import { NoteReference, type NoteKind } from "./note-reference"
 import { SceneNotesPanel } from "./scene-notes-panel"
@@ -133,6 +136,10 @@ export function RichTextEditor({
   const [annotationFocusVersion, setAnnotationFocusVersion] = useState(0)
   const [isAnnotationComposerOpen, setIsAnnotationComposerOpen] = useState(false)
   const [annotationDraftAnchor, setAnnotationDraftAnchor] = useState<Omit<CreateAuthorAnnotationInput, "body"> | null>(null)
+  const annotationsRef = useRef<AuthorAnnotation[]>([])
+  const sceneIdRef = useRef(sceneId)
+  const deletingAnnotationIdsRef = useRef(new Set<string>())
+  const removeAnnotationsRef = useRef<(annotationIds: string[]) => void>(() => {})
   const [toolbarExpanded, setToolbarExpanded] = useState(false)
   // Desde el chat se puede pedir ver la barra de formato: se abre si estaba oculta.
   const toolbarRevealToken = useEditorStore((state) => state.toolbarRevealToken)
@@ -167,6 +174,55 @@ export function RichTextEditor({
     () => buildEditorTextStylesCss(editorTextStyles),
     [editorTextStyles],
   )
+
+  useEffect(() => {
+    sceneIdRef.current = sceneId
+    removeAnnotationsRef.current = (annotationIds) => {
+      const removals = annotationsRef.current.filter(
+        (annotation) =>
+          annotationIds.includes(annotation.id) &&
+          !deletingAnnotationIdsRef.current.has(`${sceneId}:${annotation.id}`),
+      )
+      if (removals.length === 0) return
+
+      for (const annotation of removals) {
+        deletingAnnotationIdsRef.current.add(`${sceneId}:${annotation.id}`)
+      }
+      const removalIds = new Set(removals.map((annotation) => annotation.id))
+      const remaining = annotationsRef.current.filter(
+        (annotation) => !removalIds.has(annotation.id),
+      )
+      annotationsRef.current = remaining
+      setAnnotations(remaining)
+      setFocusedAnnotationId((current) =>
+        current && removalIds.has(current) ? null : current,
+      )
+
+      for (const annotation of removals) {
+        const deletionKey = `${sceneId}:${annotation.id}`
+        void deleteSceneAnnotation(sceneId, annotation.id)
+          .catch((error: unknown) => {
+            if (sceneIdRef.current === sceneId) {
+              setAnnotations((current) => {
+                if (current.some((item) => item.id === annotation.id)) {
+                  return current
+                }
+                const restored = [annotation, ...current]
+                annotationsRef.current = restored
+                return restored
+              })
+              toast.error("No se pudo eliminar la anotación", {
+                description: userFacingError(
+                  error,
+                  "El fragmento se eliminó, pero la anotación no pudo borrarse. Intentalo nuevamente.",
+                ),
+              })
+            }
+          })
+          .finally(() => deletingAnnotationIdsRef.current.delete(deletionKey))
+      }
+    }
+  }, [sceneId])
 
   const editor = useEditor({
     immediatelyRender: true,
@@ -212,8 +268,15 @@ export function RichTextEditor({
       handlePaste,
     },
     onFocus: () => onEditorFocus?.(),
-    onUpdate: ({ editor: nextEditor }) => {
+    onUpdate: ({ editor: nextEditor, transaction }) => {
       onChange?.(nextEditor)
+      const removedAnnotationIds = findAuthorAnnotationsWithRemovedAnchors(
+        transaction.before,
+        transaction.doc,
+        transaction.mapping,
+        annotationsRef.current,
+      )
+      removeAnnotationsRef.current(removedAnnotationIds)
     },
   })
 
@@ -226,12 +289,19 @@ export function RichTextEditor({
   }, [editor, bindEditor])
 
   useEffect(() => {
-    if (!allowAnnotations) return
+    if (!allowAnnotations) {
+      annotationsRef.current = []
+      return
+    }
 
     const controller = new AbortController()
+    annotationsRef.current = []
     void getSceneAnnotations(sceneId, { signal: controller.signal })
       .then((items) => {
-        if (!controller.signal.aborted) setAnnotations(items)
+        if (!controller.signal.aborted) {
+          annotationsRef.current = items
+          setAnnotations(items)
+        }
       })
       .catch((error: unknown) => {
         if (!controller.signal.aborted) {
@@ -293,7 +363,11 @@ export function RichTextEditor({
       ? { ...annotationDraftAnchor, body }
       : { body }
     const annotation = await createSceneAnnotation(sceneId, input)
-    setAnnotations((current) => [annotation, ...current])
+    setAnnotations((current) => {
+      const next = [annotation, ...current]
+      annotationsRef.current = next
+      return next
+    })
     setFocusedAnnotationId(annotation.id)
     setAnnotationFocusVersion((version) => version + 1)
     setAnnotationDraftAnchor(null)
@@ -302,7 +376,11 @@ export function RichTextEditor({
 
   const handleEditAnnotation = async (annotationId: string, body: string) => {
     const updated = await updateSceneAnnotation(sceneId, annotationId, { body })
-    setAnnotations((current) => current.map((item) => item.id === updated.id ? updated : item))
+    setAnnotations((current) => {
+      const next = current.map((item) => item.id === updated.id ? updated : item)
+      annotationsRef.current = next
+      return next
+    })
   }
 
   const handleSetAnnotationResolved = async (
@@ -312,12 +390,20 @@ export function RichTextEditor({
     const updated = await updateSceneAnnotation(sceneId, annotationId, {
       isResolved,
     })
-    setAnnotations((current) => current.map((item) => item.id === updated.id ? updated : item))
+    setAnnotations((current) => {
+      const next = current.map((item) => item.id === updated.id ? updated : item)
+      annotationsRef.current = next
+      return next
+    })
   }
 
   const handleDeleteAnnotation = async (annotationId: string) => {
     await deleteSceneAnnotation(sceneId, annotationId)
-    setAnnotations((current) => current.filter((item) => item.id !== annotationId))
+    setAnnotations((current) => {
+      const next = current.filter((item) => item.id !== annotationId)
+      annotationsRef.current = next
+      return next
+    })
   }
 
   const handleNavigateToAnnotation = (annotation: AuthorAnnotation) => {

@@ -169,3 +169,50 @@ test("HU-annotations: el menú Comentar no tapa la nota mientras se redacta", as
   // Con el foco fuera del editor, el menú tampoco reaparece sobre el texto seleccionado.
   await expect(comment).toHaveCount(0)
 })
+
+test("HU-annotations: elimina la anotación al borrar su fragmento asociado", async ({
+  page,
+}) => {
+  const backend = await installMockBackend(page, {
+    authorAnnotations: annotationsNewestFirst,
+  })
+
+  await page.goto(`/projects/${e2eProjectId}/editor`)
+  await page.getByRole("button", { name: "El umbral 10 palabras" }).click()
+
+  const editor = page.locator(".ProseMirror")
+  await expect(editor).toContainText("La noche cubría la ciudad")
+  await expect(
+    page.locator('[data-author-annotation-marker-id="annotation-city"]'),
+  ).toBeVisible()
+
+  await editor.click()
+  await editor.evaluate((element) => {
+    const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT)
+    let textNode = walker.nextNode()
+    while (textNode && !textNode.textContent?.includes("ciudad")) {
+      textNode = walker.nextNode()
+    }
+    if (!textNode?.textContent) throw new Error("No se encontró el fragmento")
+
+    const start = textNode.textContent.indexOf("ciudad")
+    const range = document.createRange()
+    range.setStart(textNode, start)
+    range.setEnd(textNode, start + "ciudad".length)
+    const selection = window.getSelection()
+    selection?.removeAllRanges()
+    selection?.addRange(range)
+  })
+  await page.keyboard.press("Backspace")
+
+  await expect.poll(() => backend.annotationDeletes).toEqual(["annotation-city"])
+  await expect(
+    page.locator('[data-author-annotation-marker-id="annotation-city"]'),
+  ).toHaveCount(0)
+  await expect(
+    page.locator('[data-author-annotation-marker-id="annotation-expected"]'),
+  ).toBeVisible()
+  expect(backend.getAuthorAnnotations().map((annotation) => annotation.id)).toEqual([
+    "annotation-expected",
+  ])
+})

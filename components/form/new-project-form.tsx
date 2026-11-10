@@ -15,6 +15,7 @@ import {
 import {
   Field,
   FieldContent,
+  FieldDescription,
   FieldError,
   FieldLabel,
 } from "@/components/ui/field"
@@ -43,6 +44,10 @@ type ProjectFormValues = {
   wordCountTarget: string
   status: string
 }
+
+const PROJECT_TITLE_MAX_LENGTH = 100
+const PROJECT_TITLE_LENGTH_ERROR =
+  `El nombre del proyecto no puede superar los ${PROJECT_TITLE_MAX_LENGTH} caracteres.`
 
 function projectPayload(
   values: ProjectFormValues,
@@ -111,7 +116,13 @@ export function NewProjectForm({
 
   const setField = (field: keyof typeof values, value: string) => {
     setValues((prev) => ({ ...prev, [field]: value }))
-    setErrors((prev) => ({ ...prev, [field]: "" }))
+    setErrors((prev) => ({
+      ...prev,
+      [field]:
+        field === "title" && value.trim().length > PROJECT_TITLE_MAX_LENGTH
+          ? PROJECT_TITLE_LENGTH_ERROR
+          : "",
+    }))
   }
 
   const handleEpubFileChange = (file: File | null) => {
@@ -140,7 +151,9 @@ export function NewProjectForm({
       ...prev,
       title: prev.title.trim()
         ? prev.title
-        : file.name.replace(/\.epub$/i, "").slice(0, 200),
+        : file.name
+            .replace(/\.epub$/i, "")
+            .slice(0, PROJECT_TITLE_MAX_LENGTH),
     }))
   }
 
@@ -149,6 +162,8 @@ export function NewProjectForm({
 
     if (!values.title.trim()) {
       nextErrors.title = "El nombre del proyecto es obligatorio."
+    } else if (values.title.trim().length > PROJECT_TITLE_MAX_LENGTH) {
+      nextErrors.title = PROJECT_TITLE_LENGTH_ERROR
     }
     if (errors.epub) {
       nextErrors.epub = errors.epub
@@ -222,11 +237,14 @@ export function NewProjectForm({
           type="text"
           placeholder="Nombre del Proyecto"
           autoComplete="off"
-          maxLength={200}
           aria-invalid={!!errors.title}
+          aria-describedby="project-title-help project-title-error"
         />
       </FieldContent>
-      <FieldError>{errors.title}</FieldError>
+      <FieldDescription id="project-title-help">
+        Hasta {PROJECT_TITLE_MAX_LENGTH} caracteres.
+      </FieldDescription>
+      <FieldError id="project-title-error">{errors.title}</FieldError>
     </Field>
 
     <Field>
