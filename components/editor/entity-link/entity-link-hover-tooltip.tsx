@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 type HoveredLink = {
   element: HTMLElement
   entityId: string | null
+  href: string | null
   rect: DOMRect
 }
 
@@ -60,6 +61,7 @@ export function EntityLinkHoverTooltip({
       setHovered({
         element: link,
         entityId: link.dataset.entityId ?? null,
+        href: link.getAttribute("href"),
         rect: link.getBoundingClientRect(),
       })
     }
@@ -92,6 +94,19 @@ export function EntityLinkHoverTooltip({
     setHovered(null)
   }
 
+  function openExternalLink() {
+    if (!hovered?.href) return
+
+    try {
+      const url = new URL(hovered.href)
+      if (url.protocol !== "http:" && url.protocol !== "https:") return
+
+      window.open(url.href, "_blank", "noopener,noreferrer")
+    } catch {
+      return
+    }
+  }
+
   return (
     <div
       style={{
@@ -115,6 +130,18 @@ export function EntityLinkHoverTooltip({
         >
           <ExternalLink className="size-3.5" />
           Ver
+        </Button>
+      )}
+      {!hovered.entityId && hovered.href && (
+        <Button
+          type="button"
+          size="xs"
+          variant="ghost"
+          onClick={openExternalLink}
+          aria-label="Abrir enlace en una pestaña nueva"
+        >
+          <ExternalLink className="size-3.5" />
+          Abrir enlace
         </Button>
       )}
       <Button type="button" size="xs" variant="ghost" onClick={removeLink}>
