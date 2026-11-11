@@ -17,6 +17,10 @@ type AuthorAnnotationDecorationMeta = {
   focusedAnnotationId?: string | null
 }
 
+type PositionMapping = {
+  map(position: number, assoc?: number): number
+}
+
 export const authorAnnotationDecorationKey = new PluginKey<AuthorAnnotationDecorationState>(
   "authorAnnotationDecorations",
 )
@@ -103,6 +107,36 @@ export function sortAuthorAnnotationsByTextPosition(
       return leftCreatedAt - rightCreatedAt || left.originalIndex - right.originalIndex
     })
     .map(({ annotation }) => annotation)
+}
+
+/**
+ * Detecta anotaciones cuyo rango asociado fue modificado o eliminado por una
+ * transacción. El rango se resuelve en el documento anterior y se mapea al
+ * nuevo documento, para no reasociar accidentalmente la nota con otra
+ * aparición del mismo texto.
+ */
+export function findAuthorAnnotationsWithRemovedAnchors(
+  before: Parameters<typeof DecorationSet.create>[0],
+  after: Parameters<typeof DecorationSet.create>[0],
+  mapping: PositionMapping,
+  annotations: AuthorAnnotation[],
+) {
+  return annotations.flatMap((annotation) => {
+    const quote = annotation.quote?.trim() ?? ""
+    if (!quote) return []
+
+    const anchor = findAuthorAnnotationAnchor(before, annotation)
+    if (!anchor) return []
+
+    const mappedFrom = mapping.map(anchor.from, 1)
+    const mappedTo = mapping.map(anchor.to, -1)
+    const mappedText =
+      mappedTo > mappedFrom
+        ? after.textBetween(mappedFrom, mappedTo, "\n").trim()
+        : ""
+
+    return mappedText === quote ? [] : [annotation.id]
+  })
 }
 
 function createDecorations(

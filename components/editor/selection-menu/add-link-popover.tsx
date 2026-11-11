@@ -5,6 +5,7 @@ import type { Editor } from "@tiptap/react"
 import { Link2, Search } from "lucide-react"
 import useSWR from "swr"
 
+import { searchEntities } from "@/lib/entity-search"
 import { Button } from "@/components/ui/button"
 import { EntityIconTile } from "@/components/worldbuilding/entity-icon-tile"
 import { getEntities } from "@/services/entities.service"
@@ -79,16 +80,14 @@ export function AddLinkPopover({ editor, projectId, onDone }: Readonly<AddLinkPo
     () => getEntities(projectId),
   )
 
-  const filteredEntities = useMemo(() => {
-    const normalized = query.trim().toLowerCase()
-    const list = entities ?? []
-    if (!normalized) return list
-    return list.filter(
-      (entity) =>
-        entity.canonicalName.toLowerCase().includes(normalized) ||
-        entity.aliases.some((alias) => alias.toLowerCase().includes(normalized)),
-    )
-  }, [entities, query])
+  const filteredEntities = useMemo(
+    () =>
+      searchEntities(entities ?? [], query, (entity) => ({
+        name: entity.canonicalName,
+        aliases: entity.aliases,
+      })),
+    [entities, query],
+  )
 
   function applyEntity(entity: Entity) {
     const { to } = editor.state.selection

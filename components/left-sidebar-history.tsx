@@ -94,7 +94,7 @@ export function LeftSidebarHistory({
               Historial
             </SheetTitle>
             <SheetDescription className="text-xs">
-              {activeSceneTitle ?? "Selecciona una escena para ver sus versiones."}
+              {activeSceneTitle ?? "Seleccioná una escena para ver sus versiones."}
             </SheetDescription>
           </SheetHeader>
 
@@ -108,7 +108,7 @@ export function LeftSidebarHistory({
                 onClick={onCreateVersionOpen}
               >
                 <Plus className="size-3.5" />
-                Crear version
+                Crear versión
               </Button>
             </div>
 
@@ -116,7 +116,7 @@ export function LeftSidebarHistory({
               <div className="space-y-2 p-3">
                 {!activeSceneId && (
                   <div className="rounded-lg border border-dashed border-border bg-background p-4 text-center text-xs text-muted-foreground">
-                    Abre una escena para consultar su historial.
+                    Abrí una escena para consultar su historial.
                   </div>
                 )}
 
@@ -198,7 +198,7 @@ export function LeftSidebarHistory({
                           </ItemMedia>
                           <ItemContent className="min-w-0 gap-0.5">
                             <ItemTitle className="w-full text-xs text-foreground">
-                              {version.label || "Version sin titulo"}
+                              {version.label || "Versión sin título"}
                               {selected && (
                                 <Check className="size-3.5 shrink-0 text-primary" />
                               )}
@@ -217,7 +217,7 @@ export function LeftSidebarHistory({
                             size="icon-xs"
                             className="size-7"
                             aria-label={`Convertir ${
-                              version.label || "version sin titulo"
+                              version.label || "versión sin título"
                             } en principal`}
                             onClick={(event) => {
                               event.stopPropagation();
@@ -231,7 +231,7 @@ export function LeftSidebarHistory({
                             size="icon-xs"
                             className="size-7"
                             aria-label={`Cambiar nombre de ${
-                              version.label || "version sin titulo"
+                              version.label || "versión sin título"
                             }`}
                             onClick={(event) => {
                               event.stopPropagation();
@@ -245,7 +245,7 @@ export function LeftSidebarHistory({
                             size="icon-xs"
                             className="size-7 text-destructive hover:text-destructive"
                             aria-label={`Eliminar ${
-                              version.label || "version sin titulo"
+                              version.label || "versión sin título"
                             }`}
                             onClick={(event) => {
                               event.stopPropagation();
@@ -264,7 +264,7 @@ export function LeftSidebarHistory({
                   activeSceneId &&
                   versions.length === 0 && (
                     <div className="rounded-lg border border-dashed border-border bg-background p-4 text-center text-xs text-muted-foreground">
-                      Esta escena todavia no tiene versiones.
+                      Esta escena todavía no tiene versiones.
                     </div>
                   )}
               </div>

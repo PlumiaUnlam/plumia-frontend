@@ -57,10 +57,10 @@ export function Header({ mode, onModeChange, onShareClick, onExportClick }: Head
   return (
     <header
       className={`flex h-12 shrink-0 items-center gap-3 bg-primary px-4 text-primary-foreground ${
-        isStatisticsPage ? "sticky top-0 z-40" : "relative z-10"
-      }`}
+        projectId ? "md:grid md:grid-cols-[1fr_auto_1fr]" : ""
+      } ${isStatisticsPage ? "sticky top-0 z-40" : "relative z-10"}`}
     >
-      <div className="mr-1 flex items-center gap-1">
+      <div className="mr-1 flex items-center gap-1 justify-self-start">
         {projectId && (
           <TooltipProvider>
             <Tooltip>
@@ -107,7 +107,7 @@ export function Header({ mode, onModeChange, onShareClick, onExportClick }: Head
         />
       )}
 
-      <div className="ml-auto flex items-center gap-2">
+      <div className="ml-auto flex items-center gap-2 justify-self-end">
         <div className="h-5 w-px bg-white/20" />
         {onShareClick && (
           <TooltipProvider>
@@ -178,7 +178,7 @@ function ProjectNavigation({
   return (
     <nav
       aria-label="Secciones del proyecto"
-      className="absolute left-1/2 hidden h-8 -translate-x-1/2 items-center gap-0.5 rounded-lg bg-black/10 p-0.5 md:flex"
+      className="hidden h-8 min-w-0 items-center gap-0.5 justify-self-center rounded-lg bg-black/10 p-0.5 md:flex"
     >
       {projectSections.map(({ segment, label, icon: Icon }) => {
         const href = `/projects/${encodeURIComponent(projectId)}/${segment}`;

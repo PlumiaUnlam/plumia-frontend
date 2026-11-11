@@ -32,6 +32,7 @@ import {
 
 import type { Entity, EntityCategory } from "@/types/entity";
 import { TYPE_TO_CATEGORY } from "@/types/entity";
+import { searchEntities } from "@/lib/entity-search";
 import { ENTITY_CATEGORY_STYLES } from "@/lib/entity-category-style";
 import { EntityIconTile } from "@/components/worldbuilding/entity-icon-tile";
 import { EntityImage } from "@/components/worldbuilding/entity-image";
@@ -500,19 +501,16 @@ export function WikiTab({
   const [stateHistoryExpanded, setStateHistoryExpanded] = useState(true);
 
   const filteredEntities = useMemo(() => {
-    return entities.filter((entity) => {
-      const category = TYPE_TO_CATEGORY[entity.type];
-      const matchesSearch =
-        entity.canonicalName
-          .toLowerCase()
-          .includes(searchQuery.toLowerCase()) ||
-        (entity.description ?? "")
-          .toLowerCase()
-          .includes(searchQuery.toLowerCase());
-      const matchesCategory =
-        selectedCategory.length === 0 || selectedCategory.includes(category);
-      return matchesSearch && matchesCategory;
-    });
+    const inCategory = entities.filter(
+      (entity) =>
+        selectedCategory.length === 0 ||
+        selectedCategory.includes(TYPE_TO_CATEGORY[entity.type]),
+    );
+    return searchEntities(inCategory, searchQuery, (entity) => ({
+      name: entity.canonicalName,
+      aliases: entity.aliases,
+      content: [entity.description],
+    }));
   }, [entities, searchQuery, selectedCategory]);
 
   const selectedEntityCategory = selectedEntity
@@ -572,7 +570,7 @@ export function WikiTab({
   return (
     <div className="flex h-full min-h-0 min-w-0 w-full flex-1 overflow-hidden">
       <aside
-        className={`w-full shrink-0 border-r border-border flex flex-col min-h-0 h-full bg-muted/30 overflow-hidden md:w-60 lg:w-80 ${
+        className={`w-full shrink-0 border-r border-border flex flex-col min-h-0 h-full bg-muted/30 overflow-x-hidden overflow-y-auto md:w-60 lg:w-80 ${
           selectedEntity ? "max-md:hidden" : ""
         }`}
       >
@@ -640,7 +638,7 @@ export function WikiTab({
           </div>
         </div>
 
-        <ScrollArea className="w-full min-h-0 flex-1 p-3">
+        <ScrollArea className="min-h-48 w-full flex-1 p-3">
           <ItemGroup className="min-w-0">
             <EntityListContent
               loading={loading}
@@ -840,9 +838,9 @@ export function WikiTab({
         ) : (
           <div className="flex-1 min-h-0 flex flex-col items-center justify-center text-primary opacity-70 gap-2">
             <StarIcon size={48} />
-            <h2 className="text-lg font-semibold">Selecciona una entidad</h2>
+            <h2 className="text-lg font-semibold">Seleccioná una entidad</h2>
             <p>
-              Haz click en cualquier entidad de la lista para ver sus detalles
+              Hacé clic en cualquier entidad de la lista para ver sus detalles
             </p>
           </div>
         )}

@@ -3,6 +3,7 @@ import { useState } from "react"
 import { FormDialog } from "@/components/modal/form-dialog"
 import { Field, FieldContent, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
+import { userFacingError } from "@/helpers/api-errors"
 
 type NewItemModalProps = {
   show: boolean
@@ -41,9 +42,7 @@ export function NewItemModal({
       onClose()
     } catch (submitError) {
       setError(
-        submitError instanceof Error
-          ? submitError.message
-          : "No se pudo crear el elemento.",
+        userFacingError(submitError, "No se pudo crear el elemento."),
       )
     } finally {
       setIsSubmitting(false)

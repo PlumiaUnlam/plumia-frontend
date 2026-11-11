@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
+import { toast } from "sonner";
 import { es } from "date-fns/locale";
 import {
   BarChart3,
@@ -59,6 +60,7 @@ import type {
   WritingGoal,
   WritingGoalType,
 } from "@/types/analytics";
+import { userFacingError } from "@/helpers/api-errors"
 
 const REFRESH_INTERVAL_MS = 15_000;
 const numberFormatter = new Intl.NumberFormat("es-ES");
@@ -411,7 +413,7 @@ function GoalsDialog({
       onOpenChange(false);
     } catch (error) {
       setMessage(
-        error instanceof Error ? error.message : "No se pudieron guardar las metas",
+        userFacingError(error, "No se pudieron guardar las metas"),
       );
     } finally {
       setSaving(false);
@@ -595,19 +597,20 @@ export function StatisticsDashboard({ projectId }: Readonly<{ projectId: string 
   const [goalsDialogOpen, setGoalsDialogOpen] = useState(false);
 
   const loadDashboard = useCallback(
-    async (signal?: AbortSignal, silent = false) => {
+    async (signal?: AbortSignal, silent = false): Promise<boolean> => {
       if (silent) setRefreshing(true);
       try {
         const data = await getAnalyticsDashboard(projectId, { signal });
         setDashboard(data);
         setError(null);
+        return true;
       } catch (loadError) {
-        if (signal?.aborted) return;
-        setError(
-          loadError instanceof Error
-            ? loadError.message
-            : "No se pudieron cargar las estadísticas",
-        );
+        if (!signal?.aborted) {
+          setError(
+            userFacingError(loadError, "No se pudieron cargar las estadísticas"),
+          );
+        }
+        return false;
       } finally {
         if (!signal?.aborted) {
           setLoading(false);
@@ -617,6 +620,11 @@ export function StatisticsDashboard({ projectId }: Readonly<{ projectId: string 
     },
     [projectId],
   );
+
+  // Al actualizar a mano se avisa cuando terminó: si los números no cambian, parecería que no pasó nada.
+  const refreshManually = async () => {
+    if (await loadDashboard(undefined, true)) toast.success("Estadísticas actualizadas");
+  };
 
   useEffect(() => {
     const controller = new AbortController();
@@ -680,7 +688,7 @@ export function StatisticsDashboard({ projectId }: Readonly<{ projectId: string 
               variant="outline"
               size="icon-sm"
               aria-label="Actualizar estadísticas"
-              onClick={() => void loadDashboard(undefined, true)}
+              onClick={() => void refreshManually()}
               disabled={refreshing}
             >
               <RefreshCw className={getRefreshIconClass(refreshing)} />
@@ -789,7 +797,9 @@ export function StatisticsDashboard({ projectId }: Readonly<{ projectId: string 
                 projectId={projectId}
                 dailyGoal={goals.get("DAILY")}
                 weeklyGoal={goals.get("WEEKLY")}
-                onSaved={() => loadDashboard(undefined, true)}
+                onSaved={async () => {
+                  await loadDashboard(undefined, true);
+                }}
               />
             ) : null}
 

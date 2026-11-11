@@ -4,6 +4,7 @@ import { type ReactNode } from "react"
 import { ThemeProvider } from "next-themes"
 
 import { Toaster } from "@/components/ui/sonner"
+import { TruncationTitles } from "@/components/truncation-titles"
 import { AuthProvider } from "@/contexts/AuthContext"
 
 export function Providers({ children }: { readonly children: ReactNode }) {
@@ -18,7 +19,8 @@ export function Providers({ children }: { readonly children: ReactNode }) {
       <AuthProvider>
         {children}
       </AuthProvider>
-      <Toaster position="bottom-right" />
+      <TruncationTitles />
+      <Toaster position="top-center" offset="3.5rem" mobileOffset="3.5rem" closeButton />
 
     </ThemeProvider>
   )

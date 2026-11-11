@@ -1,5 +1,6 @@
 "use client"
 
+import { InlineLinkButton } from "@/components/form/inline-link-button"
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { CircleAlert, MailCheck } from "lucide-react"
 import { useRouter } from "next/navigation"
@@ -180,14 +181,10 @@ export function VerifyEmailForm() {
       footer={
         <p>
           ¿Cambiaste de idea?{" "}
-          <Button
-            variant="link"
-            type="button"
-            className="h-auto p-0 text-xs font-medium"
-            onClick={() => void handleChangeEmail()}
+          <InlineLinkButton onClick={() => void handleChangeEmail()}
           >
             Usar otro correo
-          </Button>
+          </InlineLinkButton>
         </p>
       }
     >

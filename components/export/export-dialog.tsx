@@ -20,6 +20,7 @@ import {
   getExportStatus,
   type ExportJob,
 } from "@/services/export.service"
+import { userFacingError } from "@/helpers/api-errors"
 
 export type ExportBookOption = {
   id: string
@@ -44,7 +45,7 @@ function statusLabel(status: ExportJob["status"]): string {
 }
 
 function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : "No se pudo exportar el libro"
+  return userFacingError(error, "No se pudo exportar el libro")
 }
 
 export function ExportDialog({

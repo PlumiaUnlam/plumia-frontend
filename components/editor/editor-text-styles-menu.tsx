@@ -46,6 +46,7 @@ import type {
   EditorTextStyleDefinition,
   EditorTextStyleKind,
 } from "@/types/editor-text-style"
+import { userFacingError } from "@/helpers/api-errors"
 
 type EditorTextStylesMenuProps = {
   editor: Editor
@@ -62,7 +63,7 @@ type StyleDraft = {
 }
 
 const dropdownContentClass =
-  "max-h-[min(75dvh,34rem)] w-72 overflow-x-hidden overflow-y-auto border-border bg-popover text-foreground shadow-[0_3px_8px_rgba(60,64,67,0.24)] dark:text-popover-foreground"
+  "max-h-[min(75dvh,34rem,var(--radix-dropdown-menu-content-available-height,100vh))] w-72 overflow-x-hidden overflow-y-auto border-border bg-popover text-foreground shadow-[0_3px_8px_rgba(60,64,67,0.24)] dark:text-popover-foreground"
 const itemClass = "min-h-9 text-foreground focus:bg-muted focus:text-foreground dark:focus:bg-accent dark:focus:text-accent-foreground"
 const fieldClass =
   "h-9 py-0 rounded-md border-border bg-popover px-2.5 text-sm text-foreground dark:bg-input/30"
@@ -194,7 +195,7 @@ export function EditorTextStylesMenu({
       )
     } catch (error) {
       setStatusMessage(
-        error instanceof Error ? error.message : "No se pudo actualizar el estilo.",
+        userFacingError(error, "No se pudo actualizar el estilo."),
       )
     }
   }
@@ -230,7 +231,7 @@ export function EditorTextStylesMenu({
       setDialogOpen(false)
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : "No se pudo guardar el estilo.",
+        userFacingError(error, "No se pudo guardar el estilo."),
       )
     } finally {
       setSaving(false)
@@ -247,7 +248,7 @@ export function EditorTextStylesMenu({
       )
     } catch (error) {
       setStatusMessage(
-        error instanceof Error ? error.message : "No se pudo eliminar el estilo.",
+        userFacingError(error, "No se pudo eliminar el estilo."),
       )
     }
   }

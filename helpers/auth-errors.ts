@@ -10,7 +10,7 @@ export function messageForError(error: unknown) {
   }
 
   if (code === "auth/invalid-email") {
-    return "Introduce un email con formato válido."
+    return "Ingresá un email con formato válido."
   }
 
   if (code === "auth/network-request-failed") {

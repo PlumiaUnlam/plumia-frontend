@@ -1,14 +1,7 @@
 "use client"
 
 import { AlertCircle, CheckCircle2, Loader2, RotateCw } from "lucide-react"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+import { FormDialog } from "@/components/modal/form-dialog"
 import { Button } from "@/components/ui/button"
 import { useProjectAnalysis } from "@/hooks/use-project-analysis"
 
@@ -41,60 +34,53 @@ export function ProjectAnalysisDialog({
   const canRetry = Boolean(run && run.failedScenes > 0 && !isActive)
 
   return (
-    <Dialog open={analysis.open} onOpenChange={analysis.setOpen}>
-      <DialogContent className="flex max-h-[min(88dvh,760px)] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl">
-        <DialogHeader className="shrink-0 border-b px-6 py-5 pr-12">
-          <DialogTitle>Analizar cambios del proyecto</DialogTitle>
-          <DialogDescription>
-            Se procesan en orden narrativo las escenas que tienen fragmentos pendientes. Las propuestas
-            y alertas existentes se conservan y se actualizan según la evidencia vigente.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-5">
-          {analysis.error && (
-            <div role="alert" className="rounded-lg border border-destructive/25 bg-destructive/5 p-3 text-sm text-destructive">
-              {analysis.error}
-            </div>
-          )}
-          {analysis.notice && (
-            <output aria-live="polite" aria-atomic="true" className="block rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm text-foreground">
-              {analysis.notice}
-            </output>
-          )}
-          <ProjectAnalysisRunProgress run={run} />
-          <ProjectAnalysisPreviewContent
-            loadingPreview={analysis.loadingPreview}
-            preview={preview}
-            run={run}
-          />
-        </div>
-
-        <DialogFooter className="shrink-0 border-t px-6 py-4 sm:justify-between">
-          <div className="flex gap-2">
-            {canRetry && (
-              <Button type="button" variant="outline" onClick={() => void analysis.retryFailed()} disabled={analysis.retrying}>
-                {analysis.retrying ? <Loader2 className="animate-spin" /> : <RotateCw />}
-                Reintentar fallidas
-              </Button>
-            )}
-          </div>
-          <div className="flex gap-2">
-            <Button type="button" variant="outline" onClick={() => analysis.setOpen(false)}>
-              Cerrar
-            </Button>
+    <FormDialog
+      open={analysis.open}
+      onOpenChange={analysis.setOpen}
+      title="Analizar cambios del proyecto"
+      description="Se procesan en orden narrativo las escenas que tienen fragmentos pendientes. Las propuestas y alertas existentes se conservan y se actualizan según la evidencia vigente."
+      size="md"
+      error={analysis.error}
+      footer={
+        <>
+          {canRetry && (
             <Button
               type="button"
-              onClick={() => void analysis.start()}
-              disabled={analysis.starting || analysis.loadingPreview || !preview || isActive}
+              variant="outline"
+              className="sm:mr-auto"
+              onClick={() => void analysis.retryFailed()}
+              disabled={analysis.retrying}
             >
-              {analysis.starting ? <Loader2 className="animate-spin" /> : null}
-              {getAnalysisStartLabel(isActive, preview?.chunkCount)}
+              {analysis.retrying ? <Loader2 className="animate-spin" /> : <RotateCw />}
+              Reintentar fallidas
             </Button>
-          </div>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          )}
+          <Button type="button" variant="outline" onClick={() => analysis.setOpen(false)}>
+            Cerrar
+          </Button>
+          <Button
+            type="button"
+            onClick={() => void analysis.start()}
+            disabled={analysis.starting || analysis.loadingPreview || !preview || isActive}
+          >
+            {analysis.starting ? <Loader2 className="animate-spin" /> : null}
+            {getAnalysisStartLabel(isActive, preview?.chunkCount)}
+          </Button>
+        </>
+      }
+    >
+      {analysis.notice && (
+        <output aria-live="polite" aria-atomic="true" className="block rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm text-foreground">
+          {analysis.notice}
+        </output>
+      )}
+      <ProjectAnalysisRunProgress run={run} />
+      <ProjectAnalysisPreviewContent
+        loadingPreview={analysis.loadingPreview}
+        preview={preview}
+        run={run}
+      />
+    </FormDialog>
   )
 }
 

@@ -11,6 +11,7 @@ import { Field, FieldContent, FieldLabel } from "@/components/ui/field";
 import { EntityImage } from "@/components/worldbuilding/entity-image";
 import type { ImageResponse } from "@/services/image-generation.service";
 import type { EntityCategory } from "@/types/entity";
+import { userFacingError } from "@/helpers/api-errors"
 
 type ImageReviewModalProps = {
   readonly image: ImageResponse | null;
@@ -45,9 +46,7 @@ export function ImageReviewModal({
       onClose();
     } catch (acceptError) {
       setError(
-        acceptError instanceof Error
-          ? acceptError.message
-          : "No se pudo aceptar la imagen.",
+        userFacingError(acceptError, "No se pudo aceptar la imagen."),
       );
     } finally {
       setSubmitting(false);
@@ -63,9 +62,7 @@ export function ImageReviewModal({
       onClose();
     } catch (regenerateError) {
       setError(
-        regenerateError instanceof Error
-          ? regenerateError.message
-          : "No se pudo solicitar la regeneración.",
+        userFacingError(regenerateError, "No se pudo solicitar la regeneración."),
       );
     } finally {
       setSubmitting(false);

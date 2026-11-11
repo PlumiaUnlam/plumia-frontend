@@ -13,6 +13,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import useSWR from "swr";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { getAnalyticsDashboard } from "@/services/analytics.service";
@@ -160,7 +161,11 @@ export function StatsSidebarPanel({ projectId }: Readonly<{ projectId: string }>
             className="size-7 rounded-lg text-muted-foreground"
             aria-label="Actualizar estadísticas"
             title="Actualizar estadísticas"
-            onClick={() => void mutate()}
+            onClick={() =>
+              void mutate().then((result) => {
+                if (result) toast.success("Estadísticas actualizadas")
+              })
+            }
             disabled={isValidating}
           >
             {isValidating ? (

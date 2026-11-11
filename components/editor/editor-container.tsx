@@ -51,6 +51,7 @@ import type {
   EditorSectionOption,
   EditorToolbarActions,
 } from "./editor-types"
+import { userFacingError } from "@/helpers/api-errors"
 
 type SceneEditorProps = {
   sceneId: string
@@ -82,7 +83,7 @@ function getEditorVersionLabel(
 ) {
   if (selectedVersionId === null) return "Borrador principal"
   if ("label" in document && document.label) return document.label
-  return "Version sin titulo"
+  return "Versión sin título"
 }
 
 function SceneEditor({
@@ -773,6 +774,13 @@ function EditorWorkspace({
   const [focusedPane, setFocusedPane] = useState<EditorPaneId>("primary")
   const [paragraphDialogOpen, setParagraphDialogOpen] = useState(false)
   const [toolbarExpanded, setToolbarExpanded] = useState(false)
+  // Desde el chat se puede pedir ver la barra de formato: se abre si estaba oculta.
+  const toolbarRevealToken = useEditorStore((s) => s.toolbarRevealToken)
+  const [seenToolbarRevealToken, setSeenToolbarRevealToken] = useState(toolbarRevealToken)
+  if (seenToolbarRevealToken !== toolbarRevealToken) {
+    setSeenToolbarRevealToken(toolbarRevealToken)
+    setToolbarExpanded(true)
+  }
   const [primaryActions, setPrimaryActions] =
     useState<EditorToolbarActions | null>(null)
   const [secondaryActions, setSecondaryActions] =
@@ -855,9 +863,7 @@ function EditorWorkspace({
       await openProjectAnalysisDialog()
     } catch (error) {
       setSaveChangeError(
-        error instanceof Error
-          ? error.message
-          : "No se pudieron guardar los cambios antes del análisis.",
+        userFacingError(error, "No se pudieron guardar los cambios antes del análisis."),
       )
     } finally {
       setIsSavingBeforeChange(false)
@@ -880,7 +886,7 @@ function EditorWorkspace({
         setFocusedPane("primary")
         setActiveScene(nextSceneId)
       } catch (error) {
-        setSaveChangeError(error instanceof Error ? error.message : "No se pudieron guardar los cambios.")
+        setSaveChangeError(userFacingError(error, "No se pudieron guardar los cambios."))
       } finally {
         setIsSavingBeforeChange(false)
       }
@@ -906,9 +912,7 @@ function EditorWorkspace({
         setSelectedSceneVersion(nextVersionId)
       } catch (error) {
         setSaveChangeError(
-          error instanceof Error
-            ? error.message
-            : "No se pudieron guardar los cambios.",
+          userFacingError(error, "No se pudieron guardar los cambios."),
         )
       } finally {
         setIsSavingBeforeChange(false)
@@ -942,7 +946,7 @@ function EditorWorkspace({
             : null,
         )
       } catch (error) {
-        setSaveChangeError(error instanceof Error ? error.message : "No se pudieron guardar los cambios.")
+        setSaveChangeError(userFacingError(error, "No se pudieron guardar los cambios."))
       } finally {
         setIsSavingBeforeChange(false)
       }
@@ -972,9 +976,7 @@ function EditorWorkspace({
         setSecondaryVersionId(nextVersionId)
       } catch (error) {
         setSaveChangeError(
-          error instanceof Error
-            ? error.message
-            : "No se pudieron guardar los cambios.",
+          userFacingError(error, "No se pudieron guardar los cambios."),
         )
       } finally {
         setIsSavingBeforeChange(false)
@@ -1028,7 +1030,7 @@ function EditorWorkspace({
       setSecondaryActions(null)
       setFocusedPane("primary")
     } catch (error) {
-      setSaveChangeError(error instanceof Error ? error.message : "No se pudieron guardar los cambios.")
+      setSaveChangeError(userFacingError(error, "No se pudieron guardar los cambios."))
     } finally {
       setIsSavingBeforeChange(false)
     }
@@ -1054,7 +1056,7 @@ function EditorWorkspace({
       setSaveChangeError(null)
       return requireSuccessfulSave(focusedActions.saveNow)
     }, (error) => {
-      setSaveChangeError(error instanceof Error ? error.message : "No se pudieron guardar los cambios.")
+      setSaveChangeError(userFacingError(error, "No se pudieron guardar los cambios."))
     })
   }, [focusedActions])
 

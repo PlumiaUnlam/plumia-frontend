@@ -361,7 +361,7 @@ function NoteReferenceNodeView({
           <Tooltip open={isTooltipOpen && !isOpen} onOpenChange={setIsTooltipOpen}>
             <PopoverAnchor asChild>
               <TooltipTrigger asChild>
-                <span
+                <span // NOSONAR: marcador en línea dentro del contenido editable; un <button> rompe el cursor de ProseMirror
                   className={cn(
                     "note-ref",
                     `note-ref--${kind}`,

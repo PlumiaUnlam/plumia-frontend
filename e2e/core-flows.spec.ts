@@ -29,6 +29,13 @@ test("HU-01 CA-001/002: valida el título y crea un proyecto en el panel", async
   ).toBeVisible()
   expect(backend.projectCreates).toHaveLength(0)
 
+  await page.getByLabel("Nombre del Proyecto").fill("x".repeat(101))
+  await expect(
+    page.getByText("El nombre del proyecto no puede superar los 100 caracteres."),
+  ).toBeVisible()
+  await page.getByRole("button", { name: "Crear proyecto" }).last().click()
+  expect(backend.projectCreates).toHaveLength(0)
+
   await page.getByLabel("Nombre del Proyecto").fill("La ciudad sumergida")
   await page.getByLabel("Descripción").fill("Una novela de misterio")
   await page.getByLabel("Género").fill("Misterio")

@@ -68,7 +68,7 @@ test.describe("Foto de perfil en el diálogo de configurar perfil", () => {
     await page.goto("/dashboard")
 
     await page.getByRole("button", { name: "Abrir menú de usuario" }).click()
-    await page.getByRole("menuitem", { name: "Configurar perfil" }).click()
+    await page.getByRole("menuitem", { name: "Configuración" }).click()
 
     // El avatar del header también vive en la página, así que hay que acotarse
     // al del diálogo para no mezclar los dos.

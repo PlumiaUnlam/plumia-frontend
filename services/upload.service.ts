@@ -44,7 +44,7 @@ async function requestPresignedUpload(
 
   if (!presignedRes.ok) {
     const err = await presignedRes.json().catch(() => ({}))
-    throw new Error((err as { message?: string }).message ?? "Failed to get upload URL")
+    throw new Error((err as { message?: string }).message ?? "No se pudo obtener la URL de subida.")
   }
 
   const { presignedUrl, publicUrl, storageKey } =
@@ -57,7 +57,7 @@ async function requestPresignedUpload(
   })
 
   if (!uploadRes.ok) {
-    throw new Error("Failed to upload file")
+    throw new Error("No se pudo subir el archivo.")
   }
 
   return { presignedUrl, publicUrl, storageKey }

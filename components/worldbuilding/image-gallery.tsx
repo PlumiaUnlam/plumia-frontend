@@ -25,6 +25,7 @@ import type {
   ImageGenerationJob,
   ImageResponse,
 } from "@/services/image-generation.service";
+import { userFacingError } from "@/helpers/api-errors"
 
 type ImageGalleryProps = {
   readonly images: readonly ImageResponse[];
@@ -96,9 +97,7 @@ export function ImageGallery({
       await onUpload(file);
     } catch (error) {
       setUploadError(
-        error instanceof Error
-          ? error.message
-          : "No se pudo guardar la imagen.",
+        userFacingError(error, "No se pudo guardar la imagen."),
       );
     } finally {
       setUploading(false);

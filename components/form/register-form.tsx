@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, type FormEvent } from "react"
+import { InlineLinkButton } from "@/components/form/inline-link-button"
+import { useState, type SubmitEvent } from "react"
 import { CircleAlert } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -62,7 +63,7 @@ export function RegisterForm() {
     if (!values.email.trim()) {
       nextErrors.email = "El email es obligatorio."
     } else if (!isEmail(values.email.trim())) {
-      nextErrors.email = "Introduce un email con formato válido."
+      nextErrors.email = "Ingresá un email con formato válido."
     }
 
     if (!values.password.trim()) {
@@ -72,7 +73,7 @@ export function RegisterForm() {
     }
 
     if (!values.confirmPassword.trim()) {
-      nextErrors.confirmPassword = "Confirma tu contraseña."
+      nextErrors.confirmPassword = "Confirmá tu contraseña."
     } else if (values.confirmPassword !== values.password) {
       nextErrors.confirmPassword = "Las contraseñas no coinciden."
     }
@@ -86,7 +87,7 @@ export function RegisterForm() {
     return Object.keys(nextErrors).length === 0
   }
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault()
     setGeneralError("")
 
@@ -115,7 +116,7 @@ export function RegisterForm() {
   const goToLogin = () => {
     const params = new URLSearchParams(globalThis.location?.search ?? "")
     const redirect = params.get("redirect")
-    void router.push(
+    router.push(
       redirect ? `/login?redirect=${encodeURIComponent(redirect)}` : "/login",
     )
   }
@@ -127,14 +128,10 @@ export function RegisterForm() {
       footer={
         <p>
           ¿Ya tenés cuenta?{" "}
-          <Button
-            variant="link"
-            type="button"
-            className="h-auto p-0 text-xs font-medium"
-            onClick={goToLogin}
+          <InlineLinkButton onClick={goToLogin}
           >
             Iniciá sesión
-          </Button>
+          </InlineLinkButton>
         </p>
       }
     >

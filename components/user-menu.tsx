@@ -1,7 +1,7 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react"
-import { Camera, CircleAlert, KeyRound, LogOut, Monitor, Moon, Search, Settings, SlidersHorizontal, Sun, Trash2, UserRound, X } from "lucide-react"
+import { useEffect, useRef, useState, type ChangeEvent } from "react"
+import { Camera, CircleAlert, KeyRound, LogOut, Monitor, Moon, Settings, SlidersHorizontal, Sun, Trash2, UserRound, X } from "lucide-react"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { useTheme } from "next-themes"
@@ -11,17 +11,34 @@ import { useAuth } from "@/contexts/AuthContext"
 import { deleteAccountErrorMessage } from "@/helpers/api-errors"
 import { cn } from "@/lib/utils"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { FormDialog } from "@/components/modal/form-dialog"
+import { ConfirmDialog } from "@/components/modal/confirm-dialog"
+import { WorldRulesList } from "@/components/profile-settings/world-rules-list"
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
+  getProfileSubmitState,
+  hasAiConfigurationChanged,
+  isAiConfigurationUnchanged,
+} from "@/lib/profile-submit"
+import { refreshReviewCaches, saveWorldRulesAndReview } from "@/lib/world-rules-save"
+import {
+  baselineFromReviewSettings,
+  describeAiCredential,
+  filterByText,
+  filterRejectedProposals,
+  getProjectWorldRules,
+  hasUnsavedAccountChanges,
+  haveWorldRulesChanged,
+  resolvePreviewSrc,
+  themeIconKey,
+  haveEntityListsChanged,
+  haveEntityThresholdsChanged,
+  haveReviewSettingsChanged,
+  isAiConfigurationValid,
+  normalizeEntityName,
+  resolveProfileIdentity,
+  type EntityRecognitionBaseline,
+  type KnowledgeReviewBaseline,
+} from "@/lib/profile-derived"
+import { FormDialog } from "@/components/modal/form-dialog"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import {
@@ -43,11 +60,14 @@ import { Spinner } from "@/components/ui/spinner"
 import { uploadProfileImage } from "@/services/upload.service"
 import {
   getAiSettings,
-  removeGeminiApiKey,
-  saveGeminiApiKey,
+  removeProviderApiKey,
+  saveAiProviderSettings,
+  saveProviderApiKey,
   updateAutoAnalyzeOnAutosave,
   updateEntityRecognitionThresholds,
   DEFAULT_ENTITY_RECOGNITION_THRESHOLDS,
+  type AiCredentialSource,
+  type AiProvider,
   type AiSettings,
   type EntityRecognitionThresholds,
 } from "@/services/ai-settings.service"
@@ -59,16 +79,16 @@ import {
 import {
   DEFAULT_KNOWLEDGE_REVIEW_SETTINGS,
   getKnowledgeReviewSettings,
-  updateKnowledgeReviewSettings,
   type KnowledgeReviewSettings,
 } from "@/services/knowledge-review-settings.service"
 import {
   getDashboardProjects,
-  updateProject,
   type ProjectResponse,
 } from "@/services/project.service"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Switch } from "@/components/ui/switch"
+
+const THEME_ICONS = { sun: Sun, moon: Moon, monitor: Monitor }
 
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024
 const ALLOWED_AVATAR_TYPES = new Set([
@@ -77,15 +97,6 @@ const ALLOWED_AVATAR_TYPES = new Set([
   "image/webp",
   "image/avif",
 ])
-
-function normalizeEntityName(name: string) {
-  return name
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim()
-}
 
 const ENTITY_TYPE_LABELS: Record<string, string> = {
   CHARACTER: "Personaje",
@@ -101,22 +112,31 @@ function getEntityTypeLabel(type: string | null) {
   return ENTITY_TYPE_LABELS[type.toUpperCase()] ?? type
 }
 
-function getProjectWorldRules(project: ProjectResponse | undefined) {
-  const genreRules = project?.genreRules
-  if (!genreRules || Array.isArray(genreRules)) return []
-
-  const rules = genreRules.rules
-  return Array.isArray(rules)
-    ? rules.filter((rule): rule is string => typeof rule === "string")
-    : []
-}
-
 function normalizeWorldRule(rule: string) {
   return rule.trim().toLocaleLowerCase()
 }
 
-function areStringArraysEqual(left: string[], right: string[]) {
-  return left.length === right.length && left.every((value, index) => value === right[index])
+function formatProviderKeyUpdatedAt(value: string | null) {
+  if (!value) return null
+  return new Intl.DateTimeFormat("es-AR", { dateStyle: "medium" }).format(
+    new Date(value),
+  )
+}
+
+function formatProviderKeyStatus(
+  configured: boolean,
+  keyPrefix: string | null,
+  updatedAt: string | null,
+) {
+  if (!configured) return "Sin clave personal"
+
+  const details = ["Clave guardada"]
+  if (keyPrefix) details.push(keyPrefix)
+
+  const formattedUpdatedAt = formatProviderKeyUpdatedAt(updatedAt)
+  if (formattedUpdatedAt) details.push(`Actualizada ${formattedUpdatedAt}`)
+
+  return details.join(" · ")
 }
 
 type UserMenuProps = {
@@ -140,8 +160,8 @@ function getProfileSubmitLabel(
   section: ProfileSection,
   hasUnsavedChanges: boolean,
 ) {
-  if (section === "ai") return "Guardar API Key"
   if (!hasUnsavedChanges) return "Sin cambios pendientes"
+  if (section === "ai") return "Guardar configuración de IA"
   if (section === "account") return "Guardar cambios"
   return "Guardar configuraci\u00f3n"
 }
@@ -256,15 +276,26 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
   const [loggingOut, setLoggingOut] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [aiSettings, setAiSettings] = useState<AiSettings | null>(null)
-  const [aiKey, setAiKey] = useState("")
+  const [aiProvider, setAiProvider] = useState<AiProvider>("gemini")
+  const [aiModel, setAiModel] = useState("")
+  const [aiCredentialSource, setAiCredentialSource] =
+    useState<AiCredentialSource>("SERVER")
+  const [providerApiKeys, setProviderApiKeys] = useState<Record<AiProvider, string>>({
+    gemini: "",
+    anthropic: "",
+  })
   const [aiLoading, setAiLoading] = useState(false)
   const [aiSaving, setAiSaving] = useState(false)
+  const [providerKeySaving, setProviderKeySaving] = useState<AiProvider | null>(null)
   const [autoAnalysisSaving, setAutoAnalysisSaving] = useState(false)
   const [aiError, setAiError] = useState<string | null>(null)
+  const [aiProviderError, setAiProviderError] = useState<string | null>(null)
+  const [aiProviderNotice, setAiProviderNotice] = useState<string | null>(null)
   const [autoAnalysisError, setAutoAnalysisError] = useState<string | null>(null)
   const [aiNotice, setAiNotice] = useState<string | null>(null)
   const [removeAiKeyOpen, setRemoveAiKeyOpen] = useState(false)
   const [removingAiKey, setRemovingAiKey] = useState(false)
+  const [providerToRemove, setProviderToRemove] = useState<AiProvider>("gemini")
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [confirmEmail, setConfirmEmail] = useState("")
   const [deleting, setDeleting] = useState(false)
@@ -305,28 +336,17 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
   const [projectNamesError, setProjectNamesError] = useState<string | null>(null)
   const [profileCloseWarningOpen, setProfileCloseWarningOpen] = useState(false)
   const entityCatalogOpenRef = useRef(false)
-  const [entityRecognitionBaseline, setEntityRecognitionBaseline] = useState({
-    projectId: null as string | null,
-    importantEntityNames: [] as string[],
-    ignoredEntityNames: [] as string[],
-  })
-  const [knowledgeReviewBaseline, setKnowledgeReviewBaseline] = useState<{
-    projectId: string | null
-    stateTrackingEnabled: boolean
-    stateReviewMode: KnowledgeReviewSettings["stateReviewMode"]
-    stateConfidenceThreshold: number
-    relationshipReviewMode: KnowledgeReviewSettings["relationshipReviewMode"]
-    relationshipConfidenceThreshold: number
-    crossChunkAuditMode: KnowledgeReviewSettings["crossChunkAuditMode"]
-  }>({
-    projectId: null,
-    stateTrackingEnabled: false,
-    stateReviewMode: "MANUAL",
-    stateConfidenceThreshold: 0.9,
-    relationshipReviewMode: "MANUAL",
-    relationshipConfidenceThreshold: 0.9,
-    crossChunkAuditMode: "ADJACENT_CHUNKS",
-  })
+  const [entityRecognitionBaseline, setEntityRecognitionBaseline] =
+    useState<EntityRecognitionBaseline>({
+      projectId: null,
+      importantEntityNames: [],
+      ignoredEntityNames: [],
+    })
+  const [knowledgeReviewBaseline, setKnowledgeReviewBaseline] =
+    useState<KnowledgeReviewBaseline>({
+      projectId: null,
+      ...DEFAULT_KNOWLEDGE_REVIEW_SETTINGS,
+    })
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const setEntityCatalogVisibility = (open: boolean) => {
@@ -334,32 +354,21 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
     setEntityCatalogOpen(open)
   }
 
-  let ThemeIcon = Monitor
-  if (theme === "dark") {
-    ThemeIcon = Moon
-  } else if (theme === "light") {
-    ThemeIcon = Sun
-  }
+  const ThemeIcon = THEME_ICONS[themeIconKey(theme)]
 
-  const currentDisplayName =
-    user?.displayName || firebaseUser?.displayName || user?.name || "Usuario"
+  const {
+    displayName: currentDisplayName,
+    avatarSrc: currentAvatarSrc,
+    email,
+    userId: profileUserId,
+  } = resolveProfileIdentity({ user, firebaseUser })
   const currentPhotoURL = user?.avatarUrl || firebaseUser?.photoURL || null
-  const storedProfileUserId = currentPhotoURL?.match(/\/profiles\/([^/]+)\//)?.[1]
-  const profileUserId = user?.id || storedProfileUserId || firebaseUser?.uid
-  const currentAvatarSrc =
-    user?.avatarUrl && profileUserId
-      ? `/api/storage/profile-image/${profileUserId}?v=${Date.parse(user.updatedAt)}`
-      : null
   // Lo que se muestra en el diálogo, que no siempre coincide con lo guardado:
   // "Quitar" pone la vista previa en null sin borrar todavía `currentPhotoURL`,
   // y ahí el botón tiene que decir "Subir imagen" porque ya no hay imagen que
   // cambiar.
-  const previewSrc = avatarPreview || (!removeAvatar ? currentAvatarSrc : null)
-  const email = user?.email || firebaseUser?.email || ""
-  const initials = useMemo(
-    () => getInitials(currentDisplayName, email),
-    [currentDisplayName, email],
-  )
+  const previewSrc = resolvePreviewSrc(avatarPreview, removeAvatar, currentAvatarSrc)
+  const initials = getInitials(currentDisplayName, email)
 
   const loadAiSettings = async () => {
     setAiLoading(true)
@@ -367,6 +376,9 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
     try {
       const settings = await getAiSettings()
       setAiSettings(settings)
+      setAiProvider(settings.provider)
+      setAiModel(settings.model)
+      setAiCredentialSource(settings.credentialSource)
       setEntityThresholds(
         settings.entityExtractionThresholds ?? DEFAULT_ENTITY_RECOGNITION_THRESHOLDS,
       )
@@ -409,7 +421,9 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
     setAvatarPreview(null)
     setRemoveAvatar(false)
     setError(null)
-    setAiKey("")
+    setProviderApiKeys({ gemini: "", anthropic: "" })
+    setAiProviderError(null)
+    setAiProviderNotice(null)
     setAiNotice(null)
     setAutoAnalysisError(null)
     setEntityRecognitionError(null)
@@ -503,24 +517,72 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
   }
 
   const handleAiSubmit = async () => {
-    const normalizedKey = aiKey.trim()
-    if (!normalizedKey) {
-      setAiError("Ingresá una API Key de Gemini.")
+    if (!aiModel.trim()) {
+      setAiProviderError("Elegí o ingresá un modelo válido.")
+      return
+    }
+    const selectedProvider = aiSettings?.providers.find(
+      (provider) => provider.provider === aiProvider,
+    )
+    if (aiCredentialSource === "USER" && !selectedProvider?.userKeyConfigured) {
+      setAiProviderError("Guardá una API Key propia para este proveedor antes de seleccionarlo.")
+      return
+    }
+    if (aiCredentialSource === "SERVER" && !selectedProvider?.serverCredentialAvailable) {
+      setAiProviderError("No hay una clave de PlumIA disponible para este proveedor.")
       return
     }
 
     setAiSaving(true)
+    setAiProviderError(null)
+    setAiProviderNotice(null)
+    try {
+      const nextSettings = await saveAiProviderSettings({
+        provider: aiProvider,
+        model: aiModel.trim(),
+        credentialSource: aiCredentialSource,
+      })
+      setAiSettings(nextSettings)
+      setAiProvider(nextSettings.provider)
+      setAiModel(nextSettings.model)
+      setAiCredentialSource(nextSettings.credentialSource)
+      setAiProviderNotice("La configuración de proveedor y modelo fue guardada.")
+    } catch {
+      setAiProviderError("No pudimos guardar la configuración. Revisá la credencial seleccionada e intentá nuevamente.")
+    } finally {
+      setAiSaving(false)
+    }
+  }
+
+  const handleSaveProviderKey = async (provider: AiProvider) => {
+    const apiKey = providerApiKeys[provider].trim()
+    if (!apiKey) {
+      setAiError("Ingresá una API Key para guardar.")
+      return
+    }
+
+    const configurationWasUnchanged = isAiConfigurationUnchanged(aiSettings, {
+      provider: aiProvider,
+      model: aiModel,
+      credentialSource: aiCredentialSource,
+    })
+    setProviderKeySaving(provider)
     setAiError(null)
     setAiNotice(null)
     try {
-      const nextSettings = await saveGeminiApiKey(normalizedKey)
+      const nextSettings = await saveProviderApiKey(provider, apiKey)
       setAiSettings(nextSettings)
-      setAiKey("")
-      setAiNotice("La API Key de Gemini fue guardada de forma segura.")
+      if (configurationWasUnchanged) {
+        setAiProvider(nextSettings.provider)
+        setAiModel(nextSettings.model)
+        setAiCredentialSource(nextSettings.credentialSource)
+      }
+      setProviderApiKeys((current) => ({ ...current, [provider]: "" }))
+      setAiNotice(`La API Key de ${provider === "gemini" ? "Gemini" : "Anthropic"} fue guardada de forma segura.`)
     } catch {
-      setAiError("No pudimos guardar la API Key. Intentá nuevamente.")
+      setAiError("No pudimos guardar la API Key. Verificá el valor e intentá nuevamente.")
     } finally {
-      setAiSaving(false)
+      setProviderKeySaving(null)
     }
   }
 
@@ -528,20 +590,13 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
     setRemovingAiKey(true)
     setAiError(null)
     try {
-      await removeGeminiApiKey()
-      setAiSettings((current) => ({
-        configured: false,
-        keyPrefix: null,
-        updatedAt: null,
-        autoAnalyzeOnAutosave: current?.autoAnalyzeOnAutosave ?? true,
-        entityExtractionThresholds:
-          current?.entityExtractionThresholds ?? DEFAULT_ENTITY_RECOGNITION_THRESHOLDS,
-      }))
-      setAiKey("")
-      setAiNotice("La API Key propia fue eliminada.")
+      await removeProviderApiKey(providerToRemove)
+      setAiSettings(await getAiSettings())
+      setProviderApiKeys((current) => ({ ...current, [providerToRemove]: "" }))
+      setAiNotice(`La API Key de ${providerToRemove === "gemini" ? "Gemini" : "Anthropic"} fue eliminada.`)
       setRemoveAiKeyOpen(false)
     } catch {
-      setAiError("No pudimos eliminar la API Key. Intentá nuevamente.")
+      setAiError("No pudimos eliminar la API Key. Si está en uso, cambiá primero la fuente de credencial.")
     } finally {
       setRemovingAiKey(false)
     }
@@ -558,12 +613,12 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
       setAiSettings(nextSettings)
       setAiNotice(
         enabled
-          ? "El analisis automatico al guardar fue activado."
-          : "El analisis automatico al guardar fue desactivado.",
+          ? "El análisis automático al guardar fue activado."
+          : "El análisis automático al guardar fue desactivado.",
       )
     } catch {
       setAutoAnalysisError(
-        "No pudimos actualizar la preferencia de analisis automatico.",
+        "No pudimos actualizar la preferencia de análisis automático.",
       )
     } finally {
       setAutoAnalysisSaving(false)
@@ -619,15 +674,9 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
 
   const handleWorldRulesSubmit = async () => {
     if (!selectedProjectId) {
-      setWorldRulesError("Selecciona un proyecto para guardar sus reglas.")
+      setWorldRulesError("Seleccioná un proyecto para guardar sus reglas.")
       return
     }
-
-    const selectedProject = projects.find((project) => project.id === selectedProjectId)
-    const currentGenreRules =
-      selectedProject?.genreRules && !Array.isArray(selectedProject.genreRules)
-        ? selectedProject.genreRules
-        : {}
 
     setWorldRulesSaving(true)
     setKnowledgeReviewSaving(true)
@@ -636,50 +685,20 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
     setKnowledgeReviewError(null)
     setKnowledgeReviewNotice(null)
     try {
-      const [savedProject, savedReviewSettings] = await Promise.all([
-        updateProject(selectedProjectId, {
-          genreRules: {
-            ...currentGenreRules,
-            rules: worldRules,
-          },
-        }),
-        updateKnowledgeReviewSettings(selectedProjectId, {
-          stateTrackingEnabled: knowledgeReviewSettings.stateTrackingEnabled,
-          stateReviewMode: knowledgeReviewSettings.stateReviewMode,
-          stateConfidenceThreshold: knowledgeReviewSettings.stateConfidenceThreshold,
-          relationshipReviewMode: knowledgeReviewSettings.relationshipReviewMode,
-          relationshipConfidenceThreshold:
-            knowledgeReviewSettings.relationshipConfidenceThreshold,
-          crossChunkAuditMode: knowledgeReviewSettings.crossChunkAuditMode,
-        }),
-      ])
+      const { savedProject, savedReviewSettings } = await saveWorldRulesAndReview({
+        projectId: selectedProjectId,
+        project: projects.find((project) => project.id === selectedProjectId),
+        worldRules,
+        reviewSettings: knowledgeReviewSettings,
+      })
       setProjects((current) =>
         current.map((project) => (project.id === savedProject.id ? savedProject : project)),
       )
       setWorldRules(getProjectWorldRules(savedProject))
       setWorldRulesNotice("Las reglas del mundo fueron guardadas.")
       setKnowledgeReviewSettings(savedReviewSettings)
-      void mutate(
-        `/projects/${encodeURIComponent(selectedProjectId)}/knowledge-review-settings`,
-        savedReviewSettings,
-        { revalidate: false },
-      )
-      const stateProposalsKey = `/v1/projects/${encodeURIComponent(selectedProjectId)}/state-proposals`
-      if (savedReviewSettings.stateTrackingEnabled) {
-        void mutate(stateProposalsKey)
-      } else {
-        void mutate(stateProposalsKey, [], { revalidate: false })
-      }
-      setKnowledgeReviewBaseline({
-        projectId: selectedProjectId,
-        stateTrackingEnabled: savedReviewSettings.stateTrackingEnabled,
-        stateReviewMode: savedReviewSettings.stateReviewMode,
-        stateConfidenceThreshold: savedReviewSettings.stateConfidenceThreshold,
-        relationshipReviewMode: savedReviewSettings.relationshipReviewMode,
-        relationshipConfidenceThreshold:
-          savedReviewSettings.relationshipConfidenceThreshold,
-        crossChunkAuditMode: savedReviewSettings.crossChunkAuditMode,
-      })
+      refreshReviewCaches(mutate, selectedProjectId, savedReviewSettings)
+      setKnowledgeReviewBaseline(baselineFromReviewSettings(selectedProjectId, savedReviewSettings))
       setKnowledgeReviewNotice("La revisión automática quedó configurada.")
     } catch {
       setWorldRulesError("No pudimos guardar las reglas del mundo.")
@@ -724,26 +743,10 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
     try {
       const settings = await getKnowledgeReviewSettings(projectId)
       setKnowledgeReviewSettings(settings)
-      setKnowledgeReviewBaseline({
-        projectId,
-        stateTrackingEnabled: settings.stateTrackingEnabled,
-        stateReviewMode: settings.stateReviewMode,
-        stateConfidenceThreshold: settings.stateConfidenceThreshold,
-        relationshipReviewMode: settings.relationshipReviewMode,
-        relationshipConfidenceThreshold: settings.relationshipConfidenceThreshold,
-        crossChunkAuditMode: settings.crossChunkAuditMode,
-      })
+      setKnowledgeReviewBaseline(baselineFromReviewSettings(projectId, settings))
     } catch {
       setKnowledgeReviewSettings(DEFAULT_KNOWLEDGE_REVIEW_SETTINGS)
-      setKnowledgeReviewBaseline({
-        projectId,
-        stateTrackingEnabled: DEFAULT_KNOWLEDGE_REVIEW_SETTINGS.stateTrackingEnabled,
-        stateReviewMode: "MANUAL",
-        stateConfidenceThreshold: 0.9,
-        relationshipReviewMode: "MANUAL",
-        relationshipConfidenceThreshold: 0.9,
-        crossChunkAuditMode: "ADJACENT_CHUNKS",
-      })
+      setKnowledgeReviewBaseline(baselineFromReviewSettings(projectId, DEFAULT_KNOWLEDGE_REVIEW_SETTINGS))
       setKnowledgeReviewError("No pudimos cargar la configuración de revisión.")
     } finally {
       setKnowledgeReviewLoading(false)
@@ -799,124 +802,103 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
   }
 
   const emailMatchesConfirmation = confirmEmail.trim() === email
-  const filterEntityNames = (names: string[], search: string) => {
-    const normalizedSearch = normalizeEntityName(search)
-    if (!normalizedSearch) return names
-    return names.filter((name) => normalizeEntityName(name).includes(normalizedSearch))
-  }
-  const filteredImportantEntityNames = filterEntityNames(
+  const filteredImportantEntityNames = filterByText(
     importantEntityNames,
     importantEntitySearch,
+    (name) => name,
   )
-  const filteredIgnoredEntityNames = filterEntityNames(
+  const filteredIgnoredEntityNames = filterByText(
     ignoredEntityNames,
     ignoredEntitySearch,
+    (name) => name,
   )
-  const filteredRejectedEntityProposals = rejectedEntityProposals.filter((proposal) => {
-    const searchText = normalizeEntityName(
-      [proposal.name, ...proposal.aliases].join(" "),
-    )
-    const matchesSearch =
-      !normalizeEntityName(rejectedEntitySearch) ||
-      searchText.includes(normalizeEntityName(rejectedEntitySearch))
-    const matchesType =
-      rejectedEntityTypeFilter === "ALL" ||
-      proposal.type?.toUpperCase() === rejectedEntityTypeFilter
-    return matchesSearch && matchesType
+  const filteredRejectedEntityProposals = filterRejectedProposals(
+    rejectedEntityProposals,
+    rejectedEntitySearch,
+    rejectedEntityTypeFilter,
+  )
+  const filteredWorldRules = filterByText(worldRules, worldRulesSearch, (rule) => rule)
+  const selectedAiProviderOption = aiSettings?.providers.find(
+    (provider) => provider.provider === aiProvider,
+  )
+  const selectedProviderModels = selectedAiProviderOption?.suggestedModels ?? []
+  const aiCredentialDescription = describeAiCredential(
+    aiCredentialSource,
+    selectedAiProviderOption,
+  )
+  const isSuggestedAiModel = selectedProviderModels.some(
+    (model) => model.id === aiModel,
+  )
+  const hasUnsavedAiProviderSettings = hasAiConfigurationChanged(aiSettings, {
+    provider: aiProvider,
+    model: aiModel,
+    credentialSource: aiCredentialSource,
   })
-  const normalizedWorldRulesSearch = normalizeEntityName(worldRulesSearch)
-  const filteredWorldRules = worldRules.filter(
-    (rule) =>
-      !normalizedWorldRulesSearch ||
-      normalizeEntityName(rule).includes(normalizedWorldRulesSearch),
+  const hasUnsubmittedProviderKey = Object.values(providerApiKeys).some(
+    (apiKey) => apiKey.trim().length > 0,
   )
 
-  const hasUnsavedAccountChanges = () =>
-    displayName.trim() !== currentDisplayName.trim() ||
-    avatarFile !== null ||
-    avatarPreview !== null ||
-    removeAvatar
-
-  const hasUnsavedEntityRecognitionChanges = () => {
-    const savedThresholds =
-      aiSettings?.entityExtractionThresholds ?? DEFAULT_ENTITY_RECOGNITION_THRESHOLDS
-    const thresholdsChanged = Object.entries(entityThresholds).some(
-      ([type, value]) => savedThresholds[type as keyof EntityRecognitionThresholds] !== value,
+  const accountChanged = hasUnsavedAccountChanges({
+    displayName,
+    currentDisplayName,
+    avatarFile,
+    avatarPreview,
+    removeAvatar,
+  })
+  const entityRecognitionChanged =
+    haveEntityThresholdsChanged(
+      entityThresholds,
+      aiSettings?.entityExtractionThresholds ?? DEFAULT_ENTITY_RECOGNITION_THRESHOLDS,
+    ) ||
+    haveEntityListsChanged(
+      entityRecognitionBaseline,
+      selectedProjectId,
+      importantEntityNames,
+      ignoredEntityNames,
     )
-    const entityBaseline = entityRecognitionBaseline
-    const entityListsChanged =
-      entityBaseline.projectId === selectedProjectId &&
-      (!areStringArraysEqual(importantEntityNames, entityBaseline.importantEntityNames) ||
-        !areStringArraysEqual(ignoredEntityNames, entityBaseline.ignoredEntityNames))
-    return thresholdsChanged || entityListsChanged
-  }
-
-  const hasUnsavedInconsistencyChanges = () => {
-    const savedWorldRules = getProjectWorldRules(
-      projects.find((project) => project.id === selectedProjectId),
-    )
-    const reviewBaseline = knowledgeReviewBaseline
-    const reviewSettingsChanged =
-      reviewBaseline.projectId === selectedProjectId &&
-      (knowledgeReviewSettings.stateReviewMode !== reviewBaseline.stateReviewMode ||
-        knowledgeReviewSettings.stateTrackingEnabled !== reviewBaseline.stateTrackingEnabled ||
-        knowledgeReviewSettings.stateConfidenceThreshold !==
-          reviewBaseline.stateConfidenceThreshold ||
-        knowledgeReviewSettings.relationshipReviewMode !==
-          reviewBaseline.relationshipReviewMode ||
-        knowledgeReviewSettings.relationshipConfidenceThreshold !==
-          reviewBaseline.relationshipConfidenceThreshold ||
-        knowledgeReviewSettings.crossChunkAuditMode !==
-          reviewBaseline.crossChunkAuditMode)
-    return (
-      (selectedProjectId !== null &&
-        !areStringArraysEqual(worldRules, savedWorldRules)) ||
-      reviewSettingsChanged
-    )
+  const worldRulesChanged = haveWorldRulesChanged(selectedProjectId, projects, worldRules)
+  const inconsistenciesChanged =
+    worldRulesChanged ||
+    haveReviewSettingsChanged(knowledgeReviewBaseline, selectedProjectId, knowledgeReviewSettings)
+  const unsavedBySection: Record<ProfileSection, boolean> = {
+    account: accountChanged,
+    ai: hasUnsavedAiProviderSettings,
+    entityRecognition: entityRecognitionChanged,
+    inconsistencies: inconsistenciesChanged,
   }
 
   const hasUnsavedProfileChanges = () =>
-    hasUnsavedAccountChanges() ||
-    aiKey.trim().length > 0 ||
-    hasUnsavedEntityRecognitionChanges() ||
-    hasUnsavedInconsistencyChanges() ||
-    newImportantEntityName.trim().length > 0 ||
-    newIgnoredEntityName.trim().length > 0 ||
-    newWorldRule.trim().length > 0
+    accountChanged ||
+    hasUnsubmittedProviderKey ||
+    hasUnsavedAiProviderSettings ||
+    entityRecognitionChanged ||
+    inconsistenciesChanged ||
+    [newImportantEntityName, newIgnoredEntityName, newWorldRule].some(
+      (draft) => draft.trim().length > 0,
+    )
 
-  const hasUnsavedCurrentSectionChanges = () => {
-    if (profileSection === "account") return hasUnsavedAccountChanges()
-    if (profileSection === "ai") return aiKey.trim().length > 0
-    if (profileSection === "entityRecognition") {
-      return hasUnsavedEntityRecognitionChanges()
-    }
-    return hasUnsavedInconsistencyChanges()
-  }
+  const currentSectionHasUnsavedChanges = unsavedBySection[profileSection]
 
-  const currentSectionHasUnsavedChanges = hasUnsavedCurrentSectionChanges()
-
-  const isCurrentSectionSettingsUnavailable =
-    (profileSection === "entityRecognition" &&
-      (aiLoading || projectNamesLoading)) ||
-    (profileSection === "inconsistencies" &&
-      (projectsLoading || knowledgeReviewLoading))
-
-  const profileSubmitDisabled =
-    profileSection === "ai"
-      ? !aiKey.trim()
-      : !currentSectionHasUnsavedChanges ||
-        isCurrentSectionSettingsUnavailable ||
-        (profileSection === "inconsistencies" && !selectedProjectId)
+  const aiConfigurationValid = isAiConfigurationValid(
+    aiModel,
+    aiCredentialSource,
+    selectedAiProviderOption,
+  )
+  const { submitDisabled: profileSubmitDisabled, submitButtonClassName: profileSubmitButtonClassName } =
+    getProfileSubmitState({
+      section: profileSection,
+      aiConfigurationValid,
+      aiSettingsLoading: aiLoading,
+      hasUnsavedChanges: currentSectionHasUnsavedChanges,
+      entityRecognitionLoading: aiLoading || projectNamesLoading,
+      inconsistenciesLoading: projectsLoading || knowledgeReviewLoading,
+      hasSelectedProject: !!selectedProjectId,
+    })
 
   const profileSubmitLabel = getProfileSubmitLabel(
     profileSection,
     currentSectionHasUnsavedChanges,
   )
-
-
-  const profileSubmitButtonClassName = currentSectionHasUnsavedChanges
-    ? undefined
-    : "bg-muted text-muted-foreground shadow-none hover:bg-muted hover:text-muted-foreground"
 
   const requestProfileClose = (open: boolean) => {
     if (open) {
@@ -1073,26 +1055,28 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
       <Tabs
         value={profileSection}
         onValueChange={(value) => setProfileSection(value as ProfileSection)}
-        className="min-h-0"
+        className="shrink-0"
       >
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="account">
+        <div className="sticky -top-5 z-10 -mx-4 bg-background px-4 pb-3 pt-5 md:-mx-6 md:px-6">
+        <TabsList className="flex w-full justify-start overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:grid sm:grid-cols-4">
+          <TabsTrigger value="account" className="shrink-0 px-3 sm:shrink sm:px-1.5">
             <UserRound />
             Datos de la cuenta
           </TabsTrigger>
-          <TabsTrigger value="ai">
+          <TabsTrigger value="ai" className="shrink-0 px-3 sm:shrink sm:px-1.5">
             <KeyRound />
             Configuración de IA
           </TabsTrigger>
-          <TabsTrigger value="entityRecognition">
+          <TabsTrigger value="entityRecognition" className="shrink-0 px-3 sm:shrink sm:px-1.5">
             <SlidersHorizontal />
             Reconocimiento
           </TabsTrigger>
-          <TabsTrigger value="inconsistencies">
+          <TabsTrigger value="inconsistencies" className="shrink-0 px-3 sm:shrink sm:px-1.5">
             <CircleAlert />
             Inconsistencias
           </TabsTrigger>
         </TabsList>
+        </div>
 
         <TabsContent value="account" className="mt-0 space-y-4">
       <div className="flex items-center gap-3 rounded-lg border bg-muted/30 p-3">
@@ -1374,7 +1358,7 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
               disabled={projectsLoading || worldRulesSaving || projects.length === 0}
               className="h-9 w-full rounded-md border bg-background px-3 text-sm"
             >
-              <option value="">Selecciona un proyecto</option>
+              <option value="">Seleccioná un proyecto</option>
               {projects.map((project) => (
                 <option key={project.id} value={project.id}>
                   {project.title}
@@ -1553,8 +1537,8 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
               <div className="rounded-lg border bg-muted/30 p-3 text-sm">
                 <p className="font-medium">Reglas del mundo</p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Agrega reglas narrativas concretas para que el analisis pueda advertir cuando una
-                  escena contradice la logica de tu obra.
+                  Agregá reglas narrativas concretas para que el análisis pueda advertir cuando una
+                  escena contradice la lógica de tu obra.
                 </p>
               </div>
 
@@ -1562,7 +1546,7 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
                 <div className="mb-3">
                   <p className="font-medium">Agregar regla al universo</p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Escribi una regla concreta y verificable para tu historia.
+                    Escribí una regla concreta y verificable para tu historia.
                   </p>
                 </div>
                 <div className="flex gap-2">
@@ -1590,64 +1574,18 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm font-medium">Reglas configuradas</p>
-                  <span className="text-xs text-muted-foreground">
-                    {worldRules.length} {worldRules.length === 1 ? "regla" : "reglas"}
-                  </span>
-                </div>
-                <div className="relative">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    value={worldRulesSearch}
-                    onChange={(event) => setWorldRulesSearch(event.target.value)}
-                    placeholder="Buscar una regla..."
-                    aria-label="Buscar reglas del mundo"
-                    className="pl-9"
-                  />
-                </div>
-              </div>
-
-              {filteredWorldRules.length > 0 ? (
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {filteredWorldRules.map((rule) => {
-                    const ruleIndex = worldRules.indexOf(rule)
-                    return (
-                      <div
-                        key={`${rule}-${ruleIndex}`}
-                        className="group flex min-h-28 items-start gap-3 rounded-xl border bg-card p-4 shadow-sm transition-colors hover:bg-muted/30"
-                      >
-                        <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                          <CircleAlert className="size-4" />
-                        </div>
-                        <p className="min-w-0 flex-1 text-sm leading-6">{rule}</p>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="size-7 shrink-0 opacity-70 transition-opacity group-hover:opacity-100"
-                          onClick={() =>
-                            setWorldRules((current) =>
-                              current.filter((_, itemIndex) => itemIndex !== ruleIndex),
-                            )
-                          }
-                          disabled={worldRulesSaving}
-                          aria-label="Eliminar regla del mundo"
-                        >
-                          <X />
-                        </Button>
-                      </div>
-                    )
-                  })}
-                </div>
-              ) : (
-                <div className="rounded-xl border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">
-                  {worldRules.length === 0
-                    ? "Todavia no hay reglas configuradas para este proyecto."
-                    : "No se encontraron reglas con esa busqueda."}
-                </div>
-              )}
+              <WorldRulesList
+                rules={worldRules}
+                filteredRules={filteredWorldRules}
+                search={worldRulesSearch}
+                onSearchChange={setWorldRulesSearch}
+                onRemove={(ruleIndex) =>
+                  setWorldRules((current) =>
+                    current.filter((_, itemIndex) => itemIndex !== ruleIndex),
+                  )
+                }
+                disabled={worldRulesSaving}
+              />
 
             </div>
           )}
@@ -1667,81 +1605,242 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
             </div>
           ) : (
             <>
-              <div className="rounded-lg border bg-muted/30 p-3 text-sm">
-                <p className="font-medium">
-                  Extracción de entidades e inconsistencias
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Podés usar tu propia API Key de Gemini. Se almacena cifrada y
-                  nunca volvemos a mostrarla completa.
-                </p>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  Estado: {aiSettings?.configured ? "Configurada" : "Se usa la clave del servidor"}
-                  {aiSettings?.keyPrefix ? ` (${aiSettings.keyPrefix})` : ""}
-                </p>
-              </div>
+              <section className="space-y-4 rounded-xl border bg-card p-4">
+                <div>
+                  <p className="font-semibold">Modelo para extracción y auditoría</p>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                    Esta selección se aplica a todos tus proyectos para extraer entidades y relaciones, y revisar inconsistencias. No modifica el proveedor del chat.
+                  </p>
+                </div>
+
+                <Field>
+                  <FieldLabel htmlFor="ai-provider">Proveedor</FieldLabel>
+                  <select
+                    id="ai-provider"
+                    value={aiProvider}
+                    onChange={(event) => {
+                      const nextProvider = event.target.value as AiProvider
+                      const nextOption = aiSettings?.providers.find(
+                        (option) => option.provider === nextProvider,
+                      )
+                      let nextCredentialSource: AiCredentialSource = "USER"
+                      if (!nextOption?.userKeyConfigured && nextOption?.serverCredentialAvailable) {
+                        nextCredentialSource = "SERVER"
+                      }
+                      setAiProvider(nextProvider)
+                      setAiModel(nextOption?.suggestedModels[0]?.id ?? "")
+                      setAiCredentialSource(nextCredentialSource)
+                      setAiProviderError(null)
+                      setAiProviderNotice(null)
+                    }}
+                    className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                  >
+                    {aiSettings?.providers.map((provider) => (
+                      <option key={provider.provider} value={provider.provider}>
+                        {provider.label}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+
+                <Field>
+                  <FieldLabel htmlFor="ai-model">Modelo</FieldLabel>
+                  <select
+                    id="ai-model"
+                    value={isSuggestedAiModel ? aiModel : "__custom__"}
+                    onChange={(event) => {
+                      setAiModel(event.target.value === "__custom__" ? "" : event.target.value)
+                      setAiProviderError(null)
+                    }}
+                    className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                  >
+                    {selectedProviderModels.map((model) => (
+                      <option key={model.id} value={model.id}>
+                        {model.label}
+                      </option>
+                    ))}
+                    <option value="__custom__">Otro modelo…</option>
+                  </select>
+                  {!isSuggestedAiModel && (
+                    <Input
+                      id="ai-custom-model"
+                      value={aiModel}
+                      maxLength={120}
+                      onChange={(event) => {
+                        setAiModel(event.target.value)
+                        setAiProviderError(null)
+                      }}
+                      placeholder="ID del modelo del proveedor"
+                      autoComplete="off"
+                    />
+                  )}
+                  <FieldDescription>
+                    Podés elegir un modelo sugerido o ingresar su ID. El proveedor lo validará cuando se ejecute un análisis.
+                  </FieldDescription>
+                </Field>
+
+                <Field>
+                  <FieldLabel htmlFor="ai-credential-source">Credencial a utilizar</FieldLabel>
+                  <select
+                    id="ai-credential-source"
+                    value={aiCredentialSource}
+                    onChange={(event) => {
+                      setAiCredentialSource(event.target.value as AiCredentialSource)
+                      setAiProviderError(null)
+                    }}
+                    className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                  >
+                    <option
+                      value="USER"
+                      disabled={!selectedAiProviderOption?.userKeyConfigured}
+                    >
+                      Mi API Key
+                    </option>
+                    <option
+                      value="SERVER"
+                      disabled={!selectedAiProviderOption?.serverCredentialAvailable}
+                    >
+                      Clave administrada por PlumIA
+                    </option>
+                  </select>
+                  <FieldDescription>
+                    {aiCredentialDescription}
+                  </FieldDescription>
+                </Field>
+
+                {aiProviderError && <FieldError>{aiProviderError}</FieldError>}
+                {aiProviderNotice && (
+                  <Alert>
+                    <AlertDescription>{aiProviderNotice}</AlertDescription>
+                  </Alert>
+                )}
+              </section>
+
+              <section className="space-y-3 rounded-xl border p-4">
+                <div>
+                  <p className="font-semibold">Claves personales</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Cada proveedor conserva su propia clave cifrada. Nunca se muestra completa y se puede cambiar sin afectar la del otro proveedor.
+                  </p>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {aiSettings?.providers.map((provider) => {
+                    const isSelectedPersonalKey =
+                      aiProvider === provider.provider && aiCredentialSource === "USER"
+                    return (
+                      <div
+                        key={provider.provider}
+                        className="min-w-0 space-y-3 rounded-lg border bg-card p-3"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium">{provider.label}</p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {formatProviderKeyStatus(
+                                provider.userKeyConfigured,
+                                provider.keyPrefix,
+                                provider.updatedAt,
+                              )}
+                            </p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {provider.serverCredentialAvailable
+                                ? "Clave de PlumIA disponible"
+                                : "Clave de PlumIA no configurada"}
+                            </p>
+                          </div>
+                          <KeyRound className="size-4 shrink-0 text-primary" />
+                        </div>
+                        <Field>
+                          <FieldLabel htmlFor={`provider-key-${provider.provider}`}>
+                            API Key
+                          </FieldLabel>
+                          <Input
+                            id={`provider-key-${provider.provider}`}
+                            type="password"
+                            maxLength={500}
+                            value={providerApiKeys[provider.provider]}
+                            onChange={(event) => {
+                              setProviderApiKeys((current) => ({
+                                ...current,
+                                [provider.provider]: event.target.value,
+                              }))
+                              setAiError(null)
+                              setAiNotice(null)
+                            }}
+                            placeholder={
+                              provider.userKeyConfigured
+                                ? "Ingresá una clave nueva para reemplazarla"
+                                : "Pegá tu API Key"
+                            }
+                            autoComplete="new-password"
+                            disabled={providerKeySaving !== null || removingAiKey}
+                          />
+                        </Field>
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => void handleSaveProviderKey(provider.provider)}
+                            disabled={
+                              providerKeySaving !== null ||
+                              removingAiKey ||
+                              !providerApiKeys[provider.provider].trim()
+                            }
+                          >
+                            {providerKeySaving === provider.provider ? <Spinner /> : null}
+                            Guardar clave
+                          </Button>
+                          {provider.userKeyConfigured && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                setProviderToRemove(provider.provider)
+                                setRemoveAiKeyOpen(true)
+                              }}
+                              disabled={removingAiKey || providerKeySaving !== null || isSelectedPersonalKey}
+                              aria-label={`Eliminar API Key de ${provider.label}`}
+                            >
+                              <Trash2 />
+                              Eliminar
+                            </Button>
+                          )}
+                        </div>
+                        {isSelectedPersonalKey && (
+                          <p className="text-xs text-muted-foreground">
+                            Cambiá la fuente de credencial y guardá la configuración antes de eliminar esta clave.
+                          </p>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+                {aiError && <FieldError>{aiError}</FieldError>}
+                {aiNotice && (
+                  <Alert>
+                    <AlertDescription>{aiNotice}</AlertDescription>
+                  </Alert>
+                )}
+              </section>
 
               <div className="flex items-center justify-between gap-4 rounded-lg border p-3">
                 <div className="min-w-0">
-                  <p className="font-medium">Analizar automaticamente al guardar</p>
+                  <p className="font-medium">Analizar automáticamente al guardar</p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Si lo desactivas, los cambios se guardan sin utilizar IA.
-                    Podras usar Analizar cambios desde el editor cuando quieras.
+                    Si lo desactivás, los cambios se guardan sin utilizar IA. Podés usar Analizar cambios desde el editor cuando quieras.
                   </p>
                 </div>
                 <Switch
                   checked={aiSettings?.autoAnalyzeOnAutosave ?? true}
                   onCheckedChange={handleAutoAnalysisChange}
                   disabled={autoAnalysisSaving || aiLoading}
-                  aria-label="Analizar automaticamente al guardar"
+                  aria-label="Analizar automáticamente al guardar"
                 />
               </div>
 
               {autoAnalysisError && <FieldError>{autoAnalysisError}</FieldError>}
-
-              <Field>
-                <FieldLabel htmlFor="gemini-api-key">API Key de Gemini</FieldLabel>
-                <Input
-                  id="gemini-api-key"
-                  type="password"
-                  value={aiKey}
-                  onChange={(event) => {
-                    setAiKey(event.target.value)
-                    setAiError(null)
-                    setAiNotice(null)
-                  }}
-                  placeholder={
-                    aiSettings?.configured
-                      ? "Ingresá una nueva clave para reemplazarla"
-                      : "Pegá tu API Key"
-                  }
-                  autoComplete="new-password"
-                  disabled={aiSaving || removingAiKey}
-                />
-                <FieldDescription>
-                  La clave se aplicará a todos tus proyectos de PlumIA.
-                </FieldDescription>
-              </Field>
-
-              {aiError && <FieldError>{aiError}</FieldError>}
-              {aiNotice && (
-                <Alert>
-                  <AlertDescription>{aiNotice}</AlertDescription>
-                </Alert>
-              )}
-
-              {aiSettings?.configured && (
-                <Button
-                  type="button"
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => setRemoveAiKeyOpen(true)}
-                  disabled={aiSaving || removingAiKey}
-                >
-                  <Trash2 />
-                  Eliminar API Key propia
-                </Button>
-              )}
             </>
           )}
         </TabsContent>
@@ -1772,13 +1871,15 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
         <Tabs
           value={entityCatalogSection}
           onValueChange={(value) => setEntityCatalogSection(value as EntityCatalogSection)}
-          className="min-h-0"
+          className="shrink-0"
         >
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="important">Importantes</TabsTrigger>
-            <TabsTrigger value="ignored">Ignoradas</TabsTrigger>
-            <TabsTrigger value="rejected">Rechazadas</TabsTrigger>
-          </TabsList>
+          <div className="sticky -top-5 z-10 -mx-4 bg-background px-4 pb-3 pt-5 md:-mx-6 md:px-6">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="important">Importantes</TabsTrigger>
+              <TabsTrigger value="ignored">Ignoradas</TabsTrigger>
+              <TabsTrigger value="rejected">Rechazadas</TabsTrigger>
+            </TabsList>
+          </div>
 
           <TabsContent value="important" className="mt-4 space-y-3">
             <p className="text-xs text-muted-foreground">
@@ -1980,117 +2081,57 @@ export function UserMenu({ inverted = false }: UserMenuProps) {
         </Tabs>
       </FormDialog>
 
-      <AlertDialog
+      <ConfirmDialog
         open={profileCloseWarningOpen}
         onOpenChange={setProfileCloseWarningOpen}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Salir sin guardar?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Hay cambios de configuracion pendientes. Si cerras ahora, se perderan.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Seguir editando</AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              onClick={discardProfileChanges}
-            >
-              Descartar cambios
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        title="¿Salir sin guardar?"
+        description="Hay cambios de configuración pendientes. Si cerrás ahora, se perderán."
+        cancelLabel="Seguir editando"
+        confirmLabel="Descartar cambios"
+        onConfirm={discardProfileChanges}
+      />
 
-      <AlertDialog
+      <ConfirmDialog
         open={deleteOpen}
         onOpenChange={(open) => {
-          if (open) {
-            setDeleteOpen(true)
-            return
-          }
-          // Mientras se está borrando no se cierra: el error tiene que verse.
-          if (!deleting) closeDeleteDialog()
+          if (open) setDeleteOpen(true)
+          else closeDeleteDialog()
         }}
+        title="¿Eliminar tu cuenta?"
+        description="Se van a borrar tus proyectos, capítulos, escenas, imágenes y tu acceso a PlumIA. Esta acción no se puede deshacer."
+        confirmLabel={deleting ? "Eliminando…" : "Eliminar mi cuenta"}
+        loading={deleting}
+        confirmDisabled={!emailMatchesConfirmation}
+        error={deleteError}
+        onConfirm={handleDeleteAccount}
       >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar tu cuenta?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Se van a borrar tus proyectos, capítulos, escenas, imágenes y tu
-              acceso a PlumIA. Esta acción no se puede deshacer.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
+        <Field>
+          <FieldLabel htmlFor="confirm-delete-email">
+            Escribí tu email para confirmar
+          </FieldLabel>
+          <Input
+            id="confirm-delete-email"
+            type="email"
+            value={confirmEmail}
+            onChange={(event) => setConfirmEmail(event.target.value)}
+            placeholder={email}
+            autoComplete="off"
+            disabled={deleting}
+          />
+        </Field>
+      </ConfirmDialog>
 
-          {deleteError && (
-            <Alert variant="destructive">
-              <CircleAlert />
-              <AlertDescription>{deleteError}</AlertDescription>
-            </Alert>
-          )}
-
-          <Field>
-            <FieldLabel htmlFor="confirm-delete-email">
-              Escribí tu email para confirmar
-            </FieldLabel>
-            <Input
-              id="confirm-delete-email"
-              type="email"
-              value={confirmEmail}
-              onChange={(event) => setConfirmEmail(event.target.value)}
-              placeholder={email}
-              autoComplete="off"
-              disabled={deleting}
-            />
-          </Field>
-
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              disabled={deleting || !emailMatchesConfirmation}
-              onClick={(event) => {
-                event.preventDefault()
-                void handleDeleteAccount()
-              }}
-            >
-              {deleting ? <Spinner className="size-4" /> : <Trash2 />}
-              {deleting ? "Eliminando…" : "Eliminar mi cuenta"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <AlertDialog
+      <ConfirmDialog
         open={removeAiKeyOpen}
         onOpenChange={(open) => {
           if (!removingAiKey) setRemoveAiKeyOpen(open)
         }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar tu API Key de Gemini?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Los próximos análisis volverán a utilizar la clave configurada por el servidor.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={removingAiKey}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              disabled={removingAiKey}
-              onClick={(event) => {
-                event.preventDefault()
-                void handleRemoveAiKey()
-              }}
-            >
-              {removingAiKey ? <Spinner /> : null}
-              Eliminar API Key
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        title={`¿Eliminar tu API Key de ${providerToRemove === "gemini" ? "Gemini" : "Anthropic"}?`}
+        description="La clave personal se eliminará. Si ese proveedor está activo, primero cambiá la fuente de credencial y guardá la configuración."
+        confirmLabel="Eliminar clave"
+        loading={removingAiKey}
+        onConfirm={handleRemoveAiKey}
+      />
     </>
   )
 }

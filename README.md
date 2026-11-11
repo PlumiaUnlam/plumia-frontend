@@ -1,47 +1,43 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# PlumIA Frontend
 
-## Getting Started
+Aplicación web de PlumIA, construida con Next.js. El proyecto se ejecuta en el puerto `3001` y necesita un backend NestJS disponible, normalmente en `http://localhost:3000`.
 
-First, run the development server:
+## Probar la aplicación desplegada
+
+**[Abrir PlumIA](https://plumia-frontend.vercel.app/)**
+
+## Inicio local rápido
+
+Se necesita Node.js 22.x y pnpm 9.15.0. Para configurar y levantar la aplicación completa, primero seguí la [guía de instalación y uso del proyecto](https://github.com/PlumiaUnlam/plumia-backend#plumia), que explica cómo clonar ambos repositorios, configurar Firebase y levantar el backend y sus servicios.
+
+Con el backend en ejecución, desde esta carpeta:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cp .env.example .env.local
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Completá en `.env.local` los valores `NEXT_PUBLIC_FIREBASE_API_KEY`, `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` y `NEXT_PUBLIC_FIREBASE_PROJECT_ID` de la aplicación web registrada en Firebase. Para el backend local, mantené `NEXT_PUBLIC_API_URL=/api` y `API_URL=http://localhost:3000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Después instalá dependencias y levantá Next.js:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+pnpm install --frozen-lockfile
+pnpm dev
+```
 
-## E2E con Playwright
+Abrí [http://localhost:3001](http://localhost:3001). Las variables con prefijo `NEXT_PUBLIC_` se incorporan al frontend; reiniciá el servidor si las cambiás.
 
-Instala Chromium una vez y ejecuta los recorridos principales con:
+## Comandos de desarrollo
+
+```bash
+pnpm lint
+pnpm exec tsc --noEmit --pretty false
+pnpm build
+```
+
+Para los recorridos E2E de Playwright, instalá Chromium una vez y ejecutá:
 
 ```bash
 pnpm exec playwright install chromium
 pnpm test:e2e
 ```
-
-`pnpm test:e2e` genera el build de producción antes de iniciar Playwright. Las pruebas simulan Firebase y la API, comparten una sesión autenticada y ejecutan los casos de Chromium en paralelo.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
