@@ -123,4 +123,3 @@ export async function domCounters(cdp: CDPSession) {
   const { usedSize } = (await cdp.send("Runtime.getHeapUsage")) as { usedSize: number }
   return { nodes, jsEventListeners, heapMb: usedSize / 1024 / 1024 }
 }
-

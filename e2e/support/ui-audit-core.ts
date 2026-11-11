@@ -1032,4 +1032,3 @@ export function report(name: string, collector: Collector) {
   )
   return Array.from(collector.hard, ([message, context]) => `${message}   ⟵ ${context}`)
 }
-
