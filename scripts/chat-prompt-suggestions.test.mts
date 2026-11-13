@@ -71,6 +71,19 @@ check("ignora entidades inactivas, sin nombre o con nombres demasiado largos", (
   assert.deepEqual(suggestions, DEFAULT_CHAT_PROMPT_SUGGESTIONS)
 })
 
+check("evita nombres con iniciales si hay otro personaje", () => {
+  const [first] = buildChatPromptSuggestions([
+    entity("John H. Watson", "CHARACTER"),
+    entity("Sherlock Holmes", "CHARACTER"),
+  ])
+  assert.equal(first, "¿Quién es Sherlock Holmes?")
+})
+
+check("usa un nombre con iniciales si es el único disponible", () => {
+  const [first] = buildChatPromptSuggestions([entity("John H. Watson", "CHARACTER")])
+  assert.equal(first, "¿Quién es John H. Watson?")
+})
+
 check("recorta espacios del nombre", () => {
   const [first] = buildChatPromptSuggestions([entity("  Inés Vale  ", "CHARACTER")])
   assert.equal(first, "¿Quién es Inés Vale?")

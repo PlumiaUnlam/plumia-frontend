@@ -38,16 +38,24 @@ export function buildChatPromptSuggestions(
   ]
 }
 
-/** Prefiere al protagonista, después cualquier personaje y luego otra entidad. */
+/**
+ * Prefiere al protagonista, después cualquier personaje y luego otra entidad.
+ * Evita nombres con iniciales o abreviaturas ("John H. Watson"): el punto corta
+ * las citas de «primera aparición» a mitad de frase.
+ */
 function pickFeaturedEntity(entities: readonly Entity[]): Entity | null {
   const usable = entities.filter((entity) => {
     const name = entity.canonicalName.trim()
     return entity.isActive !== false && name.length > 0 && name.length <= MAX_NAME_LENGTH
   })
-  const characters = usable.filter((entity) => entity.type === "CHARACTER")
-  return (
-    characters.find(isProtagonist) ?? characters[0] ?? usable[0] ?? null
-  )
+  const plain = usable.filter((entity) => !entity.canonicalName.includes("."))
+  for (const candidates of [plain, usable]) {
+    const characters = candidates.filter((entity) => entity.type === "CHARACTER")
+    const featured =
+      characters.find(isProtagonist) ?? characters[0] ?? candidates[0]
+    if (featured) return featured
+  }
+  return null
 }
 
 function isProtagonist(entity: Entity): boolean {
