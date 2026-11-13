@@ -55,6 +55,7 @@ import {
   sendChatMessage,
   updateChatThread,
 } from "@/services/chat.service"
+import { useChatPromptSuggestions } from "@/hooks/use-chat-prompt-suggestions"
 import { useVoiceTranscriber } from "@/hooks/use-voice-transcriber"
 import { resolveNavigationFeedback, rightPanelTabFor } from "@/lib/chat-navigation-feedback"
 import { useEditorStore } from "@/stores/editor.store"
@@ -75,16 +76,11 @@ const WAITING_MESSAGES = [
   "Preparando una respuesta respaldada…",
 ]
 
-const promptSuggestions = [
-  "¿Qué hechos importantes registra la línea de tiempo?",
-  "¿Cómo se relacionan los personajes mencionados en esta parte?",
-  "¿Dónde encuentro las herramientas de PlumIA?",
-]
-
 export function ChatPanel({
   projectId,
   primaryImageUrls = {},
 }: ChatPanelProps) {
+  const promptSuggestions = useChatPromptSuggestions(projectId)
   const [threadId, setThreadId] = useState<string | null>(null)
   const [threads, setThreads] = useState<ChatThread[]>([])
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -567,6 +563,7 @@ export function ChatPanel({
               isSending={isSending}
               waitingMessageIndex={waitingMessageIndex}
               isFullscreen={isFullscreen}
+              suggestions={promptSuggestions}
               onSuggestion={setDraft}
               onBeforeSourceNavigation={handleBeforeSourceNavigation}
             />
@@ -623,6 +620,7 @@ function ChatMessages({
   isSending,
   waitingMessageIndex,
   isFullscreen,
+  suggestions,
   onSuggestion,
   onBeforeSourceNavigation,
 }: {
@@ -633,11 +631,14 @@ function ChatMessages({
   readonly isSending: boolean
   readonly waitingMessageIndex: number
   readonly isFullscreen: boolean
+  readonly suggestions: readonly string[]
   readonly onSuggestion: (suggestion: string) => void
   readonly onBeforeSourceNavigation: () => void
 }) {
   if (isLoading) return <ChatLoadingState />
-  if (messages.length === 0) return <EmptyChatState onSuggestion={onSuggestion} />
+  if (messages.length === 0) {
+    return <EmptyChatState suggestions={suggestions} onSuggestion={onSuggestion} />
+  }
 
   return (
     <div className="space-y-4">
@@ -893,8 +894,10 @@ function getVoiceStatusMessage(
 }
 
 function EmptyChatState({
+  suggestions,
   onSuggestion,
 }: {
+  readonly suggestions: readonly string[]
   readonly onSuggestion: (suggestion: string) => void
 }) {
   return (
@@ -910,7 +913,7 @@ function EmptyChatState({
         tiempo o cómo usar PlumIA.
       </p>
       <div className="mt-4 w-full space-y-2">
-        {promptSuggestions.map((suggestion) => (
+        {suggestions.map((suggestion) => (
           <button
             key={suggestion}
             type="button"
