@@ -166,11 +166,11 @@ function WikiPanelContent({
   const [expandedSections, setExpandedSections] = useState<
     Record<WikiSectionKey, boolean>
   >({
-    inconsistencies: true,
-    relationships: true,
-    entities: true,
-    proposals: true,
-    states: true,
+    inconsistencies: false,
+    relationships: false,
+    entities: false,
+    proposals: false,
+    states: false,
   });
 
   const toggleSection = (section: WikiSectionKey) => {
@@ -181,6 +181,19 @@ function WikiPanelContent({
   };
 
   const focusedAlertDoneRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!focusedAlertId || !showReviewSections) return;
+
+    const frame = requestAnimationFrame(() => {
+      setExpandedSections((current) =>
+        current.inconsistencies
+          ? current
+          : { ...current, inconsistencies: true },
+      );
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [focusedAlertId, showReviewSections]);
 
   useEffect(() => {
     if (
