@@ -665,6 +665,85 @@ test.describe("Chat con IA", () => {
 })
 
 test.describe("Wiki del editor y corrector ortográfico", () => {
+  test("las secciones de Wiki arrancan cerradas y se expanden independientemente", async ({
+    page,
+  }) => {
+    await installModalBackend(page)
+    await openEditor(page)
+
+    const sectionNames = [
+      "Inconsistencias detectadas",
+      "Relaciones detectadas",
+      "Entidades confirmadas",
+      "Cambios narrativos",
+      "Propuestas detectadas",
+    ]
+    const toggles = sectionNames.map((name) =>
+      page.getByRole("button", { name, exact: true }),
+    )
+
+    for (const toggle of toggles) {
+      await expect(toggle).toBeVisible()
+      await expect(toggle).toHaveAttribute("aria-expanded", "false")
+      await expect(toggle.locator("..")).toContainText(/\d+$/)
+    }
+
+    for (const [index, toggle] of toggles.entries()) {
+      await toggle.click()
+      await expect(toggle).toHaveAttribute("aria-expanded", "true")
+      for (const [otherIndex, otherToggle] of toggles.entries()) {
+        if (otherIndex !== index) {
+          await expect(otherToggle).toHaveAttribute("aria-expanded", "false")
+        }
+      }
+      await toggle.click()
+      await expect(toggle).toHaveAttribute("aria-expanded", "false")
+    }
+  })
+
+  test("abrir una alerta enfocada expande Inconsistencias detectadas", async ({
+    page,
+  }) => {
+    await installModalBackend(page)
+    await page.route(/\/audit\/projects\/e2e-project\/alerts/, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify([
+          {
+            id: "e2e-focused-alert",
+            projectId,
+            sceneId: "e2e-scene",
+            detectionLevel: "CHUNK",
+            severity: "MEDIUM",
+            category: "CONTINUITY",
+            ruleCode: "ENTITY_PROFILE_CONTRADICTION",
+            sourceChunkId: null,
+            sourceChunkHash: null,
+            title: "Posible contradicción en la escena",
+            description: "La descripción no coincide con el texto.",
+            explanation: "La escena presenta dos datos incompatibles.",
+            confidence: 0.9,
+            status: "ACTIVE",
+            createdAt: "2026-01-01T00:00:00.000Z",
+            resolvedAt: null,
+            conflict: null,
+          },
+        ]),
+      }),
+    )
+    await page.goto(`/projects/${projectId}/editor?alertId=e2e-focused-alert`)
+
+    const inconsistencies = page.getByRole("button", {
+      name: "Inconsistencias detectadas",
+      exact: true,
+    })
+    await expect(inconsistencies).toHaveAttribute("aria-expanded", "true")
+    const alert = page.locator("#audit-alert-e2e-focused-alert")
+    await expect(alert).toBeVisible()
+    await expect(alert).toBeFocused()
+  })
+
   test("HU-24 CA-072/074: muestra y conserva los cambios de la ficha de entidad", async ({
     page,
   }) => {
