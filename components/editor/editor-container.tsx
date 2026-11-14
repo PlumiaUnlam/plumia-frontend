@@ -38,6 +38,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { PlumiaLoader } from "@/components/ui/plumia-loader"
 import { EditorMenuBar } from "./editor-menu-bar"
 import { EditorToolbar } from "./toolbar"
 import { EditorParagraphFormatDialog } from "./paragraph-format-dialog"
@@ -382,8 +383,8 @@ function SceneDocumentLoader({
 
   if (!loaded) {
     return (
-      <div className="flex h-full min-h-0 items-center justify-center text-sm text-muted-foreground">
-        Cargando escena…
+      <div className="flex h-full min-h-0 items-center justify-center">
+        <PlumiaLoader label="Cargando escena…" showLabel />
       </div>
     )
   }

@@ -14,7 +14,7 @@ import { Header } from "../header"
 import { LeftSidebar, type SidebarBook } from "../left-sidebar"
 import { getProject } from "@/services/project.service"
 import { SidebarProvider } from "@/components/ui/sidebar"
-import { Spinner } from "@/components/ui/spinner"
+import { PlumiaLoader } from "@/components/ui/plumia-loader"
 import { EditorRightPanel } from "@/components/editor-right-panel"
 import {
   getLivePrimaryContent,
@@ -406,7 +406,7 @@ export function EditorLayout({ projectId }: Readonly<EditorLayoutProps>) {
                 />
                 {loadedProjectId !== projectId && (
                   <div className="flex flex-1 items-center justify-center">
-                    <Spinner className="size-6 text-muted-foreground" />
+                    <PlumiaLoader label="Cargando proyecto…" showLabel />
                   </div>
                 )}
               </EditorZoomProvider>
